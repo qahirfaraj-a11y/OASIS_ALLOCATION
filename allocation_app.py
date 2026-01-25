@@ -8,7 +8,7 @@ import asyncio
 # Ensure app path is in sys.path
 sys.path.append(os.getcwd())
 
-from app.logic.order_engine import OrderEngine
+from oasis.logic.order_engine import OrderEngine
 
 # Configuration
 # Use current directory for data, compatible with both local and cloud
