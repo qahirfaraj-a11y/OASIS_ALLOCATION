@@ -56,13 +56,19 @@ def generate_allocation_pdf(budget, output_path):
     sku_count = len(stocked_items)
     liquidity = budget - total_val
     
+    # Calculate Capital Recovery
+    total_qty = sum(r['recommended_quantity'] for r in stocked_items)
+    total_daily_sales = sum(r['avg_daily_sales'] for r in stocked_items if r['recommended_quantity'] > 0)
+    avg_turnover_days = (total_qty / total_daily_sales) if total_daily_sales > 0 else 0
+    
     data = [
         ["Metric", "Value"],
         ["Target Budget", f"KES {budget:,.2f}"],
         ["Allocated Stock (Cost)", f"KES {total_val:,.2f}"],
+        ["Days to ROI (Payback)", f"{avg_turnover_days:.1f} Days"],
         ["Retained Liquidity", f"KES {liquidity:,.2f}"],
         ["Unique SKU Width", str(sku_count)],
-        ["Strategy", "Robust Variety (3 Brands / Sachet Bias)"]
+        ["Strategy", "Robust Variety"]
     ]
     
     table = Table(data, colWidths=[40*mm, 80*mm])
