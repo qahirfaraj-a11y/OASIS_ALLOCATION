@@ -4,3 +4,4 @@ numpy
 openpyxl
 plotly
 altair<5
+httpx

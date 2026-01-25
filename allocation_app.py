@@ -11,7 +11,8 @@ sys.path.append(os.getcwd())
 from app.logic.order_engine import OrderEngine
 
 # Configuration
-DATA_DIR = r"c:\Users\iLink\.gemini\antigravity\scratch"
+# Use current directory for data, compatible with both local and cloud
+DATA_DIR = os.getcwd() # Was: r"c:\Users\iLink\.gemini\antigravity\scratch"
 SCORECARD_FILE = r"c:\Users\iLink\.gemini\antigravity\scratch\Full_Product_Allocation_Scorecard_v3.csv"
 
 # --- Helper Logic ---
