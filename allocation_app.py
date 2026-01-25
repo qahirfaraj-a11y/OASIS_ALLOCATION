@@ -119,7 +119,8 @@ def load_and_run_allocation(budget):
                 "Allocated_Cost": cost,
                 "Expected_Revenue": revenue,
                 "Reasoning": r['reasoning'],
-                "Type": funding_source
+                "Type": funding_source,
+                "Avg_Daily_Sales": r.get('avg_daily_sales', 0)
             })
             
     return pd.DataFrame(results), total_cash_spend, total_consignment_val, allocation_summary
@@ -146,24 +147,23 @@ if st.sidebar.button("Run Simulation"):
         
         # Calculate Capital Recovery (Days to ROI)
         total_qty = basket_df["Qty"].sum()
-        # Need to reconstruct daily sales from somewhere or use the loaded dataframe if it has it?
-        # The 'basket_df' only has ['Product', 'Department', 'Qty', 'Allocated_Cost', 'Expected_Revenue', 'Reasoning', 'Type']
-        # We don't have avg_daily_sales in basket_df! 
-        # But we do have 'Expected_Revenue' and 'Price'. 
-        # Basket DF constructed on line 115 in allocation_app.py
-        # WAIT. Lines 115-125 show we are constructing basket_df from 'results'.
-        # We MUST add avg_daily_sales to basket_df first!
+        total_sales = basket_df["Avg_Daily_Sales"].sum()
+        avg_turnover = (total_qty / total_sales) if total_sales > 0 else 0
         
-        # ACTUALLY, simpler approach:
-        # We can calculate it on the fly if we had the data.
-        # But since we don't, we can't calculate it here without modification to load_and_run_allocation
-        # Let's Modify load_and_run_allocation first to include Avg_Daily_Sales
-        pass
+        c1, c2, c3, c4, c5, c6, c7 = st.columns(7)
+        c1.metric("Budget Target", f"${budget:,.0f}")
+        c2.metric("Cash Used", f"${cash_spend:,.0f}", delta=f"{cash_spend-budget:,.0f}")
+        c3.metric("Consignment Val", f"${consignment_val:,.0f}", delta="Free Capital")
+        c4.metric("Est. Revenue", f"${est_revenue:,.0f}", delta=f"{roi:.1f}% ROI")
+        c5.metric("Days to ROI", f"{avg_turnover:.1f} Days", help="Average time to rotate stock and recover capital")
+        c6.metric("Total SKUs", len(basket_df))
         
         # New: Risk Analysis Metric
         risk_buffered_count = basket_df[basket_df['Reasoning'].str.contains("RISK BUFFER", na=False)].shape[0]
         if risk_buffered_count > 0:
-             c6.metric("Risk Buffers Active", f"{risk_buffered_count} Items", delta="Safety Stock Added", help="Items with Volatile Demand or Unreliable Suppliers received extra stock.")
+             c7.metric("Risk Buffers", f"{risk_buffered_count} Items", delta="Safety Stock", help="Items with Volatile Demand or Unreliable Suppliers received extra stock.")
+        else:
+             c7.metric("Risk Buffers", "0 Items")
 
         # v2.6: Display Allocation Summary
         st.info(f"**Utilization**: {alloc_summary['utilization_pct']:.1f}% | **Skipped**: {alloc_summary['total_skipped']} items")
