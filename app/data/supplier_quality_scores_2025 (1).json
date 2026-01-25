@@ -1,0 +1,3992 @@
+{
+  "AQUAMIST LIMITED": {
+    "total_returns": 180,
+    "expiry_returns": 4,
+    "damaged_returns": 23,
+    "short_supply_returns": 24,
+    "total_value_returned": 5691194.068132001,
+    "total_qty_returned": 7424.0,
+    "quality_score": 57.0,
+    "risk_level": "HIGH"
+  },
+  "AFRICAN COTTON INDUSTRIES LTD": {
+    "total_returns": 7,
+    "expiry_returns": 0,
+    "damaged_returns": 0,
+    "short_supply_returns": 7,
+    "total_value_returned": 40473.188707,
+    "total_qty_returned": 330.0,
+    "quality_score": 96.5,
+    "risk_level": "LOW"
+  },
+  "ALPINE COOLERS": {
+    "total_returns": 10,
+    "expiry_returns": 2,
+    "damaged_returns": 0,
+    "short_supply_returns": 1,
+    "total_value_returned": 135000.162,
+    "total_qty_returned": 135.0,
+    "quality_score": 95.5,
+    "risk_level": "LOW"
+  },
+  "ANJU HOME BAKERS": {
+    "total_returns": 3,
+    "expiry_returns": 3,
+    "damaged_returns": 0,
+    "short_supply_returns": 0,
+    "total_value_returned": 1430.000006,
+    "total_qty_returned": 18.0,
+    "quality_score": 94.0,
+    "risk_level": "LOW"
+  },
+  "AQUAPET AND STATIONERS LTD": {
+    "total_returns": 9,
+    "expiry_returns": 9,
+    "damaged_returns": 0,
+    "short_supply_returns": 0,
+    "total_value_returned": 17736.629999999997,
+    "total_qty_returned": 17.0,
+    "quality_score": 82.0,
+    "risk_level": "MEDIUM"
+  },
+  "DNO ASPENDOS DAIRY LTD": {
+    "total_returns": 3,
+    "expiry_returns": 3,
+    "damaged_returns": 0,
+    "short_supply_returns": 0,
+    "total_value_returned": 4459.0,
+    "total_qty_returned": 91.0,
+    "quality_score": 94.0,
+    "risk_level": "LOW"
+  },
+  "AFRI CHINA  I COMPANY K LTD": {
+    "total_returns": 1,
+    "expiry_returns": 1,
+    "damaged_returns": 0,
+    "short_supply_returns": 0,
+    "total_value_returned": 1999.999996,
+    "total_qty_returned": 8.0,
+    "quality_score": 98.0,
+    "risk_level": "LOW"
+  },
+  "ANTONIA STOGDALE  LTD": {
+    "total_returns": 54,
+    "expiry_returns": 47,
+    "damaged_returns": 0,
+    "short_supply_returns": 7,
+    "total_value_returned": 98473.9428,
+    "total_qty_returned": 117.0,
+    "quality_score": 2.5,
+    "risk_level": "CRITICAL"
+  },
+  "ACROSS AGRICULTURE LIMITED SR": {
+    "total_returns": 33,
+    "expiry_returns": 27,
+    "damaged_returns": 0,
+    "short_supply_returns": 6,
+    "total_value_returned": 59619.587607000016,
+    "total_qty_returned": 89.0,
+    "quality_score": 43.0,
+    "risk_level": "HIGH"
+  },
+  "BIO FOOD PRODUCTS LTD": {
+    "total_returns": 424,
+    "expiry_returns": 370,
+    "damaged_returns": 21,
+    "short_supply_returns": 21,
+    "total_value_returned": 243788.1712760004,
+    "total_qty_returned": 1552.0,
+    "quality_score": 0.0,
+    "risk_level": "CRITICAL"
+  },
+  "BROOKSIDE DAIRY LIMITED": {
+    "total_returns": 2311,
+    "expiry_returns": 1882,
+    "damaged_returns": 5,
+    "short_supply_returns": 119,
+    "total_value_returned": 2349414.5197670027,
+    "total_qty_returned": 22079.0,
+    "quality_score": 0.0,
+    "risk_level": "CRITICAL"
+  },
+  "BUYLINE INDUSTRIES LTD": {
+    "total_returns": 3,
+    "expiry_returns": 0,
+    "damaged_returns": 0,
+    "short_supply_returns": 3,
+    "total_value_returned": 2402.0352,
+    "total_qty_returned": 24.0,
+    "quality_score": 98.5,
+    "risk_level": "LOW"
+  },
+  "BARAKA KENYA LIMITED": {
+    "total_returns": 8,
+    "expiry_returns": 5,
+    "damaged_returns": 3,
+    "short_supply_returns": 0,
+    "total_value_returned": 5374.16,
+    "total_qty_returned": 31.0,
+    "quality_score": 87.0,
+    "risk_level": "MEDIUM"
+  },
+  "SMART BRANDS LTD HQ": {
+    "total_returns": 65,
+    "expiry_returns": 41,
+    "damaged_returns": 19,
+    "short_supply_returns": 5,
+    "total_value_returned": 79786.54368500003,
+    "total_qty_returned": 192.0,
+    "quality_score": 0.0,
+    "risk_level": "CRITICAL"
+  },
+  "BROADWAYS BAKERY LTD": {
+    "total_returns": 652,
+    "expiry_returns": 594,
+    "damaged_returns": 4,
+    "short_supply_returns": 53,
+    "total_value_returned": 96254.99991200013,
+    "total_qty_returned": 1491.0,
+    "quality_score": 0.0,
+    "risk_level": "CRITICAL"
+  },
+  "BEST BUY COMMODITY LIMITED": {
+    "total_returns": 32,
+    "expiry_returns": 13,
+    "damaged_returns": 0,
+    "short_supply_returns": 14,
+    "total_value_returned": 68537.861643,
+    "total_qty_returned": 231.0,
+    "quality_score": 67.0,
+    "risk_level": "HIGH"
+  },
+  "254 BREWING COMPANY LIMITED": {
+    "total_returns": 22,
+    "expiry_returns": 4,
+    "damaged_returns": 0,
+    "short_supply_returns": 0,
+    "total_value_returned": 68043.99998400001,
+    "total_qty_returned": 930.0,
+    "quality_score": 92.0,
+    "risk_level": "LOW"
+  },
+  "BIGCOLD KENYA SIMPLIFINE SHELF BREAD": {
+    "total_returns": 266,
+    "expiry_returns": 243,
+    "damaged_returns": 0,
+    "short_supply_returns": 6,
+    "total_value_returned": 98986.10759999994,
+    "total_qty_returned": 760.0,
+    "quality_score": 0.0,
+    "risk_level": "CRITICAL"
+  },
+  "CHANDARIA INDUSTRIES  LTD": {
+    "total_returns": 34,
+    "expiry_returns": 9,
+    "damaged_returns": 6,
+    "short_supply_returns": 18,
+    "total_value_returned": 94318.764232,
+    "total_qty_returned": 759.0,
+    "quality_score": 67.0,
+    "risk_level": "HIGH"
+  },
+  "COCA COLA BEVERAGES KENYA LTD": {
+    "total_returns": 487,
+    "expiry_returns": 46,
+    "damaged_returns": 31,
+    "short_supply_returns": 220,
+    "total_value_returned": 9485398.734297995,
+    "total_qty_returned": 30665.0,
+    "quality_score": 0.0,
+    "risk_level": "CRITICAL"
+  },
+  "CRYSTAL FROZEN AND CHILLED FOODS LTD": {
+    "total_returns": 176,
+    "expiry_returns": 145,
+    "damaged_returns": 0,
+    "short_supply_returns": 28,
+    "total_value_returned": 505703.53930699994,
+    "total_qty_returned": 1083.0,
+    "quality_score": 0.0,
+    "risk_level": "CRITICAL"
+  },
+  "CAPWELL INDUSTRIES LTD": {
+    "total_returns": 190,
+    "expiry_returns": 59,
+    "damaged_returns": 127,
+    "short_supply_returns": 4,
+    "total_value_returned": 247266.17018700004,
+    "total_qty_returned": 900.0,
+    "quality_score": 0.0,
+    "risk_level": "CRITICAL"
+  },
+  "CHIRAG AFRICA LIMITED": {
+    "total_returns": 7,
+    "expiry_returns": 6,
+    "damaged_returns": 0,
+    "short_supply_returns": 1,
+    "total_value_returned": 2782.500801,
+    "total_qty_returned": 19.0,
+    "quality_score": 87.5,
+    "risk_level": "MEDIUM"
+  },
+  "CANON CHEMICALS LTD": {
+    "total_returns": 5,
+    "expiry_returns": 0,
+    "damaged_returns": 3,
+    "short_supply_returns": 2,
+    "total_value_returned": 3755.820002,
+    "total_qty_returned": 22.0,
+    "quality_score": 96.0,
+    "risk_level": "LOW"
+  },
+  "CROWN BRANDS": {
+    "total_returns": 13,
+    "expiry_returns": 12,
+    "damaged_returns": 0,
+    "short_supply_returns": 1,
+    "total_value_returned": 15237.76,
+    "total_qty_returned": 210.0,
+    "quality_score": 75.5,
+    "risk_level": "MEDIUM"
+  },
+  "CALIBER FOODS LIMITED": {
+    "total_returns": 171,
+    "expiry_returns": 168,
+    "damaged_returns": 0,
+    "short_supply_returns": 3,
+    "total_value_returned": 37739.99992599998,
+    "total_qty_returned": 360.0,
+    "quality_score": 0.0,
+    "risk_level": "CRITICAL"
+  },
+  "CHANDARIA INDUSTRIES LTD HENKEL C BRANDS": {
+    "total_returns": 26,
+    "expiry_returns": 0,
+    "damaged_returns": 13,
+    "short_supply_returns": 13,
+    "total_value_returned": 155453.85320200003,
+    "total_qty_returned": 164.0,
+    "quality_score": 80.5,
+    "risk_level": "MEDIUM"
+  },
+  "CHANDARIA INDUSTRIES LTD MACCOFFEE": {
+    "total_returns": 23,
+    "expiry_returns": 4,
+    "damaged_returns": 0,
+    "short_supply_returns": 19,
+    "total_value_returned": 69262.417773,
+    "total_qty_returned": 213.0,
+    "quality_score": 82.5,
+    "risk_level": "MEDIUM"
+  },
+  "CHANDARIA INDUSTRIES LIMITED TONI": {
+    "total_returns": 42,
+    "expiry_returns": 28,
+    "damaged_returns": 0,
+    "short_supply_returns": 14,
+    "total_value_returned": 64770.13481100001,
+    "total_qty_returned": 394.0,
+    "quality_score": 37.0,
+    "risk_level": "CRITICAL"
+  },
+  "CRYSTAL FR  AND CHILLED FOODS LTD WINE SR": {
+    "total_returns": 5,
+    "expiry_returns": 3,
+    "damaged_returns": 0,
+    "short_supply_returns": 2,
+    "total_value_returned": 13618.889597,
+    "total_qty_returned": 35.0,
+    "quality_score": 93.0,
+    "risk_level": "LOW"
+  },
+  "CONFINI LIMITED": {
+    "total_returns": 3,
+    "expiry_returns": 2,
+    "damaged_returns": 0,
+    "short_supply_returns": 1,
+    "total_value_returned": 1327.500003,
+    "total_qty_returned": 14.0,
+    "quality_score": 95.5,
+    "risk_level": "LOW"
+  },
+  "DEBENHAM AND FEAR LTD": {
+    "total_returns": 84,
+    "expiry_returns": 67,
+    "damaged_returns": 6,
+    "short_supply_returns": 10,
+    "total_value_returned": 210537.946654,
+    "total_qty_returned": 429.0,
+    "quality_score": 0.0,
+    "risk_level": "CRITICAL"
+  },
+  "DPL FESTIVE  LIMITED": {
+    "total_returns": 965,
+    "expiry_returns": 766,
+    "damaged_returns": 0,
+    "short_supply_returns": 171,
+    "total_value_returned": 382894.190022999,
+    "total_qty_returned": 3939.0,
+    "quality_score": 0.0,
+    "risk_level": "CRITICAL"
+  },
+  "DELMONTE KENYA LTD": {
+    "total_returns": 4,
+    "expiry_returns": 0,
+    "damaged_returns": 0,
+    "short_supply_returns": 4,
+    "total_value_returned": 22765.549636,
+    "total_qty_returned": 156.0,
+    "quality_score": 98.0,
+    "risk_level": "LOW"
+  },
+  "DEVYANI FOOD INDUSTRIES K LIMITED MILK AND YOGHURT": {
+    "total_returns": 702,
+    "expiry_returns": 619,
+    "damaged_returns": 0,
+    "short_supply_returns": 75,
+    "total_value_returned": 323771.4185930005,
+    "total_qty_returned": 4321.0,
+    "quality_score": 0.0,
+    "risk_level": "CRITICAL"
+  },
+  "DEVYANI FOOD INDUSTRIES K LIMITED": {
+    "total_returns": 73,
+    "expiry_returns": 53,
+    "damaged_returns": 0,
+    "short_supply_returns": 19,
+    "total_value_returned": 63563.316629000015,
+    "total_qty_returned": 294.0,
+    "quality_score": 0.0,
+    "risk_level": "CRITICAL"
+  },
+  "EXCEL CHEMICALS LTD": {
+    "total_returns": 33,
+    "expiry_returns": 3,
+    "damaged_returns": 26,
+    "short_supply_returns": 4,
+    "total_value_returned": 11667.481608,
+    "total_qty_returned": 49.0,
+    "quality_score": 66.0,
+    "risk_level": "HIGH"
+  },
+  "E.A.G.M HQ": {
+    "total_returns": 3,
+    "expiry_returns": 0,
+    "damaged_returns": 0,
+    "short_supply_returns": 2,
+    "total_value_returned": 8296.32,
+    "total_qty_returned": 18.0,
+    "quality_score": 99.0,
+    "risk_level": "LOW"
+  },
+  "ELDORET GRAINS LIMITED": {
+    "total_returns": 6,
+    "expiry_returns": 2,
+    "damaged_returns": 4,
+    "short_supply_returns": 0,
+    "total_value_returned": 2588.2999999999997,
+    "total_qty_returned": 19.0,
+    "quality_score": 92.0,
+    "risk_level": "LOW"
+  },
+  "FARMERS CHOICE LTD": {
+    "total_returns": 174,
+    "expiry_returns": 40,
+    "damaged_returns": 14,
+    "short_supply_returns": 120,
+    "total_value_returned": 212644.55989899978,
+    "total_qty_returned": 483.3,
+    "quality_score": 0.0,
+    "risk_level": "CRITICAL"
+  },
+  "FARMERS CHOICE LTD DELI": {
+    "total_returns": 68,
+    "expiry_returns": 2,
+    "damaged_returns": 2,
+    "short_supply_returns": 64,
+    "total_value_returned": 163505.26190954988,
+    "total_qty_returned": 80.26499999999997,
+    "quality_score": 62.0,
+    "risk_level": "HIGH"
+  },
+  "GREEN FARM POULTRY": {
+    "total_returns": 57,
+    "expiry_returns": 16,
+    "damaged_returns": 40,
+    "short_supply_returns": 1,
+    "total_value_returned": 77145.0,
+    "total_qty_returned": 213.0,
+    "quality_score": 27.5,
+    "risk_level": "CRITICAL"
+  },
+  "GILANI GOURMET LTD": {
+    "total_returns": 13,
+    "expiry_returns": 4,
+    "damaged_returns": 8,
+    "short_supply_returns": 1,
+    "total_value_returned": 13928.0,
+    "total_qty_returned": 26.0,
+    "quality_score": 83.5,
+    "risk_level": "MEDIUM"
+  },
+  "GOLD CROWN BEVERAGES K LTD": {
+    "total_returns": 30,
+    "expiry_returns": 4,
+    "damaged_returns": 15,
+    "short_supply_returns": 11,
+    "total_value_returned": 39783.633288,
+    "total_qty_returned": 149.0,
+    "quality_score": 71.5,
+    "risk_level": "MEDIUM"
+  },
+  "GRAIN INDUSTRIES LIMITED": {
+    "total_returns": 35,
+    "expiry_returns": 4,
+    "damaged_returns": 30,
+    "short_supply_returns": 1,
+    "total_value_returned": 23029.910000000003,
+    "total_qty_returned": 146.0,
+    "quality_score": 61.5,
+    "risk_level": "HIGH"
+  },
+  "GITHUNGURI DAIRY FARMERS": {
+    "total_returns": 315,
+    "expiry_returns": 293,
+    "damaged_returns": 5,
+    "short_supply_returns": 9,
+    "total_value_returned": 158064.58101399988,
+    "total_qty_returned": 1809.0,
+    "quality_score": 0.0,
+    "risk_level": "CRITICAL"
+  },
+  "GOURMET FOODS INT LTD": {
+    "total_returns": 13,
+    "expiry_returns": 12,
+    "damaged_returns": 1,
+    "short_supply_returns": 0,
+    "total_value_returned": 17117.92,
+    "total_qty_returned": 30.0,
+    "quality_score": 75.0,
+    "risk_level": "MEDIUM"
+  },
+  "DNO GROUPACO HOLDINGS LTD": {
+    "total_returns": 36,
+    "expiry_returns": 26,
+    "damaged_returns": 3,
+    "short_supply_returns": 0,
+    "total_value_returned": 56429.000015,
+    "total_qty_returned": 357.0,
+    "quality_score": 45.0,
+    "risk_level": "HIGH"
+  },
+  "GLACIER PRODUCTS LTD 2ND": {
+    "total_returns": 54,
+    "expiry_returns": 48,
+    "damaged_returns": 0,
+    "short_supply_returns": 6,
+    "total_value_returned": 73812.81500299998,
+    "total_qty_returned": 636.0,
+    "quality_score": 1.0,
+    "risk_level": "CRITICAL"
+  },
+  "GO PRO FOODS LTD": {
+    "total_returns": 29,
+    "expiry_returns": 18,
+    "damaged_returns": 11,
+    "short_supply_returns": 0,
+    "total_value_returned": 15918.104001,
+    "total_qty_returned": 73.0,
+    "quality_score": 53.0,
+    "risk_level": "HIGH"
+  },
+  "HASBAH KENYA LTD": {
+    "total_returns": 38,
+    "expiry_returns": 23,
+    "damaged_returns": 1,
+    "short_supply_returns": 14,
+    "total_value_returned": 312113.110121,
+    "total_qty_returned": 1231.0,
+    "quality_score": 46.0,
+    "risk_level": "HIGH"
+  },
+  "HARLEYS LTD": {
+    "total_returns": 1,
+    "expiry_returns": 1,
+    "damaged_returns": 0,
+    "short_supply_returns": 0,
+    "total_value_returned": 3619.540112,
+    "total_qty_returned": 2.0,
+    "quality_score": 98.0,
+    "risk_level": "LOW"
+  },
+  "HAPPY COW LIMITED": {
+    "total_returns": 190,
+    "expiry_returns": 172,
+    "damaged_returns": 0,
+    "short_supply_returns": 18,
+    "total_value_returned": 173081.96539439986,
+    "total_qty_returned": 487.20000000000005,
+    "quality_score": 0.0,
+    "risk_level": "CRITICAL"
+  },
+  "HEALTHY U TWO THOUSAND LTD": {
+    "total_returns": 219,
+    "expiry_returns": 116,
+    "damaged_returns": 14,
+    "short_supply_returns": 6,
+    "total_value_returned": 416990.92868400004,
+    "total_qty_returned": 1015.0,
+    "quality_score": 0.0,
+    "risk_level": "CRITICAL"
+  },
+  "HERITAGE FOODS KENYA LTD": {
+    "total_returns": 4,
+    "expiry_returns": 1,
+    "damaged_returns": 3,
+    "short_supply_returns": 0,
+    "total_value_returned": 5071.0,
+    "total_qty_returned": 4.0,
+    "quality_score": 95.0,
+    "risk_level": "LOW"
+  },
+  "HUSEINI BAKERY LTD": {
+    "total_returns": 77,
+    "expiry_returns": 67,
+    "damaged_returns": 0,
+    "short_supply_returns": 10,
+    "total_value_returned": 35975.00000300001,
+    "total_qty_returned": 170.0,
+    "quality_score": 0.0,
+    "risk_level": "CRITICAL"
+  },
+  "HAYAT KIMYA  K  H PRODUCTS LTD": {
+    "total_returns": 2,
+    "expiry_returns": 0,
+    "damaged_returns": 2,
+    "short_supply_returns": 0,
+    "total_value_returned": 2098.44,
+    "total_qty_returned": 2.0,
+    "quality_score": 98.0,
+    "risk_level": "LOW"
+  },
+  "HASBAH KENYA LTD P AND G": {
+    "total_returns": 68,
+    "expiry_returns": 11,
+    "damaged_returns": 0,
+    "short_supply_returns": 11,
+    "total_value_returned": 657768.2369139999,
+    "total_qty_returned": 1045.0,
+    "quality_score": 72.5,
+    "risk_level": "MEDIUM"
+  },
+  "HASBAH KENYA LTD CADBURY": {
+    "total_returns": 36,
+    "expiry_returns": 0,
+    "damaged_returns": 0,
+    "short_supply_returns": 25,
+    "total_value_returned": 182351.90701600004,
+    "total_qty_returned": 1065.0,
+    "quality_score": 87.5,
+    "risk_level": "MEDIUM"
+  },
+  "ISINYA FEEDS LIMITED": {
+    "total_returns": 138,
+    "expiry_returns": 1,
+    "damaged_returns": 0,
+    "short_supply_returns": 137,
+    "total_value_returned": 205002.19999999998,
+    "total_qty_returned": 570.0,
+    "quality_score": 29.5,
+    "risk_level": "CRITICAL"
+  },
+  "INTELLIGENT MODERN STORES LTD SR": {
+    "total_returns": 4,
+    "expiry_returns": 3,
+    "damaged_returns": 0,
+    "short_supply_returns": 1,
+    "total_value_returned": 4336.08,
+    "total_qty_returned": 30.0,
+    "quality_score": 93.5,
+    "risk_level": "LOW"
+  },
+  "JADE CONCEPTS LIMITED": {
+    "total_returns": 24,
+    "expiry_returns": 21,
+    "damaged_returns": 0,
+    "short_supply_returns": 3,
+    "total_value_returned": 30715.120849,
+    "total_qty_returned": 78.0,
+    "quality_score": 56.5,
+    "risk_level": "HIGH"
+  },
+  "JAPALA AND SONS LIMITED": {
+    "total_returns": 4,
+    "expiry_returns": 2,
+    "damaged_returns": 1,
+    "short_supply_returns": 1,
+    "total_value_returned": 8310.0,
+    "total_qty_returned": 36.0,
+    "quality_score": 94.5,
+    "risk_level": "LOW"
+  },
+  "KENYA WINE AGENCIES KWAL": {
+    "total_returns": 10,
+    "expiry_returns": 2,
+    "damaged_returns": 1,
+    "short_supply_returns": 7,
+    "total_value_returned": 19549.309698999998,
+    "total_qty_returned": 42.0,
+    "quality_score": 91.5,
+    "risk_level": "LOW"
+  },
+  "NEW KENYA COOP CREAMERIES  LTD": {
+    "total_returns": 545,
+    "expiry_returns": 530,
+    "damaged_returns": 0,
+    "short_supply_returns": 12,
+    "total_value_returned": 229442.45681899972,
+    "total_qty_returned": 3200.0,
+    "quality_score": 0.0,
+    "risk_level": "CRITICAL"
+  },
+  "KEVIAN KENYA LTD": {
+    "total_returns": 49,
+    "expiry_returns": 43,
+    "damaged_returns": 0,
+    "short_supply_returns": 1,
+    "total_value_returned": 17099.287449,
+    "total_qty_returned": 278.0,
+    "quality_score": 13.5,
+    "risk_level": "CRITICAL"
+  },
+  "KIM FAY EAST AFRICA LTD": {
+    "total_returns": 90,
+    "expiry_returns": 4,
+    "damaged_returns": 20,
+    "short_supply_returns": 4,
+    "total_value_returned": 563906.4903380001,
+    "total_qty_returned": 2066.0,
+    "quality_score": 70.0,
+    "risk_level": "MEDIUM"
+  },
+  "KENPOLY MANUFACTURERS": {
+    "total_returns": 25,
+    "expiry_returns": 4,
+    "damaged_returns": 19,
+    "short_supply_returns": 1,
+    "total_value_returned": 9816.6392,
+    "total_qty_returned": 46.0,
+    "quality_score": 72.5,
+    "risk_level": "MEDIUM"
+  },
+  "KENAFRIC BAKERY LTD": {
+    "total_returns": 456,
+    "expiry_returns": 432,
+    "damaged_returns": 0,
+    "short_supply_returns": 24,
+    "total_value_returned": 79242.98160000004,
+    "total_qty_returned": 986.0,
+    "quality_score": 0.0,
+    "risk_level": "CRITICAL"
+  },
+  "KITUI FLOUR MILLS LTD NBI MBSA": {
+    "total_returns": 9,
+    "expiry_returns": 2,
+    "damaged_returns": 6,
+    "short_supply_returns": 1,
+    "total_value_returned": 8035.9800000000005,
+    "total_qty_returned": 56.0,
+    "quality_score": 89.5,
+    "risk_level": "MEDIUM"
+  },
+  "KENYA BREWERIES LTD": {
+    "total_returns": 83,
+    "expiry_returns": 15,
+    "damaged_returns": 0,
+    "short_supply_returns": 14,
+    "total_value_returned": 1122582.8639900002,
+    "total_qty_returned": 19950.0,
+    "quality_score": 63.0,
+    "risk_level": "HIGH"
+  },
+  "KENYA TEA PACKERS KETEPA": {
+    "total_returns": 17,
+    "expiry_returns": 3,
+    "damaged_returns": 5,
+    "short_supply_returns": 3,
+    "total_value_returned": 31651.714804,
+    "total_qty_returned": 212.0,
+    "quality_score": 87.5,
+    "risk_level": "MEDIUM"
+  },
+  "KRISH COMMODITIES LTD": {
+    "total_returns": 39,
+    "expiry_returns": 5,
+    "damaged_returns": 33,
+    "short_supply_returns": 1,
+    "total_value_returned": 57999.994998999995,
+    "total_qty_returned": 99.0,
+    "quality_score": 56.5,
+    "risk_level": "HIGH"
+  },
+  "KENSALT LIMITED CHEESE": {
+    "total_returns": 24,
+    "expiry_returns": 20,
+    "damaged_returns": 0,
+    "short_supply_returns": 4,
+    "total_value_returned": 39788.999981999994,
+    "total_qty_returned": 83.0,
+    "quality_score": 58.0,
+    "risk_level": "HIGH"
+  },
+  "KINANGOP DAIRY LIMITED": {
+    "total_returns": 81,
+    "expiry_returns": 64,
+    "damaged_returns": 0,
+    "short_supply_returns": 17,
+    "total_value_returned": 25225.44,
+    "total_qty_returned": 558.0,
+    "quality_score": 0.0,
+    "risk_level": "CRITICAL"
+  },
+  "KIM FAY EAST AFRICA LTD DABUR": {
+    "total_returns": 21,
+    "expiry_returns": 12,
+    "damaged_returns": 0,
+    "short_supply_returns": 8,
+    "total_value_returned": 34149.989587,
+    "total_qty_returned": 106.0,
+    "quality_score": 72.0,
+    "risk_level": "MEDIUM"
+  },
+  "KEVITA INTERNATIONAL CO LTD": {
+    "total_returns": 41,
+    "expiry_returns": 40,
+    "damaged_returns": 0,
+    "short_supply_returns": 1,
+    "total_value_returned": 134784.221878,
+    "total_qty_returned": 337.0,
+    "quality_score": 19.5,
+    "risk_level": "CRITICAL"
+  },
+  "KENMEAT LIMITED": {
+    "total_returns": 237,
+    "expiry_returns": 222,
+    "damaged_returns": 0,
+    "short_supply_returns": 7,
+    "total_value_returned": 245499.27138799996,
+    "total_qty_returned": 771.0,
+    "quality_score": 0.0,
+    "risk_level": "CRITICAL"
+  },
+  "KIRSTEN EVENTS COMPANY LTD": {
+    "total_returns": 109,
+    "expiry_returns": 105,
+    "damaged_returns": 0,
+    "short_supply_returns": 4,
+    "total_value_returned": 57439.700002,
+    "total_qty_returned": 153.0,
+    "quality_score": 0.0,
+    "risk_level": "CRITICAL"
+  },
+  "KIM FAY EAST AFRICA LTD DOVE": {
+    "total_returns": 19,
+    "expiry_returns": 1,
+    "damaged_returns": 4,
+    "short_supply_returns": 14,
+    "total_value_returned": 62111.24997599999,
+    "total_qty_returned": 128.0,
+    "quality_score": 87.0,
+    "risk_level": "MEDIUM"
+  },
+  "KHETIA DRAPERS LTD": {
+    "total_returns": 42,
+    "expiry_returns": 18,
+    "damaged_returns": 7,
+    "short_supply_returns": 5,
+    "total_value_returned": 14930.915346,
+    "total_qty_returned": 318.0,
+    "quality_score": 54.5,
+    "risk_level": "HIGH"
+  },
+  "KALON FOODS LIMITED": {
+    "total_returns": 41,
+    "expiry_returns": 16,
+    "damaged_returns": 0,
+    "short_supply_returns": 5,
+    "total_value_returned": 107871.961238,
+    "total_qty_returned": 186.0,
+    "quality_score": 65.5,
+    "risk_level": "HIGH"
+  },
+  "KENCHIC FROZEN": {
+    "total_returns": 401,
+    "expiry_returns": 374,
+    "damaged_returns": 0,
+    "short_supply_returns": 14,
+    "total_value_returned": 541560.2426329999,
+    "total_qty_returned": 1521.0,
+    "quality_score": 0.0,
+    "risk_level": "CRITICAL"
+  },
+  "KAMILI PACKERS SUGAR ONLY": {
+    "total_returns": 29,
+    "expiry_returns": 2,
+    "damaged_returns": 26,
+    "short_supply_returns": 1,
+    "total_value_returned": 34422.499994,
+    "total_qty_returned": 110.0,
+    "quality_score": 69.5,
+    "risk_level": "HIGH"
+  },
+  "KAMILI PACKERS LIMITED NORMAL": {
+    "total_returns": 62,
+    "expiry_returns": 8,
+    "damaged_returns": 53,
+    "short_supply_returns": 1,
+    "total_value_returned": 23794.013863000004,
+    "total_qty_returned": 119.0,
+    "quality_score": 30.5,
+    "risk_level": "CRITICAL"
+  },
+  "LAKI LAKI LIMITED": {
+    "total_returns": 181,
+    "expiry_returns": 149,
+    "damaged_returns": 0,
+    "short_supply_returns": 1,
+    "total_value_returned": 137039.5099759999,
+    "total_qty_returned": 769.0,
+    "quality_score": 0.0,
+    "risk_level": "CRITICAL"
+  },
+  "LEMOC LIMITED": {
+    "total_returns": 113,
+    "expiry_returns": 104,
+    "damaged_returns": 0,
+    "short_supply_returns": 9,
+    "total_value_returned": 194344.57600044497,
+    "total_qty_returned": 342.905,
+    "quality_score": 0.0,
+    "risk_level": "CRITICAL"
+  },
+  "LEADAV POULTRY FARM LTD": {
+    "total_returns": 33,
+    "expiry_returns": 19,
+    "damaged_returns": 11,
+    "short_supply_returns": 3,
+    "total_value_returned": 53075.0,
+    "total_qty_returned": 250.0,
+    "quality_score": 49.5,
+    "risk_level": "HIGH"
+  },
+  "LIBERTYS CHOICE": {
+    "total_returns": 2,
+    "expiry_returns": 0,
+    "damaged_returns": 2,
+    "short_supply_returns": 0,
+    "total_value_returned": 700.0,
+    "total_qty_returned": 2.0,
+    "quality_score": 98.0,
+    "risk_level": "LOW"
+  },
+  "LOKI VENTURES LIMITED": {
+    "total_returns": 16,
+    "expiry_returns": 16,
+    "damaged_returns": 0,
+    "short_supply_returns": 0,
+    "total_value_returned": 83683.0,
+    "total_qty_returned": 47.0,
+    "quality_score": 68.0,
+    "risk_level": "HIGH"
+  },
+  "MIRAGE INDUSTRIES LTD": {
+    "total_returns": 30,
+    "expiry_returns": 18,
+    "damaged_returns": 0,
+    "short_supply_returns": 6,
+    "total_value_returned": 97933.03462999997,
+    "total_qty_returned": 252.0,
+    "quality_score": 61.0,
+    "risk_level": "HIGH"
+  },
+  "MELVIN MARSH INTERNATIONAL LTD": {
+    "total_returns": 2,
+    "expiry_returns": 2,
+    "damaged_returns": 0,
+    "short_supply_returns": 0,
+    "total_value_returned": 416.1135,
+    "total_qty_returned": 2.0,
+    "quality_score": 96.0,
+    "risk_level": "LOW"
+  },
+  "MILL BAKERS LIMITED": {
+    "total_returns": 364,
+    "expiry_returns": 268,
+    "damaged_returns": 0,
+    "short_supply_returns": 96,
+    "total_value_returned": 88348.50018899993,
+    "total_qty_returned": 1156.0,
+    "quality_score": 0.0,
+    "risk_level": "CRITICAL"
+  },
+  "MERIT AFRICA LTD": {
+    "total_returns": 93,
+    "expiry_returns": 48,
+    "damaged_returns": 3,
+    "short_supply_returns": 4,
+    "total_value_returned": 326039.20000199997,
+    "total_qty_returned": 925.0,
+    "quality_score": 0.0,
+    "risk_level": "CRITICAL"
+  },
+  "MJENGO LIMITED": {
+    "total_returns": 46,
+    "expiry_returns": 16,
+    "damaged_returns": 16,
+    "short_supply_returns": 4,
+    "total_value_returned": 121770.26003,
+    "total_qty_returned": 356.0,
+    "quality_score": 50.0,
+    "risk_level": "HIGH"
+  },
+  "MALACHITE LIMITED": {
+    "total_returns": 229,
+    "expiry_returns": 3,
+    "damaged_returns": 32,
+    "short_supply_returns": 27,
+    "total_value_returned": 2173574.955011002,
+    "total_qty_returned": 8696.0,
+    "quality_score": 48.5,
+    "risk_level": "HIGH"
+  },
+  "MIBISCO LTD": {
+    "total_returns": 409,
+    "expiry_returns": 398,
+    "damaged_returns": 0,
+    "short_supply_returns": 10,
+    "total_value_returned": 68010.40003700006,
+    "total_qty_returned": 676.0,
+    "quality_score": 0.0,
+    "risk_level": "CRITICAL"
+  },
+  "MENENGAI O REFINERIES LTD": {
+    "total_returns": 9,
+    "expiry_returns": 6,
+    "damaged_returns": 1,
+    "short_supply_returns": 2,
+    "total_value_returned": 30094.001007000003,
+    "total_qty_returned": 114.0,
+    "quality_score": 86.0,
+    "risk_level": "MEDIUM"
+  },
+  "MOMBASA MAIZE MILLERS NAIROBI LIMITED": {
+    "total_returns": 12,
+    "expiry_returns": 0,
+    "damaged_returns": 11,
+    "short_supply_returns": 1,
+    "total_value_returned": 15004.74,
+    "total_qty_returned": 107.0,
+    "quality_score": 88.5,
+    "risk_level": "MEDIUM"
+  },
+  "MINI BAKERIES NBI  LTD": {
+    "total_returns": 674,
+    "expiry_returns": 639,
+    "damaged_returns": 4,
+    "short_supply_returns": 31,
+    "total_value_returned": 101136.39999999959,
+    "total_qty_returned": 1016.0,
+    "quality_score": 0.0,
+    "risk_level": "CRITICAL"
+  },
+  "MIGLIORE FOODS E A LIMITED SR": {
+    "total_returns": 15,
+    "expiry_returns": 15,
+    "damaged_returns": 0,
+    "short_supply_returns": 0,
+    "total_value_returned": 32108.999974,
+    "total_qty_returned": 127.0,
+    "quality_score": 70.0,
+    "risk_level": "MEDIUM"
+  },
+  "MYPASTA LIMITED": {
+    "total_returns": 14,
+    "expiry_returns": 3,
+    "damaged_returns": 9,
+    "short_supply_returns": 2,
+    "total_value_returned": 16125.000017,
+    "total_qty_returned": 122.0,
+    "quality_score": 84.0,
+    "risk_level": "MEDIUM"
+  },
+  "MALACHITE LIMITED BEER": {
+    "total_returns": 11,
+    "expiry_returns": 0,
+    "damaged_returns": 0,
+    "short_supply_returns": 4,
+    "total_value_returned": 37189.079654,
+    "total_qty_returned": 1026.0,
+    "quality_score": 98.0,
+    "risk_level": "LOW"
+  },
+  "MUSTY DISTRIBUTION LIMITED": {
+    "total_returns": 121,
+    "expiry_returns": 85,
+    "damaged_returns": 2,
+    "short_supply_returns": 5,
+    "total_value_returned": 194289.53241399996,
+    "total_qty_returned": 3540.0,
+    "quality_score": 0.0,
+    "risk_level": "CRITICAL"
+  },
+  "MERU CENTRAL DAIRY COOPERATIVE UNION LIMITED": {
+    "total_returns": 20,
+    "expiry_returns": 15,
+    "damaged_returns": 0,
+    "short_supply_returns": 5,
+    "total_value_returned": 28886.0,
+    "total_qty_returned": 552.0,
+    "quality_score": 67.5,
+    "risk_level": "HIGH"
+  },
+  "NEW WESTLAND STORES": {
+    "total_returns": 9,
+    "expiry_returns": 8,
+    "damaged_returns": 1,
+    "short_supply_returns": 0,
+    "total_value_returned": 8079.250002,
+    "total_qty_returned": 18.0,
+    "quality_score": 83.0,
+    "risk_level": "MEDIUM"
+  },
+  "NEW ITALYCOR LTD": {
+    "total_returns": 2,
+    "expiry_returns": 2,
+    "damaged_returns": 0,
+    "short_supply_returns": 0,
+    "total_value_returned": 1140.048,
+    "total_qty_returned": 3.0,
+    "quality_score": 96.0,
+    "risk_level": "LOW"
+  },
+  "NJORO CANNING FACTORY": {
+    "total_returns": 20,
+    "expiry_returns": 16,
+    "damaged_returns": 2,
+    "short_supply_returns": 2,
+    "total_value_returned": 25143.218803000003,
+    "total_qty_returned": 178.0,
+    "quality_score": 65.0,
+    "risk_level": "HIGH"
+  },
+  "NABICO ENTERPRISES LTD SR": {
+    "total_returns": 13,
+    "expiry_returns": 1,
+    "damaged_returns": 9,
+    "short_supply_returns": 3,
+    "total_value_returned": 74356.0,
+    "total_qty_returned": 17.0,
+    "quality_score": 87.5,
+    "risk_level": "MEDIUM"
+  },
+  "NESTLE KENYA LTD": {
+    "total_returns": 15,
+    "expiry_returns": 14,
+    "damaged_returns": 0,
+    "short_supply_returns": 0,
+    "total_value_returned": 59840.599971999996,
+    "total_qty_returned": 90.0,
+    "quality_score": 72.0,
+    "risk_level": "MEDIUM"
+  },
+  "NORDA INDUSTRIES LTD.": {
+    "total_returns": 22,
+    "expiry_returns": 14,
+    "damaged_returns": 8,
+    "short_supply_returns": 0,
+    "total_value_returned": 958.5252000000002,
+    "total_qty_returned": 30.0,
+    "quality_score": 64.0,
+    "risk_level": "HIGH"
+  },
+  "NAIROBI ENTERPRISES LTD": {
+    "total_returns": 4,
+    "expiry_returns": 0,
+    "damaged_returns": 1,
+    "short_supply_returns": 3,
+    "total_value_returned": 3984.999987,
+    "total_qty_returned": 49.0,
+    "quality_score": 97.5,
+    "risk_level": "LOW"
+  },
+  "DNO N T HEISH LIMITED SR": {
+    "total_returns": 2,
+    "expiry_returns": 2,
+    "damaged_returns": 0,
+    "short_supply_returns": 0,
+    "total_value_returned": 2195.50001,
+    "total_qty_returned": 17.0,
+    "quality_score": 96.0,
+    "risk_level": "LOW"
+  },
+  "OZ FOODS AND BEVERAGES LTD": {
+    "total_returns": 27,
+    "expiry_returns": 14,
+    "damaged_returns": 0,
+    "short_supply_returns": 1,
+    "total_value_returned": 39647.260336999985,
+    "total_qty_returned": 91.0,
+    "quality_score": 71.5,
+    "risk_level": "MEDIUM"
+  },
+  "ON DEMAND DISTRIBUTION HOUSE": {
+    "total_returns": 12,
+    "expiry_returns": 12,
+    "damaged_returns": 0,
+    "short_supply_returns": 0,
+    "total_value_returned": 26535.972007000004,
+    "total_qty_returned": 100.0,
+    "quality_score": 76.0,
+    "risk_level": "MEDIUM"
+  },
+  "OSHO GRAIN MILLERS  LTD": {
+    "total_returns": 6,
+    "expiry_returns": 3,
+    "damaged_returns": 3,
+    "short_supply_returns": 0,
+    "total_value_returned": 2293.23,
+    "total_qty_returned": 19.0,
+    "quality_score": 91.0,
+    "risk_level": "LOW"
+  },
+  "PROPACK KENYA LTD": {
+    "total_returns": 43,
+    "expiry_returns": 15,
+    "damaged_returns": 27,
+    "short_supply_returns": 1,
+    "total_value_returned": 10569.073993999998,
+    "total_qty_returned": 150.0,
+    "quality_score": 42.5,
+    "risk_level": "HIGH"
+  },
+  "PWANI OIL PRODUCTS LTD.": {
+    "total_returns": 14,
+    "expiry_returns": 6,
+    "damaged_returns": 5,
+    "short_supply_returns": 3,
+    "total_value_returned": 15090.049794999999,
+    "total_qty_returned": 80.0,
+    "quality_score": 81.5,
+    "risk_level": "MEDIUM"
+  },
+  "PEMBE FLOUR MILLS": {
+    "total_returns": 40,
+    "expiry_returns": 10,
+    "damaged_returns": 30,
+    "short_supply_returns": 0,
+    "total_value_returned": 15873.774000000003,
+    "total_qty_returned": 104.0,
+    "quality_score": 50.0,
+    "risk_level": "HIGH"
+  },
+  "PORTCROSS LTD  PC.": {
+    "total_returns": 7,
+    "expiry_returns": 1,
+    "damaged_returns": 0,
+    "short_supply_returns": 4,
+    "total_value_returned": 11155.185205,
+    "total_qty_returned": 65.0,
+    "quality_score": 96.0,
+    "risk_level": "LOW"
+  },
+  "PONDERS LIMITED": {
+    "total_returns": 27,
+    "expiry_returns": 21,
+    "damaged_returns": 4,
+    "short_supply_returns": 0,
+    "total_value_returned": 28533.017600000003,
+    "total_qty_returned": 81.0,
+    "quality_score": 54.0,
+    "risk_level": "HIGH"
+  },
+  "POLYTHENE INDUSTRIES LIMITED": {
+    "total_returns": 28,
+    "expiry_returns": 0,
+    "damaged_returns": 0,
+    "short_supply_returns": 28,
+    "total_value_returned": 2959.920064,
+    "total_qty_returned": 256.0,
+    "quality_score": 86.0,
+    "risk_level": "MEDIUM"
+  },
+  "PETZONE ENTERPRISES LTD HQ": {
+    "total_returns": 43,
+    "expiry_returns": 39,
+    "damaged_returns": 1,
+    "short_supply_returns": 3,
+    "total_value_returned": 95197.08840000002,
+    "total_qty_returned": 148.0,
+    "quality_score": 19.5,
+    "risk_level": "CRITICAL"
+  },
+  "PANDA BRUSHES LIMITED": {
+    "total_returns": 6,
+    "expiry_returns": 0,
+    "damaged_returns": 1,
+    "short_supply_returns": 5,
+    "total_value_returned": 5983.28,
+    "total_qty_returned": 53.0,
+    "quality_score": 96.5,
+    "risk_level": "LOW"
+  },
+  "PASAGOT LIMITED SR": {
+    "total_returns": 9,
+    "expiry_returns": 8,
+    "damaged_returns": 0,
+    "short_supply_returns": 1,
+    "total_value_returned": 21040.000002,
+    "total_qty_returned": 34.0,
+    "quality_score": 83.5,
+    "risk_level": "MEDIUM"
+  },
+  "QUALIPAS INDUSTRIES LTD SR": {
+    "total_returns": 8,
+    "expiry_returns": 8,
+    "damaged_returns": 0,
+    "short_supply_returns": 0,
+    "total_value_returned": 14238.199999999999,
+    "total_qty_returned": 24.0,
+    "quality_score": 84.0,
+    "risk_level": "MEDIUM"
+  },
+  "ROSHNI DIST LTD  R D": {
+    "total_returns": 33,
+    "expiry_returns": 15,
+    "damaged_returns": 6,
+    "short_supply_returns": 6,
+    "total_value_returned": 30451.182277000004,
+    "total_qty_returned": 132.0,
+    "quality_score": 61.0,
+    "risk_level": "HIGH"
+  },
+  "RAZCO LTD": {
+    "total_returns": 335,
+    "expiry_returns": 278,
+    "damaged_returns": 35,
+    "short_supply_returns": 22,
+    "total_value_returned": 184371.3787019999,
+    "total_qty_returned": 1334.0,
+    "quality_score": 0.0,
+    "risk_level": "CRITICAL"
+  },
+  "RADBONE CLARK  K  LTD": {
+    "total_returns": 24,
+    "expiry_returns": 21,
+    "damaged_returns": 0,
+    "short_supply_returns": 3,
+    "total_value_returned": 40268.94695699999,
+    "total_qty_returned": 142.0,
+    "quality_score": 56.5,
+    "risk_level": "HIGH"
+  },
+  "RAJ KAMAL ENTERPRISE LIMITED": {
+    "total_returns": 48,
+    "expiry_returns": 1,
+    "damaged_returns": 0,
+    "short_supply_returns": 14,
+    "total_value_returned": 183365.54382699996,
+    "total_qty_returned": 883.0,
+    "quality_score": 91.0,
+    "risk_level": "LOW"
+  },
+  "ROYAL BREKKERS LIMITED": {
+    "total_returns": 10,
+    "expiry_returns": 2,
+    "damaged_returns": 0,
+    "short_supply_returns": 8,
+    "total_value_returned": 17150.0,
+    "total_qty_returned": 98.0,
+    "quality_score": 92.0,
+    "risk_level": "LOW"
+  },
+  "R D ENTERPRISES LIMITED SR": {
+    "total_returns": 22,
+    "expiry_returns": 21,
+    "damaged_returns": 1,
+    "short_supply_returns": 0,
+    "total_value_returned": 63987.902629000004,
+    "total_qty_returned": 100.0,
+    "quality_score": 57.0,
+    "risk_level": "HIGH"
+  },
+  "RAZCO LTD 2ND": {
+    "total_returns": 18,
+    "expiry_returns": 14,
+    "damaged_returns": 1,
+    "short_supply_returns": 3,
+    "total_value_returned": 34555.800008,
+    "total_qty_returned": 93.0,
+    "quality_score": 69.5,
+    "risk_level": "HIGH"
+  },
+  "RABAI FOODS LIMITED": {
+    "total_returns": 106,
+    "expiry_returns": 89,
+    "damaged_returns": 0,
+    "short_supply_returns": 16,
+    "total_value_returned": 23454.0,
+    "total_qty_returned": 336.0,
+    "quality_score": 0.0,
+    "risk_level": "CRITICAL"
+  },
+  "RAVINE DAIRIES LIMITED": {
+    "total_returns": 9,
+    "expiry_returns": 5,
+    "damaged_returns": 1,
+    "short_supply_returns": 3,
+    "total_value_returned": 21393.009991,
+    "total_qty_returned": 646.0,
+    "quality_score": 87.5,
+    "risk_level": "MEDIUM"
+  },
+  "SUNPOWER PRODUCTS LTD": {
+    "total_returns": 654,
+    "expiry_returns": 480,
+    "damaged_returns": 0,
+    "short_supply_returns": 93,
+    "total_value_returned": 765412.8964,
+    "total_qty_returned": 2075.0,
+    "quality_score": 0.0,
+    "risk_level": "CRITICAL"
+  },
+  "SPICE WORLD LTD": {
+    "total_returns": 136,
+    "expiry_returns": 44,
+    "damaged_returns": 91,
+    "short_supply_returns": 1,
+    "total_value_returned": 94216.89439999999,
+    "total_qty_returned": 337.0,
+    "quality_score": 0.0,
+    "risk_level": "CRITICAL"
+  },
+  "SUPA SNACKS LTD": {
+    "total_returns": 13,
+    "expiry_returns": 10,
+    "damaged_returns": 3,
+    "short_supply_returns": 0,
+    "total_value_returned": 3326.88,
+    "total_qty_returned": 15.0,
+    "quality_score": 77.0,
+    "risk_level": "MEDIUM"
+  },
+  "SIGMA FEEDS LTD": {
+    "total_returns": 24,
+    "expiry_returns": 13,
+    "damaged_returns": 4,
+    "short_supply_returns": 7,
+    "total_value_returned": 51857.0,
+    "total_qty_returned": 56.0,
+    "quality_score": 66.5,
+    "risk_level": "HIGH"
+  },
+  "SUNDRIES BARGAIN NAIROBI LTD": {
+    "total_returns": 40,
+    "expiry_returns": 11,
+    "damaged_returns": 17,
+    "short_supply_returns": 12,
+    "total_value_returned": 55670.96873199998,
+    "total_qty_returned": 405.0,
+    "quality_score": 55.0,
+    "risk_level": "HIGH"
+  },
+  "SLATER AND WHITTAKER LTD": {
+    "total_returns": 4,
+    "expiry_returns": 1,
+    "damaged_returns": 1,
+    "short_supply_returns": 2,
+    "total_value_returned": 2298.5288,
+    "total_qty_returned": 16.0,
+    "quality_score": 96.0,
+    "risk_level": "LOW"
+  },
+  "SMART GLOBAL LIMITED": {
+    "total_returns": 17,
+    "expiry_returns": 14,
+    "damaged_returns": 0,
+    "short_supply_returns": 1,
+    "total_value_returned": 12473.48,
+    "total_qty_returned": 91.0,
+    "quality_score": 71.5,
+    "risk_level": "MEDIUM"
+  },
+  "SUNPOWER PRODUCTS LTD DELI NO GRN": {
+    "total_returns": 44,
+    "expiry_returns": 0,
+    "damaged_returns": 0,
+    "short_supply_returns": 0,
+    "total_value_returned": 212656.87935999996,
+    "total_qty_returned": 105.46999999999998,
+    "quality_score": 100.0,
+    "risk_level": "LOW"
+  },
+  "SBC KENYA LIMITED": {
+    "total_returns": 93,
+    "expiry_returns": 1,
+    "damaged_returns": 2,
+    "short_supply_returns": 6,
+    "total_value_returned": 84637.71883999996,
+    "total_qty_returned": 3800.0,
+    "quality_score": 93.0,
+    "risk_level": "LOW"
+  },
+  "SAVANNAH BRANDS COMPANY LIMITED": {
+    "total_returns": 7,
+    "expiry_returns": 6,
+    "damaged_returns": 0,
+    "short_supply_returns": 1,
+    "total_value_returned": 3018.48,
+    "total_qty_returned": 18.0,
+    "quality_score": 87.5,
+    "risk_level": "MEDIUM"
+  },
+  "SANGYUG ENTERPRISES LTD SR": {
+    "total_returns": 17,
+    "expiry_returns": 11,
+    "damaged_returns": 4,
+    "short_supply_returns": 2,
+    "total_value_returned": 58283.129201,
+    "total_qty_returned": 84.0,
+    "quality_score": 73.0,
+    "risk_level": "MEDIUM"
+  },
+  "SIERRA PREMIUM BREWERIES LIMITED": {
+    "total_returns": 19,
+    "expiry_returns": 12,
+    "damaged_returns": 3,
+    "short_supply_returns": 0,
+    "total_value_returned": 18266.078404,
+    "total_qty_returned": 130.0,
+    "quality_score": 73.0,
+    "risk_level": "MEDIUM"
+  },
+  "SATIMA FARMHOUSE LIMITED": {
+    "total_returns": 21,
+    "expiry_returns": 5,
+    "damaged_returns": 0,
+    "short_supply_returns": 16,
+    "total_value_returned": 14520.5,
+    "total_qty_returned": 65.0,
+    "quality_score": 82.0,
+    "risk_level": "MEDIUM"
+  },
+  "TOWFIQ  K  LIMITED HQ": {
+    "total_returns": 28,
+    "expiry_returns": 7,
+    "damaged_returns": 1,
+    "short_supply_returns": 20,
+    "total_value_returned": 232790.879823,
+    "total_qty_returned": 381.0,
+    "quality_score": 75.0,
+    "risk_level": "MEDIUM"
+  },
+  "TRI CLOVER INDUSTRIES LTD": {
+    "total_returns": 23,
+    "expiry_returns": 14,
+    "damaged_returns": 6,
+    "short_supply_returns": 0,
+    "total_value_returned": 6865.752414,
+    "total_qty_returned": 154.0,
+    "quality_score": 66.0,
+    "risk_level": "HIGH"
+  },
+  "TRUFOODS LIMITED T F": {
+    "total_returns": 46,
+    "expiry_returns": 37,
+    "damaged_returns": 7,
+    "short_supply_returns": 1,
+    "total_value_returned": 22141.072874999998,
+    "total_qty_returned": 152.0,
+    "quality_score": 18.5,
+    "risk_level": "CRITICAL"
+  },
+  "TRADE ROOTS LTD": {
+    "total_returns": 23,
+    "expiry_returns": 15,
+    "damaged_returns": 1,
+    "short_supply_returns": 7,
+    "total_value_returned": 68668.680793,
+    "total_qty_returned": 135.0,
+    "quality_score": 65.5,
+    "risk_level": "HIGH"
+  },
+  "TROPIKAL BRANDS  AFRICA LTD": {
+    "total_returns": 22,
+    "expiry_returns": 10,
+    "damaged_returns": 7,
+    "short_supply_returns": 5,
+    "total_value_returned": 25724.912002,
+    "total_qty_returned": 104.0,
+    "quality_score": 70.5,
+    "risk_level": "MEDIUM"
+  },
+  "TROPICAL HEAT LTD": {
+    "total_returns": 155,
+    "expiry_returns": 66,
+    "damaged_returns": 0,
+    "short_supply_returns": 1,
+    "total_value_returned": 345124.23298500007,
+    "total_qty_returned": 2985.0,
+    "quality_score": 0.0,
+    "risk_level": "CRITICAL"
+  },
+  "TAIFA  IMPORTS LIMITED": {
+    "total_returns": 16,
+    "expiry_returns": 8,
+    "damaged_returns": 1,
+    "short_supply_returns": 4,
+    "total_value_returned": 43815.214996999995,
+    "total_qty_returned": 115.0,
+    "quality_score": 81.0,
+    "risk_level": "MEDIUM"
+  },
+  "TRESKEN INTERNATIONAL LIMITED": {
+    "total_returns": 47,
+    "expiry_returns": 41,
+    "damaged_returns": 1,
+    "short_supply_returns": 0,
+    "total_value_returned": 58332.414402,
+    "total_qty_returned": 132.0,
+    "quality_score": 17.0,
+    "risk_level": "CRITICAL"
+  },
+  "TWIRL ENTERPRISES LTD": {
+    "total_returns": 151,
+    "expiry_returns": 93,
+    "damaged_returns": 1,
+    "short_supply_returns": 10,
+    "total_value_returned": 219279.999087,
+    "total_qty_returned": 683.0,
+    "quality_score": 0.0,
+    "risk_level": "CRITICAL"
+  },
+  "DNO THE BILTONG HUT LIMITED": {
+    "total_returns": 6,
+    "expiry_returns": 6,
+    "damaged_returns": 0,
+    "short_supply_returns": 0,
+    "total_value_returned": 15721.052636999999,
+    "total_qty_returned": 32.0,
+    "quality_score": 88.0,
+    "risk_level": "MEDIUM"
+  },
+  "THE WELL HUNG BUTCHER LTD": {
+    "total_returns": 18,
+    "expiry_returns": 18,
+    "damaged_returns": 0,
+    "short_supply_returns": 0,
+    "total_value_returned": 30394.275997,
+    "total_qty_returned": 48.0,
+    "quality_score": 64.0,
+    "risk_level": "HIGH"
+  },
+  "UNGA LTD": {
+    "total_returns": 124,
+    "expiry_returns": 31,
+    "damaged_returns": 93,
+    "short_supply_returns": 0,
+    "total_value_returned": 41967.305199999944,
+    "total_qty_returned": 273.0,
+    "quality_score": 0.0,
+    "risk_level": "CRITICAL"
+  },
+  "UDV KENYA LIMITED": {
+    "total_returns": 17,
+    "expiry_returns": 3,
+    "damaged_returns": 0,
+    "short_supply_returns": 13,
+    "total_value_returned": 387801.31790799997,
+    "total_qty_returned": 338.0,
+    "quality_score": 87.5,
+    "risk_level": "MEDIUM"
+  },
+  "VEGAN WORLD LIMITED": {
+    "total_returns": 3,
+    "expiry_returns": 3,
+    "damaged_returns": 0,
+    "short_supply_returns": 0,
+    "total_value_returned": 780.0,
+    "total_qty_returned": 3.0,
+    "quality_score": 94.0,
+    "risk_level": "LOW"
+  },
+  "WINNIES PURE HEALTH PRODUCTS LIMITED": {
+    "total_returns": 21,
+    "expiry_returns": 8,
+    "damaged_returns": 13,
+    "short_supply_returns": 0,
+    "total_value_returned": 16980.724104,
+    "total_qty_returned": 89.0,
+    "quality_score": 71.0,
+    "risk_level": "MEDIUM"
+  },
+  "PROMASIDOR KENYA LTD": {
+    "total_returns": 21,
+    "expiry_returns": 14,
+    "damaged_returns": 7,
+    "short_supply_returns": 0,
+    "total_value_returned": 4477.534019999999,
+    "total_qty_returned": 76.0,
+    "quality_score": 65.0,
+    "risk_level": "HIGH"
+  },
+  "WESTLANDS TRADING LTD": {
+    "total_returns": 66,
+    "expiry_returns": 36,
+    "damaged_returns": 1,
+    "short_supply_returns": 6,
+    "total_value_returned": 149777.232258,
+    "total_qty_returned": 547.0,
+    "quality_score": 24.0,
+    "risk_level": "CRITICAL"
+  },
+  "WEETABIX EAST AFRICA LTD HQ": {
+    "total_returns": 37,
+    "expiry_returns": 35,
+    "damaged_returns": 0,
+    "short_supply_returns": 1,
+    "total_value_returned": 140362.20640499998,
+    "total_qty_returned": 248.0,
+    "quality_score": 29.5,
+    "risk_level": "CRITICAL"
+  },
+  "WORLD BRANDS K LTD": {
+    "total_returns": 131,
+    "expiry_returns": 93,
+    "damaged_returns": 0,
+    "short_supply_returns": 10,
+    "total_value_returned": 648355.4930129999,
+    "total_qty_returned": 5371.0,
+    "quality_score": 0.0,
+    "risk_level": "CRITICAL"
+  },
+  "WHITE COAL INDUSTRIES LTD": {
+    "total_returns": 1,
+    "expiry_returns": 0,
+    "damaged_returns": 1,
+    "short_supply_returns": 0,
+    "total_value_returned": 550.0,
+    "total_qty_returned": 1.0,
+    "quality_score": 99.0,
+    "risk_level": "LOW"
+  },
+  "TOTAL": {
+    "total_returns": 10,
+    "expiry_returns": 0,
+    "damaged_returns": 0,
+    "short_supply_returns": 0,
+    "total_value_returned": 39413873.57546143,
+    "total_qty_returned": 178013.856,
+    "quality_score": 100.0,
+    "risk_level": "LOW"
+  },
+  "ARYUV AGENCIES LTD": {
+    "total_returns": 2,
+    "expiry_returns": 1,
+    "damaged_returns": 1,
+    "short_supply_returns": 0,
+    "total_value_returned": 3227.68,
+    "total_qty_returned": 9.0,
+    "quality_score": 97.0,
+    "risk_level": "LOW"
+  },
+  "ANEEK IMPORTERS AND TRADERS LTD": {
+    "total_returns": 7,
+    "expiry_returns": 4,
+    "damaged_returns": 3,
+    "short_supply_returns": 0,
+    "total_value_returned": 2659.981,
+    "total_qty_returned": 10.0,
+    "quality_score": 89.0,
+    "risk_level": "MEDIUM"
+  },
+  "AL FATAIRE FASARI LTD SR": {
+    "total_returns": 2,
+    "expiry_returns": 2,
+    "damaged_returns": 0,
+    "short_supply_returns": 0,
+    "total_value_returned": 2057.9999989999997,
+    "total_qty_returned": 3.0,
+    "quality_score": 96.0,
+    "risk_level": "LOW"
+  },
+  "ABONY DAIRIES LIMITED": {
+    "total_returns": 12,
+    "expiry_returns": 6,
+    "damaged_returns": 3,
+    "short_supply_returns": 3,
+    "total_value_returned": 7373.1538709999995,
+    "total_qty_returned": 16.0,
+    "quality_score": 83.5,
+    "risk_level": "MEDIUM"
+  },
+  "BOWIP AGENCIES LTD": {
+    "total_returns": 3,
+    "expiry_returns": 2,
+    "damaged_returns": 0,
+    "short_supply_returns": 0,
+    "total_value_returned": 297.457001,
+    "total_qty_returned": 12.0,
+    "quality_score": 96.0,
+    "risk_level": "LOW"
+  },
+  "BURTON AND BAMBER C LIMITED": {
+    "total_returns": 10,
+    "expiry_returns": 2,
+    "damaged_returns": 0,
+    "short_supply_returns": 2,
+    "total_value_returned": 25559.088395,
+    "total_qty_returned": 108.0,
+    "quality_score": 95.0,
+    "risk_level": "LOW"
+  },
+  "BIASHARA MERCHANT COMPANY SEZ LTD": {
+    "total_returns": 3,
+    "expiry_returns": 0,
+    "damaged_returns": 0,
+    "short_supply_returns": 3,
+    "total_value_returned": 28549.999957,
+    "total_qty_returned": 50.0,
+    "quality_score": 98.5,
+    "risk_level": "LOW"
+  },
+  "BIGCOLD KENYA SIMPLIFINE FROZEN AND CHILLED": {
+    "total_returns": 5,
+    "expiry_returns": 3,
+    "damaged_returns": 0,
+    "short_supply_returns": 2,
+    "total_value_returned": 3931.24,
+    "total_qty_returned": 16.0,
+    "quality_score": 93.0,
+    "risk_level": "LOW"
+  },
+  "DORMANS COFFEE LIMITED": {
+    "total_returns": 5,
+    "expiry_returns": 2,
+    "damaged_returns": 0,
+    "short_supply_returns": 3,
+    "total_value_returned": 20802.832319000005,
+    "total_qty_returned": 30.0,
+    "quality_score": 94.5,
+    "risk_level": "LOW"
+  },
+  "CHANDARIA INDUSTRIES  LTD KENTASTE": {
+    "total_returns": 7,
+    "expiry_returns": 2,
+    "damaged_returns": 1,
+    "short_supply_returns": 4,
+    "total_value_returned": 22088.080002000002,
+    "total_qty_returned": 39.0,
+    "quality_score": 93.0,
+    "risk_level": "LOW"
+  },
+  "EEEZY COOK LTD": {
+    "total_returns": 1,
+    "expiry_returns": 1,
+    "damaged_returns": 0,
+    "short_supply_returns": 0,
+    "total_value_returned": 3132.0,
+    "total_qty_returned": 1.08,
+    "quality_score": 98.0,
+    "risk_level": "LOW"
+  },
+  "EAST AFRICAN SEA FOOD LTD": {
+    "total_returns": 21,
+    "expiry_returns": 9,
+    "damaged_returns": 3,
+    "short_supply_returns": 0,
+    "total_value_returned": 122985.89399600003,
+    "total_qty_returned": 98.63,
+    "quality_score": 79.0,
+    "risk_level": "MEDIUM"
+  },
+  "ECOPACK LIMITED": {
+    "total_returns": 25,
+    "expiry_returns": 23,
+    "damaged_returns": 0,
+    "short_supply_returns": 2,
+    "total_value_returned": 27389.016008,
+    "total_qty_returned": 42.0,
+    "quality_score": 53.0,
+    "risk_level": "HIGH"
+  },
+  "EDUCATE YOURSELF LTD": {
+    "total_returns": 2,
+    "expiry_returns": 0,
+    "damaged_returns": 0,
+    "short_supply_returns": 2,
+    "total_value_returned": 800.039667,
+    "total_qty_returned": 24.0,
+    "quality_score": 99.0,
+    "risk_level": "LOW"
+  },
+  "GLACIER PRODUCTS LTD G P": {
+    "total_returns": 17,
+    "expiry_returns": 14,
+    "damaged_returns": 2,
+    "short_supply_returns": 1,
+    "total_value_returned": 10467.329562,
+    "total_qty_returned": 71.0,
+    "quality_score": 69.5,
+    "risk_level": "HIGH"
+  },
+  "LABOREX KENYA LTD": {
+    "total_returns": 8,
+    "expiry_returns": 1,
+    "damaged_returns": 0,
+    "short_supply_returns": 7,
+    "total_value_returned": 13794.235829000001,
+    "total_qty_returned": 25.0,
+    "quality_score": 94.5,
+    "risk_level": "LOW"
+  },
+  "HOUSE OF BOOCH LIMITED": {
+    "total_returns": 6,
+    "expiry_returns": 3,
+    "damaged_returns": 2,
+    "short_supply_returns": 1,
+    "total_value_returned": 4199.999995,
+    "total_qty_returned": 20.0,
+    "quality_score": 91.5,
+    "risk_level": "LOW"
+  },
+  "JETLAK FOODS LTD": {
+    "total_returns": 18,
+    "expiry_returns": 12,
+    "damaged_returns": 3,
+    "short_supply_returns": 3,
+    "total_value_returned": 8340.110007,
+    "total_qty_returned": 42.0,
+    "quality_score": 71.5,
+    "risk_level": "MEDIUM"
+  },
+  "KAPA OIL REFINERIES LTD": {
+    "total_returns": 23,
+    "expiry_returns": 0,
+    "damaged_returns": 14,
+    "short_supply_returns": 9,
+    "total_value_returned": 42166.399618999996,
+    "total_qty_returned": 153.0,
+    "quality_score": 81.5,
+    "risk_level": "MEDIUM"
+  },
+  "KENSALT LIMITED": {
+    "total_returns": 25,
+    "expiry_returns": 4,
+    "damaged_returns": 21,
+    "short_supply_returns": 0,
+    "total_value_returned": 8990.259241999996,
+    "total_qty_returned": 257.0,
+    "quality_score": 71.0,
+    "risk_level": "MEDIUM"
+  },
+  "QUALITY MEAT PACKERS LTD": {
+    "total_returns": 66,
+    "expiry_returns": 41,
+    "damaged_returns": 0,
+    "short_supply_returns": 25,
+    "total_value_returned": 46501.87183,
+    "total_qty_returned": 178.0,
+    "quality_score": 5.5,
+    "risk_level": "CRITICAL"
+  },
+  "KIJANI COMMODITIES LTD": {
+    "total_returns": 5,
+    "expiry_returns": 5,
+    "damaged_returns": 0,
+    "short_supply_returns": 0,
+    "total_value_returned": 5851.999998,
+    "total_qty_returned": 16.0,
+    "quality_score": 90.0,
+    "risk_level": "LOW"
+  },
+  "MANJI FOOD INDUSTRIES LTD": {
+    "total_returns": 4,
+    "expiry_returns": 2,
+    "damaged_returns": 0,
+    "short_supply_returns": 0,
+    "total_value_returned": 2311.004,
+    "total_qty_returned": 12.0,
+    "quality_score": 96.0,
+    "risk_level": "LOW"
+  },
+  "MIKEN BRANDS KENYA LTD": {
+    "total_returns": 12,
+    "expiry_returns": 10,
+    "damaged_returns": 1,
+    "short_supply_returns": 1,
+    "total_value_returned": 5554.5788,
+    "total_qty_returned": 16.0,
+    "quality_score": 78.5,
+    "risk_level": "MEDIUM"
+  },
+  "NUTCRACKER LTD HQ": {
+    "total_returns": 24,
+    "expiry_returns": 19,
+    "damaged_returns": 2,
+    "short_supply_returns": 2,
+    "total_value_returned": 61319.114003999995,
+    "total_qty_returned": 83.0,
+    "quality_score": 59.0,
+    "risk_level": "HIGH"
+  },
+  "NDUMUNYA INVESTMENT SOLUTION": {
+    "total_returns": 23,
+    "expiry_returns": 8,
+    "damaged_returns": 12,
+    "short_supply_returns": 3,
+    "total_value_returned": 24129.0,
+    "total_qty_returned": 54.0,
+    "quality_score": 70.5,
+    "risk_level": "MEDIUM"
+  },
+  "NATURES TASTES LIMITED": {
+    "total_returns": 4,
+    "expiry_returns": 4,
+    "damaged_returns": 0,
+    "short_supply_returns": 0,
+    "total_value_returned": 6090.000003,
+    "total_qty_returned": 12.0,
+    "quality_score": 92.0,
+    "risk_level": "LOW"
+  },
+  "RINZ PRODUCTS LTD": {
+    "total_returns": 7,
+    "expiry_returns": 4,
+    "damaged_returns": 3,
+    "short_supply_returns": 0,
+    "total_value_returned": 2118.0000019999998,
+    "total_qty_returned": 13.0,
+    "quality_score": 89.0,
+    "risk_level": "MEDIUM"
+  },
+  "RADBONE CLARK LIMITED MARS": {
+    "total_returns": 11,
+    "expiry_returns": 10,
+    "damaged_returns": 1,
+    "short_supply_returns": 0,
+    "total_value_returned": 140406.32520199998,
+    "total_qty_returned": 981.0,
+    "quality_score": 79.0,
+    "risk_level": "MEDIUM"
+  },
+  "SUPERSLEEK LIMITED": {
+    "total_returns": 51,
+    "expiry_returns": 5,
+    "damaged_returns": 15,
+    "short_supply_returns": 0,
+    "total_value_returned": 111835.06143800002,
+    "total_qty_returned": 427.0,
+    "quality_score": 75.0,
+    "risk_level": "MEDIUM"
+  },
+  "SALIM WAZARAN KENYA CO. LTD": {
+    "total_returns": 8,
+    "expiry_returns": 1,
+    "damaged_returns": 2,
+    "short_supply_returns": 0,
+    "total_value_returned": 31310.999057999998,
+    "total_qty_returned": 1838.0,
+    "quality_score": 96.0,
+    "risk_level": "LOW"
+  },
+  "SUNVEAT FOODS LIMITED": {
+    "total_returns": 15,
+    "expiry_returns": 0,
+    "damaged_returns": 2,
+    "short_supply_returns": 8,
+    "total_value_returned": 32186.449279,
+    "total_qty_returned": 231.0,
+    "quality_score": 94.0,
+    "risk_level": "LOW"
+  },
+  "SHALINA HEALTHCARE K LTD": {
+    "total_returns": 4,
+    "expiry_returns": 2,
+    "damaged_returns": 1,
+    "short_supply_returns": 1,
+    "total_value_returned": 6654.0096,
+    "total_qty_returned": 41.0,
+    "quality_score": 94.5,
+    "risk_level": "LOW"
+  },
+  "DNO STARBRIGHT LOGISTICS LTD SR": {
+    "total_returns": 2,
+    "expiry_returns": 2,
+    "damaged_returns": 0,
+    "short_supply_returns": 0,
+    "total_value_returned": 14599.999991,
+    "total_qty_returned": 73.0,
+    "quality_score": 96.0,
+    "risk_level": "LOW"
+  },
+  "KAPUTEI FARM P LIMITED": {
+    "total_returns": 10,
+    "expiry_returns": 3,
+    "damaged_returns": 0,
+    "short_supply_returns": 7,
+    "total_value_returned": 11807.756163999999,
+    "total_qty_returned": 52.0,
+    "quality_score": 90.5,
+    "risk_level": "LOW"
+  },
+  "SOYS LIMITED": {
+    "total_returns": 2,
+    "expiry_returns": 0,
+    "damaged_returns": 0,
+    "short_supply_returns": 2,
+    "total_value_returned": 30000.000001,
+    "total_qty_returned": 14.0,
+    "quality_score": 99.0,
+    "risk_level": "LOW"
+  },
+  "TWIGA STATIONERS AND PRINTERS LTD": {
+    "total_returns": 4,
+    "expiry_returns": 0,
+    "damaged_returns": 2,
+    "short_supply_returns": 2,
+    "total_value_returned": 3593.094005,
+    "total_qty_returned": 170.0,
+    "quality_score": 97.0,
+    "risk_level": "LOW"
+  },
+  "TWIGA  BROTHERS INVEST LIMITED": {
+    "total_returns": 3,
+    "expiry_returns": 0,
+    "damaged_returns": 0,
+    "short_supply_returns": 0,
+    "total_value_returned": 15643.859605,
+    "total_qty_returned": 149.0,
+    "quality_score": 100.0,
+    "risk_level": "LOW"
+  },
+  "TAIFA  IMPORTS LIMITED 2ND SR": {
+    "total_returns": 2,
+    "expiry_returns": 0,
+    "damaged_returns": 2,
+    "short_supply_returns": 0,
+    "total_value_returned": 1125.1552000000001,
+    "total_qty_returned": 2.0,
+    "quality_score": 98.0,
+    "risk_level": "LOW"
+  },
+  "WEST KENYA SUGAR COMPANY LTD": {
+    "total_returns": 2,
+    "expiry_returns": 0,
+    "damaged_returns": 2,
+    "short_supply_returns": 0,
+    "total_value_returned": 7700.000006,
+    "total_qty_returned": 40.0,
+    "quality_score": 98.0,
+    "risk_level": "LOW"
+  },
+  "ARMAAN LIMITED SR": {
+    "total_returns": 5,
+    "expiry_returns": 5,
+    "damaged_returns": 0,
+    "short_supply_returns": 0,
+    "total_value_returned": 15285.2,
+    "total_qty_returned": 12.0,
+    "quality_score": 90.0,
+    "risk_level": "LOW"
+  },
+  "AFRO IRIS LIMITED SR": {
+    "total_returns": 19,
+    "expiry_returns": 19,
+    "damaged_returns": 0,
+    "short_supply_returns": 0,
+    "total_value_returned": 70425.000012,
+    "total_qty_returned": 49.0,
+    "quality_score": 62.0,
+    "risk_level": "HIGH"
+  },
+  "BIDCO AFRICA LTD HQ": {
+    "total_returns": 7,
+    "expiry_returns": 3,
+    "damaged_returns": 0,
+    "short_supply_returns": 3,
+    "total_value_returned": 12182.739163999999,
+    "total_qty_returned": 38.0,
+    "quality_score": 92.5,
+    "risk_level": "LOW"
+  },
+  "BAKEX MILLERS LIMITED": {
+    "total_returns": 5,
+    "expiry_returns": 3,
+    "damaged_returns": 2,
+    "short_supply_returns": 0,
+    "total_value_returned": 723.36,
+    "total_qty_returned": 5.0,
+    "quality_score": 92.0,
+    "risk_level": "LOW"
+  },
+  "BRIGHT BONIKA FOOD LIMITED": {
+    "total_returns": 14,
+    "expiry_returns": 12,
+    "damaged_returns": 0,
+    "short_supply_returns": 2,
+    "total_value_returned": 7266.999992999999,
+    "total_qty_returned": 49.0,
+    "quality_score": 75.0,
+    "risk_level": "MEDIUM"
+  },
+  "CANINE BIOSCIENCES LTD": {
+    "total_returns": 39,
+    "expiry_returns": 28,
+    "damaged_returns": 3,
+    "short_supply_returns": 8,
+    "total_value_returned": 159014.775,
+    "total_qty_returned": 78.0,
+    "quality_score": 37.0,
+    "risk_level": "CRITICAL"
+  },
+  "CLOROX SUB SAHARA  AFRICA  LTD": {
+    "total_returns": 7,
+    "expiry_returns": 2,
+    "damaged_returns": 3,
+    "short_supply_returns": 1,
+    "total_value_returned": 11074.63455,
+    "total_qty_returned": 22.0,
+    "quality_score": 92.5,
+    "risk_level": "LOW"
+  },
+  "UNILEVER KENYA LIMITED": {
+    "total_returns": 8,
+    "expiry_returns": 0,
+    "damaged_returns": 0,
+    "short_supply_returns": 7,
+    "total_value_returned": 27141.479990000003,
+    "total_qty_returned": 159.0,
+    "quality_score": 96.5,
+    "risk_level": "LOW"
+  },
+  "EUREKA NUTS LIMITED MEDIUM INDUSTRIAL": {
+    "total_returns": 5,
+    "expiry_returns": 0,
+    "damaged_returns": 0,
+    "short_supply_returns": 0,
+    "total_value_returned": 25445.749989,
+    "total_qty_returned": 120.0,
+    "quality_score": 100.0,
+    "risk_level": "LOW"
+  },
+  "GODSON ORGANICS LIMITED": {
+    "total_returns": 7,
+    "expiry_returns": 0,
+    "damaged_returns": 0,
+    "short_supply_returns": 3,
+    "total_value_returned": 17951.440001000003,
+    "total_qty_returned": 43.0,
+    "quality_score": 98.5,
+    "risk_level": "LOW"
+  },
+  "HACO INDUSTRIES KENYA  LTD": {
+    "total_returns": 2,
+    "expiry_returns": 2,
+    "damaged_returns": 0,
+    "short_supply_returns": 0,
+    "total_value_returned": 775.3229,
+    "total_qty_returned": 2.0,
+    "quality_score": 96.0,
+    "risk_level": "LOW"
+  },
+  "HIGHLANDS DRINKS LIMITED": {
+    "total_returns": 23,
+    "expiry_returns": 11,
+    "damaged_returns": 0,
+    "short_supply_returns": 6,
+    "total_value_returned": 60508.732432000004,
+    "total_qty_returned": 85.0,
+    "quality_score": 75.0,
+    "risk_level": "MEDIUM"
+  },
+  "HEALTHY KAJUJU": {
+    "total_returns": 1,
+    "expiry_returns": 1,
+    "damaged_returns": 0,
+    "short_supply_returns": 0,
+    "total_value_returned": 273.76,
+    "total_qty_returned": 1.0,
+    "quality_score": 98.0,
+    "risk_level": "LOW"
+  },
+  "JAK INDUSTRIES LTD 2ND ACC SR": {
+    "total_returns": 15,
+    "expiry_returns": 10,
+    "damaged_returns": 4,
+    "short_supply_returns": 1,
+    "total_value_returned": 33990.175,
+    "total_qty_returned": 37.0,
+    "quality_score": 75.5,
+    "risk_level": "MEDIUM"
+  },
+  "KENYA NUT COMPANY": {
+    "total_returns": 6,
+    "expiry_returns": 4,
+    "damaged_returns": 0,
+    "short_supply_returns": 2,
+    "total_value_returned": 17595.019998,
+    "total_qty_returned": 251.0,
+    "quality_score": 91.0,
+    "risk_level": "LOW"
+  },
+  "KENYA NUT WINES": {
+    "total_returns": 2,
+    "expiry_returns": 2,
+    "damaged_returns": 0,
+    "short_supply_returns": 0,
+    "total_value_returned": 16356.0,
+    "total_qty_returned": 5.0,
+    "quality_score": 96.0,
+    "risk_level": "LOW"
+  },
+  "LOREAL E A LIMITED HQ": {
+    "total_returns": 31,
+    "expiry_returns": 30,
+    "damaged_returns": 0,
+    "short_supply_returns": 1,
+    "total_value_returned": 248793.87816000002,
+    "total_qty_returned": 281.0,
+    "quality_score": 39.5,
+    "risk_level": "CRITICAL"
+  },
+  "MAISHA BEVERAGES LIMITED": {
+    "total_returns": 1,
+    "expiry_returns": 0,
+    "damaged_returns": 0,
+    "short_supply_returns": 1,
+    "total_value_returned": 990.000019,
+    "total_qty_returned": 36.0,
+    "quality_score": 99.5,
+    "risk_level": "LOW"
+  },
+  "MERIDIAN WINES KENYA  LIMITED": {
+    "total_returns": 5,
+    "expiry_returns": 1,
+    "damaged_returns": 0,
+    "short_supply_returns": 2,
+    "total_value_returned": 37142.959999,
+    "total_qty_returned": 19.0,
+    "quality_score": 97.0,
+    "risk_level": "LOW"
+  },
+  "MONTILL LIMITED": {
+    "total_returns": 7,
+    "expiry_returns": 0,
+    "damaged_returns": 7,
+    "short_supply_returns": 0,
+    "total_value_returned": 6970.0,
+    "total_qty_returned": 23.0,
+    "quality_score": 93.0,
+    "risk_level": "LOW"
+  },
+  "PREMIER FOODS  LIMITED": {
+    "total_returns": 11,
+    "expiry_returns": 6,
+    "damaged_returns": 2,
+    "short_supply_returns": 3,
+    "total_value_returned": 16849.912398,
+    "total_qty_returned": 110.0,
+    "quality_score": 84.5,
+    "risk_level": "MEDIUM"
+  },
+  "PRIME DUCKS KENYA LIMITED": {
+    "total_returns": 3,
+    "expiry_returns": 1,
+    "damaged_returns": 2,
+    "short_supply_returns": 0,
+    "total_value_returned": 1680.0,
+    "total_qty_returned": 11.0,
+    "quality_score": 96.0,
+    "risk_level": "LOW"
+  },
+  "PREFERRED CHOICE 53 LTD SR": {
+    "total_returns": 3,
+    "expiry_returns": 0,
+    "damaged_returns": 0,
+    "short_supply_returns": 0,
+    "total_value_returned": 6993.639999999999,
+    "total_qty_returned": 17.0,
+    "quality_score": 100.0,
+    "risk_level": "LOW"
+  },
+  "RAMJI HARIBHAI DEVANI LTD": {
+    "total_returns": 1,
+    "expiry_returns": 0,
+    "damaged_returns": 0,
+    "short_supply_returns": 1,
+    "total_value_returned": 1653.0,
+    "total_qty_returned": 6.0,
+    "quality_score": 99.5,
+    "risk_level": "LOW"
+  },
+  "RIVERWEST COMPANY LTD": {
+    "total_returns": 1,
+    "expiry_returns": 0,
+    "damaged_returns": 0,
+    "short_supply_returns": 1,
+    "total_value_returned": 4200.000001,
+    "total_qty_returned": 12.0,
+    "quality_score": 99.5,
+    "risk_level": "LOW"
+  },
+  "SASINI PLC": {
+    "total_returns": 5,
+    "expiry_returns": 0,
+    "damaged_returns": 0,
+    "short_supply_returns": 1,
+    "total_value_returned": 18344.199991999998,
+    "total_qty_returned": 68.0,
+    "quality_score": 99.5,
+    "risk_level": "LOW"
+  },
+  "SIDDHAM BEVERAGES LIMITED": {
+    "total_returns": 1,
+    "expiry_returns": 1,
+    "damaged_returns": 0,
+    "short_supply_returns": 0,
+    "total_value_returned": 1019.61,
+    "total_qty_returned": 1.0,
+    "quality_score": 98.0,
+    "risk_level": "LOW"
+  },
+  "SUPER SAVERS DISTRIBUTION LTD": {
+    "total_returns": 7,
+    "expiry_returns": 2,
+    "damaged_returns": 0,
+    "short_supply_returns": 3,
+    "total_value_returned": 126986.721597,
+    "total_qty_returned": 337.0,
+    "quality_score": 94.5,
+    "risk_level": "LOW"
+  },
+  "TAWI NATURALS AFRICA LTD SR": {
+    "total_returns": 9,
+    "expiry_returns": 6,
+    "damaged_returns": 3,
+    "short_supply_returns": 0,
+    "total_value_returned": 6218.76,
+    "total_qty_returned": 15.0,
+    "quality_score": 85.0,
+    "risk_level": "MEDIUM"
+  },
+  "UNISEL LIMITED SR": {
+    "total_returns": 1,
+    "expiry_returns": 1,
+    "damaged_returns": 0,
+    "short_supply_returns": 0,
+    "total_value_returned": 1045.0,
+    "total_qty_returned": 5.0,
+    "quality_score": 98.0,
+    "risk_level": "LOW"
+  },
+  "WOW BEVERAGES LTD": {
+    "total_returns": 2,
+    "expiry_returns": 1,
+    "damaged_returns": 0,
+    "short_supply_returns": 1,
+    "total_value_returned": 18135.999999,
+    "total_qty_returned": 9.0,
+    "quality_score": 97.5,
+    "risk_level": "LOW"
+  },
+  "WETGREEN FARMS LTD": {
+    "total_returns": 7,
+    "expiry_returns": 7,
+    "damaged_returns": 0,
+    "short_supply_returns": 0,
+    "total_value_returned": 22390.0,
+    "total_qty_returned": 92.0,
+    "quality_score": 86.0,
+    "risk_level": "MEDIUM"
+  },
+  "ZENKO KENYA LIMITED": {
+    "total_returns": 13,
+    "expiry_returns": 2,
+    "damaged_returns": 1,
+    "short_supply_returns": 10,
+    "total_value_returned": 68722.72395599999,
+    "total_qty_returned": 463.0,
+    "quality_score": 90.0,
+    "risk_level": "LOW"
+  },
+  "ALISON PRODUCTS LTD": {
+    "total_returns": 1,
+    "expiry_returns": 0,
+    "damaged_returns": 0,
+    "short_supply_returns": 1,
+    "total_value_returned": 2314.2,
+    "total_qty_returned": 12.0,
+    "quality_score": 99.5,
+    "risk_level": "LOW"
+  },
+  "BEIERSDORF EAST AFRICA LTD HQ": {
+    "total_returns": 9,
+    "expiry_returns": 2,
+    "damaged_returns": 0,
+    "short_supply_returns": 7,
+    "total_value_returned": 57335.66167799999,
+    "total_qty_returned": 101.0,
+    "quality_score": 92.5,
+    "risk_level": "LOW"
+  },
+  "BRAND ROYALTY LTD": {
+    "total_returns": 5,
+    "expiry_returns": 1,
+    "damaged_returns": 0,
+    "short_supply_returns": 4,
+    "total_value_returned": 14880.0,
+    "total_qty_returned": 85.0,
+    "quality_score": 96.0,
+    "risk_level": "LOW"
+  },
+  "BOUNTY LIMITED": {
+    "total_returns": 4,
+    "expiry_returns": 1,
+    "damaged_returns": 3,
+    "short_supply_returns": 0,
+    "total_value_returned": 1253.75,
+    "total_qty_returned": 5.0,
+    "quality_score": 95.0,
+    "risk_level": "LOW"
+  },
+  "CANNED MEAT PRODUCTS": {
+    "total_returns": 3,
+    "expiry_returns": 0,
+    "damaged_returns": 0,
+    "short_supply_returns": 3,
+    "total_value_returned": 1440.0,
+    "total_qty_returned": 1.2,
+    "quality_score": 98.5,
+    "risk_level": "LOW"
+  },
+  "P Z CUSSONS EAST AFRICA  LTD HQ": {
+    "total_returns": 50,
+    "expiry_returns": 21,
+    "damaged_returns": 0,
+    "short_supply_returns": 5,
+    "total_value_returned": 182017.10390500005,
+    "total_qty_returned": 659.0,
+    "quality_score": 55.5,
+    "risk_level": "HIGH"
+  },
+  "C AND R FOOD INDUSTRIES LTD": {
+    "total_returns": 21,
+    "expiry_returns": 21,
+    "damaged_returns": 0,
+    "short_supply_returns": 0,
+    "total_value_returned": 11940.318385999999,
+    "total_qty_returned": 62.0,
+    "quality_score": 58.0,
+    "risk_level": "HIGH"
+  },
+  "CHANDARIA INDUSTRIES LTD HYGIENE": {
+    "total_returns": 6,
+    "expiry_returns": 3,
+    "damaged_returns": 0,
+    "short_supply_returns": 3,
+    "total_value_returned": 11731.499995,
+    "total_qty_returned": 29.0,
+    "quality_score": 92.5,
+    "risk_level": "LOW"
+  },
+  "CAMINO RUIZ AGENCIES LTD SR": {
+    "total_returns": 6,
+    "expiry_returns": 4,
+    "damaged_returns": 0,
+    "short_supply_returns": 2,
+    "total_value_returned": 7590.799996,
+    "total_qty_returned": 32.0,
+    "quality_score": 91.0,
+    "risk_level": "LOW"
+  },
+  "DYNALINK TRADING LIMITED SR": {
+    "total_returns": 2,
+    "expiry_returns": 0,
+    "damaged_returns": 1,
+    "short_supply_returns": 1,
+    "total_value_returned": 2019.4672,
+    "total_qty_returned": 7.0,
+    "quality_score": 98.5,
+    "risk_level": "LOW"
+  },
+  "FOODFIX BY AMBROSIA LTD SR": {
+    "total_returns": 1,
+    "expiry_returns": 0,
+    "damaged_returns": 0,
+    "short_supply_returns": 1,
+    "total_value_returned": 1781.76,
+    "total_qty_returned": 24.0,
+    "quality_score": 99.5,
+    "risk_level": "LOW"
+  },
+  "GLOBAL SLACKER ENTERPRISES LTD": {
+    "total_returns": 6,
+    "expiry_returns": 3,
+    "damaged_returns": 2,
+    "short_supply_returns": 1,
+    "total_value_returned": 11867.920802,
+    "total_qty_returned": 26.0,
+    "quality_score": 91.5,
+    "risk_level": "LOW"
+  },
+  "HEXA KIMYA S VE TICARET ANONIM S": {
+    "total_returns": 3,
+    "expiry_returns": 0,
+    "damaged_returns": 3,
+    "short_supply_returns": 0,
+    "total_value_returned": 1007.2,
+    "total_qty_returned": 7.0,
+    "quality_score": 97.0,
+    "risk_level": "LOW"
+  },
+  "MZURI SWEETS LIMITED": {
+    "total_returns": 3,
+    "expiry_returns": 1,
+    "damaged_returns": 0,
+    "short_supply_returns": 1,
+    "total_value_returned": 2181.330005,
+    "total_qty_returned": 33.0,
+    "quality_score": 97.5,
+    "risk_level": "LOW"
+  },
+  "MY FROZEN SUPPLIES LIMITED": {
+    "total_returns": 2,
+    "expiry_returns": 0,
+    "damaged_returns": 0,
+    "short_supply_returns": 1,
+    "total_value_returned": 2846.6400000000003,
+    "total_qty_returned": 12.0,
+    "quality_score": 99.5,
+    "risk_level": "LOW"
+  },
+  "MORANI LIMITED": {
+    "total_returns": 10,
+    "expiry_returns": 10,
+    "damaged_returns": 0,
+    "short_supply_returns": 0,
+    "total_value_returned": 10663.999999,
+    "total_qty_returned": 11.0,
+    "quality_score": 80.0,
+    "risk_level": "MEDIUM"
+  },
+  "NELI PRODUCTS LIMITED SR": {
+    "total_returns": 5,
+    "expiry_returns": 0,
+    "damaged_returns": 0,
+    "short_supply_returns": 1,
+    "total_value_returned": 23623.999999,
+    "total_qty_returned": 58.0,
+    "quality_score": 99.5,
+    "risk_level": "LOW"
+  },
+  "PAMULI POULTRY FARM": {
+    "total_returns": 8,
+    "expiry_returns": 3,
+    "damaged_returns": 5,
+    "short_supply_returns": 0,
+    "total_value_returned": 7460.0,
+    "total_qty_returned": 28.0,
+    "quality_score": 89.0,
+    "risk_level": "MEDIUM"
+  },
+  "SPRING VALLEY COFFEE ROASTERS LTD": {
+    "total_returns": 2,
+    "expiry_returns": 0,
+    "damaged_returns": 0,
+    "short_supply_returns": 2,
+    "total_value_returned": 14280.000001,
+    "total_qty_returned": 12.0,
+    "quality_score": 99.0,
+    "risk_level": "LOW"
+  },
+  "SAI PHARMACEUTICALS K LIMITED SR": {
+    "total_returns": 9,
+    "expiry_returns": 0,
+    "damaged_returns": 2,
+    "short_supply_returns": 2,
+    "total_value_returned": 20908.623212000002,
+    "total_qty_returned": 166.0,
+    "quality_score": 97.0,
+    "risk_level": "LOW"
+  },
+  "STORESOME TRADING CO LTD SR": {
+    "total_returns": 4,
+    "expiry_returns": 0,
+    "damaged_returns": 4,
+    "short_supply_returns": 0,
+    "total_value_returned": 5052.800003,
+    "total_qty_returned": 8.0,
+    "quality_score": 96.0,
+    "risk_level": "LOW"
+  },
+  "VIVEK INVESTMENT LTD SR": {
+    "total_returns": 2,
+    "expiry_returns": 0,
+    "damaged_returns": 0,
+    "short_supply_returns": 2,
+    "total_value_returned": 7034.999999,
+    "total_qty_returned": 4.0,
+    "quality_score": 99.0,
+    "risk_level": "LOW"
+  },
+  "VIVEK INVESTMENT LIMITED": {
+    "total_returns": 4,
+    "expiry_returns": 0,
+    "damaged_returns": 2,
+    "short_supply_returns": 2,
+    "total_value_returned": 6141.360007,
+    "total_qty_returned": 30.0,
+    "quality_score": 97.0,
+    "risk_level": "LOW"
+  },
+  "WILFAY INVESTMENTS LIMITED": {
+    "total_returns": 2,
+    "expiry_returns": 2,
+    "damaged_returns": 0,
+    "short_supply_returns": 0,
+    "total_value_returned": 1056.0,
+    "total_qty_returned": 5.0,
+    "quality_score": 96.0,
+    "risk_level": "LOW"
+  },
+  "ALPHAJIRI LIMITED SR": {
+    "total_returns": 5,
+    "expiry_returns": 0,
+    "damaged_returns": 0,
+    "short_supply_returns": 0,
+    "total_value_returned": 24334.000007,
+    "total_qty_returned": 56.0,
+    "quality_score": 100.0,
+    "risk_level": "LOW"
+  },
+  "ANNAPURNA ENTERPRISES LTD": {
+    "total_returns": 4,
+    "expiry_returns": 3,
+    "damaged_returns": 0,
+    "short_supply_returns": 1,
+    "total_value_returned": 2090.0000019999998,
+    "total_qty_returned": 10.0,
+    "quality_score": 93.5,
+    "risk_level": "LOW"
+  },
+  "BEAUTYLAND LTD": {
+    "total_returns": 1,
+    "expiry_returns": 0,
+    "damaged_returns": 0,
+    "short_supply_returns": 1,
+    "total_value_returned": 2587.500001,
+    "total_qty_returned": 3.0,
+    "quality_score": 99.5,
+    "risk_level": "LOW"
+  },
+  "BRANDACTIV KENYA LTD SR": {
+    "total_returns": 8,
+    "expiry_returns": 3,
+    "damaged_returns": 0,
+    "short_supply_returns": 2,
+    "total_value_returned": 111069.99999999999,
+    "total_qty_returned": 68.0,
+    "quality_score": 93.0,
+    "risk_level": "LOW"
+  },
+  "CAANO FARM MILK LIMITED SR": {
+    "total_returns": 2,
+    "expiry_returns": 2,
+    "damaged_returns": 0,
+    "short_supply_returns": 0,
+    "total_value_returned": 4131.0,
+    "total_qty_returned": 97.0,
+    "quality_score": 96.0,
+    "risk_level": "LOW"
+  },
+  "ECSTACY LTD": {
+    "total_returns": 4,
+    "expiry_returns": 0,
+    "damaged_returns": 3,
+    "short_supply_returns": 0,
+    "total_value_returned": 1728.4,
+    "total_qty_returned": 6.0,
+    "quality_score": 97.0,
+    "risk_level": "LOW"
+  },
+  "FINSBURY TRADING LIMITED MSA": {
+    "total_returns": 8,
+    "expiry_returns": 7,
+    "damaged_returns": 0,
+    "short_supply_returns": 1,
+    "total_value_returned": 18593.395996,
+    "total_qty_returned": 29.0,
+    "quality_score": 85.5,
+    "risk_level": "MEDIUM"
+  },
+  "GOLDEN AFRICA K LTD": {
+    "total_returns": 2,
+    "expiry_returns": 0,
+    "damaged_returns": 1,
+    "short_supply_returns": 1,
+    "total_value_returned": 5697.75,
+    "total_qty_returned": 2.0,
+    "quality_score": 98.5,
+    "risk_level": "LOW"
+  },
+  "HYPERMART LTD SR": {
+    "total_returns": 3,
+    "expiry_returns": 0,
+    "damaged_returns": 2,
+    "short_supply_returns": 1,
+    "total_value_returned": 14882.8,
+    "total_qty_returned": 6.0,
+    "quality_score": 97.5,
+    "risk_level": "LOW"
+  },
+  "HUNTLEYS BISCUITS LTD": {
+    "total_returns": 5,
+    "expiry_returns": 4,
+    "damaged_returns": 0,
+    "short_supply_returns": 1,
+    "total_value_returned": 3630.0,
+    "total_qty_returned": 7.0,
+    "quality_score": 91.5,
+    "risk_level": "LOW"
+  },
+  "HAPPY COW LIMITED 2ND": {
+    "total_returns": 6,
+    "expiry_returns": 6,
+    "damaged_returns": 0,
+    "short_supply_returns": 0,
+    "total_value_returned": 3677.2500010000003,
+    "total_qty_returned": 17.0,
+    "quality_score": 88.0,
+    "risk_level": "MEDIUM"
+  },
+  "NAIROBI JAVA HOUSE LTD": {
+    "total_returns": 14,
+    "expiry_returns": 11,
+    "damaged_returns": 0,
+    "short_supply_returns": 3,
+    "total_value_returned": 14783.576562000002,
+    "total_qty_returned": 48.0,
+    "quality_score": 76.5,
+    "risk_level": "MEDIUM"
+  },
+  "JIAN CEREALS DEPOT": {
+    "total_returns": 13,
+    "expiry_returns": 6,
+    "damaged_returns": 7,
+    "short_supply_returns": 0,
+    "total_value_returned": 11415.0,
+    "total_qty_returned": 53.0,
+    "quality_score": 81.0,
+    "risk_level": "MEDIUM"
+  },
+  "KIKKOMAN EAST AFRICA LTD": {
+    "total_returns": 4,
+    "expiry_returns": 4,
+    "damaged_returns": 0,
+    "short_supply_returns": 0,
+    "total_value_returned": 7293.190011000001,
+    "total_qty_returned": 41.0,
+    "quality_score": 92.0,
+    "risk_level": "LOW"
+  },
+  "LAKHANI GENERAL SUPPLIERS LTD": {
+    "total_returns": 10,
+    "expiry_returns": 9,
+    "damaged_returns": 0,
+    "short_supply_returns": 1,
+    "total_value_returned": 21669.363198999996,
+    "total_qty_returned": 60.0,
+    "quality_score": 81.5,
+    "risk_level": "MEDIUM"
+  },
+  "LEADING DISTILLERS U LTD SR": {
+    "total_returns": 3,
+    "expiry_returns": 2,
+    "damaged_returns": 0,
+    "short_supply_returns": 1,
+    "total_value_returned": 19954.167701,
+    "total_qty_returned": 55.0,
+    "quality_score": 95.5,
+    "risk_level": "LOW"
+  },
+  "MINI BAKERIES MSA LIMITED": {
+    "total_returns": 3,
+    "expiry_returns": 3,
+    "damaged_returns": 0,
+    "short_supply_returns": 0,
+    "total_value_returned": 510.0,
+    "total_qty_returned": 5.0,
+    "quality_score": 94.0,
+    "risk_level": "LOW"
+  },
+  "MASSATECH KENYA LIMITED SR": {
+    "total_returns": 3,
+    "expiry_returns": 3,
+    "damaged_returns": 0,
+    "short_supply_returns": 0,
+    "total_value_returned": 1617.5999989999998,
+    "total_qty_returned": 9.0,
+    "quality_score": 94.0,
+    "risk_level": "LOW"
+  },
+  "NATURES RECIPES LIMITED SR": {
+    "total_returns": 2,
+    "expiry_returns": 1,
+    "damaged_returns": 0,
+    "short_supply_returns": 1,
+    "total_value_returned": 2275.0,
+    "total_qty_returned": 13.0,
+    "quality_score": 97.5,
+    "risk_level": "LOW"
+  },
+  "PRADIP ENTERPRISES E A  LTD": {
+    "total_returns": 8,
+    "expiry_returns": 8,
+    "damaged_returns": 0,
+    "short_supply_returns": 0,
+    "total_value_returned": 1847.3000000000002,
+    "total_qty_returned": 13.0,
+    "quality_score": 84.0,
+    "risk_level": "MEDIUM"
+  },
+  "RAA LIMITED": {
+    "total_returns": 7,
+    "expiry_returns": 1,
+    "damaged_returns": 0,
+    "short_supply_returns": 5,
+    "total_value_returned": 18770.490059,
+    "total_qty_returned": 264.0,
+    "quality_score": 95.5,
+    "risk_level": "LOW"
+  },
+  "SLEEK KENYA  LIMITED SR": {
+    "total_returns": 4,
+    "expiry_returns": 0,
+    "damaged_returns": 2,
+    "short_supply_returns": 2,
+    "total_value_returned": 6626.971328,
+    "total_qty_returned": 17.0,
+    "quality_score": 97.0,
+    "risk_level": "LOW"
+  },
+  "SARAYA KENYA COMPANY LTD SR": {
+    "total_returns": 9,
+    "expiry_returns": 7,
+    "damaged_returns": 0,
+    "short_supply_returns": 2,
+    "total_value_returned": 16762.707860000002,
+    "total_qty_returned": 20.496000000000002,
+    "quality_score": 85.0,
+    "risk_level": "MEDIUM"
+  },
+  "SPREAD MASTERS LIMITED": {
+    "total_returns": 8,
+    "expiry_returns": 0,
+    "damaged_returns": 0,
+    "short_supply_returns": 0,
+    "total_value_returned": 4807.350018000001,
+    "total_qty_returned": 121.0,
+    "quality_score": 100.0,
+    "risk_level": "LOW"
+  },
+  "VIVA GLOBAL LIMITED": {
+    "total_returns": 3,
+    "expiry_returns": 0,
+    "damaged_returns": 0,
+    "short_supply_returns": 3,
+    "total_value_returned": 11513.759998000001,
+    "total_qty_returned": 14.0,
+    "quality_score": 98.5,
+    "risk_level": "LOW"
+  },
+  "ACHAARI ENTERPRISES LTD": {
+    "total_returns": 2,
+    "expiry_returns": 2,
+    "damaged_returns": 0,
+    "short_supply_returns": 0,
+    "total_value_returned": 1944.1599999999999,
+    "total_qty_returned": 4.0,
+    "quality_score": 96.0,
+    "risk_level": "LOW"
+  },
+  "ALIMP GROUP LIMITED SR": {
+    "total_returns": 2,
+    "expiry_returns": 0,
+    "damaged_returns": 0,
+    "short_supply_returns": 2,
+    "total_value_returned": 2462.0,
+    "total_qty_returned": 2.0,
+    "quality_score": 99.0,
+    "risk_level": "LOW"
+  },
+  "BRAND IMPORT AFRICA 2ND ACCOUNT SR": {
+    "total_returns": 6,
+    "expiry_returns": 3,
+    "damaged_returns": 3,
+    "short_supply_returns": 0,
+    "total_value_returned": 6392.849996999999,
+    "total_qty_returned": 19.0,
+    "quality_score": 91.0,
+    "risk_level": "LOW"
+  },
+  "CAPRINE FOODS E A LTD": {
+    "total_returns": 5,
+    "expiry_returns": 3,
+    "damaged_returns": 0,
+    "short_supply_returns": 2,
+    "total_value_returned": 3691.0000010000003,
+    "total_qty_returned": 13.0,
+    "quality_score": 93.0,
+    "risk_level": "LOW"
+  },
+  "CODE BEVERAGES LIMITED SR": {
+    "total_returns": 1,
+    "expiry_returns": 0,
+    "damaged_returns": 0,
+    "short_supply_returns": 1,
+    "total_value_returned": 1026.0,
+    "total_qty_returned": 6.0,
+    "quality_score": 99.5,
+    "risk_level": "LOW"
+  },
+  "ECOZYM LIMITED SR": {
+    "total_returns": 4,
+    "expiry_returns": 4,
+    "damaged_returns": 0,
+    "short_supply_returns": 0,
+    "total_value_returned": 10647.450006,
+    "total_qty_returned": 52.0,
+    "quality_score": 92.0,
+    "risk_level": "LOW"
+  },
+  "FOOD AND US LIMITED": {
+    "total_returns": 126,
+    "expiry_returns": 119,
+    "damaged_returns": 0,
+    "short_supply_returns": 7,
+    "total_value_returned": 77243.25016299996,
+    "total_qty_returned": 420.0,
+    "quality_score": 0.0,
+    "risk_level": "CRITICAL"
+  },
+  "HOSFAM COMPANY (LTD)": {
+    "total_returns": 2,
+    "expiry_returns": 0,
+    "damaged_returns": 0,
+    "short_supply_returns": 2,
+    "total_value_returned": 528.0,
+    "total_qty_returned": 4.0,
+    "quality_score": 99.0,
+    "risk_level": "LOW"
+  },
+  "KIRAB TRADING COMPANY  LTD": {
+    "total_returns": 1,
+    "expiry_returns": 0,
+    "damaged_returns": 1,
+    "short_supply_returns": 0,
+    "total_value_returned": 228.0,
+    "total_qty_returned": 2.0,
+    "quality_score": 99.0,
+    "risk_level": "LOW"
+  },
+  "MAXAM LIMITED": {
+    "total_returns": 2,
+    "expiry_returns": 2,
+    "damaged_returns": 0,
+    "short_supply_returns": 0,
+    "total_value_returned": 9044.999998,
+    "total_qty_returned": 9.0,
+    "quality_score": 96.0,
+    "risk_level": "LOW"
+  },
+  "MOMBASA MAIZE MILLERS LIMITED": {
+    "total_returns": 1,
+    "expiry_returns": 1,
+    "damaged_returns": 0,
+    "short_supply_returns": 0,
+    "total_value_returned": 125.83,
+    "total_qty_returned": 1.0,
+    "quality_score": 98.0,
+    "risk_level": "LOW"
+  },
+  "NYOTA LIMITED": {
+    "total_returns": 1,
+    "expiry_returns": 0,
+    "damaged_returns": 0,
+    "short_supply_returns": 1,
+    "total_value_returned": 222.3,
+    "total_qty_returned": 1.0,
+    "quality_score": 99.5,
+    "risk_level": "LOW"
+  },
+  "ONE STOP ENTERPRISE": {
+    "total_returns": 8,
+    "expiry_returns": 3,
+    "damaged_returns": 5,
+    "short_supply_returns": 0,
+    "total_value_returned": 3203.92,
+    "total_qty_returned": 22.0,
+    "quality_score": 89.0,
+    "risk_level": "MEDIUM"
+  },
+  "AGVENTURE LTD": {
+    "total_returns": 2,
+    "expiry_returns": 2,
+    "damaged_returns": 0,
+    "short_supply_returns": 0,
+    "total_value_returned": 2555.0,
+    "total_qty_returned": 3.0,
+    "quality_score": 96.0,
+    "risk_level": "LOW"
+  },
+  "PYAAN LIMITED": {
+    "total_returns": 1,
+    "expiry_returns": 0,
+    "damaged_returns": 0,
+    "short_supply_returns": 1,
+    "total_value_returned": 2610.0,
+    "total_qty_returned": 10.0,
+    "quality_score": 99.5,
+    "risk_level": "LOW"
+  },
+  "READY BELLY LIMITED": {
+    "total_returns": 2,
+    "expiry_returns": 0,
+    "damaged_returns": 1,
+    "short_supply_returns": 1,
+    "total_value_returned": 3200.000012,
+    "total_qty_returned": 25.0,
+    "quality_score": 98.5,
+    "risk_level": "LOW"
+  },
+  "SKYPEX SUPPLIES LIMITED": {
+    "total_returns": 1,
+    "expiry_returns": 0,
+    "damaged_returns": 1,
+    "short_supply_returns": 0,
+    "total_value_returned": 1120.0,
+    "total_qty_returned": 2.0,
+    "quality_score": 99.0,
+    "risk_level": "LOW"
+  },
+  "SMARTBRIDGE DISTRIBUTORS LTD": {
+    "total_returns": 7,
+    "expiry_returns": 3,
+    "damaged_returns": 0,
+    "short_supply_returns": 4,
+    "total_value_returned": 13545.000064,
+    "total_qty_returned": 273.0,
+    "quality_score": 92.0,
+    "risk_level": "LOW"
+  },
+  "SEA HARVEST K LIMITED": {
+    "total_returns": 11,
+    "expiry_returns": 0,
+    "damaged_returns": 11,
+    "short_supply_returns": 0,
+    "total_value_returned": 28010.92,
+    "total_qty_returned": 10.31,
+    "quality_score": 89.0,
+    "risk_level": "MEDIUM"
+  },
+  "TOP FOOD EA LTD": {
+    "total_returns": 1,
+    "expiry_returns": 1,
+    "damaged_returns": 0,
+    "short_supply_returns": 0,
+    "total_value_returned": 340.5,
+    "total_qty_returned": 2.0,
+    "quality_score": 98.0,
+    "risk_level": "LOW"
+  },
+  "TELA  LIMITED": {
+    "total_returns": 2,
+    "expiry_returns": 2,
+    "damaged_returns": 0,
+    "short_supply_returns": 0,
+    "total_value_returned": 2785.0,
+    "total_qty_returned": 5.0,
+    "quality_score": 96.0,
+    "risk_level": "LOW"
+  },
+  "TOLSTOY TRADING LIMITED": {
+    "total_returns": 1,
+    "expiry_returns": 1,
+    "damaged_returns": 0,
+    "short_supply_returns": 0,
+    "total_value_returned": 2463.84,
+    "total_qty_returned": 12.0,
+    "quality_score": 98.0,
+    "risk_level": "LOW"
+  },
+  "YASTECH BRANDS LTD SR": {
+    "total_returns": 1,
+    "expiry_returns": 0,
+    "damaged_returns": 1,
+    "short_supply_returns": 0,
+    "total_value_returned": 374.4016,
+    "total_qty_returned": 1.0,
+    "quality_score": 99.0,
+    "risk_level": "LOW"
+  },
+  "BEYOND OPINION  B  S LTD SR": {
+    "total_returns": 1,
+    "expiry_returns": 1,
+    "damaged_returns": 0,
+    "short_supply_returns": 0,
+    "total_value_returned": 90.0,
+    "total_qty_returned": 1.0,
+    "quality_score": 98.0,
+    "risk_level": "LOW"
+  },
+  "CANSATIONAL FLAVOURS LTD": {
+    "total_returns": 4,
+    "expiry_returns": 4,
+    "damaged_returns": 0,
+    "short_supply_returns": 0,
+    "total_value_returned": 11199.999984,
+    "total_qty_returned": 40.0,
+    "quality_score": 92.0,
+    "risk_level": "LOW"
+  },
+  "DHARAMSHI LAKHAMSHI AND CO LTD": {
+    "total_returns": 2,
+    "expiry_returns": 2,
+    "damaged_returns": 0,
+    "short_supply_returns": 0,
+    "total_value_returned": 2296.8,
+    "total_qty_returned": 4.0,
+    "quality_score": 96.0,
+    "risk_level": "LOW"
+  },
+  "GREEN BUSH  E.A CO": {
+    "total_returns": 1,
+    "expiry_returns": 1,
+    "damaged_returns": 0,
+    "short_supply_returns": 0,
+    "total_value_returned": 350.0,
+    "total_qty_returned": 1.0,
+    "quality_score": 98.0,
+    "risk_level": "LOW"
+  },
+  "ICONIC TASTES LIMITED": {
+    "total_returns": 3,
+    "expiry_returns": 3,
+    "damaged_returns": 0,
+    "short_supply_returns": 0,
+    "total_value_returned": 899.999999,
+    "total_qty_returned": 4.0,
+    "quality_score": 94.0,
+    "risk_level": "LOW"
+  },
+  "JUBILEE TISSUE INDUSTRIES LTD": {
+    "total_returns": 1,
+    "expiry_returns": 0,
+    "damaged_returns": 1,
+    "short_supply_returns": 0,
+    "total_value_returned": 389.992,
+    "total_qty_returned": 4.0,
+    "quality_score": 99.0,
+    "risk_level": "LOW"
+  },
+  "KHS PRODUCTS LIMITED SR": {
+    "total_returns": 3,
+    "expiry_returns": 0,
+    "damaged_returns": 2,
+    "short_supply_returns": 1,
+    "total_value_returned": 3121.56,
+    "total_qty_returned": 4.0,
+    "quality_score": 97.5,
+    "risk_level": "LOW"
+  },
+  "KUBE SQUARE LTD SR": {
+    "total_returns": 6,
+    "expiry_returns": 1,
+    "damaged_returns": 0,
+    "short_supply_returns": 3,
+    "total_value_returned": 11178.009598999999,
+    "total_qty_returned": 39.0,
+    "quality_score": 96.5,
+    "risk_level": "LOW"
+  },
+  "NUTRI DELIGHTS LTD SR": {
+    "total_returns": 1,
+    "expiry_returns": 0,
+    "damaged_returns": 0,
+    "short_supply_returns": 1,
+    "total_value_returned": 1614.72,
+    "total_qty_returned": 12.0,
+    "quality_score": 99.5,
+    "risk_level": "LOW"
+  },
+  "ODEX CHEMICALS": {
+    "total_returns": 1,
+    "expiry_returns": 0,
+    "damaged_returns": 1,
+    "short_supply_returns": 0,
+    "total_value_returned": 417.6,
+    "total_qty_returned": 4.0,
+    "quality_score": 99.0,
+    "risk_level": "LOW"
+  },
+  "PRAZIER POULTRIES": {
+    "total_returns": 1,
+    "expiry_returns": 0,
+    "damaged_returns": 0,
+    "short_supply_returns": 0,
+    "total_value_returned": 1650.0,
+    "total_qty_returned": 10.0,
+    "quality_score": 100.0,
+    "risk_level": "LOW"
+  },
+  "PERNOD RICARD KENYA": {
+    "total_returns": 2,
+    "expiry_returns": 0,
+    "damaged_returns": 0,
+    "short_supply_returns": 2,
+    "total_value_returned": 11778.179997,
+    "total_qty_returned": 9.0,
+    "quality_score": 99.0,
+    "risk_level": "LOW"
+  },
+  "ROK INDUSTRIES LIMITED": {
+    "total_returns": 1,
+    "expiry_returns": 0,
+    "damaged_returns": 1,
+    "short_supply_returns": 0,
+    "total_value_returned": 149.999999,
+    "total_qty_returned": 2.0,
+    "quality_score": 99.0,
+    "risk_level": "LOW"
+  },
+  "SOLOMON NGETHE": {
+    "total_returns": 1,
+    "expiry_returns": 0,
+    "damaged_returns": 0,
+    "short_supply_returns": 0,
+    "total_value_returned": 828.0,
+    "total_qty_returned": 12.0,
+    "quality_score": 100.0,
+    "risk_level": "LOW"
+  },
+  "STATPACK INDUSTRIES LTD": {
+    "total_returns": 1,
+    "expiry_returns": 0,
+    "damaged_returns": 0,
+    "short_supply_returns": 1,
+    "total_value_returned": 1703.5296,
+    "total_qty_returned": 24.0,
+    "quality_score": 99.5,
+    "risk_level": "LOW"
+  },
+  "TAMARTA INDUSTRIES LTD SR": {
+    "total_returns": 1,
+    "expiry_returns": 1,
+    "damaged_returns": 0,
+    "short_supply_returns": 0,
+    "total_value_returned": 950.0,
+    "total_qty_returned": 1.0,
+    "quality_score": 98.0,
+    "risk_level": "LOW"
+  },
+  "WISH KENYA LIMITED SR": {
+    "total_returns": 1,
+    "expiry_returns": 0,
+    "damaged_returns": 0,
+    "short_supply_returns": 1,
+    "total_value_returned": 3521.600013,
+    "total_qty_returned": 40.0,
+    "quality_score": 99.5,
+    "risk_level": "LOW"
+  },
+  "CHERUBET COMPANY LIMITED": {
+    "total_returns": 3,
+    "expiry_returns": 2,
+    "damaged_returns": 1,
+    "short_supply_returns": 0,
+    "total_value_returned": 2061.5299999999997,
+    "total_qty_returned": 10.0,
+    "quality_score": 95.0,
+    "risk_level": "LOW"
+  },
+  "CHOICE MEATS BEEF PLANT": {
+    "total_returns": 3,
+    "expiry_returns": 2,
+    "damaged_returns": 0,
+    "short_supply_returns": 1,
+    "total_value_returned": 1939.5,
+    "total_qty_returned": 6.0,
+    "quality_score": 95.5,
+    "risk_level": "LOW"
+  },
+  "CHIQ QICK GROUP LTD SR": {
+    "total_returns": 2,
+    "expiry_returns": 2,
+    "damaged_returns": 0,
+    "short_supply_returns": 0,
+    "total_value_returned": 4300.0,
+    "total_qty_returned": 4.0,
+    "quality_score": 96.0,
+    "risk_level": "LOW"
+  },
+  "CARD GROUP EAST AFRICA LTD FINI HQ": {
+    "total_returns": 4,
+    "expiry_returns": 3,
+    "damaged_returns": 0,
+    "short_supply_returns": 1,
+    "total_value_returned": 7211.766399999999,
+    "total_qty_returned": 32.0,
+    "quality_score": 93.5,
+    "risk_level": "LOW"
+  },
+  "DELISH AND NUTRI LTD": {
+    "total_returns": 2,
+    "expiry_returns": 2,
+    "damaged_returns": 0,
+    "short_supply_returns": 0,
+    "total_value_returned": 414.774,
+    "total_qty_returned": 2.0,
+    "quality_score": 96.0,
+    "risk_level": "LOW"
+  },
+  "DUE BAMBINE LIMITED": {
+    "total_returns": 1,
+    "expiry_returns": 0,
+    "damaged_returns": 0,
+    "short_supply_returns": 1,
+    "total_value_returned": 3528.72,
+    "total_qty_returned": 6.0,
+    "quality_score": 99.5,
+    "risk_level": "LOW"
+  },
+  "EXPORT TRADING CO. LTD": {
+    "total_returns": 3,
+    "expiry_returns": 0,
+    "damaged_returns": 2,
+    "short_supply_returns": 0,
+    "total_value_returned": 2528.0,
+    "total_qty_returned": 3.0,
+    "quality_score": 98.0,
+    "risk_level": "LOW"
+  },
+  "FLOWER MEETA": {
+    "total_returns": 3,
+    "expiry_returns": 0,
+    "damaged_returns": 0,
+    "short_supply_returns": 0,
+    "total_value_returned": 8800.0,
+    "total_qty_returned": 9.0,
+    "quality_score": 100.0,
+    "risk_level": "LOW"
+  },
+  "HOMKART WHOLESALERS LTD SR": {
+    "total_returns": 1,
+    "expiry_returns": 0,
+    "damaged_returns": 0,
+    "short_supply_returns": 1,
+    "total_value_returned": 1500.000002,
+    "total_qty_returned": 10.0,
+    "quality_score": 99.5,
+    "risk_level": "LOW"
+  },
+  "JAK INDUSTRIES LTD": {
+    "total_returns": 3,
+    "expiry_returns": 0,
+    "damaged_returns": 3,
+    "short_supply_returns": 0,
+    "total_value_returned": 15694.8,
+    "total_qty_returned": 8.0,
+    "quality_score": 97.0,
+    "risk_level": "LOW"
+  },
+  "KENAFRIC BEVERAGES AND BOTTLING LTD": {
+    "total_returns": 1,
+    "expiry_returns": 0,
+    "damaged_returns": 1,
+    "short_supply_returns": 0,
+    "total_value_returned": 88.74,
+    "total_qty_returned": 2.0,
+    "quality_score": 99.0,
+    "risk_level": "LOW"
+  },
+  "MEGA IMPORTERS CO LIMITED": {
+    "total_returns": 1,
+    "expiry_returns": 0,
+    "damaged_returns": 0,
+    "short_supply_returns": 1,
+    "total_value_returned": 5152.0,
+    "total_qty_returned": 4.0,
+    "quality_score": 99.5,
+    "risk_level": "LOW"
+  },
+  "MABDA GENERAL TRAD COMP LTD": {
+    "total_returns": 7,
+    "expiry_returns": 7,
+    "damaged_returns": 0,
+    "short_supply_returns": 0,
+    "total_value_returned": 6790.000027,
+    "total_qty_returned": 49.0,
+    "quality_score": 86.0,
+    "risk_level": "MEDIUM"
+  },
+  "MY FROZEN SUPPLIES LTD 2ND": {
+    "total_returns": 1,
+    "expiry_returns": 0,
+    "damaged_returns": 0,
+    "short_supply_returns": 1,
+    "total_value_returned": 1000.000011,
+    "total_qty_returned": 25.0,
+    "quality_score": 99.5,
+    "risk_level": "LOW"
+  },
+  "NEW ITALYCOR LIMITED WINE": {
+    "total_returns": 1,
+    "expiry_returns": 1,
+    "damaged_returns": 0,
+    "short_supply_returns": 0,
+    "total_value_returned": 8073.6,
+    "total_qty_returned": 6.0,
+    "quality_score": 98.0,
+    "risk_level": "LOW"
+  },
+  "PROLEX VENTURES LIMITED": {
+    "total_returns": 1,
+    "expiry_returns": 0,
+    "damaged_returns": 0,
+    "short_supply_returns": 0,
+    "total_value_returned": 5094.72,
+    "total_qty_returned": 24.0,
+    "quality_score": 100.0,
+    "risk_level": "LOW"
+  },
+  "NATURES HEALTH LTD": {
+    "total_returns": 1,
+    "expiry_returns": 0,
+    "damaged_returns": 1,
+    "short_supply_returns": 0,
+    "total_value_returned": 1875.0008,
+    "total_qty_returned": 2.0,
+    "quality_score": 99.0,
+    "risk_level": "LOW"
+  },
+  "RICKS LTD": {
+    "total_returns": 1,
+    "expiry_returns": 0,
+    "damaged_returns": 0,
+    "short_supply_returns": 1,
+    "total_value_returned": 1670.4,
+    "total_qty_returned": 12.0,
+    "quality_score": 99.5,
+    "risk_level": "LOW"
+  },
+  "ROCKBERN COFFEE GROUP LTD": {
+    "total_returns": 2,
+    "expiry_returns": 0,
+    "damaged_returns": 0,
+    "short_supply_returns": 2,
+    "total_value_returned": 4990.999998,
+    "total_qty_returned": 7.0,
+    "quality_score": 99.0,
+    "risk_level": "LOW"
+  },
+  "SETUR": {
+    "total_returns": 2,
+    "expiry_returns": 2,
+    "damaged_returns": 0,
+    "short_supply_returns": 0,
+    "total_value_returned": 1920.0,
+    "total_qty_returned": 12.0,
+    "quality_score": 96.0,
+    "risk_level": "LOW"
+  },
+  "SURGILINKS LIMITED": {
+    "total_returns": 4,
+    "expiry_returns": 1,
+    "damaged_returns": 0,
+    "short_supply_returns": 3,
+    "total_value_returned": 20572.484,
+    "total_qty_returned": 9.0,
+    "quality_score": 96.5,
+    "risk_level": "LOW"
+  },
+  "SHIVOM ENTERPRISES LIMITED SR": {
+    "total_returns": 1,
+    "expiry_returns": 0,
+    "damaged_returns": 0,
+    "short_supply_returns": 1,
+    "total_value_returned": 1980.0,
+    "total_qty_returned": 4.0,
+    "quality_score": 99.5,
+    "risk_level": "LOW"
+  },
+  "TECHPAK INDUSTRIES LTD": {
+    "total_returns": 3,
+    "expiry_returns": 0,
+    "damaged_returns": 0,
+    "short_supply_returns": 1,
+    "total_value_returned": 10464.179997,
+    "total_qty_returned": 44.0,
+    "quality_score": 99.5,
+    "risk_level": "LOW"
+  },
+  "ALTIN FOOD LIMITED SR": {
+    "total_returns": 1,
+    "expiry_returns": 1,
+    "damaged_returns": 0,
+    "short_supply_returns": 0,
+    "total_value_returned": 2534.9944,
+    "total_qty_returned": 2.0,
+    "quality_score": 98.0,
+    "risk_level": "LOW"
+  },
+  "BABY BRANDS DIRECTS LTD": {
+    "total_returns": 1,
+    "expiry_returns": 0,
+    "damaged_returns": 1,
+    "short_supply_returns": 0,
+    "total_value_returned": 1499.250001,
+    "total_qty_returned": 1.0,
+    "quality_score": 99.0,
+    "risk_level": "LOW"
+  },
+  "COUNTRY MILE COMPANY LTD": {
+    "total_returns": 2,
+    "expiry_returns": 0,
+    "damaged_returns": 0,
+    "short_supply_returns": 0,
+    "total_value_returned": 5099.999996,
+    "total_qty_returned": 48.0,
+    "quality_score": 100.0,
+    "risk_level": "LOW"
+  },
+  "DOMAINE KENYA LTD": {
+    "total_returns": 1,
+    "expiry_returns": 1,
+    "damaged_returns": 0,
+    "short_supply_returns": 0,
+    "total_value_returned": 6999.999992,
+    "total_qty_returned": 16.0,
+    "quality_score": 98.0,
+    "risk_level": "LOW"
+  },
+  "DNO HALANFAL HOLDINGS LIMITED SR": {
+    "total_returns": 5,
+    "expiry_returns": 5,
+    "damaged_returns": 0,
+    "short_supply_returns": 0,
+    "total_value_returned": 11699.999999,
+    "total_qty_returned": 45.0,
+    "quality_score": 90.0,
+    "risk_level": "LOW"
+  },
+  "KENSTAR PLASTIC INDUSTRIES LTD SR": {
+    "total_returns": 1,
+    "expiry_returns": 0,
+    "damaged_returns": 1,
+    "short_supply_returns": 0,
+    "total_value_returned": 546.000001,
+    "total_qty_returned": 3.0,
+    "quality_score": 99.0,
+    "risk_level": "LOW"
+  },
+  "DNO KAPARI LTD": {
+    "total_returns": 2,
+    "expiry_returns": 2,
+    "damaged_returns": 0,
+    "short_supply_returns": 0,
+    "total_value_returned": 28725.263085,
+    "total_qty_returned": 186.0,
+    "quality_score": 96.0,
+    "risk_level": "LOW"
+  },
+  "MERIT AFRICA LTD 2ND ACCOUNT SR": {
+    "total_returns": 9,
+    "expiry_returns": 9,
+    "damaged_returns": 0,
+    "short_supply_returns": 0,
+    "total_value_returned": 23652.4,
+    "total_qty_returned": 19.0,
+    "quality_score": 82.0,
+    "risk_level": "MEDIUM"
+  },
+  "MERAKI FOODS LIMITED": {
+    "total_returns": 3,
+    "expiry_returns": 3,
+    "damaged_returns": 0,
+    "short_supply_returns": 0,
+    "total_value_returned": 1333.515607,
+    "total_qty_returned": 18.0,
+    "quality_score": 94.0,
+    "risk_level": "LOW"
+  },
+  "MAYLEEN K LIMITED": {
+    "total_returns": 1,
+    "expiry_returns": 1,
+    "damaged_returns": 0,
+    "short_supply_returns": 0,
+    "total_value_returned": 3120.000004,
+    "total_qty_returned": 13.0,
+    "quality_score": 98.0,
+    "risk_level": "LOW"
+  },
+  "MANKA FOOD PRODUCTION SR": {
+    "total_returns": 1,
+    "expiry_returns": 0,
+    "damaged_returns": 0,
+    "short_supply_returns": 1,
+    "total_value_returned": 525.0,
+    "total_qty_returned": 1.0,
+    "quality_score": 99.5,
+    "risk_level": "LOW"
+  },
+  "MORGANKIBE ENTERPRISES LIMITED": {
+    "total_returns": 1,
+    "expiry_returns": 1,
+    "damaged_returns": 0,
+    "short_supply_returns": 0,
+    "total_value_returned": 630.0,
+    "total_qty_returned": 1.0,
+    "quality_score": 98.0,
+    "risk_level": "LOW"
+  },
+  "NATURE LOCK LLP SR": {
+    "total_returns": 4,
+    "expiry_returns": 0,
+    "damaged_returns": 4,
+    "short_supply_returns": 0,
+    "total_value_returned": 3086.9999770000004,
+    "total_qty_returned": 63.0,
+    "quality_score": 96.0,
+    "risk_level": "LOW"
+  },
+  "PATIALA DISTRIBUTORS LTD": {
+    "total_returns": 1,
+    "expiry_returns": 1,
+    "damaged_returns": 0,
+    "short_supply_returns": 0,
+    "total_value_returned": 2749.999995,
+    "total_qty_returned": 11.0,
+    "quality_score": 98.0,
+    "risk_level": "LOW"
+  },
+  "PURE VIBES LIMITED SR": {
+    "total_returns": 17,
+    "expiry_returns": 15,
+    "damaged_returns": 0,
+    "short_supply_returns": 0,
+    "total_value_returned": 28575.0,
+    "total_qty_returned": 38.0,
+    "quality_score": 70.0,
+    "risk_level": "MEDIUM"
+  },
+  "STEELWOOL AFRICA LTD": {
+    "total_returns": 1,
+    "expiry_returns": 0,
+    "damaged_returns": 1,
+    "short_supply_returns": 0,
+    "total_value_returned": 2120.40228,
+    "total_qty_returned": 57.0,
+    "quality_score": 99.0,
+    "risk_level": "LOW"
+  },
+  "SAI OFFICE SUPPLIES LIMITED": {
+    "total_returns": 5,
+    "expiry_returns": 3,
+    "damaged_returns": 0,
+    "short_supply_returns": 2,
+    "total_value_returned": 12318.064795999999,
+    "total_qty_returned": 32.0,
+    "quality_score": 93.0,
+    "risk_level": "LOW"
+  },
+  "THE DREAM FACTORY KENYA LIMITED SR": {
+    "total_returns": 1,
+    "expiry_returns": 0,
+    "damaged_returns": 0,
+    "short_supply_returns": 1,
+    "total_value_returned": 2248.999999,
+    "total_qty_returned": 1.0,
+    "quality_score": 99.5,
+    "risk_level": "LOW"
+  },
+  "TERMINATOR ELECTRICAL P T COM LTD": {
+    "total_returns": 8,
+    "expiry_returns": 0,
+    "damaged_returns": 4,
+    "short_supply_returns": 0,
+    "total_value_returned": 14366.599999999999,
+    "total_qty_returned": 18.0,
+    "quality_score": 96.0,
+    "risk_level": "LOW"
+  },
+  "UVA WINES LIMITED SR": {
+    "total_returns": 1,
+    "expiry_returns": 0,
+    "damaged_returns": 0,
+    "short_supply_returns": 1,
+    "total_value_returned": 4400.0,
+    "total_qty_returned": 1.0,
+    "quality_score": 99.5,
+    "risk_level": "LOW"
+  },
+  "ANDREW MUROKI GATHAGE": {
+    "total_returns": 3,
+    "expiry_returns": 0,
+    "damaged_returns": 0,
+    "short_supply_returns": 0,
+    "total_value_returned": 41200.0,
+    "total_qty_returned": 35.0,
+    "quality_score": 100.0,
+    "risk_level": "LOW"
+  },
+  "BEBALYSA ENTERPRISES LIMITED": {
+    "total_returns": 2,
+    "expiry_returns": 0,
+    "damaged_returns": 2,
+    "short_supply_returns": 0,
+    "total_value_returned": 2040.0000020000002,
+    "total_qty_returned": 3.0,
+    "quality_score": 98.0,
+    "risk_level": "LOW"
+  },
+  "BAKELS EAST AFRICA LTD": {
+    "total_returns": 1,
+    "expiry_returns": 1,
+    "damaged_returns": 0,
+    "short_supply_returns": 0,
+    "total_value_returned": 13050.0,
+    "total_qty_returned": 25.0,
+    "quality_score": 98.0,
+    "risk_level": "LOW"
+  },
+  "CREATIVE INNOVATIONS LTD SR": {
+    "total_returns": 1,
+    "expiry_returns": 0,
+    "damaged_returns": 0,
+    "short_supply_returns": 1,
+    "total_value_returned": 520.0,
+    "total_qty_returned": 1.0,
+    "quality_score": 99.5,
+    "risk_level": "LOW"
+  },
+  "COLGATE PALMOLIVE E A LTD HQ": {
+    "total_returns": 2,
+    "expiry_returns": 0,
+    "damaged_returns": 0,
+    "short_supply_returns": 0,
+    "total_value_returned": 7520.285508999999,
+    "total_qty_returned": 32.0,
+    "quality_score": 100.0,
+    "risk_level": "LOW"
+  },
+  "DELICTABLE FOODS LIMITED SR": {
+    "total_returns": 1,
+    "expiry_returns": 0,
+    "damaged_returns": 0,
+    "short_supply_returns": 1,
+    "total_value_returned": 1740.0,
+    "total_qty_returned": 6.0,
+    "quality_score": 99.5,
+    "risk_level": "LOW"
+  },
+  "DANAFLIN INTERNATIONAL LTD SR": {
+    "total_returns": 4,
+    "expiry_returns": 4,
+    "damaged_returns": 0,
+    "short_supply_returns": 0,
+    "total_value_returned": 18920.000006,
+    "total_qty_returned": 10.0,
+    "quality_score": 92.0,
+    "risk_level": "LOW"
+  },
+  "HASBAH KENYA LIMITED NESTLE": {
+    "total_returns": 1,
+    "expiry_returns": 0,
+    "damaged_returns": 0,
+    "short_supply_returns": 1,
+    "total_value_returned": 1440.000002,
+    "total_qty_returned": 24.0,
+    "quality_score": 99.5,
+    "risk_level": "LOW"
+  },
+  "KINGS WEAR LIMITED": {
+    "total_returns": 2,
+    "expiry_returns": 0,
+    "damaged_returns": 2,
+    "short_supply_returns": 0,
+    "total_value_returned": 2639.999998,
+    "total_qty_returned": 4.0,
+    "quality_score": 98.0,
+    "risk_level": "LOW"
+  },
+  "KIERU LIMITED SR": {
+    "total_returns": 1,
+    "expiry_returns": 0,
+    "damaged_returns": 0,
+    "short_supply_returns": 1,
+    "total_value_returned": 1889.999999,
+    "total_qty_returned": 6.0,
+    "quality_score": 99.5,
+    "risk_level": "LOW"
+  },
+  "MIG TRADING COM LTD SR": {
+    "total_returns": 1,
+    "expiry_returns": 0,
+    "damaged_returns": 0,
+    "short_supply_returns": 1,
+    "total_value_returned": 9179.999998,
+    "total_qty_returned": 6.0,
+    "quality_score": 99.5,
+    "risk_level": "LOW"
+  },
+  "MACE FOODS LTD": {
+    "total_returns": 3,
+    "expiry_returns": 3,
+    "damaged_returns": 0,
+    "short_supply_returns": 0,
+    "total_value_returned": 2575.644002,
+    "total_qty_returned": 11.0,
+    "quality_score": 94.0,
+    "risk_level": "LOW"
+  },
+  "MISS BEAUTY COMPANY LTD HQ": {
+    "total_returns": 1,
+    "expiry_returns": 0,
+    "damaged_returns": 0,
+    "short_supply_returns": 1,
+    "total_value_returned": 2650.375941,
+    "total_qty_returned": 3.0,
+    "quality_score": 99.5,
+    "risk_level": "LOW"
+  },
+  "MAJIPONICS LIMITED": {
+    "total_returns": 5,
+    "expiry_returns": 5,
+    "damaged_returns": 0,
+    "short_supply_returns": 0,
+    "total_value_returned": 5788.52,
+    "total_qty_returned": 9.0,
+    "quality_score": 90.0,
+    "risk_level": "LOW"
+  },
+  "MOONSUN PICTURES INTER LTD SR": {
+    "total_returns": 21,
+    "expiry_returns": 19,
+    "damaged_returns": 2,
+    "short_supply_returns": 0,
+    "total_value_returned": 61094.999981999994,
+    "total_qty_returned": 99.0,
+    "quality_score": 60.0,
+    "risk_level": "HIGH"
+  },
+  "MOONSUN TRADE INTERNATIONAL LTD SR": {
+    "total_returns": 1,
+    "expiry_returns": 0,
+    "damaged_returns": 0,
+    "short_supply_returns": 1,
+    "total_value_returned": 6875.000002,
+    "total_qty_returned": 5.0,
+    "quality_score": 99.5,
+    "risk_level": "LOW"
+  },
+  "PRESTIGE DISTRIBUTORS SR": {
+    "total_returns": 1,
+    "expiry_returns": 0,
+    "damaged_returns": 1,
+    "short_supply_returns": 0,
+    "total_value_returned": 68.904,
+    "total_qty_returned": 1.0,
+    "quality_score": 99.0,
+    "risk_level": "LOW"
+  },
+  "RIVERROSE DISTRIBUTORS LTD": {
+    "total_returns": 4,
+    "expiry_returns": 0,
+    "damaged_returns": 0,
+    "short_supply_returns": 1,
+    "total_value_returned": 99929.99998099999,
+    "total_qty_returned": 90.0,
+    "quality_score": 99.5,
+    "risk_level": "LOW"
+  },
+  "SESIA LIMITED": {
+    "total_returns": 3,
+    "expiry_returns": 3,
+    "damaged_returns": 0,
+    "short_supply_returns": 0,
+    "total_value_returned": 5733.88,
+    "total_qty_returned": 18.0,
+    "quality_score": 94.0,
+    "risk_level": "LOW"
+  },
+  "SPARKLE BRANDS LIMITED": {
+    "total_returns": 2,
+    "expiry_returns": 0,
+    "damaged_returns": 1,
+    "short_supply_returns": 1,
+    "total_value_returned": 5246.259998,
+    "total_qty_returned": 5.0,
+    "quality_score": 98.5,
+    "risk_level": "LOW"
+  },
+  "SANGARE GARDENS  LTD": {
+    "total_returns": 8,
+    "expiry_returns": 8,
+    "damaged_returns": 0,
+    "short_supply_returns": 0,
+    "total_value_returned": 5050.140007,
+    "total_qty_returned": 51.0,
+    "quality_score": 84.0,
+    "risk_level": "MEDIUM"
+  },
+  "THE GOOD RUM CO LTD SR": {
+    "total_returns": 3,
+    "expiry_returns": 3,
+    "damaged_returns": 0,
+    "short_supply_returns": 0,
+    "total_value_returned": 44454.999999,
+    "total_qty_returned": 7.0,
+    "quality_score": 94.0,
+    "risk_level": "LOW"
+  },
+  "TWIGA CHEMICAL I LIMITED": {
+    "total_returns": 1,
+    "expiry_returns": 1,
+    "damaged_returns": 0,
+    "short_supply_returns": 0,
+    "total_value_returned": 4332.050009,
+    "total_qty_returned": 23.0,
+    "quality_score": 98.0,
+    "risk_level": "LOW"
+  },
+  "XPRO PACKAGING LIMITED SR": {
+    "total_returns": 2,
+    "expiry_returns": 0,
+    "damaged_returns": 0,
+    "short_supply_returns": 2,
+    "total_value_returned": 2790.000023,
+    "total_qty_returned": 51.0,
+    "quality_score": 99.0,
+    "risk_level": "LOW"
+  },
+  "ZAEEM LOGISTICS LIMITED SR": {
+    "total_returns": 2,
+    "expiry_returns": 0,
+    "damaged_returns": 0,
+    "short_supply_returns": 2,
+    "total_value_returned": 7414.399998,
+    "total_qty_returned": 16.0,
+    "quality_score": 99.0,
+    "risk_level": "LOW"
+  }
+}

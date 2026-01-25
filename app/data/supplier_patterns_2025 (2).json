@@ -1,0 +1,5922 @@
+{
+  "BROOKSIDE DAIRY LIMITED": {
+    "order_frequency": "daily",
+    "avg_gap_days": 0.8,
+    "median_gap_days": 1,
+    "estimated_delivery_days": 1,
+    "total_orders_2025": 428,
+    "avg_order_value_kes": 131820,
+    "reliability_score": 25,
+    "average_gap_days": 1.3
+  },
+  "BEST BUY COMMODITY LIMITED": {
+    "order_frequency": "bi_weekly",
+    "avg_gap_days": 9.8,
+    "median_gap_days": 9,
+    "estimated_delivery_days": 2,
+    "total_orders_2025": 32,
+    "avg_order_value_kes": 182872,
+    "reliability_score": 55,
+    "average_gap_days": 11.7
+  },
+  "BIMUS PERFUMES LLP SR": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 25.5,
+    "median_gap_days": 20,
+    "estimated_delivery_days": 3,
+    "total_orders_2025": 13,
+    "avg_order_value_kes": 39317,
+    "reliability_score": 64,
+    "average_gap_days": 27.8
+  },
+  "COCA COLA BEVERAGES KENYA LTD": {
+    "order_frequency": "every_2_3_days",
+    "avg_gap_days": 2.3,
+    "median_gap_days": 4,
+    "estimated_delivery_days": 1,
+    "total_orders_2025": 148,
+    "avg_order_value_kes": 289104,
+    "reliability_score": 46,
+    "average_gap_days": 3.8
+  },
+  "CAPWELL INDUSTRIES LTD": {
+    "order_frequency": "weekly",
+    "avg_gap_days": 4.7,
+    "median_gap_days": 4,
+    "estimated_delivery_days": 1,
+    "total_orders_2025": 73,
+    "avg_order_value_kes": 147581,
+    "reliability_score": 52,
+    "average_gap_days": 5.6
+  },
+  "CHANDARIA INDUSTRIES LTD HENKEL C BRANDS": {
+    "order_frequency": "bi_weekly",
+    "avg_gap_days": 7.1,
+    "median_gap_days": 10,
+    "estimated_delivery_days": 4,
+    "total_orders_2025": 48,
+    "avg_order_value_kes": 114103,
+    "reliability_score": 66,
+    "average_gap_days": 11.9
+  },
+  "DELMONTE KENYA LTD": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 15.9,
+    "median_gap_days": 26,
+    "estimated_delivery_days": 4,
+    "total_orders_2025": 21,
+    "avg_order_value_kes": 163857,
+    "reliability_score": 67,
+    "average_gap_days": 22.7
+  },
+  "DEVYANI FOOD INDUSTRIES K LIMITED MILK AND YOGHURT": {
+    "order_frequency": "every_2_3_days",
+    "avg_gap_days": 2.0,
+    "median_gap_days": 2,
+    "estimated_delivery_days": 1,
+    "total_orders_2025": 170,
+    "avg_order_value_kes": 36860,
+    "reliability_score": 46,
+    "average_gap_days": 2.8
+  },
+  "DYNALINK TRADING LIMITED SR": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 27.3,
+    "median_gap_days": 23,
+    "estimated_delivery_days": 2,
+    "total_orders_2025": 11,
+    "avg_order_value_kes": 24675,
+    "reliability_score": 63,
+    "average_gap_days": 30.3
+  },
+  "FARMERS CHOICE LTD DELI": {
+    "order_frequency": "weekly",
+    "avg_gap_days": 3.5,
+    "median_gap_days": 3,
+    "estimated_delivery_days": 1,
+    "total_orders_2025": 99,
+    "avg_order_value_kes": 21971,
+    "reliability_score": 54,
+    "average_gap_days": 4.1
+  },
+  "HASBAH KENYA LTD": {
+    "order_frequency": "weekly",
+    "avg_gap_days": 3.1,
+    "median_gap_days": 3,
+    "estimated_delivery_days": 3,
+    "total_orders_2025": 107,
+    "avg_order_value_kes": 123203,
+    "reliability_score": 47,
+    "average_gap_days": 4.2
+  },
+  "LABOREX KENYA LTD": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 50.2,
+    "median_gap_days": 41,
+    "estimated_delivery_days": 21,
+    "total_orders_2025": 7,
+    "avg_order_value_kes": 37296,
+    "reliability_score": 0.905,
+    "average_gap_days": 60.2
+  },
+  "HEALTHY U TWO THOUSAND LTD": {
+    "order_frequency": "weekly",
+    "avg_gap_days": 5.0,
+    "median_gap_days": 7,
+    "estimated_delivery_days": 3,
+    "total_orders_2025": 67,
+    "avg_order_value_kes": 190904,
+    "reliability_score": 56,
+    "average_gap_days": 8.1
+  },
+  "HASBAH KENYA LTD P AND G": {
+    "order_frequency": "every_2_3_days",
+    "avg_gap_days": 2.6,
+    "median_gap_days": 7,
+    "estimated_delivery_days": 3,
+    "total_orders_2025": 128,
+    "avg_order_value_kes": 368499,
+    "reliability_score": 61,
+    "average_gap_days": 7.0
+  },
+  "JAK INDUSTRIES LTD 2ND ACC SR": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 25.5,
+    "median_gap_days": 14,
+    "estimated_delivery_days": 11,
+    "total_orders_2025": 13,
+    "avg_order_value_kes": 44562,
+    "reliability_score": 33,
+    "average_gap_days": 30.6
+  },
+  "NEW KENYA COOP CREAMERIES  LTD": {
+    "order_frequency": "daily",
+    "avg_gap_days": 0.9,
+    "median_gap_days": 1,
+    "estimated_delivery_days": 1,
+    "total_orders_2025": 360,
+    "avg_order_value_kes": 27513,
+    "reliability_score": 25,
+    "average_gap_days": 1.3
+  },
+  "KEVIAN KENYA LTD": {
+    "order_frequency": "bi_weekly",
+    "avg_gap_days": 13.4,
+    "median_gap_days": 14,
+    "estimated_delivery_days": 2,
+    "total_orders_2025": 25,
+    "avg_order_value_kes": 161865,
+    "reliability_score": 71,
+    "average_gap_days": 15.3
+  },
+  "KAMILI PACKERS SUGAR ONLY": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 24,
+    "median_gap_days": 20,
+    "estimated_delivery_days": 3,
+    "total_orders_2025": 14,
+    "avg_order_value_kes": 261533,
+    "reliability_score": 61,
+    "average_gap_days": 28.4
+  },
+  "LOREAL E A LIMITED HQ": {
+    "order_frequency": "bi_weekly",
+    "avg_gap_days": 12.8,
+    "median_gap_days": 12,
+    "estimated_delivery_days": 9,
+    "total_orders_2025": 26,
+    "avg_order_value_kes": 98657,
+    "reliability_score": 66,
+    "average_gap_days": 14.5
+  },
+  "MIRAGE INDUSTRIES LTD": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 16.0,
+    "median_gap_days": 20,
+    "estimated_delivery_days": 4,
+    "total_orders_2025": 22,
+    "avg_order_value_kes": 49053,
+    "reliability_score": 72,
+    "average_gap_days": 18.7
+  },
+  "MISS BEAUTY COMPANY LTD HQ": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 25.5,
+    "median_gap_days": 28,
+    "estimated_delivery_days": 5,
+    "total_orders_2025": 14,
+    "avg_order_value_kes": 161921,
+    "reliability_score": 79,
+    "average_gap_days": 27.7
+  },
+  "MERIT AFRICA LTD 2ND ACCOUNT SR": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 19.9,
+    "median_gap_days": 21,
+    "estimated_delivery_days": 1,
+    "total_orders_2025": 17,
+    "avg_order_value_kes": 38764,
+    "reliability_score": 78,
+    "average_gap_days": 21.2
+  },
+  "NUTCRACKER LTD HQ": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 14.9,
+    "median_gap_days": 16,
+    "estimated_delivery_days": 11,
+    "total_orders_2025": 23,
+    "avg_order_value_kes": 94352,
+    "reliability_score": 62,
+    "average_gap_days": 20.5
+  },
+  "NABICO ENTERPRISES LTD SR": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 22.1,
+    "median_gap_days": 20,
+    "estimated_delivery_days": 2,
+    "total_orders_2025": 15,
+    "avg_order_value_kes": 98057,
+    "reliability_score": 61,
+    "average_gap_days": 23.8
+  },
+  "NESTLE KENYA LTD": {
+    "order_frequency": "bi_weekly",
+    "avg_gap_days": 10.8,
+    "median_gap_days": 13,
+    "estimated_delivery_days": 3,
+    "total_orders_2025": 25,
+    "avg_order_value_kes": 132725,
+    "reliability_score": 80,
+    "average_gap_days": 12.3
+  },
+  "NUTCRACKER LTD LOCAL ITEMS": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 15.1,
+    "median_gap_days": 14,
+    "estimated_delivery_days": 4,
+    "total_orders_2025": 21,
+    "avg_order_value_kes": 26288,
+    "reliability_score": 64,
+    "average_gap_days": 17.7
+  },
+  "PROPACK KENYA LTD": {
+    "order_frequency": "bi_weekly",
+    "avg_gap_days": 7.8,
+    "median_gap_days": 7,
+    "estimated_delivery_days": 1,
+    "total_orders_2025": 43,
+    "avg_order_value_kes": 127864,
+    "reliability_score": 74,
+    "average_gap_days": 8.9
+  },
+  "PURE VIBES LIMITED SR": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 54.8,
+    "median_gap_days": 84,
+    "estimated_delivery_days": 1,
+    "total_orders_2025": 6,
+    "avg_order_value_kes": 17630,
+    "reliability_score": 0.905,
+    "average_gap_days": 91.3
+  },
+  "RADBONE CLARK KENYA LIMITED 2 SR": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 39.3,
+    "median_gap_days": 28,
+    "estimated_delivery_days": 3,
+    "total_orders_2025": 4,
+    "avg_order_value_kes": 12615,
+    "reliability_score": 0.905,
+    "average_gap_days": 39.3
+  },
+  "RINZ PRODUCTS LTD": {
+    "order_frequency": "bi_weekly",
+    "avg_gap_days": 12.2,
+    "median_gap_days": 12,
+    "estimated_delivery_days": 2,
+    "total_orders_2025": 28,
+    "avg_order_value_kes": 48038,
+    "reliability_score": 68,
+    "average_gap_days": 13.8
+  },
+  "RADBONE CLARK LIMITED MARS": {
+    "order_frequency": "bi_weekly",
+    "avg_gap_days": 8.6,
+    "median_gap_days": 10,
+    "estimated_delivery_days": 4,
+    "total_orders_2025": 40,
+    "avg_order_value_kes": 172406,
+    "reliability_score": 67,
+    "average_gap_days": 10.2
+  },
+  "SANGYUG ENTERPRISES LTD SR": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 20.6,
+    "median_gap_days": 14,
+    "estimated_delivery_days": 5,
+    "total_orders_2025": 17,
+    "avg_order_value_kes": 33960,
+    "reliability_score": 59,
+    "average_gap_days": 25.3
+  },
+  "SMARTBRIDGE DISTRIBUTORS LTD SR": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 24.7,
+    "median_gap_days": 26,
+    "estimated_delivery_days": 2,
+    "total_orders_2025": 12,
+    "avg_order_value_kes": 7894,
+    "reliability_score": 60,
+    "average_gap_days": 30.2
+  },
+  "SOYS LIMITED": {
+    "order_frequency": "bi_weekly",
+    "avg_gap_days": 7.7,
+    "median_gap_days": 7,
+    "estimated_delivery_days": 2,
+    "total_orders_2025": 43,
+    "avg_order_value_kes": 51331,
+    "reliability_score": 66,
+    "average_gap_days": 8.5
+  },
+  "TRESKEN INTERNATIONAL LIMITED": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 17.2,
+    "median_gap_days": 27,
+    "estimated_delivery_days": 6,
+    "total_orders_2025": 19,
+    "avg_order_value_kes": 181836,
+    "reliability_score": 65,
+    "average_gap_days": 23.8
+  },
+  "TWIRL ENTERPRISES LTD": {
+    "order_frequency": "bi_weekly",
+    "avg_gap_days": 8.5,
+    "median_gap_days": 11,
+    "estimated_delivery_days": 1,
+    "total_orders_2025": 40,
+    "avg_order_value_kes": 184537,
+    "reliability_score": 59,
+    "average_gap_days": 11.1
+  },
+  "TECHNOMATIC LIMITED SR": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 227,
+    "median_gap_days": 227,
+    "estimated_delivery_days": 6,
+    "total_orders_2025": 2,
+    "avg_order_value_kes": 27980,
+    "reliability_score": 0.905,
+    "average_gap_days": 227
+  },
+  "UNGA LTD": {
+    "order_frequency": "bi_weekly",
+    "avg_gap_days": 9.0,
+    "median_gap_days": 10,
+    "estimated_delivery_days": 1,
+    "total_orders_2025": 37,
+    "avg_order_value_kes": 156825,
+    "reliability_score": 60,
+    "average_gap_days": 11.6
+  },
+  "UDV KENYA LIMITED": {
+    "order_frequency": "weekly",
+    "avg_gap_days": 6.2,
+    "median_gap_days": 7,
+    "estimated_delivery_days": 3,
+    "total_orders_2025": 55,
+    "avg_order_value_kes": 325576,
+    "reliability_score": 66,
+    "average_gap_days": 7.3
+  },
+  "VIVEK INVESTMENT LTD SR": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 75.3,
+    "median_gap_days": 113,
+    "estimated_delivery_days": 21,
+    "total_orders_2025": 4,
+    "avg_order_value_kes": 50197,
+    "reliability_score": 0.905,
+    "average_gap_days": 113
+  },
+  "VIVEK INVESTMENT LIMITED": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 21.5,
+    "median_gap_days": 16,
+    "estimated_delivery_days": 5,
+    "total_orders_2025": 16,
+    "avg_order_value_kes": 23176,
+    "reliability_score": 64,
+    "average_gap_days": 23.1
+  },
+  "WESTLANDS TRADING LTD": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 14.9,
+    "median_gap_days": 10,
+    "estimated_delivery_days": 3,
+    "total_orders_2025": 22,
+    "avg_order_value_kes": 187791,
+    "reliability_score": 60,
+    "average_gap_days": 15.6
+  },
+  "WEST KENYA SUGAR COMPANY LTD": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 31.2,
+    "median_gap_days": 31,
+    "estimated_delivery_days": 6,
+    "total_orders_2025": 11,
+    "avg_order_value_kes": 270886,
+    "reliability_score": 81,
+    "average_gap_days": 34.7
+  },
+  "WEETABIX EAST AFRICA LTD HQ": {
+    "order_frequency": "bi_weekly",
+    "avg_gap_days": 11.6,
+    "median_gap_days": 12,
+    "estimated_delivery_days": 2,
+    "total_orders_2025": 29,
+    "avg_order_value_kes": 144127,
+    "reliability_score": 65,
+    "average_gap_days": 12.5
+  },
+  "SHALIMAR SPICES LIMITED": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 51.3,
+    "median_gap_days": 15,
+    "estimated_delivery_days": 1,
+    "total_orders_2025": 7,
+    "avg_order_value_kes": 16745,
+    "reliability_score": 29,
+    "average_gap_days": 51.3
+  },
+  "ALISON PRODUCTS LTD": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 14.5,
+    "median_gap_days": 14,
+    "estimated_delivery_days": 4,
+    "total_orders_2025": 24,
+    "avg_order_value_kes": 22928,
+    "reliability_score": 78,
+    "average_gap_days": 16.6
+  },
+  "AQUAMIST LIMITED": {
+    "order_frequency": "weekly",
+    "avg_gap_days": 4.3,
+    "median_gap_days": 4,
+    "estimated_delivery_days": 1,
+    "total_orders_2025": 79,
+    "avg_order_value_kes": 146843,
+    "reliability_score": 59,
+    "average_gap_days": 4.8
+  },
+  "AFRICAN COTTON INDUSTRIES LTD": {
+    "order_frequency": "bi_weekly",
+    "avg_gap_days": 11.4,
+    "median_gap_days": 11,
+    "estimated_delivery_days": 2,
+    "total_orders_2025": 30,
+    "avg_order_value_kes": 155976,
+    "reliability_score": 65,
+    "average_gap_days": 13.2
+  },
+  "ARYUV AGENCIES LTD": {
+    "order_frequency": "bi_weekly",
+    "avg_gap_days": 7.6,
+    "median_gap_days": 13,
+    "estimated_delivery_days": 3,
+    "total_orders_2025": 44,
+    "avg_order_value_kes": 84866,
+    "reliability_score": 67,
+    "average_gap_days": 14.2
+  },
+  "ALPINE COOLERS": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 33,
+    "median_gap_days": 33,
+    "estimated_delivery_days": 1,
+    "total_orders_2025": 8,
+    "avg_order_value_kes": 14738,
+    "reliability_score": 78,
+    "average_gap_days": 38.5
+  },
+  "ACHAARI ENTERPRISES LTD": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 20.2,
+    "median_gap_days": 17,
+    "estimated_delivery_days": 2,
+    "total_orders_2025": 17,
+    "avg_order_value_kes": 4724,
+    "reliability_score": 75,
+    "average_gap_days": 23.1
+  },
+  "ANJU HOME BAKERS": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 52.5,
+    "median_gap_days": 37,
+    "estimated_delivery_days": 5,
+    "total_orders_2025": 7,
+    "avg_order_value_kes": 2685,
+    "reliability_score": 0.905,
+    "average_gap_days": 63
+  },
+  "ARGUS TRADING  CO LIMITED": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 17.8,
+    "median_gap_days": 16,
+    "estimated_delivery_days": 2,
+    "total_orders_2025": 19,
+    "avg_order_value_kes": 8684,
+    "reliability_score": 78,
+    "average_gap_days": 20.1
+  },
+  "AQUAPET AND STATIONERS LTD": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 57.4,
+    "median_gap_days": 49,
+    "estimated_delivery_days": 2,
+    "total_orders_2025": 6,
+    "avg_order_value_kes": 14333,
+    "reliability_score": 0.905,
+    "average_gap_days": 71.8
+  },
+  "AFRICAN BEEKEEPERS LIMITED": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 142,
+    "median_gap_days": 142,
+    "estimated_delivery_days": 1,
+    "total_orders_2025": 3,
+    "avg_order_value_kes": 9680,
+    "reliability_score": 0.905,
+    "average_gap_days": 142
+  },
+  "ARMAAN LIMITED SR": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 25.3,
+    "median_gap_days": 23,
+    "estimated_delivery_days": 3,
+    "total_orders_2025": 14,
+    "avg_order_value_kes": 20918,
+    "reliability_score": 75,
+    "average_gap_days": 27.4
+  },
+  "ANEEK IMPORTERS AND TRADERS LTD": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 22.2,
+    "median_gap_days": 16,
+    "estimated_delivery_days": 3,
+    "total_orders_2025": 16,
+    "avg_order_value_kes": 22843,
+    "reliability_score": 69,
+    "average_gap_days": 22.2
+  },
+  "ALIMP GROUP LIMITED SR": {
+    "order_frequency": "bi_weekly",
+    "avg_gap_days": 10.1,
+    "median_gap_days": 8,
+    "estimated_delivery_days": 1,
+    "total_orders_2025": 33,
+    "avg_order_value_kes": 50252,
+    "reliability_score": 63,
+    "average_gap_days": 11.5
+  },
+  "ANTONIA STOGDALE  LTD": {
+    "order_frequency": "bi_weekly",
+    "avg_gap_days": 10.6,
+    "median_gap_days": 11,
+    "estimated_delivery_days": 1,
+    "total_orders_2025": 32,
+    "avg_order_value_kes": 15884,
+    "reliability_score": 67,
+    "average_gap_days": 12.2
+  },
+  "ALPHAJIRI LIMITED SR": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 17.8,
+    "median_gap_days": 19,
+    "estimated_delivery_days": 3,
+    "total_orders_2025": 15,
+    "avg_order_value_kes": 20968,
+    "reliability_score": 72,
+    "average_gap_days": 20.8
+  },
+  "AL FATAIRE FASARI LTD SR": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 24.5,
+    "median_gap_days": 20,
+    "estimated_delivery_days": 10,
+    "total_orders_2025": 14,
+    "avg_order_value_kes": 11289,
+    "reliability_score": 63,
+    "average_gap_days": 26.6
+  },
+  "ACROSS AGRICULTURE LIMITED SR": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 16.4,
+    "median_gap_days": 13,
+    "estimated_delivery_days": 1,
+    "total_orders_2025": 21,
+    "avg_order_value_kes": 19177,
+    "reliability_score": 63,
+    "average_gap_days": 16.4
+  },
+  "AFRO IRIS LIMITED SR": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 25.8,
+    "median_gap_days": 26,
+    "estimated_delivery_days": 10,
+    "total_orders_2025": 13,
+    "avg_order_value_kes": 28030,
+    "reliability_score": 70,
+    "average_gap_days": 31
+  },
+  "ANNAPURNA ENTERPRISES LTD": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 18.7,
+    "median_gap_days": 16,
+    "estimated_delivery_days": 3,
+    "total_orders_2025": 19,
+    "avg_order_value_kes": 6735,
+    "reliability_score": 72,
+    "average_gap_days": 21
+  },
+  "ABONY DAIRIES LIMITED": {
+    "order_frequency": "bi_weekly",
+    "avg_gap_days": 8.8,
+    "median_gap_days": 8,
+    "estimated_delivery_days": 1,
+    "total_orders_2025": 39,
+    "avg_order_value_kes": 24795,
+    "reliability_score": 66,
+    "average_gap_days": 10.1
+  },
+  "BLUE RING PRD LTD": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 55,
+    "median_gap_days": 59,
+    "estimated_delivery_days": 3,
+    "total_orders_2025": 7,
+    "avg_order_value_kes": 6391,
+    "reliability_score": 81,
+    "average_gap_days": 55
+  },
+  "BIO FOOD PRODUCTS LTD": {
+    "order_frequency": "daily",
+    "avg_gap_days": 1.0,
+    "median_gap_days": 1,
+    "estimated_delivery_days": 1,
+    "total_orders_2025": 357,
+    "avg_order_value_kes": 65917,
+    "reliability_score": 25,
+    "average_gap_days": 1.3
+  },
+  "BIDCO AFRICA LTD HQ": {
+    "order_frequency": "bi_weekly",
+    "avg_gap_days": 10.9,
+    "median_gap_days": 14,
+    "estimated_delivery_days": 2,
+    "total_orders_2025": 24,
+    "avg_order_value_kes": 229837,
+    "reliability_score": 74,
+    "average_gap_days": 12.6
+  },
+  "BOWIP AGENCIES LTD": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 15.6,
+    "median_gap_days": 15,
+    "estimated_delivery_days": 9,
+    "total_orders_2025": 13,
+    "avg_order_value_kes": 11913,
+    "reliability_score": 73,
+    "average_gap_days": 17
+  },
+  "BEIERSDORF EAST AFRICA LTD HQ": {
+    "order_frequency": "bi_weekly",
+    "avg_gap_days": 9.8,
+    "median_gap_days": 10,
+    "estimated_delivery_days": 3,
+    "total_orders_2025": 35,
+    "avg_order_value_kes": 162065,
+    "reliability_score": 69,
+    "average_gap_days": 11.1
+  },
+  "BEAUTYLAND LTD": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 15.9,
+    "median_gap_days": 14,
+    "estimated_delivery_days": 2,
+    "total_orders_2025": 21,
+    "avg_order_value_kes": 22834,
+    "reliability_score": 69,
+    "average_gap_days": 16.8
+  },
+  "BRUSH MANUFACTURERS": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 19.5,
+    "median_gap_days": 16,
+    "estimated_delivery_days": 3,
+    "total_orders_2025": 18,
+    "avg_order_value_kes": 18035,
+    "reliability_score": 77,
+    "average_gap_days": 20.7
+  },
+  "BEBALYSA ENTERPRISES LIMITED": {
+    "order_frequency": "bi_weekly",
+    "avg_gap_days": 10.3,
+    "median_gap_days": 11,
+    "estimated_delivery_days": 1,
+    "total_orders_2025": 33,
+    "avg_order_value_kes": 19564,
+    "reliability_score": 70,
+    "average_gap_days": 12.3
+  },
+  "BUYLINE INDUSTRIES LTD": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 18.4,
+    "median_gap_days": 17,
+    "estimated_delivery_days": 5,
+    "total_orders_2025": 19,
+    "avg_order_value_kes": 34856,
+    "reliability_score": 71,
+    "average_gap_days": 20.7
+  },
+  "BRAND ROYALTY LTD": {
+    "order_frequency": "bi_weekly",
+    "avg_gap_days": 13.3,
+    "median_gap_days": 13,
+    "estimated_delivery_days": 1,
+    "total_orders_2025": 26,
+    "avg_order_value_kes": 60911,
+    "reliability_score": 70,
+    "average_gap_days": 14.4
+  },
+  "SMART BRANDS LTD HQ": {
+    "order_frequency": "bi_weekly",
+    "avg_gap_days": 8.1,
+    "median_gap_days": 11,
+    "estimated_delivery_days": 4,
+    "total_orders_2025": 39,
+    "avg_order_value_kes": 119832,
+    "reliability_score": 56,
+    "average_gap_days": 11.4
+  },
+  "BROADWAYS BAKERY LTD": {
+    "order_frequency": "daily",
+    "avg_gap_days": 0.6,
+    "median_gap_days": 1,
+    "estimated_delivery_days": 1,
+    "total_orders_2025": 548,
+    "avg_order_value_kes": 2711,
+    "reliability_score": 21,
+    "average_gap_days": 1.1
+  },
+  "BAKEX MILLERS LIMITED": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 25.8,
+    "median_gap_days": 29,
+    "estimated_delivery_days": 1,
+    "total_orders_2025": 13,
+    "avg_order_value_kes": 8127,
+    "reliability_score": 77,
+    "average_gap_days": 30.9
+  },
+  "BOUNTY LIMITED": {
+    "order_frequency": "bi_weekly",
+    "avg_gap_days": 13.8,
+    "median_gap_days": 14,
+    "estimated_delivery_days": 3,
+    "total_orders_2025": 25,
+    "avg_order_value_kes": 17921,
+    "reliability_score": 65,
+    "average_gap_days": 15.1
+  },
+  "BRIGHT BONIKA FOOD LIMITED": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 17.2,
+    "median_gap_days": 15,
+    "estimated_delivery_days": 3,
+    "total_orders_2025": 20,
+    "avg_order_value_kes": 12669,
+    "reliability_score": 71,
+    "average_gap_days": 19.2
+  },
+  "BURTON AND BAMBER C LIMITED": {
+    "order_frequency": "bi_weekly",
+    "avg_gap_days": 13.4,
+    "median_gap_days": 14,
+    "estimated_delivery_days": 3,
+    "total_orders_2025": 26,
+    "avg_order_value_kes": 20264,
+    "reliability_score": 72,
+    "average_gap_days": 16.0
+  },
+  "BIC EAST AFRICA LIMITED": {
+    "order_frequency": "bi_weekly",
+    "avg_gap_days": 13.7,
+    "median_gap_days": 15,
+    "estimated_delivery_days": 4,
+    "total_orders_2025": 25,
+    "avg_order_value_kes": 25524,
+    "reliability_score": 75,
+    "average_gap_days": 17.3
+  },
+  "BUGGY AFRICA LIMITED": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 94,
+    "median_gap_days": 94,
+    "estimated_delivery_days": 21,
+    "total_orders_2025": 2,
+    "avg_order_value_kes": 7138,
+    "reliability_score": 0.905,
+    "average_gap_days": 94
+  },
+  "BRAND IMPORT AFRICA 2ND ACCOUNT SR": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 26.7,
+    "median_gap_days": 32,
+    "estimated_delivery_days": 8,
+    "total_orders_2025": 8,
+    "avg_order_value_kes": 3483,
+    "reliability_score": 0.905,
+    "average_gap_days": 37.4
+  },
+  "254 BREWING COMPANY LIMITED": {
+    "order_frequency": "bi_weekly",
+    "avg_gap_days": 10.4,
+    "median_gap_days": 8,
+    "estimated_delivery_days": 2,
+    "total_orders_2025": 30,
+    "avg_order_value_kes": 15073,
+    "reliability_score": 62,
+    "average_gap_days": 12.1
+  },
+  "BIDCO AFRICA LTD BEVERAGE": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 14.1,
+    "median_gap_days": 14,
+    "estimated_delivery_days": 3,
+    "total_orders_2025": 17,
+    "avg_order_value_kes": 18389,
+    "reliability_score": 82,
+    "average_gap_days": 15
+  },
+  "BIASHARA MERCHANT COMPANY SEZ LTD": {
+    "order_frequency": "weekly",
+    "avg_gap_days": 6.9,
+    "median_gap_days": 7,
+    "estimated_delivery_days": 2,
+    "total_orders_2025": 48,
+    "avg_order_value_kes": 74948,
+    "reliability_score": 71,
+    "average_gap_days": 7.7
+  },
+  "BIGCOLD KENYA SIMPLIFINE FROZEN AND CHILLED": {
+    "order_frequency": "bi_weekly",
+    "avg_gap_days": 7.7,
+    "median_gap_days": 7,
+    "estimated_delivery_days": 2,
+    "total_orders_2025": 43,
+    "avg_order_value_kes": 50258,
+    "reliability_score": 52,
+    "average_gap_days": 8.9
+  },
+  "BIGCOLD KENYA SIMPLIFINE SHELF BREAD": {
+    "order_frequency": "every_2_3_days",
+    "avg_gap_days": 2.0,
+    "median_gap_days": 1,
+    "estimated_delivery_days": 2,
+    "total_orders_2025": 123,
+    "avg_order_value_kes": 5896,
+    "reliability_score": 28,
+    "average_gap_days": 2.6
+  },
+  "BIGCOLD KENYA SIMPLIFINE BAKERY NO GRN": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 15,
+    "median_gap_days": 16,
+    "estimated_delivery_days": 1,
+    "total_orders_2025": 9,
+    "avg_order_value_kes": 91959,
+    "reliability_score": 76,
+    "average_gap_days": 15
+  },
+  "BRAND ROYALTY LTD 2ND ACCOUNT SR": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 43,
+    "median_gap_days": 56,
+    "estimated_delivery_days": 4,
+    "total_orders_2025": 8,
+    "avg_order_value_kes": 4304,
+    "reliability_score": 80,
+    "average_gap_days": 50.2
+  },
+  "BIDCO AFRICA LTD SUNTORY": {
+    "order_frequency": "bi_weekly",
+    "avg_gap_days": 9.4,
+    "median_gap_days": 10,
+    "estimated_delivery_days": 3,
+    "total_orders_2025": 27,
+    "avg_order_value_kes": 102652,
+    "reliability_score": 77,
+    "average_gap_days": 10.6
+  },
+  "BEYOND OPINION  B  S LTD SR": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 41,
+    "median_gap_days": 27,
+    "estimated_delivery_days": 3,
+    "total_orders_2025": 8,
+    "avg_order_value_kes": 4970,
+    "reliability_score": 57,
+    "average_gap_days": 47.8
+  },
+  "BABY BRANDS DIRECTS LTD": {
+    "order_frequency": "bi_weekly",
+    "avg_gap_days": 11.8,
+    "median_gap_days": 13,
+    "estimated_delivery_days": 3,
+    "total_orders_2025": 29,
+    "avg_order_value_kes": 108472,
+    "reliability_score": 69,
+    "average_gap_days": 13.2
+  },
+  "BOGO BEVERAGES LIMITED": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 19.2,
+    "median_gap_days": 12,
+    "estimated_delivery_days": 5,
+    "total_orders_2025": 13,
+    "avg_order_value_kes": 26420,
+    "reliability_score": 56,
+    "average_gap_days": 19.2
+  },
+  "BAPLIX COMPANY LTD": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 33,
+    "median_gap_days": 31,
+    "estimated_delivery_days": 2,
+    "total_orders_2025": 10,
+    "avg_order_value_kes": 14444,
+    "reliability_score": 70,
+    "average_gap_days": 33
+  },
+  "BRANDACTIV KENYA LTD SR": {
+    "order_frequency": "bi_weekly",
+    "avg_gap_days": 9.8,
+    "median_gap_days": 8,
+    "estimated_delivery_days": 3,
+    "total_orders_2025": 34,
+    "avg_order_value_kes": 46940,
+    "reliability_score": 58,
+    "average_gap_days": 10.8
+  },
+  "BLUEMART PRODUCTS E A LTD": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 18.7,
+    "median_gap_days": 17,
+    "estimated_delivery_days": 1,
+    "total_orders_2025": 18,
+    "avg_order_value_kes": 23159,
+    "reliability_score": 71,
+    "average_gap_days": 19.9
+  },
+  "BUDGET MEALS COMPANY LTD": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 20.7,
+    "median_gap_days": 17,
+    "estimated_delivery_days": 2,
+    "total_orders_2025": 16,
+    "avg_order_value_kes": 9753,
+    "reliability_score": 78,
+    "average_gap_days": 22.1
+  },
+  "CHANDARIA INDUSTRIES  LTD": {
+    "order_frequency": "weekly",
+    "avg_gap_days": 4.7,
+    "median_gap_days": 9,
+    "estimated_delivery_days": 4,
+    "total_orders_2025": 70,
+    "avg_order_value_kes": 228069,
+    "reliability_score": 66,
+    "average_gap_days": 10.1
+  },
+  "CANNED MEAT PRODUCTS": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 17.1,
+    "median_gap_days": 16,
+    "estimated_delivery_days": 3,
+    "total_orders_2025": 20,
+    "avg_order_value_kes": 25860,
+    "reliability_score": 68,
+    "average_gap_days": 19.1
+  },
+  "COUNTRY MILE COMPANY LTD": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 24.8,
+    "median_gap_days": 22,
+    "estimated_delivery_days": 5,
+    "total_orders_2025": 14,
+    "avg_order_value_kes": 5663,
+    "reliability_score": 73,
+    "average_gap_days": 24.8
+  },
+  "CREATIVE INNOVATIONS LTD SR": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 38.8,
+    "median_gap_days": 36,
+    "estimated_delivery_days": 4,
+    "total_orders_2025": 9,
+    "avg_order_value_kes": 50712,
+    "reliability_score": 83,
+    "average_gap_days": 44.3
+  },
+  "CRYSTAL FROZEN AND CHILLED FOODS LTD": {
+    "order_frequency": "weekly",
+    "avg_gap_days": 3.3,
+    "median_gap_days": 7,
+    "estimated_delivery_days": 1,
+    "total_orders_2025": 103,
+    "avg_order_value_kes": 266948,
+    "reliability_score": 61,
+    "average_gap_days": 6.9
+  },
+  "P Z CUSSONS EAST AFRICA  LTD HQ": {
+    "order_frequency": "bi_weekly",
+    "avg_gap_days": 10.9,
+    "median_gap_days": 13,
+    "estimated_delivery_days": 5,
+    "total_orders_2025": 31,
+    "avg_order_value_kes": 147161,
+    "reliability_score": 68,
+    "average_gap_days": 12.6
+  },
+  "CANINE BIOSCIENCES LTD": {
+    "order_frequency": "bi_weekly",
+    "avg_gap_days": 11.5,
+    "median_gap_days": 12,
+    "estimated_delivery_days": 2,
+    "total_orders_2025": 30,
+    "avg_order_value_kes": 51382,
+    "reliability_score": 70,
+    "average_gap_days": 13.4
+  },
+  "COCKRID KENYA LIMITED": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 89.5,
+    "median_gap_days": 89,
+    "estimated_delivery_days": 2,
+    "total_orders_2025": 3,
+    "avg_order_value_kes": 3556,
+    "reliability_score": 0.905,
+    "average_gap_days": 89.5
+  },
+  "CLIPS LIMITED": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 29.6,
+    "median_gap_days": 29,
+    "estimated_delivery_days": 3,
+    "total_orders_2025": 12,
+    "avg_order_value_kes": 13045,
+    "reliability_score": 70,
+    "average_gap_days": 32.6
+  },
+  "DORMANS COFFEE LIMITED": {
+    "order_frequency": "bi_weekly",
+    "avg_gap_days": 10.4,
+    "median_gap_days": 10,
+    "estimated_delivery_days": 5,
+    "total_orders_2025": 33,
+    "avg_order_value_kes": 134378,
+    "reliability_score": 68,
+    "average_gap_days": 11.9
+  },
+  "CARD GROUP EAST AFRICA LTD NO GRN": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 27.1,
+    "median_gap_days": 21,
+    "estimated_delivery_days": 1,
+    "total_orders_2025": 13,
+    "avg_order_value_kes": 21641,
+    "reliability_score": 58,
+    "average_gap_days": 32.5
+  },
+  "CORNER SHOP PREPACK NO GRN": {
+    "order_frequency": "weekly",
+    "avg_gap_days": 6.7,
+    "median_gap_days": 7,
+    "estimated_delivery_days": 1,
+    "total_orders_2025": 52,
+    "avg_order_value_kes": 107012,
+    "reliability_score": 68,
+    "average_gap_days": 7.9
+  },
+  "C AND C POLAKEN LIMITED": {
+    "order_frequency": "bi_weekly",
+    "avg_gap_days": 13.9,
+    "median_gap_days": 13,
+    "estimated_delivery_days": 4,
+    "total_orders_2025": 16,
+    "avg_order_value_kes": 15590,
+    "reliability_score": 67,
+    "average_gap_days": 16.1
+  },
+  "CHERUBET COMPANY LIMITED": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 16.8,
+    "median_gap_days": 15,
+    "estimated_delivery_days": 2,
+    "total_orders_2025": 19,
+    "avg_order_value_kes": 5737,
+    "reliability_score": 69,
+    "average_gap_days": 17.8
+  },
+  "CAFFE DEL DUCA LIMITED": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 60.2,
+    "median_gap_days": 53,
+    "estimated_delivery_days": 3,
+    "total_orders_2025": 5,
+    "avg_order_value_kes": 5640,
+    "reliability_score": 0.905,
+    "average_gap_days": 60.2
+  },
+  "CHIRAG AFRICA LIMITED": {
+    "order_frequency": "bi_weekly",
+    "avg_gap_days": 13.4,
+    "median_gap_days": 14,
+    "estimated_delivery_days": 4,
+    "total_orders_2025": 25,
+    "avg_order_value_kes": 17458,
+    "reliability_score": 68,
+    "average_gap_days": 15.3
+  },
+  "CHOICE MEATS BEEF PLANT": {
+    "order_frequency": "every_2_3_days",
+    "avg_gap_days": 2.7,
+    "median_gap_days": 3,
+    "estimated_delivery_days": 1,
+    "total_orders_2025": 125,
+    "avg_order_value_kes": 5760,
+    "reliability_score": 47,
+    "average_gap_days": 3.0
+  },
+  "C AND R FOOD INDUSTRIES LTD": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 15.9,
+    "median_gap_days": 16,
+    "estimated_delivery_days": 2,
+    "total_orders_2025": 22,
+    "avg_order_value_kes": 15422,
+    "reliability_score": 77,
+    "average_gap_days": 17.6
+  },
+  "CANON CHEMICALS LTD": {
+    "order_frequency": "bi_weekly",
+    "avg_gap_days": 8.8,
+    "median_gap_days": 10,
+    "estimated_delivery_days": 3,
+    "total_orders_2025": 38,
+    "avg_order_value_kes": 47995,
+    "reliability_score": 66,
+    "average_gap_days": 10.9
+  },
+  "CROWN BRANDS": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 32.4,
+    "median_gap_days": 18,
+    "estimated_delivery_days": 5,
+    "total_orders_2025": 11,
+    "avg_order_value_kes": 19751,
+    "reliability_score": 65,
+    "average_gap_days": 32.4
+  },
+  "CASKS & BARRELS LIMITED": {
+    "order_frequency": "bi_weekly",
+    "avg_gap_days": 14.0,
+    "median_gap_days": 11,
+    "estimated_delivery_days": 2,
+    "total_orders_2025": 24,
+    "avg_order_value_kes": 24723,
+    "reliability_score": 56,
+    "average_gap_days": 15.3
+  },
+  "CALIBER FOODS LIMITED": {
+    "order_frequency": "bi_weekly",
+    "avg_gap_days": 9.1,
+    "median_gap_days": 8,
+    "estimated_delivery_days": 2,
+    "total_orders_2025": 37,
+    "avg_order_value_kes": 9284,
+    "reliability_score": 70,
+    "average_gap_days": 10.0
+  },
+  "CLOROX SUB SAHARA  AFRICA  LTD": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 19.7,
+    "median_gap_days": 16,
+    "estimated_delivery_days": 4,
+    "total_orders_2025": 17,
+    "avg_order_value_kes": 26363,
+    "reliability_score": 79,
+    "average_gap_days": 22.5
+  },
+  "CHER BEAUTY SHOP": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 51.7,
+    "median_gap_days": 61,
+    "estimated_delivery_days": 7,
+    "total_orders_2025": 7,
+    "avg_order_value_kes": 4507,
+    "reliability_score": 72,
+    "average_gap_days": 51.7
+  },
+  "BY FARMERS FOR FARMERS  P F D LTD": {
+    "order_frequency": "bi_weekly",
+    "avg_gap_days": 13,
+    "median_gap_days": 13,
+    "estimated_delivery_days": 10,
+    "total_orders_2025": 3,
+    "avg_order_value_kes": 24209,
+    "reliability_score": 0.905,
+    "average_gap_days": 13
+  },
+  "CHANDARIA INDUSTRIES LTD MACCOFFEE": {
+    "order_frequency": "bi_weekly",
+    "avg_gap_days": 8.2,
+    "median_gap_days": 9,
+    "estimated_delivery_days": 4,
+    "total_orders_2025": 41,
+    "avg_order_value_kes": 46515,
+    "reliability_score": 61,
+    "average_gap_days": 9.6
+  },
+  "CHANDARIA INDUSTRIES LTD HYGIENE": {
+    "order_frequency": "bi_weekly",
+    "avg_gap_days": 7.3,
+    "median_gap_days": 14,
+    "estimated_delivery_days": 6,
+    "total_orders_2025": 47,
+    "avg_order_value_kes": 25176,
+    "reliability_score": 70,
+    "average_gap_days": 15.2
+  },
+  "CHANDARIA INDUSTRIES  LTD KENTASTE": {
+    "order_frequency": "bi_weekly",
+    "avg_gap_days": 8.7,
+    "median_gap_days": 14,
+    "estimated_delivery_days": 4,
+    "total_orders_2025": 39,
+    "avg_order_value_kes": 42771,
+    "reliability_score": 73,
+    "average_gap_days": 13.8
+  },
+  "CHANDARIA INDUSTRIES LIMITED TONI": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 15.5,
+    "median_gap_days": 15,
+    "estimated_delivery_days": 5,
+    "total_orders_2025": 23,
+    "avg_order_value_kes": 25640,
+    "reliability_score": 75,
+    "average_gap_days": 17
+  },
+  "CASTELLO DELL AMORE LTD": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 65.3,
+    "median_gap_days": 27,
+    "estimated_delivery_days": 4,
+    "total_orders_2025": 4,
+    "avg_order_value_kes": 10553,
+    "reliability_score": 0.905,
+    "average_gap_days": 65.3
+  },
+  "CRYSTAL FR  AND CHILLED FOODS LTD WINE SR": {
+    "order_frequency": "bi_weekly",
+    "avg_gap_days": 9.1,
+    "median_gap_days": 7,
+    "estimated_delivery_days": 2,
+    "total_orders_2025": 37,
+    "avg_order_value_kes": 50455,
+    "reliability_score": 60,
+    "average_gap_days": 10.6
+  },
+  "CAMINO RUIZ AGENCIES LTD SR": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 29.1,
+    "median_gap_days": 26,
+    "estimated_delivery_days": 10,
+    "total_orders_2025": 12,
+    "avg_order_value_kes": 9028,
+    "reliability_score": 69,
+    "average_gap_days": 32
+  },
+  "CEEKAN ENTERPRISES LIMITED": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 63,
+    "median_gap_days": 126,
+    "estimated_delivery_days": 5,
+    "total_orders_2025": 3,
+    "avg_order_value_kes": 14483,
+    "reliability_score": 0.905,
+    "average_gap_days": 126
+  },
+  "CARD GROUP EAST AFRICA LTD FINI HQ": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 18.9,
+    "median_gap_days": 27,
+    "estimated_delivery_days": 3,
+    "total_orders_2025": 14,
+    "avg_order_value_kes": 41089,
+    "reliability_score": 65,
+    "average_gap_days": 22.4
+  },
+  "JULIETA M CHIBUTSA": {
+    "order_frequency": "bi_weekly",
+    "avg_gap_days": 8.9,
+    "median_gap_days": 7,
+    "estimated_delivery_days": 1,
+    "total_orders_2025": 37,
+    "avg_order_value_kes": 1735,
+    "reliability_score": 65,
+    "average_gap_days": 11.9
+  },
+  "CONFINI LIMITED": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 19.4,
+    "median_gap_days": 20,
+    "estimated_delivery_days": 3,
+    "total_orders_2025": 18,
+    "avg_order_value_kes": 10413,
+    "reliability_score": 73,
+    "average_gap_days": 21.9
+  },
+  "COLOMER EAST AFRICA LTD SR": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 27.7,
+    "median_gap_days": 27,
+    "estimated_delivery_days": 6,
+    "total_orders_2025": 12,
+    "avg_order_value_kes": 57980,
+    "reliability_score": 75,
+    "average_gap_days": 30.5
+  },
+  "DEBENHAM AND FEAR LTD": {
+    "order_frequency": "weekly",
+    "avg_gap_days": 6.7,
+    "median_gap_days": 13,
+    "estimated_delivery_days": 3,
+    "total_orders_2025": 50,
+    "avg_order_value_kes": 306098,
+    "reliability_score": 72,
+    "average_gap_days": 13.7
+  },
+  "DOMAINE KENYA LTD": {
+    "order_frequency": "bi_weekly",
+    "avg_gap_days": 8.4,
+    "median_gap_days": 7,
+    "estimated_delivery_days": 2,
+    "total_orders_2025": 40,
+    "avg_order_value_kes": 30466,
+    "reliability_score": 65,
+    "average_gap_days": 9.1
+  },
+  "DHARAMSHI LAKHAMSHI AND CO LTD": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 19.7,
+    "median_gap_days": 16,
+    "estimated_delivery_days": 5,
+    "total_orders_2025": 18,
+    "avg_order_value_kes": 27878,
+    "reliability_score": 66,
+    "average_gap_days": 20.9
+  },
+  "DPL FESTIVE  LIMITED": {
+    "order_frequency": "daily",
+    "avg_gap_days": 0.8,
+    "median_gap_days": 1,
+    "estimated_delivery_days": 1,
+    "total_orders_2025": 445,
+    "avg_order_value_kes": 30323,
+    "reliability_score": 21,
+    "average_gap_days": 1.1
+  },
+  "DELISH AND NUTRI LTD": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 16.1,
+    "median_gap_days": 14,
+    "estimated_delivery_days": 3,
+    "total_orders_2025": 21,
+    "avg_order_value_kes": 10328,
+    "reliability_score": 68,
+    "average_gap_days": 17.9
+  },
+  "DEVYANI FOOD INDUSTRIES K LIMITED": {
+    "order_frequency": "bi_weekly",
+    "avg_gap_days": 10.8,
+    "median_gap_days": 10,
+    "estimated_delivery_days": 2,
+    "total_orders_2025": 31,
+    "avg_order_value_kes": 28207,
+    "reliability_score": 51,
+    "average_gap_days": 11.6
+  },
+  "DELICTABLE FOODS LIMITED SR": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 34.9,
+    "median_gap_days": 27,
+    "estimated_delivery_days": 1,
+    "total_orders_2025": 10,
+    "avg_order_value_kes": 14406,
+    "reliability_score": 62,
+    "average_gap_days": 39.2
+  },
+  "DION WINE AND SPIRIT E A LIMITED": {
+    "order_frequency": "bi_weekly",
+    "avg_gap_days": 8.8,
+    "median_gap_days": 7,
+    "estimated_delivery_days": 1,
+    "total_orders_2025": 36,
+    "avg_order_value_kes": 49271,
+    "reliability_score": 68,
+    "average_gap_days": 9.4
+  },
+  "UNILEVER KENYA LIMITED": {
+    "order_frequency": "bi_weekly",
+    "avg_gap_days": 10.2,
+    "median_gap_days": 10,
+    "estimated_delivery_days": 5,
+    "total_orders_2025": 33,
+    "avg_order_value_kes": 354721,
+    "reliability_score": 71,
+    "average_gap_days": 12.1
+  },
+  "EXCEL CHEMICALS LTD": {
+    "order_frequency": "bi_weekly",
+    "avg_gap_days": 7.4,
+    "median_gap_days": 7,
+    "estimated_delivery_days": 1,
+    "total_orders_2025": 47,
+    "avg_order_value_kes": 73804,
+    "reliability_score": 66,
+    "average_gap_days": 8.3
+  },
+  "ECSTACY LTD": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 15.7,
+    "median_gap_days": 14,
+    "estimated_delivery_days": 1,
+    "total_orders_2025": 22,
+    "avg_order_value_kes": 24920,
+    "reliability_score": 76,
+    "average_gap_days": 16.5
+  },
+  "EXPORT TRADING CO. LTD": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 24.6,
+    "median_gap_days": 18,
+    "estimated_delivery_days": 4,
+    "total_orders_2025": 14,
+    "avg_order_value_kes": 19535,
+    "reliability_score": 65,
+    "average_gap_days": 29.1
+  },
+  "E.A.G.M HQ": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 48.8,
+    "median_gap_days": 50,
+    "estimated_delivery_days": 1,
+    "total_orders_2025": 7,
+    "avg_order_value_kes": 38069,
+    "reliability_score": 65,
+    "average_gap_days": 48.8
+  },
+  "ENOVA INDUSTRIES LIMITED": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 23.9,
+    "median_gap_days": 21,
+    "estimated_delivery_days": 1,
+    "total_orders_2025": 14,
+    "avg_order_value_kes": 5063,
+    "reliability_score": 73,
+    "average_gap_days": 28.3
+  },
+  "ECO FRIENDLY CONVERTERS LTD": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 16.1,
+    "median_gap_days": 21,
+    "estimated_delivery_days": 3,
+    "total_orders_2025": 21,
+    "avg_order_value_kes": 7645,
+    "reliability_score": 69,
+    "average_gap_days": 20.2
+  },
+  "EEEZY COOK LTD": {
+    "order_frequency": "bi_weekly",
+    "avg_gap_days": 9.9,
+    "median_gap_days": 14,
+    "estimated_delivery_days": 1,
+    "total_orders_2025": 35,
+    "avg_order_value_kes": 27542,
+    "reliability_score": 70,
+    "average_gap_days": 16
+  },
+  "EUREKA NUTS LIMITED MEDIUM INDUSTRIAL": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 18.8,
+    "median_gap_days": 18,
+    "estimated_delivery_days": 1,
+    "total_orders_2025": 19,
+    "avg_order_value_kes": 20919,
+    "reliability_score": 70,
+    "average_gap_days": 22.6
+  },
+  "ENOTECA WINES AGENCIES LIMITED SR": {
+    "order_frequency": "bi_weekly",
+    "avg_gap_days": 10.0,
+    "median_gap_days": 7,
+    "estimated_delivery_days": 2,
+    "total_orders_2025": 33,
+    "avg_order_value_kes": 33730,
+    "reliability_score": 59,
+    "average_gap_days": 11.1
+  },
+  "EAST AFRICAN SEA FOOD LTD": {
+    "order_frequency": "bi_weekly",
+    "avg_gap_days": 10.9,
+    "median_gap_days": 12,
+    "estimated_delivery_days": 2,
+    "total_orders_2025": 30,
+    "avg_order_value_kes": 38455,
+    "reliability_score": 70,
+    "average_gap_days": 13.7
+  },
+  "ECOPACK LIMITED": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 25.2,
+    "median_gap_days": 29,
+    "estimated_delivery_days": 4,
+    "total_orders_2025": 14,
+    "avg_order_value_kes": 12242,
+    "reliability_score": 75,
+    "average_gap_days": 27.3
+  },
+  "EDUCATE YOURSELF LTD": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 22,
+    "median_gap_days": 18,
+    "estimated_delivery_days": 6,
+    "total_orders_2025": 16,
+    "avg_order_value_kes": 11663,
+    "reliability_score": 68,
+    "average_gap_days": 23.6
+  },
+  "EDMAX LIMITED SR": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 33.4,
+    "median_gap_days": 33,
+    "estimated_delivery_days": 2,
+    "total_orders_2025": 10,
+    "avg_order_value_kes": 27833,
+    "reliability_score": 75,
+    "average_gap_days": 43
+  },
+  "ECOZYM LIMITED SR": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 30.2,
+    "median_gap_days": 28,
+    "estimated_delivery_days": 2,
+    "total_orders_2025": 12,
+    "avg_order_value_kes": 11451,
+    "reliability_score": 66,
+    "average_gap_days": 36.9
+  },
+  "ECO ESSENTIALS LIMITED": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 16,
+    "median_gap_days": 16,
+    "estimated_delivery_days": 1,
+    "total_orders_2025": 22,
+    "avg_order_value_kes": 162805,
+    "reliability_score": 76,
+    "average_gap_days": 17.7
+  },
+  "FARMERS CHOICE LTD": {
+    "order_frequency": "every_2_3_days",
+    "avg_gap_days": 2.1,
+    "median_gap_days": 3,
+    "estimated_delivery_days": 1,
+    "total_orders_2025": 165,
+    "avg_order_value_kes": 93596,
+    "reliability_score": 42,
+    "average_gap_days": 2.5
+  },
+  "FIRST DRINKS KENYA LTD SR": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 94,
+    "median_gap_days": 94,
+    "estimated_delivery_days": 21,
+    "total_orders_2025": 2,
+    "avg_order_value_kes": 13759,
+    "reliability_score": 0.905,
+    "average_gap_days": 94
+  },
+  "FINSBURY TRADING LIMITED MSA": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 15.3,
+    "median_gap_days": 14,
+    "estimated_delivery_days": 3,
+    "total_orders_2025": 22,
+    "avg_order_value_kes": 27841,
+    "reliability_score": 63,
+    "average_gap_days": 16.1
+  },
+  "FLOWER MEETA": {
+    "order_frequency": "weekly",
+    "avg_gap_days": 5.8,
+    "median_gap_days": 7,
+    "estimated_delivery_days": 1,
+    "total_orders_2025": 39,
+    "avg_order_value_kes": 10716,
+    "reliability_score": 97,
+    "average_gap_days": 7.1
+  },
+  "FELPER SUPPLIES LIMITED": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 30.5,
+    "median_gap_days": 30,
+    "estimated_delivery_days": 4,
+    "total_orders_2025": 12,
+    "avg_order_value_kes": 8526,
+    "reliability_score": 76,
+    "average_gap_days": 33.6
+  },
+  "FRENCH BEAUTY LTD SR": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 34.2,
+    "median_gap_days": 31,
+    "estimated_delivery_days": 21,
+    "total_orders_2025": 6,
+    "avg_order_value_kes": 28784,
+    "reliability_score": 0.905,
+    "average_gap_days": 34.2
+  },
+  "GREEN FARM POULTRY": {
+    "order_frequency": "weekly",
+    "avg_gap_days": 6.7,
+    "median_gap_days": 7,
+    "estimated_delivery_days": 2,
+    "total_orders_2025": 51,
+    "avg_order_value_kes": 47187,
+    "reliability_score": 67,
+    "average_gap_days": 7.6
+  },
+  "GLOBE PHARMACY LTD": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 74.5,
+    "median_gap_days": 84,
+    "estimated_delivery_days": 1,
+    "total_orders_2025": 5,
+    "avg_order_value_kes": 4489,
+    "reliability_score": 0.905,
+    "average_gap_days": 74.5
+  },
+  "GLACIER PRODUCTS LTD G P": {
+    "order_frequency": "bi_weekly",
+    "avg_gap_days": 8.2,
+    "median_gap_days": 8,
+    "estimated_delivery_days": 1,
+    "total_orders_2025": 42,
+    "avg_order_value_kes": 77796,
+    "reliability_score": 67,
+    "average_gap_days": 9.1
+  },
+  "GILANI GOURMET LTD": {
+    "order_frequency": "bi_weekly",
+    "avg_gap_days": 7.7,
+    "median_gap_days": 7,
+    "estimated_delivery_days": 1,
+    "total_orders_2025": 44,
+    "avg_order_value_kes": 23300,
+    "reliability_score": 60,
+    "average_gap_days": 8.8
+  },
+  "GREENFOREST FOODS": {
+    "order_frequency": "bi_weekly",
+    "avg_gap_days": 13.5,
+    "median_gap_days": 14,
+    "estimated_delivery_days": 4,
+    "total_orders_2025": 25,
+    "avg_order_value_kes": 60701,
+    "reliability_score": 81,
+    "average_gap_days": 14.8
+  },
+  "GOLD CROWN BEVERAGES K LTD": {
+    "order_frequency": "bi_weekly",
+    "avg_gap_days": 7.4,
+    "median_gap_days": 13,
+    "estimated_delivery_days": 3,
+    "total_orders_2025": 45,
+    "avg_order_value_kes": 113488,
+    "reliability_score": 69,
+    "average_gap_days": 13.1
+  },
+  "GODSON ORGANICS LIMITED": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 15.0,
+    "median_gap_days": 15,
+    "estimated_delivery_days": 1,
+    "total_orders_2025": 23,
+    "avg_order_value_kes": 10886,
+    "reliability_score": 73,
+    "average_gap_days": 16.6
+  },
+  "GRAIN INDUSTRIES LIMITED": {
+    "order_frequency": "bi_weekly",
+    "avg_gap_days": 12.9,
+    "median_gap_days": 11,
+    "estimated_delivery_days": 1,
+    "total_orders_2025": 27,
+    "avg_order_value_kes": 108092,
+    "reliability_score": 62,
+    "average_gap_days": 14.0
+  },
+  "GITHUNGURI DAIRY FARMERS": {
+    "order_frequency": "daily",
+    "avg_gap_days": 0.9,
+    "median_gap_days": 1,
+    "estimated_delivery_days": 1,
+    "total_orders_2025": 374,
+    "avg_order_value_kes": 11325,
+    "reliability_score": 25,
+    "average_gap_days": 1.3
+  },
+  "GOLDEN AFRICA K LTD": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 15.0,
+    "median_gap_days": 12,
+    "estimated_delivery_days": 4,
+    "total_orders_2025": 23,
+    "avg_order_value_kes": 98830,
+    "reliability_score": 62,
+    "average_gap_days": 16.4
+  },
+  "GREEN BUSH  E.A CO": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 51.3,
+    "median_gap_days": 49,
+    "estimated_delivery_days": 3,
+    "total_orders_2025": 7,
+    "avg_order_value_kes": 16020,
+    "reliability_score": 73,
+    "average_gap_days": 51.3
+  },
+  "GOURMET FOODS INT LTD": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 17.6,
+    "median_gap_days": 17,
+    "estimated_delivery_days": 7,
+    "total_orders_2025": 19,
+    "avg_order_value_kes": 16329,
+    "reliability_score": 72,
+    "average_gap_days": 19.8
+  },
+  "GROCER BOX LIMITED SR": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 82.5,
+    "median_gap_days": 82,
+    "estimated_delivery_days": 6,
+    "total_orders_2025": 3,
+    "avg_order_value_kes": 16108,
+    "reliability_score": 0.905,
+    "average_gap_days": 82.5
+  },
+  "HALEON KENYA LTD": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 15.3,
+    "median_gap_days": 15,
+    "estimated_delivery_days": 4,
+    "total_orders_2025": 22,
+    "avg_order_value_kes": 201376,
+    "reliability_score": 66,
+    "average_gap_days": 16.1
+  },
+  "DNO GROUPACO HOLDINGS LTD": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 23,
+    "median_gap_days": 23,
+    "estimated_delivery_days": 2,
+    "total_orders_2025": 2,
+    "avg_order_value_kes": 10480,
+    "reliability_score": 0.905,
+    "average_gap_days": 23
+  },
+  "GLACIER PRODUCTS LTD 2ND": {
+    "order_frequency": "weekly",
+    "avg_gap_days": 6.0,
+    "median_gap_days": 6,
+    "estimated_delivery_days": 1,
+    "total_orders_2025": 55,
+    "avg_order_value_kes": 82912,
+    "reliability_score": 62,
+    "average_gap_days": 6.9
+  },
+  "GLOBAL SLACKER ENTERPRISES LTD": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 15.3,
+    "median_gap_days": 14,
+    "estimated_delivery_days": 4,
+    "total_orders_2025": 23,
+    "avg_order_value_kes": 44955,
+    "reliability_score": 80,
+    "average_gap_days": 16
+  },
+  "GO PRO FOODS LTD": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 16.6,
+    "median_gap_days": 22,
+    "estimated_delivery_days": 2,
+    "total_orders_2025": 21,
+    "avg_order_value_kes": 22002,
+    "reliability_score": 78,
+    "average_gap_days": 23.6
+  },
+  "GOOSEBERRY DELIGHT LTD SR": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 50.2,
+    "median_gap_days": 54,
+    "estimated_delivery_days": 4,
+    "total_orders_2025": 7,
+    "avg_order_value_kes": 2778,
+    "reliability_score": 82,
+    "average_gap_days": 50.2
+  },
+  "GRAPES AND TRADITIONS T LTD": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 19.3,
+    "median_gap_days": 15,
+    "estimated_delivery_days": 3,
+    "total_orders_2025": 17,
+    "avg_order_value_kes": 20767,
+    "reliability_score": 47,
+    "average_gap_days": 20.6
+  },
+  "HEALTHCARE DIRECT K LTD": {
+    "order_frequency": "bi_weekly",
+    "avg_gap_days": 11.7,
+    "median_gap_days": 18,
+    "estimated_delivery_days": 1,
+    "total_orders_2025": 28,
+    "avg_order_value_kes": 18712,
+    "reliability_score": 78,
+    "average_gap_days": 22.6
+  },
+  "HACO INDUSTRIES KENYA  LTD": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 19.7,
+    "median_gap_days": 18,
+    "estimated_delivery_days": 1,
+    "total_orders_2025": 18,
+    "avg_order_value_kes": 39397,
+    "reliability_score": 75,
+    "average_gap_days": 20.9
+  },
+  "HYPERMART LTD SR": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 15.3,
+    "median_gap_days": 20,
+    "estimated_delivery_days": 2,
+    "total_orders_2025": 22,
+    "avg_order_value_kes": 124150,
+    "reliability_score": 71,
+    "average_gap_days": 21.4
+  },
+  "HARLEYS LTD": {
+    "order_frequency": "weekly",
+    "avg_gap_days": 6.2,
+    "median_gap_days": 14,
+    "estimated_delivery_days": 4,
+    "total_orders_2025": 55,
+    "avg_order_value_kes": 52148,
+    "reliability_score": 74,
+    "average_gap_days": 14.5
+  },
+  "HAPPY COW LIMITED": {
+    "order_frequency": "weekly",
+    "avg_gap_days": 5.6,
+    "median_gap_days": 7,
+    "estimated_delivery_days": 3,
+    "total_orders_2025": 62,
+    "avg_order_value_kes": 49109,
+    "reliability_score": 68,
+    "average_gap_days": 7.6
+  },
+  "HIGHLANDS DRINKS LIMITED": {
+    "order_frequency": "bi_weekly",
+    "avg_gap_days": 11.1,
+    "median_gap_days": 13,
+    "estimated_delivery_days": 3,
+    "total_orders_2025": 31,
+    "avg_order_value_kes": 32809,
+    "reliability_score": 76,
+    "average_gap_days": 12.3
+  },
+  "HERITAGE FOODS KENYA LTD": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 16.8,
+    "median_gap_days": 21,
+    "estimated_delivery_days": 3,
+    "total_orders_2025": 19,
+    "avg_order_value_kes": 21594,
+    "reliability_score": 77,
+    "average_gap_days": 21.6
+  },
+  "HUNTLEYS BISCUITS LTD": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 14.6,
+    "median_gap_days": 16,
+    "estimated_delivery_days": 3,
+    "total_orders_2025": 21,
+    "avg_order_value_kes": 16384,
+    "reliability_score": 77,
+    "average_gap_days": 16.2
+  },
+  "HUSEINI BAKERY LTD": {
+    "order_frequency": "bi_weekly",
+    "avg_gap_days": 9,
+    "median_gap_days": 8,
+    "estimated_delivery_days": 2,
+    "total_orders_2025": 37,
+    "avg_order_value_kes": 9810,
+    "reliability_score": 63,
+    "average_gap_days": 10.5
+  },
+  "HEALTH AND HAPPINESS CONSULT LTD": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 30.1,
+    "median_gap_days": 30,
+    "estimated_delivery_days": 9,
+    "total_orders_2025": 12,
+    "avg_order_value_kes": 8110,
+    "reliability_score": 75,
+    "average_gap_days": 33.1
+  },
+  "HAYAT KIMYA  K  H PRODUCTS LTD": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 15.4,
+    "median_gap_days": 16,
+    "estimated_delivery_days": 3,
+    "total_orders_2025": 22,
+    "avg_order_value_kes": 83176,
+    "reliability_score": 65,
+    "average_gap_days": 17.1
+  },
+  "HASBAH KENYA LTD CADBURY": {
+    "order_frequency": "weekly",
+    "avg_gap_days": 5.7,
+    "median_gap_days": 7,
+    "estimated_delivery_days": 3,
+    "total_orders_2025": 60,
+    "avg_order_value_kes": 149238,
+    "reliability_score": 61,
+    "average_gap_days": 7.1
+  },
+  "HEALTHY KAJUJU": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 15.7,
+    "median_gap_days": 14,
+    "estimated_delivery_days": 2,
+    "total_orders_2025": 22,
+    "avg_order_value_kes": 10984,
+    "reliability_score": 73,
+    "average_gap_days": 17.3
+  },
+  "HOUSE OF BOOCH LIMITED": {
+    "order_frequency": "bi_weekly",
+    "avg_gap_days": 7.9,
+    "median_gap_days": 8,
+    "estimated_delivery_days": 2,
+    "total_orders_2025": 43,
+    "avg_order_value_kes": 14199,
+    "reliability_score": 67,
+    "average_gap_days": 9.5
+  },
+  "HERITAGE SUPERSTORE LTD": {
+    "order_frequency": "bi_weekly",
+    "avg_gap_days": 12.8,
+    "median_gap_days": 13,
+    "estimated_delivery_days": 3,
+    "total_orders_2025": 26,
+    "avg_order_value_kes": 24547,
+    "reliability_score": 73,
+    "average_gap_days": 14.5
+  },
+  "HIDDEN TREASURES BOOK W S LIMITED NO GRN": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 25.8,
+    "median_gap_days": 33,
+    "estimated_delivery_days": 1,
+    "total_orders_2025": 13,
+    "avg_order_value_kes": 10505,
+    "reliability_score": 77,
+    "average_gap_days": 34.4
+  },
+  "INAFRICA TRADE LIMITED": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 48.2,
+    "median_gap_days": 46,
+    "estimated_delivery_days": 4,
+    "total_orders_2025": 7,
+    "avg_order_value_kes": 7429,
+    "reliability_score": 76,
+    "average_gap_days": 48.2
+  },
+  "IDEAL APPLIANCES LIMITED SR": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 17.9,
+    "median_gap_days": 15,
+    "estimated_delivery_days": 2,
+    "total_orders_2025": 19,
+    "avg_order_value_kes": 64307,
+    "reliability_score": 65,
+    "average_gap_days": 18.9
+  },
+  "ISINYA FEEDS LIMITED": {
+    "order_frequency": "weekly",
+    "avg_gap_days": 4.1,
+    "median_gap_days": 4,
+    "estimated_delivery_days": 1,
+    "total_orders_2025": 83,
+    "avg_order_value_kes": 61945,
+    "reliability_score": 56,
+    "average_gap_days": 4.5
+  },
+  "INTELLIGENT MODERN STORES LTD SR": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 30.2,
+    "median_gap_days": 22,
+    "estimated_delivery_days": 3,
+    "total_orders_2025": 11,
+    "avg_order_value_kes": 13531,
+    "reliability_score": 58,
+    "average_gap_days": 30.2
+  },
+  "JESSICA INTERNATIONAL HQ": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 53.8,
+    "median_gap_days": 63,
+    "estimated_delivery_days": 6,
+    "total_orders_2025": 7,
+    "avg_order_value_kes": 13286,
+    "reliability_score": 0.905,
+    "average_gap_days": 64.6
+  },
+  "JETLAK FOODS LTD": {
+    "order_frequency": "bi_weekly",
+    "avg_gap_days": 9.6,
+    "median_gap_days": 9,
+    "estimated_delivery_days": 1,
+    "total_orders_2025": 35,
+    "avg_order_value_kes": 57274,
+    "reliability_score": 65,
+    "average_gap_days": 10.9
+  },
+  "NAIROBI JAVA HOUSE LTD": {
+    "order_frequency": "weekly",
+    "avg_gap_days": 6.8,
+    "median_gap_days": 9,
+    "estimated_delivery_days": 2,
+    "total_orders_2025": 49,
+    "avg_order_value_kes": 76306,
+    "reliability_score": 62,
+    "average_gap_days": 9.8
+  },
+  "JEVANS ENTERPRISES": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 15.8,
+    "median_gap_days": 15,
+    "estimated_delivery_days": 5,
+    "total_orders_2025": 22,
+    "avg_order_value_kes": 17526,
+    "reliability_score": 78,
+    "average_gap_days": 17.4
+  },
+  "JUBILEE TISSUE INDUSTRIES LTD": {
+    "order_frequency": "bi_weekly",
+    "avg_gap_days": 13.2,
+    "median_gap_days": 14,
+    "estimated_delivery_days": 4,
+    "total_orders_2025": 26,
+    "avg_order_value_kes": 39198,
+    "reliability_score": 65,
+    "average_gap_days": 14.3
+  },
+  "JADE CONCEPTS LIMITED": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 23.1,
+    "median_gap_days": 20,
+    "estimated_delivery_days": 3,
+    "total_orders_2025": 10,
+    "avg_order_value_kes": 41521,
+    "reliability_score": 61,
+    "average_gap_days": 26
+  },
+  "JAPALA AND SONS LIMITED": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 30,
+    "median_gap_days": 30,
+    "estimated_delivery_days": 5,
+    "total_orders_2025": 12,
+    "avg_order_value_kes": 18944,
+    "reliability_score": 64,
+    "average_gap_days": 36.7
+  },
+  "JWINES KASARANI ENTERPRISES LTD": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 112,
+    "median_gap_days": 112,
+    "estimated_delivery_days": 21,
+    "total_orders_2025": 2,
+    "avg_order_value_kes": 5897,
+    "reliability_score": 0.905,
+    "average_gap_days": 112
+  },
+  "JIAN CEREALS DEPOT": {
+    "order_frequency": "bi_weekly",
+    "avg_gap_days": 7.9,
+    "median_gap_days": 6,
+    "estimated_delivery_days": 2,
+    "total_orders_2025": 37,
+    "avg_order_value_kes": 30282,
+    "reliability_score": 50,
+    "average_gap_days": 9.2
+  },
+  "KENYA NUT COMPANY": {
+    "order_frequency": "bi_weekly",
+    "avg_gap_days": 10.4,
+    "median_gap_days": 11,
+    "estimated_delivery_days": 4,
+    "total_orders_2025": 33,
+    "avg_order_value_kes": 149736,
+    "reliability_score": 65,
+    "average_gap_days": 11.9
+  },
+  "KENYA WINE AGENCIES KWAL": {
+    "order_frequency": "weekly",
+    "avg_gap_days": 6.6,
+    "median_gap_days": 7,
+    "estimated_delivery_days": 3,
+    "total_orders_2025": 50,
+    "avg_order_value_kes": 197634,
+    "reliability_score": 71,
+    "average_gap_days": 7.5
+  },
+  "KULAL INTERNATIONAL LTD": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 23.3,
+    "median_gap_days": 32,
+    "estimated_delivery_days": 1,
+    "total_orders_2025": 14,
+    "avg_order_value_kes": 32343,
+    "reliability_score": 68,
+    "average_gap_days": 30.3
+  },
+  "KIM FAY EAST AFRICA LTD": {
+    "order_frequency": "weekly",
+    "avg_gap_days": 7.0,
+    "median_gap_days": 9,
+    "estimated_delivery_days": 3,
+    "total_orders_2025": 49,
+    "avg_order_value_kes": 236682,
+    "reliability_score": 66,
+    "average_gap_days": 9.3
+  },
+  "KHS PRODUCTS LIMITED SR": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 26.3,
+    "median_gap_days": 36,
+    "estimated_delivery_days": 1,
+    "total_orders_2025": 13,
+    "avg_order_value_kes": 66218,
+    "reliability_score": 62,
+    "average_gap_days": 39.5
+  },
+  "KENPOLY MANUFACTURERS": {
+    "order_frequency": "bi_weekly",
+    "avg_gap_days": 11.3,
+    "median_gap_days": 13,
+    "estimated_delivery_days": 2,
+    "total_orders_2025": 30,
+    "avg_order_value_kes": 38078,
+    "reliability_score": 67,
+    "average_gap_days": 13.7
+  },
+  "KAPA OIL REFINERIES LTD": {
+    "order_frequency": "bi_weekly",
+    "avg_gap_days": 13.2,
+    "median_gap_days": 13,
+    "estimated_delivery_days": 5,
+    "total_orders_2025": 26,
+    "avg_order_value_kes": 616260,
+    "reliability_score": 67,
+    "average_gap_days": 14.4
+  },
+  "KAPI LTD": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 20.1,
+    "median_gap_days": 16,
+    "estimated_delivery_days": 4,
+    "total_orders_2025": 17,
+    "avg_order_value_kes": 23489,
+    "reliability_score": 70,
+    "average_gap_days": 22.9
+  },
+  "KENAFRIC BAKERY LTD": {
+    "order_frequency": "daily",
+    "avg_gap_days": 1.0,
+    "median_gap_days": 1,
+    "estimated_delivery_days": 1,
+    "total_orders_2025": 357,
+    "avg_order_value_kes": 2943,
+    "reliability_score": 21,
+    "average_gap_days": 1.1
+  },
+  "KENYA SWEETS LTD": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 20.2,
+    "median_gap_days": 17,
+    "estimated_delivery_days": 5,
+    "total_orders_2025": 17,
+    "avg_order_value_kes": 35488,
+    "reliability_score": 69,
+    "average_gap_days": 21.6
+  },
+  "KENSTAR PLASTIC INDUSTRIES LTD SR": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 77,
+    "median_gap_days": 63,
+    "estimated_delivery_days": 5,
+    "total_orders_2025": 5,
+    "avg_order_value_kes": 18871,
+    "reliability_score": 0.905,
+    "average_gap_days": 77
+  },
+  "KINGS COMMODITIES LTD": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 57.4,
+    "median_gap_days": 75,
+    "estimated_delivery_days": 5,
+    "total_orders_2025": 6,
+    "avg_order_value_kes": 14508,
+    "reliability_score": 0.905,
+    "average_gap_days": 71.8
+  },
+  "KENSALT LIMITED": {
+    "order_frequency": "bi_weekly",
+    "avg_gap_days": 13.9,
+    "median_gap_days": 19,
+    "estimated_delivery_days": 1,
+    "total_orders_2025": 23,
+    "avg_order_value_kes": 21967,
+    "reliability_score": 70,
+    "average_gap_days": 19.1
+  },
+  "KITUI FLOUR MILLS LTD NBI MBSA": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 32.8,
+    "median_gap_days": 27,
+    "estimated_delivery_days": 3,
+    "total_orders_2025": 11,
+    "avg_order_value_kes": 26493,
+    "reliability_score": 54,
+    "average_gap_days": 36.4
+  },
+  "KENYA BREWERIES LTD": {
+    "order_frequency": "weekly",
+    "avg_gap_days": 4.4,
+    "median_gap_days": 5,
+    "estimated_delivery_days": 3,
+    "total_orders_2025": 79,
+    "avg_order_value_kes": 210648,
+    "reliability_score": 59,
+    "average_gap_days": 5.9
+  },
+  "KENYA TEA PACKERS KETEPA": {
+    "order_frequency": "bi_weekly",
+    "avg_gap_days": 13.4,
+    "median_gap_days": 13,
+    "estimated_delivery_days": 5,
+    "total_orders_2025": 26,
+    "avg_order_value_kes": 84148,
+    "reliability_score": 75,
+    "average_gap_days": 15.2
+  },
+  "THE CORNER SHOP LIMITED NO GRN": {
+    "order_frequency": "weekly",
+    "avg_gap_days": 6.5,
+    "median_gap_days": 7,
+    "estimated_delivery_days": 1,
+    "total_orders_2025": 53,
+    "avg_order_value_kes": 762040,
+    "reliability_score": 68,
+    "average_gap_days": 7.6
+  },
+  "KRISH COMMODITIES LTD": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 18.5,
+    "median_gap_days": 30,
+    "estimated_delivery_days": 3,
+    "total_orders_2025": 18,
+    "avg_order_value_kes": 37837,
+    "reliability_score": 74,
+    "average_gap_days": 28.6
+  },
+  "KINGS WEAR LIMITED": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 44.9,
+    "median_gap_days": 28,
+    "estimated_delivery_days": 1,
+    "total_orders_2025": 8,
+    "avg_order_value_kes": 10762,
+    "reliability_score": 55,
+    "average_gap_days": 44.9
+  },
+  "QUALITY MEAT PACKERS LTD": {
+    "order_frequency": "every_2_3_days",
+    "avg_gap_days": 2.9,
+    "median_gap_days": 7,
+    "estimated_delivery_days": 4,
+    "total_orders_2025": 115,
+    "avg_order_value_kes": 32060,
+    "reliability_score": 68,
+    "average_gap_days": 7.1
+  },
+  "KIENYEJI POULTRY PRODUCTS": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 24.2,
+    "median_gap_days": 22,
+    "estimated_delivery_days": 3,
+    "total_orders_2025": 14,
+    "avg_order_value_kes": 19512,
+    "reliability_score": 70,
+    "average_gap_days": 26.2
+  },
+  "KENSALT LIMITED CHEESE": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 22.6,
+    "median_gap_days": 24,
+    "estimated_delivery_days": 2,
+    "total_orders_2025": 15,
+    "avg_order_value_kes": 13874,
+    "reliability_score": 80,
+    "average_gap_days": 24.4
+  },
+  "KENISA ENTERPRISES SR": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 97.7,
+    "median_gap_days": 84,
+    "estimated_delivery_days": 6,
+    "total_orders_2025": 4,
+    "avg_order_value_kes": 11681,
+    "reliability_score": 0.905,
+    "average_gap_days": 97.7
+  },
+  "KINANGOP DAIRY LIMITED": {
+    "order_frequency": "every_2_3_days",
+    "avg_gap_days": 1.6,
+    "median_gap_days": 2,
+    "estimated_delivery_days": 1,
+    "total_orders_2025": 208,
+    "avg_order_value_kes": 3392,
+    "reliability_score": 34,
+    "average_gap_days": 2.0
+  },
+  "KENRUSS LIMITED SR": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 72,
+    "median_gap_days": 70,
+    "estimated_delivery_days": 2,
+    "total_orders_2025": 4,
+    "avg_order_value_kes": 20138,
+    "reliability_score": 0.905,
+    "average_gap_days": 72
+  },
+  "KENCHIC LIMITED DELI ACCOUNT 2": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 16.3,
+    "median_gap_days": 17,
+    "estimated_delivery_days": 1,
+    "total_orders_2025": 21,
+    "avg_order_value_kes": 1746,
+    "reliability_score": 65,
+    "average_gap_days": 19.2
+  },
+  "KIM FAY EAST AFRICA LTD DABUR": {
+    "order_frequency": "bi_weekly",
+    "avg_gap_days": 11.1,
+    "median_gap_days": 11,
+    "estimated_delivery_days": 3,
+    "total_orders_2025": 31,
+    "avg_order_value_kes": 85598,
+    "reliability_score": 71,
+    "average_gap_days": 11.9
+  },
+  "KEVITA INTERNATIONAL CO LTD": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 15.0,
+    "median_gap_days": 14,
+    "estimated_delivery_days": 3,
+    "total_orders_2025": 22,
+    "avg_order_value_kes": 60570,
+    "reliability_score": 69,
+    "average_gap_days": 16.6
+  },
+  "KIKKOMAN EAST AFRICA LTD": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 22.2,
+    "median_gap_days": 28,
+    "estimated_delivery_days": 4,
+    "total_orders_2025": 15,
+    "avg_order_value_kes": 13605,
+    "reliability_score": 80,
+    "average_gap_days": 23.9
+  },
+  "KIRAB TRADING COMPANY  LTD": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 34.9,
+    "median_gap_days": 27,
+    "estimated_delivery_days": 5,
+    "total_orders_2025": 8,
+    "avg_order_value_kes": 31905,
+    "reliability_score": 63,
+    "average_gap_days": 34.9
+  },
+  "KENMEAT LIMITED": {
+    "order_frequency": "weekly",
+    "avg_gap_days": 4.3,
+    "median_gap_days": 4,
+    "estimated_delivery_days": 1,
+    "total_orders_2025": 79,
+    "avg_order_value_kes": 12220,
+    "reliability_score": 58,
+    "average_gap_days": 4.9
+  },
+  "KARTASI PRODUCTS LIMITED": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 19.1,
+    "median_gap_days": 17,
+    "estimated_delivery_days": 3,
+    "total_orders_2025": 17,
+    "avg_order_value_kes": 20737,
+    "reliability_score": 67,
+    "average_gap_days": 21.8
+  },
+  "KIJANI COMMODITIES LTD": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 42.2,
+    "median_gap_days": 38,
+    "estimated_delivery_days": 5,
+    "total_orders_2025": 6,
+    "avg_order_value_kes": 6664,
+    "reliability_score": 0.905,
+    "average_gap_days": 42.2
+  },
+  "KIRSTEN EVENTS COMPANY LTD": {
+    "order_frequency": "weekly",
+    "avg_gap_days": 5.2,
+    "median_gap_days": 6,
+    "estimated_delivery_days": 1,
+    "total_orders_2025": 65,
+    "avg_order_value_kes": 3808,
+    "reliability_score": 54,
+    "average_gap_days": 6.3
+  },
+  "KIM FAY EAST AFRICA LTD DOVE": {
+    "order_frequency": "bi_weekly",
+    "avg_gap_days": 10.4,
+    "median_gap_days": 10,
+    "estimated_delivery_days": 3,
+    "total_orders_2025": 33,
+    "avg_order_value_kes": 238760,
+    "reliability_score": 71,
+    "average_gap_days": 11.5
+  },
+  "KUBE SQUARE LTD SR": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 48.8,
+    "median_gap_days": 48,
+    "estimated_delivery_days": 2,
+    "total_orders_2025": 7,
+    "avg_order_value_kes": 26371,
+    "reliability_score": 90,
+    "average_gap_days": 48.8
+  },
+  "KHETIA DRAPERS LTD": {
+    "order_frequency": "bi_weekly",
+    "avg_gap_days": 11.2,
+    "median_gap_days": 11,
+    "estimated_delivery_days": 2,
+    "total_orders_2025": 31,
+    "avg_order_value_kes": 26782,
+    "reliability_score": 66,
+    "average_gap_days": 12.4
+  },
+  "KALON FOODS LIMITED": {
+    "order_frequency": "bi_weekly",
+    "avg_gap_days": 11.6,
+    "median_gap_days": 10,
+    "estimated_delivery_days": 1,
+    "total_orders_2025": 29,
+    "avg_order_value_kes": 79328,
+    "reliability_score": 63,
+    "average_gap_days": 12.5
+  },
+  "KENYA NUT WINES": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 25.2,
+    "median_gap_days": 15,
+    "estimated_delivery_days": 3,
+    "total_orders_2025": 11,
+    "avg_order_value_kes": 21192,
+    "reliability_score": 52,
+    "average_gap_days": 25.2
+  },
+  "KIRICHWA WATER LIMITED": {
+    "order_frequency": "weekly",
+    "avg_gap_days": 6.6,
+    "median_gap_days": 7,
+    "estimated_delivery_days": 1,
+    "total_orders_2025": 51,
+    "avg_order_value_kes": 7049,
+    "reliability_score": 64,
+    "average_gap_days": 7.2
+  },
+  "KENCHIC FROZEN": {
+    "order_frequency": "weekly",
+    "avg_gap_days": 3.8,
+    "median_gap_days": 4,
+    "estimated_delivery_days": 1,
+    "total_orders_2025": 88,
+    "avg_order_value_kes": 38761,
+    "reliability_score": 56,
+    "average_gap_days": 4.2
+  },
+  "KENCHIC BUTCHERY NO GRN": {
+    "order_frequency": "bi_weekly",
+    "avg_gap_days": 12.9,
+    "median_gap_days": 13,
+    "estimated_delivery_days": 1,
+    "total_orders_2025": 26,
+    "avg_order_value_kes": 1282970,
+    "reliability_score": 64,
+    "average_gap_days": 15.3
+  },
+  "KAMILI PACKERS LIMITED NORMAL": {
+    "order_frequency": "bi_weekly",
+    "avg_gap_days": 9.2,
+    "median_gap_days": 15,
+    "estimated_delivery_days": 2,
+    "total_orders_2025": 36,
+    "avg_order_value_kes": 82114,
+    "reliability_score": 73,
+    "average_gap_days": 17.8
+  },
+  "LONDON DISTILLERS": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 50.2,
+    "median_gap_days": 48,
+    "estimated_delivery_days": 1,
+    "total_orders_2025": 7,
+    "avg_order_value_kes": 9525,
+    "reliability_score": 0.905,
+    "average_gap_days": 60.2
+  },
+  "LADIES PADS POUCH DIST": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 56.2,
+    "median_gap_days": 52,
+    "estimated_delivery_days": 7,
+    "total_orders_2025": 5,
+    "avg_order_value_kes": 3869,
+    "reliability_score": 0.905,
+    "average_gap_days": 56.2
+  },
+  "LAKI LAKI LIMITED": {
+    "order_frequency": "weekly",
+    "avg_gap_days": 6.1,
+    "median_gap_days": 7,
+    "estimated_delivery_days": 2,
+    "total_orders_2025": 56,
+    "avg_order_value_kes": 64068,
+    "reliability_score": 65,
+    "average_gap_days": 7.0
+  },
+  "LEMOC LIMITED": {
+    "order_frequency": "weekly",
+    "avg_gap_days": 5.8,
+    "median_gap_days": 7,
+    "estimated_delivery_days": 1,
+    "total_orders_2025": 59,
+    "avg_order_value_kes": 77664,
+    "reliability_score": 64,
+    "average_gap_days": 6.7
+  },
+  "LAKHANI GENERAL SUPPLIERS LTD": {
+    "order_frequency": "bi_weekly",
+    "avg_gap_days": 13.3,
+    "median_gap_days": 14,
+    "estimated_delivery_days": 1,
+    "total_orders_2025": 26,
+    "avg_order_value_kes": 90974,
+    "reliability_score": 64,
+    "average_gap_days": 15.1
+  },
+  "LACOROMBE SUPPLIES LTD": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 20.8,
+    "median_gap_days": 17,
+    "estimated_delivery_days": 3,
+    "total_orders_2025": 16,
+    "avg_order_value_kes": 16748,
+    "reliability_score": 61,
+    "average_gap_days": 24
+  },
+  "LEADAV POULTRY FARM LTD": {
+    "order_frequency": "bi_weekly",
+    "avg_gap_days": 8.8,
+    "median_gap_days": 9,
+    "estimated_delivery_days": 3,
+    "total_orders_2025": 39,
+    "avg_order_value_kes": 37601,
+    "reliability_score": 66,
+    "average_gap_days": 9.6
+  },
+  "LEADING DISTILLERS U LTD SR": {
+    "order_frequency": "bi_weekly",
+    "avg_gap_days": 12.4,
+    "median_gap_days": 12,
+    "estimated_delivery_days": 3,
+    "total_orders_2025": 27,
+    "avg_order_value_kes": 16778,
+    "reliability_score": 66,
+    "average_gap_days": 13.5
+  },
+  "LIBERTYS CHOICE": {
+    "order_frequency": "bi_weekly",
+    "avg_gap_days": 13.4,
+    "median_gap_days": 16,
+    "estimated_delivery_days": 1,
+    "total_orders_2025": 8,
+    "avg_order_value_kes": 36638,
+    "reliability_score": 78,
+    "average_gap_days": 13.4
+  },
+  "LOKI VENTURES LIMITED": {
+    "order_frequency": "bi_weekly",
+    "avg_gap_days": 11,
+    "median_gap_days": 13,
+    "estimated_delivery_days": 2,
+    "total_orders_2025": 31,
+    "avg_order_value_kes": 119504,
+    "reliability_score": 67,
+    "average_gap_days": 12.7
+  },
+  "LONDON DISTILLERS EA LTD": {
+    "order_frequency": "bi_weekly",
+    "avg_gap_days": 10.1,
+    "median_gap_days": 8,
+    "estimated_delivery_days": 1,
+    "total_orders_2025": 30,
+    "avg_order_value_kes": 31190,
+    "reliability_score": 67,
+    "average_gap_days": 11.3
+  },
+  "MELVIN MARSH INTERNATIONAL LTD": {
+    "order_frequency": "bi_weekly",
+    "avg_gap_days": 9.2,
+    "median_gap_days": 12,
+    "estimated_delivery_days": 4,
+    "total_orders_2025": 37,
+    "avg_order_value_kes": 24384,
+    "reliability_score": 68,
+    "average_gap_days": 11.9
+  },
+  "MILL BAKERS LIMITED": {
+    "order_frequency": "weekly",
+    "avg_gap_days": 3.5,
+    "median_gap_days": 3,
+    "estimated_delivery_days": 1,
+    "total_orders_2025": 96,
+    "avg_order_value_kes": 13541,
+    "reliability_score": 54,
+    "average_gap_days": 3.9
+  },
+  "MACE FOODS LTD": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 28.9,
+    "median_gap_days": 16,
+    "estimated_delivery_days": 21,
+    "total_orders_2025": 11,
+    "avg_order_value_kes": 15211,
+    "reliability_score": 42,
+    "average_gap_days": 48.2
+  },
+  "MERIT AFRICA LTD": {
+    "order_frequency": "weekly",
+    "avg_gap_days": 3.4,
+    "median_gap_days": 7,
+    "estimated_delivery_days": 1,
+    "total_orders_2025": 100,
+    "avg_order_value_kes": 150400,
+    "reliability_score": 61,
+    "average_gap_days": 7.4
+  },
+  "METRO PHARMACEUTICALS LTD": {
+    "order_frequency": "bi_weekly",
+    "avg_gap_days": 10.7,
+    "median_gap_days": 15,
+    "estimated_delivery_days": 2,
+    "total_orders_2025": 31,
+    "avg_order_value_kes": 20522,
+    "reliability_score": 79,
+    "average_gap_days": 18.9
+  },
+  "MANJI FOOD INDUSTRIES LTD": {
+    "order_frequency": "bi_weekly",
+    "avg_gap_days": 11.5,
+    "median_gap_days": 11,
+    "estimated_delivery_days": 1,
+    "total_orders_2025": 30,
+    "avg_order_value_kes": 63454,
+    "reliability_score": 73,
+    "average_gap_days": 12.8
+  },
+  "MJENGO LIMITED": {
+    "order_frequency": "weekly",
+    "avg_gap_days": 5.6,
+    "median_gap_days": 9,
+    "estimated_delivery_days": 2,
+    "total_orders_2025": 60,
+    "avg_order_value_kes": 91088,
+    "reliability_score": 65,
+    "average_gap_days": 10.3
+  },
+  "MALACHITE LIMITED": {
+    "order_frequency": "weekly",
+    "avg_gap_days": 4.7,
+    "median_gap_days": 6,
+    "estimated_delivery_days": 1,
+    "total_orders_2025": 70,
+    "avg_order_value_kes": 67839,
+    "reliability_score": 57,
+    "average_gap_days": 6.4
+  },
+  "MIBISCO LTD": {
+    "order_frequency": "daily",
+    "avg_gap_days": 1.0,
+    "median_gap_days": 1,
+    "estimated_delivery_days": 1,
+    "total_orders_2025": 352,
+    "avg_order_value_kes": 2322,
+    "reliability_score": 21,
+    "average_gap_days": 1.1
+  },
+  "MIA WINES AND  SPIRITS INTERNATIONAL": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 15.7,
+    "median_gap_days": 7,
+    "estimated_delivery_days": 2,
+    "total_orders_2025": 22,
+    "avg_order_value_kes": 31477,
+    "reliability_score": 49,
+    "average_gap_days": 15.7
+  },
+  "MAXAM LIMITED": {
+    "order_frequency": "bi_weekly",
+    "avg_gap_days": 7.1,
+    "median_gap_days": 7,
+    "estimated_delivery_days": 2,
+    "total_orders_2025": 46,
+    "avg_order_value_kes": 69350,
+    "reliability_score": 69,
+    "average_gap_days": 8.0
+  },
+  "MEGA IMPORTERS CO LIMITED": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 17,
+    "median_gap_days": 14,
+    "estimated_delivery_days": 1,
+    "total_orders_2025": 16,
+    "avg_order_value_kes": 28412,
+    "reliability_score": 70,
+    "average_gap_days": 19.6
+  },
+  "MENENGAI O REFINERIES LTD": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 14.5,
+    "median_gap_days": 14,
+    "estimated_delivery_days": 5,
+    "total_orders_2025": 24,
+    "avg_order_value_kes": 114507,
+    "reliability_score": 68,
+    "average_gap_days": 17.6
+  },
+  "MZURI SWEETS LIMITED": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 14.5,
+    "median_gap_days": 15,
+    "estimated_delivery_days": 3,
+    "total_orders_2025": 23,
+    "avg_order_value_kes": 20604,
+    "reliability_score": 72,
+    "average_gap_days": 15.9
+  },
+  "MAGNUM VENTURES LIMITED": {
+    "order_frequency": "bi_weekly",
+    "avg_gap_days": 12.0,
+    "median_gap_days": 8,
+    "estimated_delivery_days": 1,
+    "total_orders_2025": 28,
+    "avg_order_value_kes": 33416,
+    "reliability_score": 62,
+    "average_gap_days": 13.5
+  },
+  "MEAM TAYSTEE FOODS": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 26.6,
+    "median_gap_days": 23,
+    "estimated_delivery_days": 4,
+    "total_orders_2025": 13,
+    "avg_order_value_kes": 8763,
+    "reliability_score": 66,
+    "average_gap_days": 31.9
+  },
+  "MOMBASA MAIZE MILLERS NAIROBI LIMITED": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 15.0,
+    "median_gap_days": 15,
+    "estimated_delivery_days": 2,
+    "total_orders_2025": 22,
+    "avg_order_value_kes": 27754,
+    "reliability_score": 59,
+    "average_gap_days": 19.6
+  },
+  "MHOGO FOODS LIMITED": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 56.8,
+    "median_gap_days": 60,
+    "estimated_delivery_days": 9,
+    "total_orders_2025": 6,
+    "avg_order_value_kes": 8480,
+    "reliability_score": 0.905,
+    "average_gap_days": 56.8
+  },
+  "MINI BAKERIES NBI  LTD": {
+    "order_frequency": "daily",
+    "avg_gap_days": 0.6,
+    "median_gap_days": 1,
+    "estimated_delivery_days": 1,
+    "total_orders_2025": 570,
+    "avg_order_value_kes": 4677,
+    "reliability_score": 20,
+    "average_gap_days": 1.1
+  },
+  "MERAKI FOODS LIMITED": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 16.4,
+    "median_gap_days": 15,
+    "estimated_delivery_days": 2,
+    "total_orders_2025": 21,
+    "avg_order_value_kes": 17410,
+    "reliability_score": 70,
+    "average_gap_days": 18.2
+  },
+  "MALINDI INDUSTRIES LIMITED": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 19.4,
+    "median_gap_days": 17,
+    "estimated_delivery_days": 3,
+    "total_orders_2025": 17,
+    "avg_order_value_kes": 23956,
+    "reliability_score": 77,
+    "average_gap_days": 22.1
+  },
+  "MAISHA BEVERAGES LIMITED": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 22.3,
+    "median_gap_days": 18,
+    "estimated_delivery_days": 1,
+    "total_orders_2025": 15,
+    "avg_order_value_kes": 4316,
+    "reliability_score": 57,
+    "average_gap_days": 24
+  },
+  "MY FROZEN SUPPLIES LIMITED": {
+    "order_frequency": "bi_weekly",
+    "avg_gap_days": 13.9,
+    "median_gap_days": 14,
+    "estimated_delivery_days": 3,
+    "total_orders_2025": 25,
+    "avg_order_value_kes": 9833,
+    "reliability_score": 73,
+    "average_gap_days": 15.2
+  },
+  "MYPASTA LIMITED": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 21,
+    "median_gap_days": 23,
+    "estimated_delivery_days": 3,
+    "total_orders_2025": 16,
+    "avg_order_value_kes": 10749,
+    "reliability_score": 73,
+    "average_gap_days": 26.2
+  },
+  "MIKEN BRANDS KENYA LTD": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 34.1,
+    "median_gap_days": 43,
+    "estimated_delivery_days": 5,
+    "total_orders_2025": 10,
+    "avg_order_value_kes": 21172,
+    "reliability_score": 74,
+    "average_gap_days": 38.4
+  },
+  "MASSATECH KENYA LIMITED SR": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 51.5,
+    "median_gap_days": 51,
+    "estimated_delivery_days": 4,
+    "total_orders_2025": 5,
+    "avg_order_value_kes": 4259,
+    "reliability_score": 0.905,
+    "average_gap_days": 51.5
+  },
+  "MAJIPONICS LIMITED": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 16.6,
+    "median_gap_days": 14,
+    "estimated_delivery_days": 3,
+    "total_orders_2025": 21,
+    "avg_order_value_kes": 26539,
+    "reliability_score": 70,
+    "average_gap_days": 17.5
+  },
+  "MANKA FOOD PRODUCTION SR": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 21.5,
+    "median_gap_days": 20,
+    "estimated_delivery_days": 2,
+    "total_orders_2025": 16,
+    "avg_order_value_kes": 8048,
+    "reliability_score": 76,
+    "average_gap_days": 23
+  },
+  "MUJI ENTERPRISES": {
+    "order_frequency": "bi_weekly",
+    "avg_gap_days": 12.2,
+    "median_gap_days": 10,
+    "estimated_delivery_days": 4,
+    "total_orders_2025": 27,
+    "avg_order_value_kes": 12698,
+    "reliability_score": 68,
+    "average_gap_days": 13.2
+  },
+  "MERIDIAN WINES KENYA  LIMITED": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 19.7,
+    "median_gap_days": 7,
+    "estimated_delivery_days": 2,
+    "total_orders_2025": 16,
+    "avg_order_value_kes": 38569,
+    "reliability_score": 49,
+    "average_gap_days": 21.1
+  },
+  "MARIESTA TRADING COM LTD SR": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 27.5,
+    "median_gap_days": 40,
+    "estimated_delivery_days": 9,
+    "total_orders_2025": 12,
+    "avg_order_value_kes": 11871,
+    "reliability_score": 75,
+    "average_gap_days": 43.1
+  },
+  "MONTILL LIMITED": {
+    "order_frequency": "bi_weekly",
+    "avg_gap_days": 13.5,
+    "median_gap_days": 14,
+    "estimated_delivery_days": 2,
+    "total_orders_2025": 9,
+    "avg_order_value_kes": 34428,
+    "reliability_score": 73,
+    "average_gap_days": 13.5
+  },
+  "MALACHITE LIMITED BEER": {
+    "order_frequency": "bi_weekly",
+    "avg_gap_days": 10.5,
+    "median_gap_days": 8,
+    "estimated_delivery_days": 2,
+    "total_orders_2025": 32,
+    "avg_order_value_kes": 17461,
+    "reliability_score": 65,
+    "average_gap_days": 11.2
+  },
+  "MORGANKIBE ENTERPRISES LIMITED": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 16.5,
+    "median_gap_days": 19,
+    "estimated_delivery_days": 4,
+    "total_orders_2025": 18,
+    "avg_order_value_kes": 16411,
+    "reliability_score": 72,
+    "average_gap_days": 20.1
+  },
+  "MORANI LIMITED": {
+    "order_frequency": "weekly",
+    "avg_gap_days": 5.9,
+    "median_gap_days": 7,
+    "estimated_delivery_days": 2,
+    "total_orders_2025": 57,
+    "avg_order_value_kes": 68606,
+    "reliability_score": 62,
+    "average_gap_days": 6.9
+  },
+  "MUSTY DISTRIBUTION LIMITED": {
+    "order_frequency": "weekly",
+    "avg_gap_days": 6.0,
+    "median_gap_days": 6,
+    "estimated_delivery_days": 1,
+    "total_orders_2025": 57,
+    "avg_order_value_kes": 40950,
+    "reliability_score": 62,
+    "average_gap_days": 6.7
+  },
+  "MERU CENTRAL DAIRY COOPERATIVE UNION LIMITED": {
+    "order_frequency": "bi_weekly",
+    "avg_gap_days": 12.8,
+    "median_gap_days": 13,
+    "estimated_delivery_days": 1,
+    "total_orders_2025": 26,
+    "avg_order_value_kes": 29938,
+    "reliability_score": 70,
+    "average_gap_days": 14.6
+  },
+  "NEW CRYSTAL DAIRY": {
+    "order_frequency": "bi_weekly",
+    "avg_gap_days": 10.5,
+    "median_gap_days": 10,
+    "estimated_delivery_days": 1,
+    "total_orders_2025": 33,
+    "avg_order_value_kes": 6498,
+    "reliability_score": 70,
+    "average_gap_days": 12.0
+  },
+  "NEW WESTLAND STORES": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 21.4,
+    "median_gap_days": 17,
+    "estimated_delivery_days": 5,
+    "total_orders_2025": 16,
+    "avg_order_value_kes": 72526,
+    "reliability_score": 48,
+    "average_gap_days": 22.9
+  },
+  "NJORO CANNING FACTORY": {
+    "order_frequency": "bi_weekly",
+    "avg_gap_days": 12.5,
+    "median_gap_days": 14,
+    "estimated_delivery_days": 4,
+    "total_orders_2025": 27,
+    "avg_order_value_kes": 20441,
+    "reliability_score": 62,
+    "average_gap_days": 13.6
+  },
+  "NORDA INDUSTRIES LTD.": {
+    "order_frequency": "bi_weekly",
+    "avg_gap_days": 12.2,
+    "median_gap_days": 14,
+    "estimated_delivery_days": 2,
+    "total_orders_2025": 28,
+    "avg_order_value_kes": 32431,
+    "reliability_score": 72,
+    "average_gap_days": 13.7
+  },
+  "NG WINDSONG KENYA LTD": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 25,
+    "median_gap_days": 24,
+    "estimated_delivery_days": 5,
+    "total_orders_2025": 14,
+    "avg_order_value_kes": 11030,
+    "reliability_score": 70,
+    "average_gap_days": 27.1
+  },
+  "NASHMU ENTERPRISES": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 27.7,
+    "median_gap_days": 39,
+    "estimated_delivery_days": 8,
+    "total_orders_2025": 8,
+    "avg_order_value_kes": 12776,
+    "reliability_score": 75,
+    "average_gap_days": 32.3
+  },
+  "NEW ITALYCOR LIMITED WINE": {
+    "order_frequency": "bi_weekly",
+    "avg_gap_days": 9.2,
+    "median_gap_days": 7,
+    "estimated_delivery_days": 2,
+    "total_orders_2025": 36,
+    "avg_order_value_kes": 36767,
+    "reliability_score": 70,
+    "average_gap_days": 10.1
+  },
+  "NDUMUNYA INVESTMENT SOLUTION": {
+    "order_frequency": "bi_weekly",
+    "avg_gap_days": 9.0,
+    "median_gap_days": 9,
+    "estimated_delivery_days": 1,
+    "total_orders_2025": 37,
+    "avg_order_value_kes": 26700,
+    "reliability_score": 68,
+    "average_gap_days": 11.1
+  },
+  "NAIROBI ENTERPRISES LTD": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 26.3,
+    "median_gap_days": 27,
+    "estimated_delivery_days": 6,
+    "total_orders_2025": 13,
+    "avg_order_value_kes": 8242,
+    "reliability_score": 69,
+    "average_gap_days": 28.7
+  },
+  "NGAMIA MILK SUPPLIERS LIMITED": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 62.6,
+    "median_gap_days": 65,
+    "estimated_delivery_days": 1,
+    "total_orders_2025": 6,
+    "avg_order_value_kes": 2054,
+    "reliability_score": 0.905,
+    "average_gap_days": 62.6
+  },
+  "NUTRI AFRICA LIMITED SR": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 43.6,
+    "median_gap_days": 56,
+    "estimated_delivery_days": 6,
+    "total_orders_2025": 8,
+    "avg_order_value_kes": 9750,
+    "reliability_score": 70,
+    "average_gap_days": 50.8
+  },
+  "NELI PRODUCTS LIMITED SR": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 19.2,
+    "median_gap_days": 23,
+    "estimated_delivery_days": 6,
+    "total_orders_2025": 17,
+    "avg_order_value_kes": 21148,
+    "reliability_score": 61,
+    "average_gap_days": 23.7
+  },
+  "NATURES RECIPES LIMITED SR": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 15.7,
+    "median_gap_days": 15,
+    "estimated_delivery_days": 2,
+    "total_orders_2025": 22,
+    "avg_order_value_kes": 5996,
+    "reliability_score": 71,
+    "average_gap_days": 17.4
+  },
+  "NATION MEDIA GROUP LTD ACC 2 NO GRN": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 25.1,
+    "median_gap_days": 24,
+    "estimated_delivery_days": 1,
+    "total_orders_2025": 13,
+    "avg_order_value_kes": 30344,
+    "reliability_score": 62,
+    "average_gap_days": 43
+  },
+  "NYOTA LIMITED": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 15.5,
+    "median_gap_days": 17,
+    "estimated_delivery_days": 2,
+    "total_orders_2025": 22,
+    "avg_order_value_kes": 13001,
+    "reliability_score": 84,
+    "average_gap_days": 17.1
+  },
+  "NAJI SUPERSTORES": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 24.2,
+    "median_gap_days": 16,
+    "estimated_delivery_days": 7,
+    "total_orders_2025": 14,
+    "avg_order_value_kes": 20136,
+    "reliability_score": 41,
+    "average_gap_days": 26.2
+  },
+  "NAIROBI SPORTS HOUSE LTD FIREWORKS SR": {
+    "order_frequency": "daily",
+    "avg_gap_days": 0.3,
+    "median_gap_days": 1,
+    "estimated_delivery_days": 1,
+    "total_orders_2025": 4,
+    "avg_order_value_kes": 197322,
+    "reliability_score": 0.905,
+    "average_gap_days": 1
+  },
+  "NUTRI DELIGHTS LTD SR": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 35.3,
+    "median_gap_days": 33,
+    "estimated_delivery_days": 6,
+    "total_orders_2025": 7,
+    "avg_order_value_kes": 4389,
+    "reliability_score": 86,
+    "average_gap_days": 35.3
+  },
+  "ONE STOP ENTERPRISE": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 24,
+    "median_gap_days": 17,
+    "estimated_delivery_days": 7,
+    "total_orders_2025": 15,
+    "avg_order_value_kes": 8836,
+    "reliability_score": 63,
+    "average_gap_days": 25.8
+  },
+  "ODEX CHEMICALS": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 80.7,
+    "median_gap_days": 48,
+    "estimated_delivery_days": 3,
+    "total_orders_2025": 4,
+    "avg_order_value_kes": 6300,
+    "reliability_score": 0.905,
+    "average_gap_days": 80.7
+  },
+  "NOBLE OUTLOOK LIMITED": {
+    "order_frequency": "bi_weekly",
+    "avg_gap_days": 13.7,
+    "median_gap_days": 15,
+    "estimated_delivery_days": 7,
+    "total_orders_2025": 23,
+    "avg_order_value_kes": 445452,
+    "reliability_score": 81,
+    "average_gap_days": 15.1
+  },
+  "OSHO CHEMICAL INDUSTRIES LTD": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 17.9,
+    "median_gap_days": 17,
+    "estimated_delivery_days": 3,
+    "total_orders_2025": 19,
+    "avg_order_value_kes": 18385,
+    "reliability_score": 77,
+    "average_gap_days": 20.1
+  },
+  "ON DEMAND DISTRIBUTION HOUSE": {
+    "order_frequency": "bi_weekly",
+    "avg_gap_days": 11.9,
+    "median_gap_days": 14,
+    "estimated_delivery_days": 3,
+    "total_orders_2025": 29,
+    "avg_order_value_kes": 56655,
+    "reliability_score": 71,
+    "average_gap_days": 13.8
+  },
+  "OSHO GRAIN MILLERS  LTD": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 19,
+    "median_gap_days": 15,
+    "estimated_delivery_days": 1,
+    "total_orders_2025": 18,
+    "avg_order_value_kes": 36823,
+    "reliability_score": 58,
+    "average_gap_days": 21.5
+  },
+  "PURE NATURE PRODUCTS": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 20.8,
+    "median_gap_days": 16,
+    "estimated_delivery_days": 4,
+    "total_orders_2025": 17,
+    "avg_order_value_kes": 16432,
+    "reliability_score": 55,
+    "average_gap_days": 23.8
+  },
+  "PRAZIER POULTRIES": {
+    "order_frequency": "bi_weekly",
+    "avg_gap_days": 12.6,
+    "median_gap_days": 13,
+    "estimated_delivery_days": 1,
+    "total_orders_2025": 26,
+    "avg_order_value_kes": 29821,
+    "reliability_score": 64,
+    "average_gap_days": 13.7
+  },
+  "PWANI OIL PRODUCTS LTD.": {
+    "order_frequency": "bi_weekly",
+    "avg_gap_days": 10.6,
+    "median_gap_days": 14,
+    "estimated_delivery_days": 4,
+    "total_orders_2025": 32,
+    "avg_order_value_kes": 96322,
+    "reliability_score": 67,
+    "average_gap_days": 13.8
+  },
+  "PREMIER FOODS  LIMITED": {
+    "order_frequency": "bi_weekly",
+    "avg_gap_days": 7.9,
+    "median_gap_days": 8,
+    "estimated_delivery_days": 3,
+    "total_orders_2025": 42,
+    "avg_order_value_kes": 65945,
+    "reliability_score": 64,
+    "average_gap_days": 9.5
+  },
+  "PRADIP ENTERPRISES E A  LTD": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 77.8,
+    "median_gap_days": 58,
+    "estimated_delivery_days": 7,
+    "total_orders_2025": 5,
+    "avg_order_value_kes": 7252,
+    "reliability_score": 0.905,
+    "average_gap_days": 77.8
+  },
+  "PEMBE FLOUR MILLS": {
+    "order_frequency": "bi_weekly",
+    "avg_gap_days": 7.5,
+    "median_gap_days": 8,
+    "estimated_delivery_days": 1,
+    "total_orders_2025": 46,
+    "avg_order_value_kes": 68541,
+    "reliability_score": 67,
+    "average_gap_days": 9.3
+  },
+  "PORTCROSS LTD  PC.": {
+    "order_frequency": "bi_weekly",
+    "avg_gap_days": 13.4,
+    "median_gap_days": 13,
+    "estimated_delivery_days": 4,
+    "total_orders_2025": 26,
+    "avg_order_value_kes": 188285,
+    "reliability_score": 71,
+    "average_gap_days": 16
+  },
+  "PAPER SYSTEMS LTD": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 96,
+    "median_gap_days": 91,
+    "estimated_delivery_days": 4,
+    "total_orders_2025": 4,
+    "avg_order_value_kes": 80312,
+    "reliability_score": 0.905,
+    "average_gap_days": 96
+  },
+  "POLMERK  INDUSTRIES  LIMITED": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 35.8,
+    "median_gap_days": 29,
+    "estimated_delivery_days": 4,
+    "total_orders_2025": 10,
+    "avg_order_value_kes": 6699,
+    "reliability_score": 55,
+    "average_gap_days": 46
+  },
+  "PONDERS LIMITED": {
+    "order_frequency": "bi_weekly",
+    "avg_gap_days": 14,
+    "median_gap_days": 13,
+    "estimated_delivery_days": 2,
+    "total_orders_2025": 24,
+    "avg_order_value_kes": 61577,
+    "reliability_score": 67,
+    "average_gap_days": 15.3
+  },
+  "PRESTIGE DISTRIBUTORS SR": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 25.7,
+    "median_gap_days": 27,
+    "estimated_delivery_days": 2,
+    "total_orders_2025": 13,
+    "avg_order_value_kes": 23593,
+    "reliability_score": 72,
+    "average_gap_days": 28
+  },
+  "PERNOD RICARD KENYA": {
+    "order_frequency": "weekly",
+    "avg_gap_days": 6.0,
+    "median_gap_days": 7,
+    "estimated_delivery_days": 2,
+    "total_orders_2025": 55,
+    "avg_order_value_kes": 163813,
+    "reliability_score": 67,
+    "average_gap_days": 7.1
+  },
+  "AGVENTURE LTD": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 17.6,
+    "median_gap_days": 15,
+    "estimated_delivery_days": 4,
+    "total_orders_2025": 17,
+    "avg_order_value_kes": 18196,
+    "reliability_score": 73,
+    "average_gap_days": 20.1
+  },
+  "POLYTHENE INDUSTRIES LIMITED": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 21.7,
+    "median_gap_days": 23,
+    "estimated_delivery_days": 3,
+    "total_orders_2025": 16,
+    "avg_order_value_kes": 34613,
+    "reliability_score": 81,
+    "average_gap_days": 25.1
+  },
+  "PROLEX VENTURES LIMITED": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 45.1,
+    "median_gap_days": 36,
+    "estimated_delivery_days": 5,
+    "total_orders_2025": 8,
+    "avg_order_value_kes": 7864,
+    "reliability_score": 62,
+    "average_gap_days": 45.1
+  },
+  "PLUM POT INVESTMENTS LTD SR": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 16,
+    "median_gap_days": 16,
+    "estimated_delivery_days": 4,
+    "total_orders_2025": 22,
+    "avg_order_value_kes": 6315,
+    "reliability_score": 64,
+    "average_gap_days": 18.7
+  },
+  "PLANTA FOOD FACTORY LTD": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 24.8,
+    "median_gap_days": 26,
+    "estimated_delivery_days": 2,
+    "total_orders_2025": 14,
+    "avg_order_value_kes": 11151,
+    "reliability_score": 66,
+    "average_gap_days": 24.8
+  },
+  "PETZONE ENTERPRISES LTD HQ": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 17.9,
+    "median_gap_days": 23,
+    "estimated_delivery_days": 4,
+    "total_orders_2025": 19,
+    "avg_order_value_kes": 58895,
+    "reliability_score": 76,
+    "average_gap_days": 21.5
+  },
+  "PANDA BRUSHES LIMITED": {
+    "order_frequency": "bi_weekly",
+    "avg_gap_days": 12.4,
+    "median_gap_days": 13,
+    "estimated_delivery_days": 2,
+    "total_orders_2025": 28,
+    "avg_order_value_kes": 26352,
+    "reliability_score": 72,
+    "average_gap_days": 14.0
+  },
+  "PASAGOT LIMITED SR": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 23.9,
+    "median_gap_days": 28,
+    "estimated_delivery_days": 2,
+    "total_orders_2025": 15,
+    "avg_order_value_kes": 38694,
+    "reliability_score": 76,
+    "average_gap_days": 25.7
+  },
+  "PYAAN LIMITED": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 17.6,
+    "median_gap_days": 16,
+    "estimated_delivery_days": 2,
+    "total_orders_2025": 18,
+    "avg_order_value_kes": 18414,
+    "reliability_score": 76,
+    "average_gap_days": 18.7
+  },
+  "QIAS PRODUCE SR": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 61.2,
+    "median_gap_days": 58,
+    "estimated_delivery_days": 3,
+    "total_orders_2025": 6,
+    "avg_order_value_kes": 5345,
+    "reliability_score": 0.905,
+    "average_gap_days": 61.2
+  },
+  "QUALIPAS INDUSTRIES LTD SR": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 24.6,
+    "median_gap_days": 25,
+    "estimated_delivery_days": 13,
+    "total_orders_2025": 14,
+    "avg_order_value_kes": 21160,
+    "reliability_score": 72,
+    "average_gap_days": 26.7
+  },
+  "NATURES HEALTH LTD": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 19.3,
+    "median_gap_days": 17,
+    "estimated_delivery_days": 3,
+    "total_orders_2025": 18,
+    "avg_order_value_kes": 22468,
+    "reliability_score": 78,
+    "average_gap_days": 20.5
+  },
+  "ROSHNI DIST LTD  R D": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 18.2,
+    "median_gap_days": 17,
+    "estimated_delivery_days": 4,
+    "total_orders_2025": 19,
+    "avg_order_value_kes": 371849,
+    "reliability_score": 75,
+    "average_gap_days": 20.5
+  },
+  "RICKS LTD": {
+    "order_frequency": "bi_weekly",
+    "avg_gap_days": 13.6,
+    "median_gap_days": 16,
+    "estimated_delivery_days": 1,
+    "total_orders_2025": 26,
+    "avg_order_value_kes": 22643,
+    "reliability_score": 75,
+    "average_gap_days": 20
+  },
+  "REGAL PHARMACEUTICALS LIMITED": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 19.4,
+    "median_gap_days": 24,
+    "estimated_delivery_days": 3,
+    "total_orders_2025": 16,
+    "avg_order_value_kes": 3495,
+    "reliability_score": 68,
+    "average_gap_days": 29.1
+  },
+  "RAMJI HARIBHAI DEVANI LTD": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 18,
+    "median_gap_days": 17,
+    "estimated_delivery_days": 2,
+    "total_orders_2025": 18,
+    "avg_order_value_kes": 13450,
+    "reliability_score": 78,
+    "average_gap_days": 20.4
+  },
+  "RISAGIL AGENCIES": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 53.2,
+    "median_gap_days": 75,
+    "estimated_delivery_days": 5,
+    "total_orders_2025": 6,
+    "avg_order_value_kes": 6793,
+    "reliability_score": 0.905,
+    "average_gap_days": 53.2
+  },
+  "RAA LIMITED": {
+    "order_frequency": "bi_weekly",
+    "avg_gap_days": 8.5,
+    "median_gap_days": 13,
+    "estimated_delivery_days": 3,
+    "total_orders_2025": 39,
+    "avg_order_value_kes": 39274,
+    "reliability_score": 69,
+    "average_gap_days": 14.1
+  },
+  "RAZCO LTD": {
+    "order_frequency": "weekly",
+    "avg_gap_days": 3.7,
+    "median_gap_days": 7,
+    "estimated_delivery_days": 1,
+    "total_orders_2025": 90,
+    "avg_order_value_kes": 75201,
+    "reliability_score": 58,
+    "average_gap_days": 7.5
+  },
+  "RADBONE CLARK  K  LTD": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 14.3,
+    "median_gap_days": 14,
+    "estimated_delivery_days": 6,
+    "total_orders_2025": 24,
+    "avg_order_value_kes": 136517,
+    "reliability_score": 65,
+    "average_gap_days": 16.5
+  },
+  "ROSAKIND EA LIMITED": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 21.3,
+    "median_gap_days": 14,
+    "estimated_delivery_days": 4,
+    "total_orders_2025": 16,
+    "avg_order_value_kes": 17141,
+    "reliability_score": 70,
+    "average_gap_days": 21.3
+  },
+  "RAJ KAMAL ENTERPRISE LIMITED": {
+    "order_frequency": "bi_weekly",
+    "avg_gap_days": 9.4,
+    "median_gap_days": 33,
+    "estimated_delivery_days": 5,
+    "total_orders_2025": 35,
+    "avg_order_value_kes": 335725,
+    "reliability_score": 72,
+    "average_gap_days": 31.9
+  },
+  "ROCKBERN COFFEE GROUP LTD": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 23.8,
+    "median_gap_days": 21,
+    "estimated_delivery_days": 1,
+    "total_orders_2025": 15,
+    "avg_order_value_kes": 13645,
+    "reliability_score": 71,
+    "average_gap_days": 27.8
+  },
+  "ROK INDUSTRIES LIMITED": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 40.2,
+    "median_gap_days": 31,
+    "estimated_delivery_days": 4,
+    "total_orders_2025": 9,
+    "avg_order_value_kes": 15540,
+    "reliability_score": 73,
+    "average_gap_days": 40.2
+  },
+  "ROYAL BREKKERS LIMITED": {
+    "order_frequency": "bi_weekly",
+    "avg_gap_days": 8.8,
+    "median_gap_days": 8,
+    "estimated_delivery_days": 2,
+    "total_orders_2025": 38,
+    "avg_order_value_kes": 8480,
+    "reliability_score": 68,
+    "average_gap_days": 9.8
+  },
+  "READY BELLY LIMITED": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 18.5,
+    "median_gap_days": 16,
+    "estimated_delivery_days": 1,
+    "total_orders_2025": 19,
+    "avg_order_value_kes": 11229,
+    "reliability_score": 66,
+    "average_gap_days": 19.6
+  },
+  "RWENZORI KENYA LIMITED": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 21.1,
+    "median_gap_days": 14,
+    "estimated_delivery_days": 6,
+    "total_orders_2025": 17,
+    "avg_order_value_kes": 11097,
+    "reliability_score": 60,
+    "average_gap_days": 22.5
+  },
+  "RAZCO LTD 2ND": {
+    "order_frequency": "bi_weekly",
+    "avg_gap_days": 12.3,
+    "median_gap_days": 11,
+    "estimated_delivery_days": 1,
+    "total_orders_2025": 28,
+    "avg_order_value_kes": 30810,
+    "reliability_score": 69,
+    "average_gap_days": 13.3
+  },
+  "RIVERWEST COMPANY LTD": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 15.9,
+    "median_gap_days": 15,
+    "estimated_delivery_days": 1,
+    "total_orders_2025": 21,
+    "avg_order_value_kes": 11062,
+    "reliability_score": 73,
+    "average_gap_days": 16.7
+  },
+  "RABAI FOODS LIMITED": {
+    "order_frequency": "daily",
+    "avg_gap_days": 1.3,
+    "median_gap_days": 1,
+    "estimated_delivery_days": 1,
+    "total_orders_2025": 193,
+    "avg_order_value_kes": 1101,
+    "reliability_score": 68,
+    "average_gap_days": 1.5
+  },
+  "RIVERROSE DISTRIBUTORS LTD": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 21.5,
+    "median_gap_days": 20,
+    "estimated_delivery_days": 3,
+    "total_orders_2025": 15,
+    "avg_order_value_kes": 28314,
+    "reliability_score": 64,
+    "average_gap_days": 23.2
+  },
+  "RAVINE DAIRIES LIMITED": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 15.1,
+    "median_gap_days": 14,
+    "estimated_delivery_days": 7,
+    "total_orders_2025": 21,
+    "avg_order_value_kes": 12964,
+    "reliability_score": 69,
+    "average_gap_days": 16.8
+  },
+  "ROSHNI DISTRIBUTORS LTD CROCKERY SR": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 32.6,
+    "median_gap_days": 27,
+    "estimated_delivery_days": 5,
+    "total_orders_2025": 9,
+    "avg_order_value_kes": 23051,
+    "reliability_score": 73,
+    "average_gap_days": 37.3
+  },
+  "SETUR": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 43.9,
+    "median_gap_days": 43,
+    "estimated_delivery_days": 1,
+    "total_orders_2025": 8,
+    "avg_order_value_kes": 7170,
+    "reliability_score": 84,
+    "average_gap_days": 43.9
+  },
+  "SOLOMON NGETHE": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 32.2,
+    "median_gap_days": 40,
+    "estimated_delivery_days": 1,
+    "total_orders_2025": 11,
+    "avg_order_value_kes": 5263,
+    "reliability_score": 71,
+    "average_gap_days": 35.8
+  },
+  "SEVI ENTERPRISES": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 47.1,
+    "median_gap_days": 55,
+    "estimated_delivery_days": 2,
+    "total_orders_2025": 8,
+    "avg_order_value_kes": 16628,
+    "reliability_score": 77,
+    "average_gap_days": 55
+  },
+  "SUDI CHEMICAL INDUSTRIES LTD": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 18.3,
+    "median_gap_days": 15,
+    "estimated_delivery_days": 2,
+    "total_orders_2025": 19,
+    "avg_order_value_kes": 11653,
+    "reliability_score": 69,
+    "average_gap_days": 20.6
+  },
+  "SUNPOWER PRODUCTS LTD": {
+    "order_frequency": "every_2_3_days",
+    "avg_gap_days": 2.5,
+    "median_gap_days": 2,
+    "estimated_delivery_days": 1,
+    "total_orders_2025": 136,
+    "avg_order_value_kes": 46976,
+    "reliability_score": 41,
+    "average_gap_days": 2.8
+  },
+  "SPICE WORLD LTD": {
+    "order_frequency": "bi_weekly",
+    "avg_gap_days": 10.9,
+    "median_gap_days": 10,
+    "estimated_delivery_days": 3,
+    "total_orders_2025": 30,
+    "avg_order_value_kes": 131108,
+    "reliability_score": 66,
+    "average_gap_days": 12.2
+  },
+  "SUPA BRITE LTD": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 15.3,
+    "median_gap_days": 14,
+    "estimated_delivery_days": 1,
+    "total_orders_2025": 22,
+    "avg_order_value_kes": 20857,
+    "reliability_score": 79,
+    "average_gap_days": 17.8
+  },
+  "SHAMULA LIMITED": {
+    "order_frequency": "bi_weekly",
+    "avg_gap_days": 13.2,
+    "median_gap_days": 15,
+    "estimated_delivery_days": 1,
+    "total_orders_2025": 26,
+    "avg_order_value_kes": 20957,
+    "reliability_score": 80,
+    "average_gap_days": 16.4
+  },
+  "SUPA SNACKS LTD": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 15.0,
+    "median_gap_days": 15,
+    "estimated_delivery_days": 2,
+    "total_orders_2025": 23,
+    "avg_order_value_kes": 25642,
+    "reliability_score": 77,
+    "average_gap_days": 16.6
+  },
+  "SUPERSLEEK LIMITED": {
+    "order_frequency": "bi_weekly",
+    "avg_gap_days": 12.3,
+    "median_gap_days": 14,
+    "estimated_delivery_days": 4,
+    "total_orders_2025": 28,
+    "avg_order_value_kes": 97615,
+    "reliability_score": 71,
+    "average_gap_days": 14.4
+  },
+  "STEELWOOL AFRICA LTD": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 15.3,
+    "median_gap_days": 16,
+    "estimated_delivery_days": 5,
+    "total_orders_2025": 23,
+    "avg_order_value_kes": 27994,
+    "reliability_score": 77,
+    "average_gap_days": 17.7
+  },
+  "SASINI PLC": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 24.2,
+    "median_gap_days": 23,
+    "estimated_delivery_days": 5,
+    "total_orders_2025": 13,
+    "avg_order_value_kes": 20608,
+    "reliability_score": 70,
+    "average_gap_days": 26.4
+  },
+  "SIGMA FEEDS LTD": {
+    "order_frequency": "bi_weekly",
+    "avg_gap_days": 12.4,
+    "median_gap_days": 13,
+    "estimated_delivery_days": 3,
+    "total_orders_2025": 27,
+    "avg_order_value_kes": 49287,
+    "reliability_score": 62,
+    "average_gap_days": 14
+  },
+  "SUNDRIES BARGAIN NAIROBI LTD": {
+    "order_frequency": "bi_weekly",
+    "avg_gap_days": 10.5,
+    "median_gap_days": 11,
+    "estimated_delivery_days": 3,
+    "total_orders_2025": 32,
+    "avg_order_value_kes": 53093,
+    "reliability_score": 68,
+    "average_gap_days": 12.1
+  },
+  "SYNERGY TECHNOLOGIES": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 39.1,
+    "median_gap_days": 37,
+    "estimated_delivery_days": 2,
+    "total_orders_2025": 9,
+    "avg_order_value_kes": 4560,
+    "reliability_score": 74,
+    "average_gap_days": 39.1
+  },
+  "SLATER AND WHITTAKER LTD": {
+    "order_frequency": "bi_weekly",
+    "avg_gap_days": 9.6,
+    "median_gap_days": 7,
+    "estimated_delivery_days": 2,
+    "total_orders_2025": 33,
+    "avg_order_value_kes": 63316,
+    "reliability_score": 69,
+    "average_gap_days": 10.3
+  },
+  "SMOKES AND GIFTS": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 36.1,
+    "median_gap_days": 30,
+    "estimated_delivery_days": 4,
+    "total_orders_2025": 10,
+    "avg_order_value_kes": 9895,
+    "reliability_score": 54,
+    "average_gap_days": 40.6
+  },
+  "SMART GLOBAL LIMITED": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 14.3,
+    "median_gap_days": 14,
+    "estimated_delivery_days": 3,
+    "total_orders_2025": 24,
+    "avg_order_value_kes": 28887,
+    "reliability_score": 74,
+    "average_gap_days": 15.7
+  },
+  "STATPACK INDUSTRIES LTD": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 31.3,
+    "median_gap_days": 21,
+    "estimated_delivery_days": 2,
+    "total_orders_2025": 11,
+    "avg_order_value_kes": 23950,
+    "reliability_score": 67,
+    "average_gap_days": 31.3
+  },
+  "SESIA LIMITED": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 19.9,
+    "median_gap_days": 21,
+    "estimated_delivery_days": 4,
+    "total_orders_2025": 17,
+    "avg_order_value_kes": 23428,
+    "reliability_score": 75,
+    "average_gap_days": 21.3
+  },
+  "SALIM WAZARAN KENYA CO. LTD": {
+    "order_frequency": "bi_weekly",
+    "avg_gap_days": 11.6,
+    "median_gap_days": 13,
+    "estimated_delivery_days": 6,
+    "total_orders_2025": 28,
+    "avg_order_value_kes": 42027,
+    "reliability_score": 68,
+    "average_gap_days": 13.6
+  },
+  "SILPACK INDUSTRIES LIMITED": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 37,
+    "median_gap_days": 37,
+    "estimated_delivery_days": 21,
+    "total_orders_2025": 2,
+    "avg_order_value_kes": 3250,
+    "reliability_score": 0.905,
+    "average_gap_days": 37
+  },
+  "SUNVEAT FOODS LIMITED": {
+    "order_frequency": "bi_weekly",
+    "avg_gap_days": 8.3,
+    "median_gap_days": 8,
+    "estimated_delivery_days": 2,
+    "total_orders_2025": 41,
+    "avg_order_value_kes": 17502,
+    "reliability_score": 62,
+    "average_gap_days": 9.2
+  },
+  "SPHERETASTE FOODS LIMITED": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 22,
+    "median_gap_days": 18,
+    "estimated_delivery_days": 1,
+    "total_orders_2025": 15,
+    "avg_order_value_kes": 6979,
+    "reliability_score": 66,
+    "average_gap_days": 25.7
+  },
+  "SUNPOWER PRODUCTS LTD DELI NO GRN": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 21.9,
+    "median_gap_days": 28,
+    "estimated_delivery_days": 1,
+    "total_orders_2025": 15,
+    "avg_order_value_kes": 62096,
+    "reliability_score": 69,
+    "average_gap_days": 25.5
+  },
+  "SBC KENYA LIMITED": {
+    "order_frequency": "bi_weekly",
+    "avg_gap_days": 11.4,
+    "median_gap_days": 11,
+    "estimated_delivery_days": 2,
+    "total_orders_2025": 29,
+    "avg_order_value_kes": 32869,
+    "reliability_score": 67,
+    "average_gap_days": 12.3
+  },
+  "SAI OFFICE SUPPLIES LIMITED": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 17.2,
+    "median_gap_days": 17,
+    "estimated_delivery_days": 3,
+    "total_orders_2025": 16,
+    "avg_order_value_kes": 15681,
+    "reliability_score": 73,
+    "average_gap_days": 19.8
+  },
+  "SIDDHAM BEVERAGES LIMITED": {
+    "order_frequency": "weekly",
+    "avg_gap_days": 6.9,
+    "median_gap_days": 7,
+    "estimated_delivery_days": 3,
+    "total_orders_2025": 49,
+    "avg_order_value_kes": 57702,
+    "reliability_score": 70,
+    "average_gap_days": 7.8
+  },
+  "SAVANNAH BRANDS COMPANY LIMITED": {
+    "order_frequency": "bi_weekly",
+    "avg_gap_days": 7.3,
+    "median_gap_days": 7,
+    "estimated_delivery_days": 2,
+    "total_orders_2025": 45,
+    "avg_order_value_kes": 32333,
+    "reliability_score": 69,
+    "average_gap_days": 8.5
+  },
+  "STENTOR ENTERPRISES LIMITED NO GRN": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 14.5,
+    "median_gap_days": 15,
+    "estimated_delivery_days": 1,
+    "total_orders_2025": 24,
+    "avg_order_value_kes": 155025,
+    "reliability_score": 78,
+    "average_gap_days": 16.6
+  },
+  "SPRING VALLEY COFFEE ROASTERS LTD": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 14.8,
+    "median_gap_days": 15,
+    "estimated_delivery_days": 2,
+    "total_orders_2025": 23,
+    "avg_order_value_kes": 79335,
+    "reliability_score": 75,
+    "average_gap_days": 16.2
+  },
+  "SPARKLE BRANDS LIMITED": {
+    "order_frequency": "bi_weekly",
+    "avg_gap_days": 10.2,
+    "median_gap_days": 11,
+    "estimated_delivery_days": 2,
+    "total_orders_2025": 34,
+    "avg_order_value_kes": 74182,
+    "reliability_score": 74,
+    "average_gap_days": 11.2
+  },
+  "SYMBIO HEALTHCARE LIMITED SR": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 29,
+    "median_gap_days": 30,
+    "estimated_delivery_days": 1,
+    "total_orders_2025": 8,
+    "avg_order_value_kes": 5179,
+    "reliability_score": 77,
+    "average_gap_days": 33.8
+  },
+  "SLEEK KENYA  LIMITED SR": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 14.4,
+    "median_gap_days": 15,
+    "estimated_delivery_days": 5,
+    "total_orders_2025": 24,
+    "avg_order_value_kes": 57622,
+    "reliability_score": 72,
+    "average_gap_days": 17.4
+  },
+  "SELECTIONS WORLD LIMITED NO GRN": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 20.9,
+    "median_gap_days": 29,
+    "estimated_delivery_days": 1,
+    "total_orders_2025": 15,
+    "avg_order_value_kes": 7667,
+    "reliability_score": 72,
+    "average_gap_days": 32.6
+  },
+  "SIERRA PREMIUM BREWERIES LIMITED": {
+    "order_frequency": "bi_weekly",
+    "avg_gap_days": 11.3,
+    "median_gap_days": 8,
+    "estimated_delivery_days": 3,
+    "total_orders_2025": 29,
+    "avg_order_value_kes": 23945,
+    "reliability_score": 48,
+    "average_gap_days": 12.6
+  },
+  "SUPER SAVERS DISTRIBUTION LTD": {
+    "order_frequency": "bi_weekly",
+    "avg_gap_days": 11.9,
+    "median_gap_days": 13,
+    "estimated_delivery_days": 3,
+    "total_orders_2025": 29,
+    "avg_order_value_kes": 102367,
+    "reliability_score": 74,
+    "average_gap_days": 15.1
+  },
+  "SAI PHARMACEUTICALS K LIMITED SR": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 16.9,
+    "median_gap_days": 17,
+    "estimated_delivery_days": 3,
+    "total_orders_2025": 21,
+    "avg_order_value_kes": 22065,
+    "reliability_score": 70,
+    "average_gap_days": 17.7
+  },
+  "SUMO FOODS LIMITED SR": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 25.9,
+    "median_gap_days": 31,
+    "estimated_delivery_days": 4,
+    "total_orders_2025": 13,
+    "avg_order_value_kes": 4190,
+    "reliability_score": 76,
+    "average_gap_days": 31.1
+  },
+  "SATIMA FARMHOUSE LIMITED": {
+    "order_frequency": "weekly",
+    "avg_gap_days": 4.1,
+    "median_gap_days": 5,
+    "estimated_delivery_days": 1,
+    "total_orders_2025": 82,
+    "avg_order_value_kes": 7623,
+    "reliability_score": 55,
+    "average_gap_days": 5.5
+  },
+  "SHALINA HEALTHCARE K LTD": {
+    "order_frequency": "weekly",
+    "avg_gap_days": 6.5,
+    "median_gap_days": 14,
+    "estimated_delivery_days": 3,
+    "total_orders_2025": 51,
+    "avg_order_value_kes": 17640,
+    "reliability_score": 67,
+    "average_gap_days": 13.6
+  },
+  "STALLION TRADING LIMITED": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 17.2,
+    "median_gap_days": 15,
+    "estimated_delivery_days": 2,
+    "total_orders_2025": 20,
+    "avg_order_value_kes": 11445,
+    "reliability_score": 69,
+    "average_gap_days": 19.2
+  },
+  "SARAYA KENYA COMPANY LTD SR": {
+    "order_frequency": "bi_weekly",
+    "avg_gap_days": 9.6,
+    "median_gap_days": 13,
+    "estimated_delivery_days": 2,
+    "total_orders_2025": 36,
+    "avg_order_value_kes": 22450,
+    "reliability_score": 69,
+    "average_gap_days": 14.6
+  },
+  "SPAHK LIMITED": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 44.8,
+    "median_gap_days": 31,
+    "estimated_delivery_days": 4,
+    "total_orders_2025": 7,
+    "avg_order_value_kes": 9732,
+    "reliability_score": 71,
+    "average_gap_days": 44.8
+  },
+  "SINE IMPORT LIMITED": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 75.2,
+    "median_gap_days": 87,
+    "estimated_delivery_days": 1,
+    "total_orders_2025": 5,
+    "avg_order_value_kes": 13853,
+    "reliability_score": 0.905,
+    "average_gap_days": 75.2
+  },
+  "SPREAD MASTERS LIMITED": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 20.3,
+    "median_gap_days": 24,
+    "estimated_delivery_days": 2,
+    "total_orders_2025": 16,
+    "avg_order_value_kes": 10285,
+    "reliability_score": 73,
+    "average_gap_days": 23.4
+  },
+  "SMARTBRIDGE DISTRIBUTORS LTD": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 15.8,
+    "median_gap_days": 13,
+    "estimated_delivery_days": 4,
+    "total_orders_2025": 19,
+    "avg_order_value_kes": 13435,
+    "reliability_score": 44,
+    "average_gap_days": 19
+  },
+  "KAPUTEI FARM P LIMITED": {
+    "order_frequency": "bi_weekly",
+    "avg_gap_days": 12.4,
+    "median_gap_days": 13,
+    "estimated_delivery_days": 3,
+    "total_orders_2025": 28,
+    "avg_order_value_kes": 30729,
+    "reliability_score": 78,
+    "average_gap_days": 14
+  },
+  "SEA HARVEST K LIMITED": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 36.6,
+    "median_gap_days": 30,
+    "estimated_delivery_days": 2,
+    "total_orders_2025": 9,
+    "avg_order_value_kes": 32906,
+    "reliability_score": 69,
+    "average_gap_days": 41.9
+  },
+  "TOWFIQ  K  LIMITED HQ": {
+    "order_frequency": "bi_weekly",
+    "avg_gap_days": 9.4,
+    "median_gap_days": 10,
+    "estimated_delivery_days": 2,
+    "total_orders_2025": 37,
+    "avg_order_value_kes": 359701,
+    "reliability_score": 71,
+    "average_gap_days": 10.9
+  },
+  "THE WINES SHOP": {
+    "order_frequency": "bi_weekly",
+    "avg_gap_days": 12.6,
+    "median_gap_days": 7,
+    "estimated_delivery_days": 2,
+    "total_orders_2025": 26,
+    "avg_order_value_kes": 39827,
+    "reliability_score": 45,
+    "average_gap_days": 13.7
+  },
+  "TRI CLOVER INDUSTRIES LTD": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 15.2,
+    "median_gap_days": 15,
+    "estimated_delivery_days": 2,
+    "total_orders_2025": 23,
+    "avg_order_value_kes": 37553,
+    "reliability_score": 73,
+    "average_gap_days": 17.6
+  },
+  "TRUFOODS LIMITED T F": {
+    "order_frequency": "bi_weekly",
+    "avg_gap_days": 9.7,
+    "median_gap_days": 10,
+    "estimated_delivery_days": 2,
+    "total_orders_2025": 35,
+    "avg_order_value_kes": 88536,
+    "reliability_score": 75,
+    "average_gap_days": 11.4
+  },
+  "TECHPAK INDUSTRIES LTD": {
+    "order_frequency": "bi_weekly",
+    "avg_gap_days": 11.0,
+    "median_gap_days": 11,
+    "estimated_delivery_days": 4,
+    "total_orders_2025": 31,
+    "avg_order_value_kes": 40655,
+    "reliability_score": 67,
+    "average_gap_days": 13.2
+  },
+  "TOP FOOD EA LTD": {
+    "order_frequency": "bi_weekly",
+    "avg_gap_days": 13.2,
+    "median_gap_days": 14,
+    "estimated_delivery_days": 3,
+    "total_orders_2025": 26,
+    "avg_order_value_kes": 44553,
+    "reliability_score": 72,
+    "average_gap_days": 14.3
+  },
+  "TRADE ROOTS LTD": {
+    "order_frequency": "bi_weekly",
+    "avg_gap_days": 12.7,
+    "median_gap_days": 14,
+    "estimated_delivery_days": 4,
+    "total_orders_2025": 27,
+    "avg_order_value_kes": 174705,
+    "reliability_score": 69,
+    "average_gap_days": 15.0
+  },
+  "TEXT BOOK CENTRE LTD": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 27.1,
+    "median_gap_days": 20,
+    "estimated_delivery_days": 5,
+    "total_orders_2025": 12,
+    "avg_order_value_kes": 12329,
+    "reliability_score": 71,
+    "average_gap_days": 29.8
+  },
+  "THE CHOICE OF E A LTD": {
+    "order_frequency": "bi_weekly",
+    "avg_gap_days": 8.2,
+    "median_gap_days": 7,
+    "estimated_delivery_days": 2,
+    "total_orders_2025": 37,
+    "avg_order_value_kes": 33982,
+    "reliability_score": 69,
+    "average_gap_days": 9.5
+  },
+  "TANIA EAST AFRICA LTD": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 43.4,
+    "median_gap_days": 21,
+    "estimated_delivery_days": 4,
+    "total_orders_2025": 8,
+    "avg_order_value_kes": 14663,
+    "reliability_score": 46,
+    "average_gap_days": 50.7
+  },
+  "TROPIKAL BRANDS  AFRICA LTD": {
+    "order_frequency": "bi_weekly",
+    "avg_gap_days": 10.6,
+    "median_gap_days": 12,
+    "estimated_delivery_days": 3,
+    "total_orders_2025": 32,
+    "avg_order_value_kes": 43432,
+    "reliability_score": 70,
+    "average_gap_days": 13.7
+  },
+  "CHILLI PILLI CO. LTD": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 40,
+    "median_gap_days": 47,
+    "estimated_delivery_days": 3,
+    "total_orders_2025": 9,
+    "avg_order_value_kes": 5379,
+    "reliability_score": 74,
+    "average_gap_days": 45.7
+  },
+  "TROPICAL HEAT LTD": {
+    "order_frequency": "bi_weekly",
+    "avg_gap_days": 11,
+    "median_gap_days": 11,
+    "estimated_delivery_days": 2,
+    "total_orders_2025": 31,
+    "avg_order_value_kes": 151297,
+    "reliability_score": 75,
+    "average_gap_days": 12.2
+  },
+  "TWIGA STATIONERS AND PRINTERS LTD": {
+    "order_frequency": "bi_weekly",
+    "avg_gap_days": 11.5,
+    "median_gap_days": 12,
+    "estimated_delivery_days": 2,
+    "total_orders_2025": 28,
+    "avg_order_value_kes": 22928,
+    "reliability_score": 69,
+    "average_gap_days": 12.9
+  },
+  "TAIFA  IMPORTS LIMITED": {
+    "order_frequency": "bi_weekly",
+    "avg_gap_days": 12.1,
+    "median_gap_days": 14,
+    "estimated_delivery_days": 1,
+    "total_orders_2025": 28,
+    "avg_order_value_kes": 34161,
+    "reliability_score": 67,
+    "average_gap_days": 14.3
+  },
+  "THE STAR PUBLICATIONS LTD NO GRN": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 30.3,
+    "median_gap_days": 48,
+    "estimated_delivery_days": 1,
+    "total_orders_2025": 11,
+    "avg_order_value_kes": 292,
+    "reliability_score": 63,
+    "average_gap_days": 50.5
+  },
+  "TRUPTI ENTERPRISES SR": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 33.5,
+    "median_gap_days": 31,
+    "estimated_delivery_days": 4,
+    "total_orders_2025": 9,
+    "avg_order_value_kes": 15474,
+    "reliability_score": 67,
+    "average_gap_days": 38.3
+  },
+  "TELA  LIMITED": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 30.6,
+    "median_gap_days": 31,
+    "estimated_delivery_days": 3,
+    "total_orders_2025": 10,
+    "avg_order_value_kes": 12338,
+    "reliability_score": 62,
+    "average_gap_days": 34.4
+  },
+  "TWIGA  BROTHERS INVEST LIMITED": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 21.3,
+    "median_gap_days": 19,
+    "estimated_delivery_days": 2,
+    "total_orders_2025": 16,
+    "avg_order_value_kes": 13237,
+    "reliability_score": 60,
+    "average_gap_days": 26.7
+  },
+  "TOLSTOY TRADING LIMITED": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 18.3,
+    "median_gap_days": 16,
+    "estimated_delivery_days": 6,
+    "total_orders_2025": 19,
+    "avg_order_value_kes": 19094,
+    "reliability_score": 64,
+    "average_gap_days": 20.6
+  },
+  "TAIFA  IMPORTS LIMITED 2ND SR": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 27.1,
+    "median_gap_days": 32,
+    "estimated_delivery_days": 1,
+    "total_orders_2025": 10,
+    "avg_order_value_kes": 13511,
+    "reliability_score": 77,
+    "average_gap_days": 30.5
+  },
+  "THE STANDARD GROUP PLC NO GRN": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 28.4,
+    "median_gap_days": 56,
+    "estimated_delivery_days": 1,
+    "total_orders_2025": 12,
+    "avg_order_value_kes": 10158,
+    "reliability_score": 66,
+    "average_gap_days": 44.6
+  },
+  "TAWI NATURALS AFRICA LTD SR": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 25.2,
+    "median_gap_days": 19,
+    "estimated_delivery_days": 6,
+    "total_orders_2025": 13,
+    "avg_order_value_kes": 4509,
+    "reliability_score": 62,
+    "average_gap_days": 25.2
+  },
+  "TWO COUSINS DISTILLERS LTD": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 170,
+    "median_gap_days": 170,
+    "estimated_delivery_days": 21,
+    "total_orders_2025": 2,
+    "avg_order_value_kes": 12586,
+    "reliability_score": 0.905,
+    "average_gap_days": 170
+  },
+  "THE WELL HUNG BUTCHER LTD": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 18.5,
+    "median_gap_days": 21,
+    "estimated_delivery_days": 4,
+    "total_orders_2025": 19,
+    "avg_order_value_kes": 10846,
+    "reliability_score": 75,
+    "average_gap_days": 20.8
+  },
+  "UVA WINES LIMITED SR": {
+    "order_frequency": "bi_weekly",
+    "avg_gap_days": 7.3,
+    "median_gap_days": 7,
+    "estimated_delivery_days": 1,
+    "total_orders_2025": 45,
+    "avg_order_value_kes": 37992,
+    "reliability_score": 64,
+    "average_gap_days": 8.1
+  },
+  "UKWALA TRADING 2022 LTD SR": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 36.3,
+    "median_gap_days": 30,
+    "estimated_delivery_days": 5,
+    "total_orders_2025": 10,
+    "avg_order_value_kes": 40021,
+    "reliability_score": 77,
+    "average_gap_days": 36.3
+  },
+  "UNIHOPE STAR BRILLIANCE LIMITED SR": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 109.7,
+    "median_gap_days": 94,
+    "estimated_delivery_days": 3,
+    "total_orders_2025": 4,
+    "avg_order_value_kes": 18720,
+    "reliability_score": 0.905,
+    "average_gap_days": 109.7
+  },
+  "VIVA GLOBAL LIMITED": {
+    "order_frequency": "weekly",
+    "avg_gap_days": 6.1,
+    "median_gap_days": 7,
+    "estimated_delivery_days": 2,
+    "total_orders_2025": 55,
+    "avg_order_value_kes": 166232,
+    "reliability_score": 69,
+    "average_gap_days": 7
+  },
+  "VIBS ENTERPRISES LIMITED": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 37.7,
+    "median_gap_days": 29,
+    "estimated_delivery_days": 2,
+    "total_orders_2025": 7,
+    "avg_order_value_kes": 2208,
+    "reliability_score": 0.905,
+    "average_gap_days": 45.2
+  },
+  "VALENCIA COSMETICS LIMITED": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 29.3,
+    "median_gap_days": 27,
+    "estimated_delivery_days": 5,
+    "total_orders_2025": 11,
+    "avg_order_value_kes": 7684,
+    "reliability_score": 71,
+    "average_gap_days": 29.3
+  },
+  "VEGAN WORLD LIMITED": {
+    "order_frequency": "weekly",
+    "avg_gap_days": 6.9,
+    "median_gap_days": 7,
+    "estimated_delivery_days": 1,
+    "total_orders_2025": 50,
+    "avg_order_value_kes": 8538,
+    "reliability_score": 69,
+    "average_gap_days": 7.8
+  },
+  "WINNIES PURE HEALTH PRODUCTS LIMITED": {
+    "order_frequency": "bi_weekly",
+    "avg_gap_days": 12.6,
+    "median_gap_days": 14,
+    "estimated_delivery_days": 3,
+    "total_orders_2025": 26,
+    "avg_order_value_kes": 47512,
+    "reliability_score": 74,
+    "average_gap_days": 14.4
+  },
+  "PROMASIDOR KENYA LTD": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 19.1,
+    "median_gap_days": 16,
+    "estimated_delivery_days": 2,
+    "total_orders_2025": 18,
+    "avg_order_value_kes": 21046,
+    "reliability_score": 65,
+    "average_gap_days": 21.7
+  },
+  "WOW BEVERAGES LTD": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 22.6,
+    "median_gap_days": 10,
+    "estimated_delivery_days": 2,
+    "total_orders_2025": 14,
+    "avg_order_value_kes": 83894,
+    "reliability_score": 42,
+    "average_gap_days": 22.6
+  },
+  "WOODLANDS COMPANY LTD": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 36.2,
+    "median_gap_days": 56,
+    "estimated_delivery_days": 5,
+    "total_orders_2025": 5,
+    "avg_order_value_kes": 7707,
+    "reliability_score": 0.905,
+    "average_gap_days": 48.3
+  },
+  "WINE ROUTES LIMITED": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 37.6,
+    "median_gap_days": 7,
+    "estimated_delivery_days": 1,
+    "total_orders_2025": 9,
+    "avg_order_value_kes": 23166,
+    "reliability_score": 19,
+    "average_gap_days": 37.6
+  },
+  "WHEREIS ENTERPRISES": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 40.2,
+    "median_gap_days": 32,
+    "estimated_delivery_days": 6,
+    "total_orders_2025": 9,
+    "avg_order_value_kes": 4812,
+    "reliability_score": 70,
+    "average_gap_days": 46
+  },
+  "WORLD BRANDS K LTD": {
+    "order_frequency": "weekly",
+    "avg_gap_days": 4.8,
+    "median_gap_days": 8,
+    "estimated_delivery_days": 6,
+    "total_orders_2025": 68,
+    "avg_order_value_kes": 198120,
+    "reliability_score": 55,
+    "average_gap_days": 10.7
+  },
+  "WISH KENYA LIMITED SR": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 15.8,
+    "median_gap_days": 14,
+    "estimated_delivery_days": 2,
+    "total_orders_2025": 22,
+    "avg_order_value_kes": 13169,
+    "reliability_score": 61,
+    "average_gap_days": 17.4
+  },
+  "WILFAY INVESTMENTS LIMITED": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 16.3,
+    "median_gap_days": 18,
+    "estimated_delivery_days": 2,
+    "total_orders_2025": 11,
+    "avg_order_value_kes": 8400,
+    "reliability_score": 79,
+    "average_gap_days": 18.1
+  },
+  "WINE AND MORE COMPANY LTD": {
+    "order_frequency": "bi_weekly",
+    "avg_gap_days": 13.5,
+    "median_gap_days": 12,
+    "estimated_delivery_days": 3,
+    "total_orders_2025": 25,
+    "avg_order_value_kes": 93674,
+    "reliability_score": 51,
+    "average_gap_days": 15.4
+  },
+  "WETGREEN FARMS LTD": {
+    "order_frequency": "bi_weekly",
+    "avg_gap_days": 12,
+    "median_gap_days": 8,
+    "estimated_delivery_days": 4,
+    "total_orders_2025": 10,
+    "avg_order_value_kes": 36959,
+    "reliability_score": 45,
+    "average_gap_days": 15.4
+  },
+  "XPRO PACKAGING LIMITED SR": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 19.2,
+    "median_gap_days": 18,
+    "estimated_delivery_days": 3,
+    "total_orders_2025": 18,
+    "avg_order_value_kes": 26685,
+    "reliability_score": 69,
+    "average_gap_days": 21.8
+  },
+  "YASTECH BRANDS LTD SR": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 18.5,
+    "median_gap_days": 20,
+    "estimated_delivery_days": 4,
+    "total_orders_2025": 19,
+    "avg_order_value_kes": 25890,
+    "reliability_score": 69,
+    "average_gap_days": 22.2
+  },
+  "ZENKO KENYA LIMITED": {
+    "order_frequency": "bi_weekly",
+    "avg_gap_days": 13,
+    "median_gap_days": 12,
+    "estimated_delivery_days": 5,
+    "total_orders_2025": 26,
+    "avg_order_value_kes": 139636,
+    "reliability_score": 68,
+    "average_gap_days": 15.5
+  },
+  "ZHENG HONG K LIMITED SR": {
+    "order_frequency": "bi_weekly",
+    "avg_gap_days": 8.7,
+    "median_gap_days": 7,
+    "estimated_delivery_days": 5,
+    "total_orders_2025": 34,
+    "avg_order_value_kes": 10754,
+    "reliability_score": 64,
+    "average_gap_days": 9.9
+  },
+  "BAKELS EAST AFRICA LTD": {
+    "order_frequency": "bi_weekly",
+    "avg_gap_days": 11.7,
+    "median_gap_days": 11,
+    "estimated_delivery_days": 1,
+    "total_orders_2025": 22,
+    "avg_order_value_kes": 56345,
+    "reliability_score": 50,
+    "average_gap_days": 18.9
+  },
+  "CHIQ QICK GROUP LTD SR": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 29.3,
+    "median_gap_days": 88,
+    "estimated_delivery_days": 1,
+    "total_orders_2025": 4,
+    "avg_order_value_kes": 16477,
+    "reliability_score": 0.905,
+    "average_gap_days": 88
+  },
+  "EKRAMY COMPANY LIMITED SR": {
+    "order_frequency": "bi_weekly",
+    "avg_gap_days": 11,
+    "median_gap_days": 11,
+    "estimated_delivery_days": 5,
+    "total_orders_2025": 2,
+    "avg_order_value_kes": 8534,
+    "reliability_score": 0.905,
+    "average_gap_days": 11
+  },
+  "GENERIC BRANDS LIMITED HQ": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 29,
+    "median_gap_days": 28,
+    "estimated_delivery_days": 3,
+    "total_orders_2025": 7,
+    "avg_order_value_kes": 30482,
+    "reliability_score": 0.905,
+    "average_gap_days": 34.8
+  },
+  "HASBAH KENYA LIMITED NESTLE": {
+    "order_frequency": "weekly",
+    "avg_gap_days": 5.3,
+    "median_gap_days": 5,
+    "estimated_delivery_days": 4,
+    "total_orders_2025": 7,
+    "avg_order_value_kes": 105834,
+    "reliability_score": 83,
+    "average_gap_days": 5.3
+  },
+  "HOMKART WHOLESALERS LTD SR": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 37.3,
+    "median_gap_days": 30,
+    "estimated_delivery_days": 5,
+    "total_orders_2025": 7,
+    "avg_order_value_kes": 9647,
+    "reliability_score": 50,
+    "average_gap_days": 37.3
+  },
+  "LEAN HC DISTRIBUTORS COM LTD SR": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 22,
+    "median_gap_days": 22,
+    "estimated_delivery_days": 9,
+    "total_orders_2025": 2,
+    "avg_order_value_kes": 6553,
+    "reliability_score": 0.905,
+    "average_gap_days": 22
+  },
+  "LESAFFRE KENYA LIMITED": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 57.8,
+    "median_gap_days": 71,
+    "estimated_delivery_days": 1,
+    "total_orders_2025": 5,
+    "avg_order_value_kes": 28940,
+    "reliability_score": 0.905,
+    "average_gap_days": 77
+  },
+  "MAU HONEY AND BEE KEEPING EQUIP SR": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 16,
+    "median_gap_days": 16,
+    "estimated_delivery_days": 1,
+    "total_orders_2025": 2,
+    "avg_order_value_kes": 4680,
+    "reliability_score": 0.905,
+    "average_gap_days": 16
+  },
+  "PLANET CHIKA CHIKA  LIMITED": {
+    "order_frequency": "daily",
+    "avg_gap_days": 1,
+    "median_gap_days": 2,
+    "estimated_delivery_days": 3,
+    "total_orders_2025": 3,
+    "avg_order_value_kes": 13231,
+    "reliability_score": 0.905,
+    "average_gap_days": 2
+  },
+  "PRUNUS PHARMA LIMITED SR": {
+    "order_frequency": "daily",
+    "avg_gap_days": 0,
+    "median_gap_days": 0.0,
+    "estimated_delivery_days": 4,
+    "total_orders_2025": 2,
+    "avg_order_value_kes": 12432,
+    "reliability_score": 0.905
+  },
+  "STORESOME TRADING CO LTD SR": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 15.4,
+    "median_gap_days": 11,
+    "estimated_delivery_days": 6,
+    "total_orders_2025": 17,
+    "avg_order_value_kes": 107538,
+    "reliability_score": 57,
+    "average_gap_days": 16.4
+  },
+  "STREAMLINE IMPEX KENYA LTD SR": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 58,
+    "median_gap_days": 58,
+    "estimated_delivery_days": 5,
+    "total_orders_2025": 3,
+    "avg_order_value_kes": 28816,
+    "reliability_score": 0.905,
+    "average_gap_days": 58
+  },
+  "TEXPLAST  INDUSTRIES LIMITED": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 23.2,
+    "median_gap_days": 16,
+    "estimated_delivery_days": 2,
+    "total_orders_2025": 6,
+    "avg_order_value_kes": 35328,
+    "reliability_score": 0.905,
+    "average_gap_days": 23.2
+  },
+  "THE DREAM FACTORY KENYA LIMITED SR": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 69,
+    "median_gap_days": 56,
+    "estimated_delivery_days": 5,
+    "total_orders_2025": 4,
+    "avg_order_value_kes": 77760,
+    "reliability_score": 0.905,
+    "average_gap_days": 69
+  },
+  "VIPINGO INDUSTRIES LTD": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 50.6,
+    "median_gap_days": 70,
+    "estimated_delivery_days": 6,
+    "total_orders_2025": 6,
+    "avg_order_value_kes": 26210,
+    "reliability_score": 0.905,
+    "average_gap_days": 50.6
+  },
+  "ASSOCIATED BEVERAGES LIMITED": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 17.9,
+    "median_gap_days": 17,
+    "estimated_delivery_days": 4,
+    "total_orders_2025": 12,
+    "avg_order_value_kes": 11693,
+    "reliability_score": 66,
+    "average_gap_days": 19.7
+  },
+  "ANDREW MUROKI GATHAGE": {
+    "order_frequency": "bi_weekly",
+    "avg_gap_days": 8,
+    "median_gap_days": 7,
+    "estimated_delivery_days": 1,
+    "total_orders_2025": 15,
+    "avg_order_value_kes": 15600,
+    "reliability_score": 57,
+    "average_gap_days": 9.3
+  },
+  "AVANZAR DISTRIBUTORS LIMITED": {
+    "order_frequency": "bi_weekly",
+    "avg_gap_days": 14,
+    "median_gap_days": 14,
+    "estimated_delivery_days": 2,
+    "total_orders_2025": 2,
+    "avg_order_value_kes": 25575,
+    "reliability_score": 0.905,
+    "average_gap_days": 14
+  },
+  "ALTIN FOOD LIMITED SR": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 47,
+    "median_gap_days": 61,
+    "estimated_delivery_days": 5,
+    "total_orders_2025": 6,
+    "avg_order_value_kes": 14215,
+    "reliability_score": 0.905,
+    "average_gap_days": 58.8
+  },
+  "AQUINTA PHARMA LIMITED SR": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 57.5,
+    "median_gap_days": 56,
+    "estimated_delivery_days": 2,
+    "total_orders_2025": 5,
+    "avg_order_value_kes": 5630,
+    "reliability_score": 0.905,
+    "average_gap_days": 57.5
+  },
+  "ARTCAFFE COFFEE AND BAKERY LTD SR": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 25.7,
+    "median_gap_days": 28,
+    "estimated_delivery_days": 2,
+    "total_orders_2025": 4,
+    "avg_order_value_kes": 35175,
+    "reliability_score": 0.905,
+    "average_gap_days": 25.7
+  },
+  "BAKE EASY PRODUCTS E A LTD": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 35.9,
+    "median_gap_days": 31,
+    "estimated_delivery_days": 3,
+    "total_orders_2025": 8,
+    "avg_order_value_kes": 25686,
+    "reliability_score": 60,
+    "average_gap_days": 41.8
+  },
+  "BARAKA KENYA LIMITED": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 22.2,
+    "median_gap_days": 22,
+    "estimated_delivery_days": 5,
+    "total_orders_2025": 13,
+    "avg_order_value_kes": 11517,
+    "reliability_score": 64,
+    "average_gap_days": 26.6
+  },
+  "BRUNEL TRADING LIMITED": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 54.2,
+    "median_gap_days": 38,
+    "estimated_delivery_days": 2,
+    "total_orders_2025": 5,
+    "avg_order_value_kes": 13726,
+    "reliability_score": 0.905,
+    "average_gap_days": 54.2
+  },
+  "CORE FOODS LIMITED": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 66.5,
+    "median_gap_days": 63,
+    "estimated_delivery_days": 1,
+    "total_orders_2025": 5,
+    "avg_order_value_kes": 14907,
+    "reliability_score": 0.905,
+    "average_gap_days": 66.5
+  },
+  "CAPRINE FOODS E A LTD": {
+    "order_frequency": "bi_weekly",
+    "avg_gap_days": 12.5,
+    "median_gap_days": 14,
+    "estimated_delivery_days": 1,
+    "total_orders_2025": 23,
+    "avg_order_value_kes": 8795,
+    "reliability_score": 65,
+    "average_gap_days": 15.2
+  },
+  "CRAZY PLANTS LIMITED SR": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 38.8,
+    "median_gap_days": 42,
+    "estimated_delivery_days": 1,
+    "total_orders_2025": 6,
+    "avg_order_value_kes": 5168,
+    "reliability_score": 0.905,
+    "average_gap_days": 48.5
+  },
+  "DWC AFRO FUSION KENYA  LTD": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 136,
+    "median_gap_days": 136,
+    "estimated_delivery_days": 7,
+    "total_orders_2025": 3,
+    "avg_order_value_kes": 4970,
+    "reliability_score": 0.905,
+    "average_gap_days": 136
+  },
+  "DP WORLD L MARKET ACCESS CONSUMER K LTD SR": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 19,
+    "median_gap_days": 28,
+    "estimated_delivery_days": 3,
+    "total_orders_2025": 4,
+    "avg_order_value_kes": 20963,
+    "reliability_score": 0.905,
+    "average_gap_days": 28.5
+  },
+  "DENSHA PRODUCTS SR": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 57.5,
+    "median_gap_days": 51,
+    "estimated_delivery_days": 3,
+    "total_orders_2025": 5,
+    "avg_order_value_kes": 2386,
+    "reliability_score": 0.905,
+    "average_gap_days": 57.5
+  },
+  "ELDORET GRAINS LIMITED": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 24.5,
+    "median_gap_days": 21,
+    "estimated_delivery_days": 7,
+    "total_orders_2025": 11,
+    "avg_order_value_kes": 9644,
+    "reliability_score": 72,
+    "average_gap_days": 27.2
+  },
+  "ELEX PRODUCTS LIMITED SR": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 54,
+    "median_gap_days": 81,
+    "estimated_delivery_days": 4,
+    "total_orders_2025": 4,
+    "avg_order_value_kes": 15358,
+    "reliability_score": 0.905,
+    "average_gap_days": 81
+  },
+  "FENUEGREEK K LIMITED": {
+    "order_frequency": "bi_weekly",
+    "avg_gap_days": 14,
+    "median_gap_days": 14,
+    "estimated_delivery_days": 1,
+    "total_orders_2025": 3,
+    "avg_order_value_kes": 11034,
+    "reliability_score": 0.905,
+    "average_gap_days": 14
+  },
+  "FOOD AND US LIMITED": {
+    "order_frequency": "every_2_3_days",
+    "avg_gap_days": 2.2,
+    "median_gap_days": 2,
+    "estimated_delivery_days": 1,
+    "total_orders_2025": 93,
+    "avg_order_value_kes": 8489,
+    "reliability_score": 31,
+    "average_gap_days": 3.4
+  },
+  "GOSHEN FARM EXPORTERS LTD SR": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 66.3,
+    "median_gap_days": 63,
+    "estimated_delivery_days": 7,
+    "total_orders_2025": 4,
+    "avg_order_value_kes": 4891,
+    "reliability_score": 0.905,
+    "average_gap_days": 66.3
+  },
+  "HOSFAM COMPANY (LTD)": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 18.8,
+    "median_gap_days": 15,
+    "estimated_delivery_days": 1,
+    "total_orders_2025": 10,
+    "avg_order_value_kes": 13465,
+    "reliability_score": 59,
+    "average_gap_days": 24.1
+  },
+  "HAPPY DOPA LIMITED": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 58.3,
+    "median_gap_days": 43,
+    "estimated_delivery_days": 1,
+    "total_orders_2025": 4,
+    "avg_order_value_kes": 11069,
+    "reliability_score": 0.905,
+    "average_gap_days": 58.3
+  },
+  "HAPPY COW LIMITED 2ND": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 178,
+    "median_gap_days": 178,
+    "estimated_delivery_days": 21,
+    "total_orders_2025": 2,
+    "avg_order_value_kes": 15162,
+    "reliability_score": 0.905,
+    "average_gap_days": 178
+  },
+  "HEXA KIMYA S VE TICARET ANONIM S": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 34.6,
+    "median_gap_days": 28,
+    "estimated_delivery_days": 4,
+    "total_orders_2025": 8,
+    "avg_order_value_kes": 35804,
+    "reliability_score": 57,
+    "average_gap_days": 40.3
+  },
+  "KANYANGOLD ABERDARE PARMESSAN CHEESE": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 32.4,
+    "median_gap_days": 42,
+    "estimated_delivery_days": 1,
+    "total_orders_2025": 9,
+    "avg_order_value_kes": 58294,
+    "reliability_score": 74,
+    "average_gap_days": 43.2
+  },
+  "JE AND JO NUT BAR SR": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 39.4,
+    "median_gap_days": 34,
+    "estimated_delivery_days": 5,
+    "total_orders_2025": 6,
+    "avg_order_value_kes": 2793,
+    "reliability_score": 0.905,
+    "average_gap_days": 49.2
+  },
+  "KENAFRIC INDUSTRIES LTD": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 64.5,
+    "median_gap_days": 64,
+    "estimated_delivery_days": 9,
+    "total_orders_2025": 3,
+    "avg_order_value_kes": 18345,
+    "reliability_score": 0.905,
+    "average_gap_days": 64.5
+  },
+  "KENAFRIC BEVERAGES AND BOTTLING LTD": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 42.3,
+    "median_gap_days": 61,
+    "estimated_delivery_days": 5,
+    "total_orders_2025": 7,
+    "avg_order_value_kes": 3314,
+    "reliability_score": 0.905,
+    "average_gap_days": 63.5
+  },
+  "KALON FOODS LIMITED BAKERY": {
+    "order_frequency": "bi_weekly",
+    "avg_gap_days": 11.5,
+    "median_gap_days": 10,
+    "estimated_delivery_days": 1,
+    "total_orders_2025": 9,
+    "avg_order_value_kes": 26274,
+    "reliability_score": 58,
+    "average_gap_days": 13.1
+  },
+  "KWE AND COLE LIMITED SR": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 37.8,
+    "median_gap_days": 42,
+    "estimated_delivery_days": 2,
+    "total_orders_2025": 6,
+    "avg_order_value_kes": 8434,
+    "reliability_score": 0.905,
+    "average_gap_days": 37.8
+  },
+  "KASSIOPEA  AND CO LTD": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 24,
+    "median_gap_days": 7,
+    "estimated_delivery_days": 6,
+    "total_orders_2025": 5,
+    "avg_order_value_kes": 28623,
+    "reliability_score": 0.905,
+    "average_gap_days": 24
+  },
+  "KENSALT LIMITED MACADAMIA": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 34.7,
+    "median_gap_days": 14,
+    "estimated_delivery_days": 1,
+    "total_orders_2025": 4,
+    "avg_order_value_kes": 11409,
+    "reliability_score": 0.905,
+    "average_gap_days": 34.7
+  },
+  "LONAT ENTERPRISES": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 74.3,
+    "median_gap_days": 111,
+    "estimated_delivery_days": 3,
+    "total_orders_2025": 4,
+    "avg_order_value_kes": 3890,
+    "reliability_score": 0.905,
+    "average_gap_days": 111.5
+  },
+  "MIG TRADING COM LTD SR": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 16.4,
+    "median_gap_days": 13,
+    "estimated_delivery_days": 2,
+    "total_orders_2025": 15,
+    "avg_order_value_kes": 30791,
+    "reliability_score": 58,
+    "average_gap_days": 17.6
+  },
+  "MOHANS OYSTERBAY DRINKS  KENYA": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 54,
+    "median_gap_days": 81,
+    "estimated_delivery_days": 21,
+    "total_orders_2025": 4,
+    "avg_order_value_kes": 9732,
+    "reliability_score": 0.905,
+    "average_gap_days": 81
+  },
+  "MIGLIORE FOODS E A LIMITED SR": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 34.4,
+    "median_gap_days": 40,
+    "estimated_delivery_days": 2,
+    "total_orders_2025": 8,
+    "avg_order_value_kes": 24045,
+    "reliability_score": 80,
+    "average_gap_days": 40.2
+  },
+  "MABDA GENERAL TRAD COMP LTD": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 20.3,
+    "median_gap_days": 20,
+    "estimated_delivery_days": 1,
+    "total_orders_2025": 12,
+    "avg_order_value_kes": 13055,
+    "reliability_score": 62,
+    "average_gap_days": 27.9
+  },
+  "MIDDLETON COMMUNICATION LTD SR": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 140,
+    "median_gap_days": 140,
+    "estimated_delivery_days": 2,
+    "total_orders_2025": 2,
+    "avg_order_value_kes": 3982,
+    "reliability_score": 0.905,
+    "average_gap_days": 140
+  },
+  "MY FROZEN SUPPLIES LTD 2ND": {
+    "order_frequency": "bi_weekly",
+    "avg_gap_days": 7.6,
+    "median_gap_days": 7,
+    "estimated_delivery_days": 3,
+    "total_orders_2025": 33,
+    "avg_order_value_kes": 25331,
+    "reliability_score": 59,
+    "average_gap_days": 9
+  },
+  "MOONSUN TRADE INTERNATIONAL LTD SR": {
+    "order_frequency": "bi_weekly",
+    "avg_gap_days": 9,
+    "median_gap_days": 13,
+    "estimated_delivery_days": 1,
+    "total_orders_2025": 4,
+    "avg_order_value_kes": 48106,
+    "reliability_score": 0.905,
+    "average_gap_days": 13.5
+  },
+  "NIDA VENTURES LIMITED": {
+    "order_frequency": "weekly",
+    "avg_gap_days": 6,
+    "median_gap_days": 12,
+    "estimated_delivery_days": 2,
+    "total_orders_2025": 3,
+    "avg_order_value_kes": 15411,
+    "reliability_score": 0.905,
+    "average_gap_days": 12
+  },
+  "OZ FOODS AND BEVERAGES LTD": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 19,
+    "median_gap_days": 17,
+    "estimated_delivery_days": 2,
+    "total_orders_2025": 15,
+    "avg_order_value_kes": 77092,
+    "reliability_score": 70,
+    "average_gap_days": 20.5
+  },
+  "OLOLO FARMING CO LTD SR": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 15.5,
+    "median_gap_days": 15,
+    "estimated_delivery_days": 5,
+    "total_orders_2025": 17,
+    "avg_order_value_kes": 8583,
+    "reliability_score": 76,
+    "average_gap_days": 19.1
+  },
+  "OXYPLUS INTERNATIONAL COM LTD SR": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 52.8,
+    "median_gap_days": 95,
+    "estimated_delivery_days": 6,
+    "total_orders_2025": 5,
+    "avg_order_value_kes": 81616,
+    "reliability_score": 0.905,
+    "average_gap_days": 70.3
+  },
+  "SOPHIA BLENE ABDI": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 95.5,
+    "median_gap_days": 95,
+    "estimated_delivery_days": 1,
+    "total_orders_2025": 3,
+    "avg_order_value_kes": 1960,
+    "reliability_score": 0.905,
+    "average_gap_days": 95.5
+  },
+  "PAPER CONVERTERS LTD": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 56,
+    "median_gap_days": 48,
+    "estimated_delivery_days": 2,
+    "total_orders_2025": 5,
+    "avg_order_value_kes": 13663,
+    "reliability_score": 0.905,
+    "average_gap_days": 56
+  },
+  "PURATOS KENYA LIMITED": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 40.7,
+    "median_gap_days": 55,
+    "estimated_delivery_days": 4,
+    "total_orders_2025": 7,
+    "avg_order_value_kes": 16753,
+    "reliability_score": 0.905,
+    "average_gap_days": 61
+  },
+  "PAMULI POULTRY FARM": {
+    "order_frequency": "bi_weekly",
+    "avg_gap_days": 10.7,
+    "median_gap_days": 10,
+    "estimated_delivery_days": 2,
+    "total_orders_2025": 21,
+    "avg_order_value_kes": 29114,
+    "reliability_score": 54,
+    "average_gap_days": 13.4
+  },
+  "ROYAL BLOOMS S ENTERPRISES NO GRN": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 14.3,
+    "median_gap_days": 15,
+    "estimated_delivery_days": 1,
+    "total_orders_2025": 16,
+    "avg_order_value_kes": 16656,
+    "reliability_score": 74,
+    "average_gap_days": 17.8
+  },
+  "SUPER GIBS LTD": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 44,
+    "median_gap_days": 44,
+    "estimated_delivery_days": 4,
+    "total_orders_2025": 3,
+    "avg_order_value_kes": 13810,
+    "reliability_score": 0.905,
+    "average_gap_days": 44
+  },
+  "SKYPEX SUPPLIES LIMITED": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 16,
+    "median_gap_days": 14,
+    "estimated_delivery_days": 5,
+    "total_orders_2025": 16,
+    "avg_order_value_kes": 28043,
+    "reliability_score": 64,
+    "average_gap_days": 20
+  },
+  "STYROPLAST LIMITED": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 31,
+    "median_gap_days": 32,
+    "estimated_delivery_days": 3,
+    "total_orders_2025": 8,
+    "avg_order_value_kes": 19961,
+    "reliability_score": 0.905,
+    "average_gap_days": 43.4
+  },
+  "STENIC ENTERPRISES LTD": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 237,
+    "median_gap_days": 237,
+    "estimated_delivery_days": 8,
+    "total_orders_2025": 2,
+    "avg_order_value_kes": 13147,
+    "reliability_score": 0.905,
+    "average_gap_days": 237
+  },
+  "SURGILINKS LIMITED": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 27.5,
+    "median_gap_days": 31,
+    "estimated_delivery_days": 1,
+    "total_orders_2025": 7,
+    "avg_order_value_kes": 20223,
+    "reliability_score": 0.905,
+    "average_gap_days": 33
+  },
+  "SAVORY LEANS SR": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 41,
+    "median_gap_days": 41,
+    "estimated_delivery_days": 10,
+    "total_orders_2025": 3,
+    "avg_order_value_kes": 4443,
+    "reliability_score": 0.905,
+    "average_gap_days": 41
+  },
+  "TOYZOONA LIMITED HQ": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 46.2,
+    "median_gap_days": 65,
+    "estimated_delivery_days": 2,
+    "total_orders_2025": 5,
+    "avg_order_value_kes": 82031,
+    "reliability_score": 0.905,
+    "average_gap_days": 61.7
+  },
+  "TERMINATOR ELECTRICAL P T COM LTD": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 28,
+    "median_gap_days": 22,
+    "estimated_delivery_days": 2,
+    "total_orders_2025": 5,
+    "avg_order_value_kes": 11700,
+    "reliability_score": 0.905,
+    "average_gap_days": 28
+  },
+  "TWIGA CHEMICAL I LIMITED": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 30,
+    "median_gap_days": 30,
+    "estimated_delivery_days": 4,
+    "total_orders_2025": 2,
+    "avg_order_value_kes": 10132,
+    "reliability_score": 0.905,
+    "average_gap_days": 30
+  },
+  "UNDER THE INFLUENCE E A  LIMITED": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 34.1,
+    "median_gap_days": 25,
+    "estimated_delivery_days": 4,
+    "total_orders_2025": 8,
+    "avg_order_value_kes": 14876,
+    "reliability_score": 53,
+    "average_gap_days": 39.8
+  },
+  "VERUM DIMENSIONS LIMITED SR": {
+    "order_frequency": "bi_weekly",
+    "avg_gap_days": 10.8,
+    "median_gap_days": 7,
+    "estimated_delivery_days": 3,
+    "total_orders_2025": 23,
+    "avg_order_value_kes": 25696,
+    "reliability_score": 64,
+    "average_gap_days": 11.3
+  },
+  "KENXIBU FOSTER F COMPANY LTD": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 28,
+    "median_gap_days": 28,
+    "estimated_delivery_days": 1,
+    "total_orders_2025": 2,
+    "avg_order_value_kes": 26280,
+    "reliability_score": 0.905,
+    "average_gap_days": 28
+  },
+  "R D ENTERPRISES LIMITED SR": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 24.2,
+    "median_gap_days": 33,
+    "estimated_delivery_days": 3,
+    "total_orders_2025": 7,
+    "avg_order_value_kes": 9646,
+    "reliability_score": 0.905,
+    "average_gap_days": 36.2
+  },
+  "DNO AVANZAR LIQUOR STORE": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 38.2,
+    "median_gap_days": 41,
+    "estimated_delivery_days": 2,
+    "total_orders_2025": 5,
+    "avg_order_value_kes": 35271,
+    "reliability_score": 0.905,
+    "average_gap_days": 38.2
+  },
+  "CODE BEVERAGES LIMITED SR": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 15.2,
+    "median_gap_days": 26,
+    "estimated_delivery_days": 2,
+    "total_orders_2025": 10,
+    "avg_order_value_kes": 4925,
+    "reliability_score": 0.905,
+    "average_gap_days": 34.2
+  },
+  "EROS VENTURES LIMITED": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 121,
+    "median_gap_days": 121,
+    "estimated_delivery_days": 1,
+    "total_orders_2025": 2,
+    "avg_order_value_kes": 8065,
+    "reliability_score": 0.905,
+    "average_gap_days": 121
+  },
+  "FOODFIX BY AMBROSIA LTD SR": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 54.3,
+    "median_gap_days": 15,
+    "estimated_delivery_days": 4,
+    "total_orders_2025": 4,
+    "avg_order_value_kes": 4351,
+    "reliability_score": 0.905,
+    "average_gap_days": 54.3
+  },
+  "GALINA AGENCIES SR": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 139,
+    "median_gap_days": 139,
+    "estimated_delivery_days": 21,
+    "total_orders_2025": 2,
+    "avg_order_value_kes": 26727,
+    "reliability_score": 0.905,
+    "average_gap_days": 139
+  },
+  "WANANCHI  BREWERIES LIMITED": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 34,
+    "median_gap_days": 35,
+    "estimated_delivery_days": 3,
+    "total_orders_2025": 5,
+    "avg_order_value_kes": 11379,
+    "reliability_score": 0.905,
+    "average_gap_days": 45.3
+  },
+  "DNO HALANFAL HOLDINGS LIMITED SR": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 21.2,
+    "median_gap_days": 28,
+    "estimated_delivery_days": 4,
+    "total_orders_2025": 6,
+    "avg_order_value_kes": 26374,
+    "reliability_score": 0.905,
+    "average_gap_days": 26.5
+  },
+  "JAK INDUSTRIES LTD": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 30,
+    "median_gap_days": 30,
+    "estimated_delivery_days": 1,
+    "total_orders_2025": 2,
+    "avg_order_value_kes": 26575,
+    "reliability_score": 0.905,
+    "average_gap_days": 30
+  },
+  "MOONSUN PICTURES INTER LTD SR": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 22.7,
+    "median_gap_days": 21,
+    "estimated_delivery_days": 1,
+    "total_orders_2025": 8,
+    "avg_order_value_kes": 26683,
+    "reliability_score": 0.905,
+    "average_gap_days": 31.8
+  },
+  "PROCTOR AND  ALLAN E.A LTD.": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 17.7,
+    "median_gap_days": 15,
+    "estimated_delivery_days": 21,
+    "total_orders_2025": 8,
+    "avg_order_value_kes": 9679,
+    "reliability_score": 0.905,
+    "average_gap_days": 24.8
+  },
+  "PREFERRED CHOICE 53 LTD SR": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 28.6,
+    "median_gap_days": 17,
+    "estimated_delivery_days": 1,
+    "total_orders_2025": 8,
+    "avg_order_value_kes": 3994,
+    "reliability_score": 54,
+    "average_gap_days": 28.6
+  },
+  "SHIVOM ENTERPRISES LIMITED SR": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 32.7,
+    "median_gap_days": 49,
+    "estimated_delivery_days": 7,
+    "total_orders_2025": 4,
+    "avg_order_value_kes": 20752,
+    "reliability_score": 0.905,
+    "average_gap_days": 49
+  },
+  "TAMARTA INDUSTRIES LTD SR": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 16.3,
+    "median_gap_days": 10,
+    "estimated_delivery_days": 1,
+    "total_orders_2025": 4,
+    "avg_order_value_kes": 7274,
+    "reliability_score": 0.905,
+    "average_gap_days": 16.3
+  },
+  "WESSEX PHARMACEUTICAL LTD SR": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 63,
+    "median_gap_days": 63,
+    "estimated_delivery_days": 21,
+    "total_orders_2025": 3,
+    "avg_order_value_kes": 5236,
+    "reliability_score": 0.905,
+    "average_gap_days": 63
+  },
+  "WINE YARD EAST AFRICA LTD": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 54,
+    "median_gap_days": 54,
+    "estimated_delivery_days": 5,
+    "total_orders_2025": 2,
+    "avg_order_value_kes": 54272,
+    "reliability_score": 0.905,
+    "average_gap_days": 54
+  },
+  "ECOREEN SUPPLY LIMITED SR": {
+    "order_frequency": "weekly",
+    "avg_gap_days": 6.8,
+    "median_gap_days": 27,
+    "estimated_delivery_days": 7,
+    "total_orders_2025": 5,
+    "avg_order_value_kes": 7430,
+    "reliability_score": 0.905,
+    "average_gap_days": 27
+  },
+  "SHEBAH FARMS LIMITED SR": {
+    "order_frequency": "daily",
+    "avg_gap_days": 0,
+    "median_gap_days": 0.0,
+    "estimated_delivery_days": 1,
+    "total_orders_2025": 2,
+    "avg_order_value_kes": 10560,
+    "reliability_score": 0.905
+  },
+  "ALLIED WHARFAGE LIMITED": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 21,
+    "median_gap_days": 23,
+    "estimated_delivery_days": 21,
+    "total_orders_2025": 6,
+    "avg_order_value_kes": 17299,
+    "reliability_score": 0.905,
+    "average_gap_days": 26.2
+  },
+  "CEYLON STEEL M KENYA LTD SR": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 27.8,
+    "median_gap_days": 55,
+    "estimated_delivery_days": 21,
+    "total_orders_2025": 5,
+    "avg_order_value_kes": 7400,
+    "reliability_score": 0.905,
+    "average_gap_days": 55.5
+  },
+  "SHATIN TRADING GLOBAL LTD SR": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 32,
+    "median_gap_days": 48,
+    "estimated_delivery_days": 21,
+    "total_orders_2025": 4,
+    "avg_order_value_kes": 11000,
+    "reliability_score": 0.905,
+    "average_gap_days": 48
+  },
+  "OSHWAL LIFESCIENCES LTD SR": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 110,
+    "median_gap_days": 110,
+    "estimated_delivery_days": 1,
+    "total_orders_2025": 2,
+    "avg_order_value_kes": 8502,
+    "reliability_score": 0.905,
+    "average_gap_days": 110
+  },
+  "PASAGOT LIMITED WINE": {
+    "order_frequency": "bi_weekly",
+    "avg_gap_days": 8,
+    "median_gap_days": 16,
+    "estimated_delivery_days": 10,
+    "total_orders_2025": 3,
+    "avg_order_value_kes": 22241,
+    "reliability_score": 0.905,
+    "average_gap_days": 16
+  },
+  "DNO PANA FOOD TECHNOLOGIES SR": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 99,
+    "median_gap_days": 99,
+    "estimated_delivery_days": 21,
+    "total_orders_2025": 2,
+    "avg_order_value_kes": 3078,
+    "reliability_score": 0.905,
+    "average_gap_days": 99
+  },
+  "PAPERBAGS LIMITED": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 38,
+    "median_gap_days": 38,
+    "estimated_delivery_days": 21,
+    "total_orders_2025": 2,
+    "avg_order_value_kes": 17261,
+    "reliability_score": 0.905,
+    "average_gap_days": 38
+  },
+  "DANAFLIN INTERNATIONAL LTD SR": {
+    "order_frequency": "daily",
+    "avg_gap_days": 0,
+    "median_gap_days": 0.0,
+    "estimated_delivery_days": 1,
+    "total_orders_2025": 2,
+    "avg_order_value_kes": 27036,
+    "reliability_score": 0.905
+  },
+  "KABATI DAIRY": {
+    "order_frequency": "monthly",
+    "avg_gap_days": 23.5,
+    "median_gap_days": 23,
+    "estimated_delivery_days": 21,
+    "total_orders_2025": 3,
+    "avg_order_value_kes": 11491,
+    "reliability_score": 0.905,
+    "average_gap_days": 23.5
+  },
+  "NEW ITALYCOR LTD": {
+    "order_frequency": "daily",
+    "avg_gap_days": 0,
+    "median_gap_days": 0.0,
+    "estimated_delivery_days": 3,
+    "total_orders_2025": 2,
+    "avg_order_value_kes": 25733,
+    "reliability_score": 0.905
+  },
+  "PRIME DUCKS KENYA LIMITED": {
+    "order_frequency": "bi_weekly",
+    "avg_gap_days": 14,
+    "median_gap_days": 14,
+    "estimated_delivery_days": 3,
+    "total_orders_2025": 3,
+    "avg_order_value_kes": 4122,
+    "reliability_score": 0.905,
+    "average_gap_days": 14
+  },
+  "COFFEEBEE PROCESSORS LIMITED SR": {
+    "median_gap_days": 7,
+    "average_gap_days": 7.0,
+    "estimated_delivery_days": 9,
+    "total_orders_2025": 4,
+    "reliability_score": 100
+  },
+  "KENJORD DISTRIBUTORS LTD SR": {
+    "median_gap_days": 7,
+    "average_gap_days": 7.0,
+    "estimated_delivery_days": 6,
+    "total_orders_2025": 28,
+    "reliability_score": 100
+  },
+  "SATNAM INVESTMENT KENYA LTD SR": {
+    "median_gap_days": 7,
+    "average_gap_days": 7.0,
+    "estimated_delivery_days": 3,
+    "total_orders_2025": 12,
+    "reliability_score": 100
+  },
+  "VINO ELEGANT WINES LTD": {
+    "median_gap_days": 7,
+    "average_gap_days": 7.0,
+    "estimated_delivery_days": 2,
+    "total_orders_2025": 3,
+    "reliability_score": 100
+  },
+  "DP WORLD L MARKET ACCESS CONSUMER K LTD TENA": {
+    "median_gap_days": 7,
+    "average_gap_days": 7.0,
+    "estimated_delivery_days": 4,
+    "total_orders_2025": 9,
+    "reliability_score": 100
+  },
+  "GM ALPHEA LIMITED SR": {
+    "median_gap_days": 7,
+    "average_gap_days": 7.0,
+    "estimated_delivery_days": 5,
+    "total_orders_2025": 4,
+    "reliability_score": 100
+  },
+  "SUN FOOD IMPORTERS AND EXPORTERS LTD SR": {
+    "median_gap_days": 7,
+    "average_gap_days": 7.0,
+    "estimated_delivery_days": 4,
+    "total_orders_2025": 5,
+    "reliability_score": 100
+  },
+  "MAXAM LIMITED BABY MILK": {
+    "median_gap_days": 7,
+    "average_gap_days": 7.0,
+    "estimated_delivery_days": 5,
+    "total_orders_2025": 2,
+    "reliability_score": 100
+  },
+  "D LIGHT LIMITED SR": {
+    "median_gap_days": 7,
+    "average_gap_days": 7.0,
+    "estimated_delivery_days": 1,
+    "total_orders_2025": 3,
+    "reliability_score": 100
+  },
+  "WHITE COAL INDUSTRIES LTD": {
+    "median_gap_days": 7,
+    "average_gap_days": 7.0,
+    "estimated_delivery_days": 6,
+    "total_orders_2025": 1,
+    "reliability_score": 100
+  },
+  "ICONIC TASTES LIMITED": {
+    "median_gap_days": 7,
+    "average_gap_days": 7.0,
+    "estimated_delivery_days": 11,
+    "total_orders_2025": 2,
+    "reliability_score": 100
+  },
+  "NATURES TASTES LIMITED": {
+    "median_gap_days": 7,
+    "average_gap_days": 7.0,
+    "estimated_delivery_days": 4,
+    "total_orders_2025": 3,
+    "reliability_score": 100
+  },
+  "HADIAH SUPPLIES LIMITED": {
+    "median_gap_days": 7,
+    "average_gap_days": 7.0,
+    "estimated_delivery_days": 1,
+    "total_orders_2025": 2,
+    "reliability_score": 100
+  },
+  "DNO LE SAUCIER ENT LIMITED SR": {
+    "median_gap_days": 7,
+    "average_gap_days": 7.0,
+    "estimated_delivery_days": 2,
+    "total_orders_2025": 1,
+    "reliability_score": 100
+  },
+  "ABACUS PHARMA  A  LTD SR": {
+    "median_gap_days": 7,
+    "average_gap_days": 7.0,
+    "estimated_delivery_days": 1,
+    "total_orders_2025": 6,
+    "reliability_score": 100
+  },
+  "CANSATIONAL FLAVOURS LTD": {
+    "median_gap_days": 7,
+    "average_gap_days": 7.0,
+    "estimated_delivery_days": 7,
+    "total_orders_2025": 5,
+    "reliability_score": 100
+  },
+  "DUE BAMBINE LIMITED": {
+    "median_gap_days": 7,
+    "average_gap_days": 7.0,
+    "estimated_delivery_days": 3,
+    "total_orders_2025": 8,
+    "reliability_score": 100
+  },
+  "BATH AND CO LIMITED SR": {
+    "median_gap_days": 7,
+    "average_gap_days": 7.0,
+    "estimated_delivery_days": 5,
+    "total_orders_2025": 55,
+    "reliability_score": 100
+  },
+  "CAROLINES CUPCAKES LIMITED SR": {
+    "median_gap_days": 7,
+    "average_gap_days": 7.0,
+    "estimated_delivery_days": 10,
+    "total_orders_2025": 3,
+    "reliability_score": 100
+  },
+  "ERNESTEA LIMITED SR": {
+    "median_gap_days": 7,
+    "average_gap_days": 7.0,
+    "estimated_delivery_days": 1,
+    "total_orders_2025": 2,
+    "reliability_score": 100
+  },
+  "SANGARE GARDENS  LTD": {
+    "median_gap_days": 7,
+    "average_gap_days": 7.0,
+    "estimated_delivery_days": 2,
+    "total_orders_2025": 10,
+    "reliability_score": 100
+  },
+  "CHARLIES WINERY LIMITED": {
+    "median_gap_days": 7,
+    "average_gap_days": 7.0,
+    "estimated_delivery_days": 4,
+    "total_orders_2025": 2,
+    "reliability_score": 100
+  }
+}

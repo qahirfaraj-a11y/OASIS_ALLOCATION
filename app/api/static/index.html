@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>OASIS Mobile</title>
+    <link rel="stylesheet" href="style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div id="app">
+        <!-- Header -->
+        <header>
+            <div class="logo">OASIS <span class="badge">AI</span></div>
+            <div class="status-indicator" id="status-indicator">Ready</div>
+        </header>
+
+        <!-- Main Content Area -->
+        <main>
+            <!-- View: Upload (Default) -->
+            <div id="view-upload" class="view active">
+                <div class="hero-card">
+                    <h2>Inventory Intelligence</h2>
+                    <p>Upload your stock list to generate AI-optimized orders.</p>
+                </div>
+                
+                <div class="upload-zone" id="drop-zone">
+                    <div class="icon">📁</div>
+                    <h3>Tap to Upload File</h3>
+                    <p>Supports .xlsx, .csv</p>
+                    <input type="file" id="file-input" accept=".xlsx, .xls, .csv" hidden>
+                </div>
+
+                <div class="recent-activity">
+                    <h4>System Status</h4>
+                    <div class="card p-small">
+                        <div class="row">
+                            <span>Engine</span>
+                            <span class="text-success">Online</span>
+                        </div>
+                        <div class="row">
+                            <span>Database</span>
+                            <span class="text-success">Loaded</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- View: Processing -->
+            <div id="view-processing" class="view">
+                <div class="loader-container">
+                    <div class="spinner"></div>
+                    <h3 id="process-step">Analyzing...</h3>
+                    <p id="process-message">Please wait while the AI processes your inventory.</p>
+                    <div class="progress-bar">
+                        <div class="fill" id="progress-fill" style="width: 0%"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- View: Results -->
+            <div id="view-results" class="view">
+                <div class="results-header">
+                    <h3>Recommendations</h3>
+                    <button class="btn-icon" onclick="downloadReport()">⬇️</button>
+                </div>
+                
+                <div id="results-list" class="results-list">
+                    <!-- Cards injected by JS -->
+                </div>
+                
+                <div class="floating-action">
+                    <button class="btn-primary" onclick="resetApp()">New Scan</button>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>

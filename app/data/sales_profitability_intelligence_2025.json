@@ -1,0 +1,4002 @@
+{
+  "V22 BAG 10 X 15 X 22 30G": {
+    "total_qty_sold": 25174,
+    "revenue": 251801.0,
+    "margin_pct": 28.01,
+    "gross_profit": 60801.254922,
+    "sales_rank": 1,
+    "category": "unknown"
+  },
+  "V25 CARRIER BAG": {
+    "total_qty_sold": 22436,
+    "revenue": 448771.0,
+    "margin_pct": 21.7,
+    "gross_profit": 83955.33,
+    "sales_rank": 2,
+    "category": "unknown"
+  },
+  "V45 WOVEN WPP BLOCK BOTTOM": {
+    "total_qty_sold": 8670,
+    "revenue": 346831.0,
+    "margin_pct": 22.64,
+    "gross_profit": 67684.048658,
+    "sales_rank": 3,
+    "category": "unknown"
+  },
+  "CHANDARANA FOODPLUS CARRIER BAG GREEN/WHITE": {
+    "total_qty_sold": 28964,
+    "revenue": 1158588.0,
+    "margin_pct": 41.99,
+    "gross_profit": 419318.35651,
+    "sales_rank": 4,
+    "category": "unknown"
+  },
+  "ESTILO 3D BAG CHANDARANA PRINTED": {
+    "total_qty_sold": 13451,
+    "revenue": 538048.0,
+    "margin_pct": 10.0,
+    "gross_profit": 46363.639167,
+    "sales_rank": 5,
+    "category": "unknown"
+  },
+  "CLOVERS 100G BI-CARBONATE OF SODA BOX PACK": {
+    "total_qty_sold": 1436,
+    "revenue": 35352.0,
+    "margin_pct": 27.05,
+    "gross_profit": 8245.108651,
+    "sales_rank": 6,
+    "category": "unknown"
+  },
+  "ZESTA 100G BI-CARBONATE OF SODA": {
+    "total_qty_sold": 1539,
+    "revenue": 33859.0,
+    "margin_pct": 25.01,
+    "gross_profit": 7298.941618,
+    "sales_rank": 7,
+    "category": "unknown"
+  },
+  "ANGEL 10G INSTANT DRY YEAST": {
+    "total_qty_sold": 1670,
+    "revenue": 41295.0,
+    "margin_pct": 32.58,
+    "gross_profit": 11599.82687,
+    "sales_rank": 8,
+    "category": "unknown"
+  },
+  "MENENGAI CREAM 1KG SOAP": {
+    "total_qty_sold": 3081,
+    "revenue": 631600.98,
+    "margin_pct": 0.76,
+    "gross_profit": 4134.359449,
+    "sales_rank": 9,
+    "category": "unknown"
+  },
+  "MENENGAI CREAM 800G SOAP": {
+    "total_qty_sold": 2480,
+    "revenue": 406385.0,
+    "margin_pct": 1.06,
+    "gross_profit": 3726.002275,
+    "sales_rank": 10,
+    "category": "unknown"
+  },
+  "SUNLIGHT 175G PURE SOAP YELLOW": {
+    "total_qty_sold": 2997,
+    "revenue": 213509.0,
+    "margin_pct": 12.28,
+    "gross_profit": 22610.87,
+    "sales_rank": 11,
+    "category": "unknown"
+  },
+  "SUNLIGHT 80G PURE SOAP": {
+    "total_qty_sold": 2469,
+    "revenue": 69140.0,
+    "margin_pct": 5.73,
+    "gross_profit": 3413.519259,
+    "sales_rank": 12,
+    "category": "unknown"
+  },
+  "BALOZI 500ML BEER": {
+    "total_qty_sold": 1752,
+    "revenue": 364139.1,
+    "margin_pct": 17.99,
+    "gross_profit": 56461.410789,
+    "sales_rank": 13,
+    "category": "unknown"
+  },
+  "WHITE CAP 500ML LAGER CANS": {
+    "total_qty_sold": 15694,
+    "revenue": 3584277.24,
+    "margin_pct": 7.59,
+    "gross_profit": 234642.945001,
+    "sales_rank": 14,
+    "category": "unknown"
+  },
+  "TUSKER 500ML CIDER CAN": {
+    "total_qty_sold": 1453,
+    "revenue": 372385.27,
+    "margin_pct": 11.1,
+    "gross_profit": 35621.642208,
+    "sales_rank": 15,
+    "category": "unknown"
+  },
+  "BALOZI 500ML CAN": {
+    "total_qty_sold": 4958,
+    "revenue": 1019048.33,
+    "margin_pct": 5.49,
+    "gross_profit": 48238.029165,
+    "sales_rank": 16,
+    "category": "unknown"
+  },
+  "HEINEKEN 0.0% 330ML BEER": {
+    "total_qty_sold": 2132,
+    "revenue": 501868.12,
+    "margin_pct": 15.95,
+    "gross_profit": 69004.75772,
+    "sales_rank": 17,
+    "category": "unknown"
+  },
+  "HEINEKEN 500ML CAN BEER": {
+    "total_qty_sold": 2948,
+    "revenue": 839066.0,
+    "margin_pct": 6.28,
+    "gross_profit": 45417.823501,
+    "sales_rank": 18,
+    "category": "unknown"
+  },
+  "HEINEKEN 330ML BTL BEER": {
+    "total_qty_sold": 2194,
+    "revenue": 624786.0,
+    "margin_pct": 11.04,
+    "gross_profit": 59460.272289,
+    "sales_rank": 19,
+    "category": "unknown"
+  },
+  "TUSKER LITE 500ML CAN": {
+    "total_qty_sold": 4952,
+    "revenue": 1280445.14,
+    "margin_pct": 8.63,
+    "gross_profit": 95289.154948,
+    "sales_rank": 20,
+    "category": "unknown"
+  },
+  "WHITE CAP 500ML LAGER BEER": {
+    "total_qty_sold": 5581,
+    "revenue": 1333859.0,
+    "margin_pct": 18.7,
+    "gross_profit": 215006.8289,
+    "sales_rank": 21,
+    "category": "unknown"
+  },
+  "TUSKER CAN 500ML BEER": {
+    "total_qty_sold": 9194,
+    "revenue": 1955542.44,
+    "margin_pct": 8.67,
+    "gross_profit": 146213.4052,
+    "sales_rank": 22,
+    "category": "unknown"
+  },
+  "PILSNER 500ML LAGER BEER": {
+    "total_qty_sold": 3013,
+    "revenue": 629717.0,
+    "margin_pct": 15.85,
+    "gross_profit": 86048.762891,
+    "sales_rank": 23,
+    "category": "unknown"
+  },
+  "TUSKER 500ML LAGER BEER": {
+    "total_qty_sold": 6947,
+    "revenue": 1451923.0,
+    "margin_pct": 18.65,
+    "gross_profit": 233455.529555,
+    "sales_rank": 24,
+    "category": "unknown"
+  },
+  "TUSKER MALT LAGER 500ML CAN": {
+    "total_qty_sold": 2684,
+    "revenue": 705658.0,
+    "margin_pct": 10.05,
+    "gross_profit": 61113.653273,
+    "sales_rank": 25,
+    "category": "unknown"
+  },
+  "GUINNESS 500ML CAN": {
+    "total_qty_sold": 4609,
+    "revenue": 1054038.24,
+    "margin_pct": 7.75,
+    "gross_profit": 70436.263915,
+    "sales_rank": 26,
+    "category": "unknown"
+  },
+  "CADBURY 90G DRINKING CHOCOLATE SACHET": {
+    "total_qty_sold": 1657,
+    "revenue": 175507.0,
+    "margin_pct": 18.74,
+    "gross_profit": 28352.271502,
+    "sales_rank": 27,
+    "category": "unknown"
+  },
+  "MCVITIES 200G DARK CHOCO DIGESTIVE": {
+    "total_qty_sold": 1343,
+    "revenue": 311378.0,
+    "margin_pct": 11.05,
+    "gross_profit": 29654.471706,
+    "sales_rank": 28,
+    "category": "unknown"
+  },
+  "OREO 55.2G ORIGINAL COOKIES": {
+    "total_qty_sold": 2787,
+    "revenue": 191506.0,
+    "margin_pct": 27.91,
+    "gross_profit": 46069.634652,
+    "sales_rank": 29,
+    "category": "unknown"
+  },
+  "OREO 31.3G ENROBED": {
+    "total_qty_sold": 2406,
+    "revenue": 153970.0,
+    "margin_pct": 28.72,
+    "gross_profit": 38115.053108,
+    "sales_rank": 30,
+    "category": "unknown"
+  },
+  "OREO 128G ORIGINAL": {
+    "total_qty_sold": 1950,
+    "revenue": 302180.0,
+    "margin_pct": 15.03,
+    "gross_profit": 39163.952818,
+    "sales_rank": 31,
+    "category": "unknown"
+  },
+  "OREO 26.25G ORIGINAL": {
+    "total_qty_sold": 2001,
+    "revenue": 88596.0,
+    "margin_pct": 27.32,
+    "gross_profit": 20865.042011,
+    "sales_rank": 32,
+    "category": "unknown"
+  },
+  "SUPA 400G BUTTER TOAST BREAD": {
+    "total_qty_sold": 3557,
+    "revenue": 231213.0,
+    "margin_pct": 10.91,
+    "gross_profit": 25218.075,
+    "sales_rank": 33,
+    "category": "unknown"
+  },
+  "SUPA 400G WHITE SLICED BREAD CT": {
+    "total_qty_sold": 3051,
+    "revenue": 198315.0,
+    "margin_pct": 10.92,
+    "gross_profit": 21662.1,
+    "sales_rank": 34,
+    "category": "unknown"
+  },
+  "SUPA LOAF WHITE BREAD 600G": {
+    "total_qty_sold": 2200,
+    "revenue": 220000.0,
+    "margin_pct": 11.3,
+    "gross_profit": 24860.0,
+    "sales_rank": 35,
+    "category": "unknown"
+  },
+  "FESTIVE 600G FAMILY WHITE BREAD": {
+    "total_qty_sold": 14975,
+    "revenue": 1497511.0,
+    "margin_pct": 10.63,
+    "gross_profit": 159195.25,
+    "sales_rank": 36,
+    "category": "unknown"
+  },
+  "NATURES 400G GOLD  BROWN": {
+    "total_qty_sold": 2064,
+    "revenue": 134165.0,
+    "margin_pct": 10.0,
+    "gross_profit": 13421.0,
+    "sales_rank": 37,
+    "category": "unknown"
+  },
+  "FESTIVE 600G FAMILY BRWN BREAD": {
+    "total_qty_sold": 4040,
+    "revenue": 404001.0,
+    "margin_pct": 10.63,
+    "gross_profit": 42946.2,
+    "sales_rank": 38,
+    "category": "unknown"
+  },
+  "NATURES 600G WHITE BREAD": {
+    "total_qty_sold": 11117,
+    "revenue": 1111711.0,
+    "margin_pct": 10.63,
+    "gross_profit": 118184.71,
+    "sales_rank": 39,
+    "category": "unknown"
+  },
+  "FESTIVE 400G WHITE SLICED": {
+    "total_qty_sold": 3042,
+    "revenue": 191652.0,
+    "margin_pct": 10.35,
+    "gross_profit": 19839.84,
+    "sales_rank": 40,
+    "category": "unknown"
+  },
+  "NATURES 600G BROWN BREAD": {
+    "total_qty_sold": 1374,
+    "revenue": 137400.0,
+    "margin_pct": 10.63,
+    "gross_profit": 14605.62,
+    "sales_rank": 41,
+    "category": "unknown"
+  },
+  "FESTIVE 800G WHITE MILKY BREAD": {
+    "total_qty_sold": 15524,
+    "revenue": 2018120.0,
+    "margin_pct": 7.27,
+    "gross_profit": 146701.8,
+    "sales_rank": 42,
+    "category": "unknown"
+  },
+  "NATURES 800G WHITE BREAD": {
+    "total_qty_sold": 4422,
+    "revenue": 574869.0,
+    "margin_pct": 7.27,
+    "gross_profit": 41796.9,
+    "sales_rank": 43,
+    "category": "unknown"
+  },
+  "FESTIVE 400G MILKY WHITE SLICED": {
+    "total_qty_sold": 17267,
+    "revenue": 1122360.0,
+    "margin_pct": 10.0,
+    "gross_profit": 112240.5,
+    "sales_rank": 44,
+    "category": "unknown"
+  },
+  "FESTIVE 800G SUPREME WHOLE MEAL": {
+    "total_qty_sold": 3662,
+    "revenue": 476060.0,
+    "margin_pct": 7.27,
+    "gross_profit": 34605.9,
+    "sales_rank": 45,
+    "category": "unknown"
+  },
+  "NATURES 400G GOLD WHITE": {
+    "total_qty_sold": 14263,
+    "revenue": 927100.0,
+    "margin_pct": 10.0,
+    "gross_profit": 92714.5,
+    "sales_rank": 46,
+    "category": "unknown"
+  },
+  "FESTIVE 400G WHOLE MEAL": {
+    "total_qty_sold": 4588,
+    "revenue": 298222.0,
+    "margin_pct": 10.0,
+    "gross_profit": 29824.0,
+    "sales_rank": 47,
+    "category": "unknown"
+  },
+  "SUPA 600G WHITE BUTTER TOAST": {
+    "total_qty_sold": 2034,
+    "revenue": 203400.0,
+    "margin_pct": 11.3,
+    "gross_profit": 22984.2,
+    "sales_rank": 48,
+    "category": "unknown"
+  },
+  "SUPA 800G SWICH WHITE BREAD": {
+    "total_qty_sold": 1509,
+    "revenue": 196170.0,
+    "margin_pct": 10.0,
+    "gross_profit": 19610.25,
+    "sales_rank": 49,
+    "category": "unknown"
+  },
+  "SUPA 400G BARREL WHITE BREAD": {
+    "total_qty_sold": 1285,
+    "revenue": 83527.0,
+    "margin_pct": 10.93,
+    "gross_profit": 9125.5,
+    "sales_rank": 50,
+    "category": "unknown"
+  },
+  "BROADWAYS 600G WHITE BREAD": {
+    "total_qty_sold": 1573,
+    "revenue": 155736.0,
+    "margin_pct": 16.12,
+    "gross_profit": 25104.2,
+    "sales_rank": 51,
+    "category": "unknown"
+  },
+  "BROADWAY 400G WHITE SLICED BREAD": {
+    "total_qty_sold": 2810,
+    "revenue": 182650.0,
+    "margin_pct": 15.38,
+    "gross_profit": 28100.0,
+    "sales_rank": 52,
+    "category": "unknown"
+  },
+  "BROADWAY 800G WHITE SANDWICH SLICED BREAD": {
+    "total_qty_sold": 1292,
+    "revenue": 167962.0,
+    "margin_pct": 15.39,
+    "gross_profit": 25842.0,
+    "sales_rank": 53,
+    "category": "unknown"
+  },
+  "BROADWAY 400G NATURAL BROWN BREAD": {
+    "total_qty_sold": 2066,
+    "revenue": 134295.0,
+    "margin_pct": 15.39,
+    "gross_profit": 20665.0,
+    "sales_rank": 54,
+    "category": "unknown"
+  },
+  "KINGSMIL 200G SLICED WHITE BREAD": {
+    "total_qty_sold": 1754,
+    "revenue": 61395.0,
+    "margin_pct": 13.01,
+    "gross_profit": 7985.7,
+    "sales_rank": 55,
+    "category": "unknown"
+  },
+  "FESTIVE 300G 6S PREM SESSAME SLICED BURGER BUNS": {
+    "total_qty_sold": 3542,
+    "revenue": 460460.0,
+    "margin_pct": 12.39,
+    "gross_profit": 49194.567582,
+    "sales_rank": 56,
+    "category": "unknown"
+  },
+  "FESTIVE 300G 6S PREM PLAIN BURGER BUNS": {
+    "total_qty_sold": 2880,
+    "revenue": 345600.0,
+    "margin_pct": 13.05,
+    "gross_profit": 38884.135117,
+    "sales_rank": 57,
+    "category": "unknown"
+  },
+  "FESTIVE 300G 6S DELUXE ROLLS": {
+    "total_qty_sold": 3192,
+    "revenue": 383040.0,
+    "margin_pct": 13.05,
+    "gross_profit": 43096.533007,
+    "sales_rank": 58,
+    "category": "unknown"
+  },
+  "FESTIVE 400G FINEST SUPER SEEDED BREAD": {
+    "total_qty_sold": 3720,
+    "revenue": 483601.0,
+    "margin_pct": 12.39,
+    "gross_profit": 51667.81352,
+    "sales_rank": 59,
+    "category": "unknown"
+  },
+  "FESTIVE 350G SLICED SUB ROLLS 4S": {
+    "total_qty_sold": 1389,
+    "revenue": 194460.0,
+    "margin_pct": 13.04,
+    "gross_profit": 21865.254636,
+    "sales_rank": 60,
+    "category": "unknown"
+  },
+  "KINGSMIL 400G KUBWA WAO WHITE BREAD": {
+    "total_qty_sold": 1806,
+    "revenue": 117390.0,
+    "margin_pct": 13.0,
+    "gross_profit": 15260.7,
+    "sales_rank": 61,
+    "category": "unknown"
+  },
+  "KINGSMIL 400G KUBWA WAO BROWN BREAD": {
+    "total_qty_sold": 1440,
+    "revenue": 93600.0,
+    "margin_pct": 13.0,
+    "gross_profit": 12168.0,
+    "sales_rank": 62,
+    "category": "unknown"
+  },
+  "BROOKSIDE 250G SALTED BUTTER": {
+    "total_qty_sold": 1795,
+    "revenue": 758722.0,
+    "margin_pct": -4.67,
+    "gross_profit": -30551.960223,
+    "sales_rank": 63,
+    "category": "unknown"
+  },
+  "BROOKSIDE 500G SALTED BUTTER": {
+    "total_qty_sold": 2524,
+    "revenue": 1895882.0,
+    "margin_pct": -5.81,
+    "gross_profit": -95011.509845,
+    "sales_rank": 64,
+    "category": "unknown"
+  },
+  "MILL BAKERS 260G QUEEN CAKE": {
+    "total_qty_sold": 1308,
+    "revenue": 129492.0,
+    "margin_pct": 16.16,
+    "gross_profit": 18037.015008,
+    "sales_rank": 65,
+    "category": "unknown"
+  },
+  "MILL BAKERS 300G  ENGLISH MUFFINS": {
+    "total_qty_sold": 1978,
+    "revenue": 261096.0,
+    "margin_pct": 14.39,
+    "gross_profit": 32395.277446,
+    "sales_rank": 66,
+    "category": "unknown"
+  },
+  "FESTIVE 400G POUNDCAKE SLICED VANILLA": {
+    "total_qty_sold": 1346,
+    "revenue": 236896.0,
+    "margin_pct": 14.86,
+    "gross_profit": 30339.128236,
+    "sales_rank": 67,
+    "category": "unknown"
+  },
+  "SMIRNOFF 330ML PINEAPPLE PUNCH ICE CAN": {
+    "total_qty_sold": 3010,
+    "revenue": 608285.1,
+    "margin_pct": 15.53,
+    "gross_profit": 81441.87441,
+    "sales_rank": 68,
+    "category": "unknown"
+  },
+  "KENYLON 420G BAKED BEANS IN SAUCE EOT": {
+    "total_qty_sold": 2809,
+    "revenue": 381655.0,
+    "margin_pct": 18.93,
+    "gross_profit": 62286.04227,
+    "sales_rank": 69,
+    "category": "unknown"
+  },
+  "SANTA MARIA 70G TOMATO PASTE SATCHET": {
+    "total_qty_sold": 1284,
+    "revenue": 47979.0,
+    "margin_pct": 21.34,
+    "gross_profit": 8825.706906,
+    "sales_rank": 70,
+    "category": "unknown"
+  },
+  "HEINZ 415G BAKED BEANS UK": {
+    "total_qty_sold": 2077,
+    "revenue": 631905.0,
+    "margin_pct": 22.28,
+    "gross_profit": 121367.292242,
+    "sales_rank": 71,
+    "category": "unknown"
+  },
+  "KENYLON 420G CHICK PEAS": {
+    "total_qty_sold": 1480,
+    "revenue": 263386.0,
+    "margin_pct": 17.93,
+    "gross_profit": 40722.195162,
+    "sales_rank": 72,
+    "category": "unknown"
+  },
+  "KENYLON 420G SWEETCORN OFF COB EOT": {
+    "total_qty_sold": 1430,
+    "revenue": 221500.0,
+    "margin_pct": 14.71,
+    "gross_profit": 28095.786422,
+    "sales_rank": 73,
+    "category": "unknown"
+  },
+  "SPRITE 330ML CAN REGULAR": {
+    "total_qty_sold": 3402,
+    "revenue": 328391.05,
+    "margin_pct": 20.6,
+    "gross_profit": 58329.088503,
+    "sales_rank": 74,
+    "category": "unknown"
+  },
+  "COKE ZERO 330ML CAN": {
+    "total_qty_sold": 7681,
+    "revenue": 741769.2,
+    "margin_pct": 21.8,
+    "gross_profit": 139375.599296,
+    "sales_rank": 75,
+    "category": "unknown"
+  },
+  "FANTA 330ML ORANGE CAN": {
+    "total_qty_sold": 3832,
+    "revenue": 368563.73,
+    "margin_pct": 21.48,
+    "gross_profit": 68250.077723,
+    "sales_rank": 76,
+    "category": "unknown"
+  },
+  "COKE 330ML CAN": {
+    "total_qty_sold": 5067,
+    "revenue": 494310.0,
+    "margin_pct": 22.57,
+    "gross_profit": 96181.669007,
+    "sales_rank": 77,
+    "category": "unknown"
+  },
+  "BROWNS 250G GREEK YOGHURT": {
+    "total_qty_sold": 1402,
+    "revenue": 396704.0,
+    "margin_pct": 25.11,
+    "gross_profit": 85879.07,
+    "sales_rank": 78,
+    "category": "unknown"
+  },
+  "SIRIMON 250G CHEDDAR CHEESE": {
+    "total_qty_sold": 1542,
+    "revenue": 778929.0,
+    "margin_pct": 23.89,
+    "gross_profit": 160439.102269,
+    "sales_rank": 79,
+    "category": "unknown"
+  },
+  "SIRIMON 250G EVERYDAY CHEESE": {
+    "total_qty_sold": 1340,
+    "revenue": 660492.0,
+    "margin_pct": 24.9,
+    "gross_profit": 141768.000451,
+    "sales_rank": 80,
+    "category": "unknown"
+  },
+  "TROP HEAT 50G CHEVDA ORIGINAL": {
+    "total_qty_sold": 1325,
+    "revenue": 82253.0,
+    "margin_pct": 23.85,
+    "gross_profit": 16912.677022,
+    "sales_rank": 81,
+    "category": "unknown"
+  },
+  "WRIGLEYS P.K 10S CHEWING GUM MENTHOL": {
+    "total_qty_sold": 3112,
+    "revenue": 82888.0,
+    "margin_pct": 25.51,
+    "gross_profit": 18226.193347,
+    "sales_rank": 82,
+    "category": "unknown"
+  },
+  "WRIGLEYS ORBIT 10S BUBBLEMINT SF": {
+    "total_qty_sold": 3525,
+    "revenue": 242266.0,
+    "margin_pct": 24.02,
+    "gross_profit": 50172.267206,
+    "sales_rank": 83,
+    "category": "unknown"
+  },
+  "WRIGLEYS P.K 10S CHEWING GUM PEPPERMINT": {
+    "total_qty_sold": 3919,
+    "revenue": 104533.0,
+    "margin_pct": 25.51,
+    "gross_profit": 22987.5704,
+    "sales_rank": 84,
+    "category": "unknown"
+  },
+  "WRIGLEYS JUICY FRUIT 10S CLASSIC": {
+    "total_qty_sold": 3861,
+    "revenue": 102959.0,
+    "margin_pct": 25.72,
+    "gross_profit": 22829.478029,
+    "sales_rank": 85,
+    "category": "unknown"
+  },
+  "WRIGLEYS JUICY FRUIT 10S STRAWBERRY": {
+    "total_qty_sold": 2559,
+    "revenue": 68320.0,
+    "margin_pct": 25.72,
+    "gross_profit": 15147.189151,
+    "sales_rank": 86,
+    "category": "unknown"
+  },
+  "STIMOROL 14G 10S WILD BERRY": {
+    "total_qty_sold": 1656,
+    "revenue": 107647.0,
+    "margin_pct": 31.75,
+    "gross_profit": 29459.113225,
+    "sales_rank": 87,
+    "category": "unknown"
+  },
+  "WRIGLEYS ORBIT 10S PEPPERMINT SF": {
+    "total_qty_sold": 3880,
+    "revenue": 266138.0,
+    "margin_pct": 24.21,
+    "gross_profit": 55536.318257,
+    "sales_rank": 88,
+    "category": "unknown"
+  },
+  "CADBURY 32G DAIRY MILK CHOCOLATE": {
+    "total_qty_sold": 2570,
+    "revenue": 342701.0,
+    "margin_pct": 26.57,
+    "gross_profit": 78506.895819,
+    "sales_rank": 89,
+    "category": "unknown"
+  },
+  "MARS SINGLE BARS 40G": {
+    "total_qty_sold": 3523,
+    "revenue": 619159.0,
+    "margin_pct": 21.02,
+    "gross_profit": 112215.272977,
+    "sales_rank": 90,
+    "category": "unknown"
+  },
+  "TWIX TWIN BAR 50G": {
+    "total_qty_sold": 5794,
+    "revenue": 997011.0,
+    "margin_pct": 25.75,
+    "gross_profit": 221307.968278,
+    "sales_rank": 91,
+    "category": "unknown"
+  },
+  "SNICKERS 2X70G CHOCO BAR": {
+    "total_qty_sold": 1292,
+    "revenue": 286186.0,
+    "margin_pct": 23.18,
+    "gross_profit": 57181.742294,
+    "sales_rank": 92,
+    "category": "unknown"
+  },
+  "SNICKERS 40G SINGLE CHOCO BAR": {
+    "total_qty_sold": 6248,
+    "revenue": 1024351.0,
+    "margin_pct": 20.88,
+    "gross_profit": 184352.574576,
+    "sales_rank": 93,
+    "category": "unknown"
+  },
+  "BOUNTY 50G DOUBLE CHOCO BAR": {
+    "total_qty_sold": 1939,
+    "revenue": 371985.0,
+    "margin_pct": -15.81,
+    "gross_profit": -50687.552895,
+    "sales_rank": 94,
+    "category": "unknown"
+  },
+  "CADBURY 80G DAIRY MILK WHOLE NUT": {
+    "total_qty_sold": 1716,
+    "revenue": 443359.0,
+    "margin_pct": 16.08,
+    "gross_profit": 61455.555313,
+    "sales_rank": 95,
+    "category": "unknown"
+  },
+  "CADBURY 44G LUNCH BAR": {
+    "total_qty_sold": 1707,
+    "revenue": 272925.0,
+    "margin_pct": 15.54,
+    "gross_profit": 36561.837593,
+    "sales_rank": 96,
+    "category": "unknown"
+  },
+  "CADBURY 80G DAIRY MILK": {
+    "total_qty_sold": 1852,
+    "revenue": 481862.0,
+    "margin_pct": 17.48,
+    "gross_profit": 72598.78623,
+    "sales_rank": 97,
+    "category": "unknown"
+  },
+  "CADBURY 32G DAIRY MILK HAZELNUTS": {
+    "total_qty_sold": 1437,
+    "revenue": 192641.0,
+    "margin_pct": 29.91,
+    "gross_profit": 49675.632989,
+    "sales_rank": 98,
+    "category": "unknown"
+  },
+  "NESTLE 41.5G KITKAT 4 FINGER MILK": {
+    "total_qty_sold": 5928,
+    "revenue": 990427.0,
+    "margin_pct": 24.42,
+    "gross_profit": 208472.604985,
+    "sales_rank": 99,
+    "category": "unknown"
+  },
+  "CADBURY 28G BUBBLY CHOCOLATE": {
+    "total_qty_sold": 1391,
+    "revenue": 136050.0,
+    "margin_pct": 21.83,
+    "gross_profit": 25601.325379,
+    "sales_rank": 100,
+    "category": "unknown"
+  },
+  "DL 37G FILLED CHOCOLATES MINT CHOC": {
+    "total_qty_sold": 6239,
+    "revenue": 434742.0,
+    "margin_pct": 24.66,
+    "gross_profit": 92400.653581,
+    "sales_rank": 101,
+    "category": "unknown"
+  },
+  "EMBASSY BY DUNHILL BLUE 20S": {
+    "total_qty_sold": 8693,
+    "revenue": 3998791.0,
+    "margin_pct": 7.1,
+    "gross_profit": 244908.249482,
+    "sales_rank": 102,
+    "category": "unknown"
+  },
+  "ROTHMANS OF LONDON 20S": {
+    "total_qty_sold": 2381,
+    "revenue": 869065.0,
+    "margin_pct": 5.53,
+    "gross_profit": 41402.796684,
+    "sales_rank": 103,
+    "category": "unknown"
+  },
+  "DUNHILL 20S SWITCH": {
+    "total_qty_sold": 9189,
+    "revenue": 4318830.0,
+    "margin_pct": 7.13,
+    "gross_profit": 265520.248637,
+    "sales_rank": 104,
+    "category": "unknown"
+  },
+  "DUNHILL 20S DOUBLE CAP": {
+    "total_qty_sold": 3510,
+    "revenue": 1649700.0,
+    "margin_pct": 7.16,
+    "gross_profit": 101893.556928,
+    "sales_rank": 105,
+    "category": "unknown"
+  },
+  "ROTHMANS SWITCH BLUE 20S": {
+    "total_qty_sold": 2523,
+    "revenue": 920897.0,
+    "margin_pct": 5.53,
+    "gross_profit": 43904.501181,
+    "sales_rank": 106,
+    "category": "unknown"
+  },
+  "KARA 65ML COCONUT  MILK CREAM": {
+    "total_qty_sold": 4669,
+    "revenue": 339145.0,
+    "margin_pct": 23.4,
+    "gross_profit": 68399.523062,
+    "sales_rank": 107,
+    "category": "unknown"
+  },
+  "MACCOFFEE 1.6G CLASSIC": {
+    "total_qty_sold": 4759,
+    "revenue": 38396.0,
+    "margin_pct": 6.92,
+    "gross_profit": 2290.5681,
+    "sales_rank": 108,
+    "category": "unknown"
+  },
+  "MACCOFFEE 15G WHITE 3 IN 1 COFFEE": {
+    "total_qty_sold": 1759,
+    "revenue": 35010.0,
+    "margin_pct": 5.82,
+    "gross_profit": 1755.41,
+    "sales_rank": 109,
+    "category": "unknown"
+  },
+  "NESCAFE 1.5G CLASSIC SACHET": {
+    "total_qty_sold": 7433,
+    "revenue": 67924.0,
+    "margin_pct": 12.67,
+    "gross_profit": 7421.816175,
+    "sales_rank": 110,
+    "category": "unknown"
+  },
+  "RINA 5LT VEGETABLE OIL": {
+    "total_qty_sold": 1734,
+    "revenue": 2110863.0,
+    "margin_pct": -1.21,
+    "gross_profit": -21958.427806,
+    "sales_rank": 111,
+    "category": "unknown"
+  },
+  "RINSUN 5LT SUNFLOWER OIL": {
+    "total_qty_sold": 2697,
+    "revenue": 4288136.0,
+    "margin_pct": 9.0,
+    "gross_profit": 332879.72934,
+    "sales_rank": 112,
+    "category": "unknown"
+  },
+  "RINSUN 3LT SUNFLOWER OIL": {
+    "total_qty_sold": 1651,
+    "revenue": 1806016.0,
+    "margin_pct": 11.53,
+    "gross_profit": 179536.332676,
+    "sales_rank": 113,
+    "category": "unknown"
+  },
+  "RINSUN 2LT SUNFLOWER OIL": {
+    "total_qty_sold": 1582,
+    "revenue": 1198568.0,
+    "margin_pct": 11.81,
+    "gross_profit": 122001.100388,
+    "sales_rank": 114,
+    "category": "unknown"
+  },
+  "KRACKLES 30G PERFECTLY SALTED": {
+    "total_qty_sold": 6828,
+    "revenue": 372525.0,
+    "margin_pct": 21.09,
+    "gross_profit": 67742.884282,
+    "sales_rank": 115,
+    "category": "unknown"
+  },
+  "KRACKLES CHEESE & ONION 30G": {
+    "total_qty_sold": 4377,
+    "revenue": 242525.0,
+    "margin_pct": 22.23,
+    "gross_profit": 46482.93877,
+    "sales_rank": 116,
+    "category": "unknown"
+  },
+  "CARTOONS 30G TANGY TOMATO CRISPS": {
+    "total_qty_sold": 2776,
+    "revenue": 156271.0,
+    "margin_pct": 22.73,
+    "gross_profit": 30616.79,
+    "sales_rank": 117,
+    "category": "unknown"
+  },
+  "KRACKLES 30G TANGY TOMATO": {
+    "total_qty_sold": 5725,
+    "revenue": 312069.0,
+    "margin_pct": 21.01,
+    "gross_profit": 56511.435772,
+    "sales_rank": 118,
+    "category": "unknown"
+  },
+  "KRACKLES 45G CHIP STIX CHILLI": {
+    "total_qty_sold": 1614,
+    "revenue": 96841.0,
+    "margin_pct": 25.0,
+    "gross_profit": 20870.271758,
+    "sales_rank": 119,
+    "category": "unknown"
+  },
+  "KRACKLES SALT&VINEGAR 30GM": {
+    "total_qty_sold": 3387,
+    "revenue": 183518.0,
+    "margin_pct": 20.81,
+    "gross_profit": 32921.171205,
+    "sales_rank": 120,
+    "category": "unknown"
+  },
+  "KRACKLES BANG BANG CHILLI 30G": {
+    "total_qty_sold": 5280,
+    "revenue": 290924.0,
+    "margin_pct": 22.08,
+    "gross_profit": 55377.786118,
+    "sales_rank": 121,
+    "category": "unknown"
+  },
+  "KRACKLES POTATO CRISP BBQ30G": {
+    "total_qty_sold": 5168,
+    "revenue": 282025.0,
+    "margin_pct": 21.04,
+    "gross_profit": 51150.269011,
+    "sales_rank": 122,
+    "category": "unknown"
+  },
+  "CARTOONS 30G PERFECTLY SALTED CRISPS": {
+    "total_qty_sold": 1481,
+    "revenue": 82745.0,
+    "margin_pct": 22.14,
+    "gross_profit": 15794.931838,
+    "sales_rank": 123,
+    "category": "unknown"
+  },
+  "FRESH KENCHIC WHOLE CHICKEN PLU 86742": {
+    "total_qty_sold": 5146,
+    "revenue": 2638426.39,
+    "margin_pct": 17.09,
+    "gross_profit": 451009.19,
+    "sales_rank": 124,
+    "category": "unknown"
+  },
+  "FRESH KENCHIC CHICKEN BONELES BREAST PLU 86743": {
+    "total_qty_sold": 5512,
+    "revenue": 5509637.4,
+    "margin_pct": 17.16,
+    "gross_profit": 945498.54,
+    "sales_rank": 125,
+    "category": "unknown"
+  },
+  "FRESH KENCHIC CHICKEN THIGH BONE OFF PLU86745": {
+    "total_qty_sold": 1824,
+    "revenue": 1819461.35,
+    "margin_pct": 20.0,
+    "gross_profit": 363836.732,
+    "sales_rank": 126,
+    "category": "unknown"
+  },
+  "FRESH KENCHIC CHICKEN THIGH BONE IN PLU86746": {
+    "total_qty_sold": 2098,
+    "revenue": 1479828.32,
+    "margin_pct": 17.76,
+    "gross_profit": 262782.42,
+    "sales_rank": 127,
+    "category": "unknown"
+  },
+  "FRESH KENCHIC CHICKEN DRUMSTICKS PLU 86749": {
+    "total_qty_sold": 1634,
+    "revenue": 1419152.46,
+    "margin_pct": 19.6,
+    "gross_profit": 278093.47,
+    "sales_rank": 128,
+    "category": "unknown"
+  },
+  "FRESH KENCHIC BMINCE LEAN PLU 86777": {
+    "total_qty_sold": 1971,
+    "revenue": 1618737.96,
+    "margin_pct": 15.7,
+    "gross_profit": 254150.66,
+    "sales_rank": 129,
+    "category": "unknown"
+  },
+  "SOFTLEAF TWIN SERVIETTES": {
+    "total_qty_sold": 1417,
+    "revenue": 267186.0,
+    "margin_pct": 23.46,
+    "gross_profit": 54046.862352,
+    "sales_rank": 130,
+    "category": "unknown"
+  },
+  "ISINYA 6S EGGS": {
+    "total_qty_sold": 5654,
+    "revenue": 707870.06,
+    "margin_pct": 13.62,
+    "gross_profit": 96411.491022,
+    "sales_rank": 131,
+    "category": "unknown"
+  },
+  "ISINYA 30S EGGS": {
+    "total_qty_sold": 4510,
+    "revenue": 2441186.25,
+    "margin_pct": 9.35,
+    "gross_profit": 228252.862468,
+    "sales_rank": 132,
+    "category": "unknown"
+  },
+  "ISINYA 15S EGGS": {
+    "total_qty_sold": 3983,
+    "revenue": 1235572.41,
+    "margin_pct": 13.65,
+    "gross_profit": 168710.734944,
+    "sales_rank": 133,
+    "category": "unknown"
+  },
+  "ISINYA 12S EGGS": {
+    "total_qty_sold": 2473,
+    "revenue": 623612.97,
+    "margin_pct": 12.28,
+    "gross_profit": 76578.646514,
+    "sales_rank": 134,
+    "category": "unknown"
+  },
+  "GREEN FARM 30S Y/YORK EGGS": {
+    "total_qty_sold": 2083,
+    "revenue": 1166733.0,
+    "margin_pct": 13.04,
+    "gross_profit": 152087.158476,
+    "sales_rank": 135,
+    "category": "unknown"
+  },
+  "GREEN FARM 15PK Y/YORK EGGS": {
+    "total_qty_sold": 1295,
+    "revenue": 433618.0,
+    "margin_pct": 18.15,
+    "gross_profit": 78706.518135,
+    "sales_rank": 136,
+    "category": "unknown"
+  },
+  "LEADAV YELLOW YOLK EGGS 30PACK TRAY": {
+    "total_qty_sold": 1484,
+    "revenue": 724224.0,
+    "margin_pct": 13.85,
+    "gross_profit": 100312.671109,
+    "sales_rank": 137,
+    "category": "unknown"
+  },
+  "JIAN 30 PACK YELLOW YOLK EGGS": {
+    "total_qty_sold": 1613,
+    "revenue": 792587.0,
+    "margin_pct": 18.59,
+    "gross_profit": 147302.382705,
+    "sales_rank": 138,
+    "category": "unknown"
+  },
+  "MAYERS 750ML GLASS SPARKLING EMPTY BOTTLE": {
+    "total_qty_sold": 1692,
+    "revenue": 160740.0,
+    "margin_pct": 2.32,
+    "gross_profit": 3210.74,
+    "sales_rank": 139,
+    "category": "unknown"
+  },
+  "RED BULL 250ML CAN": {
+    "total_qty_sold": 4663,
+    "revenue": 987798.51,
+    "margin_pct": 20.49,
+    "gross_profit": 174452.799556,
+    "sales_rank": 140,
+    "category": "unknown"
+  },
+  "PREDATOR 400ML ENERGY DRINK PET": {
+    "total_qty_sold": 3444,
+    "revenue": 216853.09,
+    "margin_pct": 18.78,
+    "gross_profit": 35108.177192,
+    "sales_rank": 141,
+    "category": "unknown"
+  },
+  "MT KENYA 500ML PREMIUM TFA MILK": {
+    "total_qty_sold": 2220,
+    "revenue": 132088.0,
+    "margin_pct": 12.06,
+    "gross_profit": 15927.098736,
+    "sales_rank": 142,
+    "category": "unknown"
+  },
+  "RED BULL 250ML SUGAR FREE CAN": {
+    "total_qty_sold": 2111,
+    "revenue": 341016.0,
+    "margin_pct": -11.51,
+    "gross_profit": -33840.264718,
+    "sales_rank": 143,
+    "category": "unknown"
+  },
+  "BUTTERFLY 1KG SOOJI (SEMOLINA)": {
+    "total_qty_sold": 1766,
+    "revenue": 366790.0,
+    "margin_pct": 16.68,
+    "gross_profit": 61183.115148,
+    "sales_rank": 144,
+    "category": "unknown"
+  },
+  "DOLA 2KG HOMEBAKING  FLOUR": {
+    "total_qty_sold": 1757,
+    "revenue": 257222.0,
+    "margin_pct": 3.66,
+    "gross_profit": 9423.580408,
+    "sales_rank": 145,
+    "category": "unknown"
+  },
+  "SOKO 2KG MAIZE MEAL": {
+    "total_qty_sold": 14378,
+    "revenue": 2101298.0,
+    "margin_pct": -0.53,
+    "gross_profit": -11239.233573,
+    "sales_rank": 146,
+    "category": "unknown"
+  },
+  "AJAB 2KG HOME BAKING FLOUR": {
+    "total_qty_sold": 14577,
+    "revenue": 2327634.0,
+    "margin_pct": 0.38,
+    "gross_profit": 8736.227919,
+    "sales_rank": 147,
+    "category": "unknown"
+  },
+  "NDOVU 2KG MAIZE MEAL FLOUR": {
+    "total_qty_sold": 1446,
+    "revenue": 198724.0,
+    "margin_pct": 3.99,
+    "gross_profit": 7919.728787,
+    "sales_rank": 148,
+    "category": "unknown"
+  },
+  "AMAIZE 2KG PREMIUM MAIZE FLOUR": {
+    "total_qty_sold": 3111,
+    "revenue": 569817.0,
+    "margin_pct": 1.84,
+    "gross_profit": 10502.397031,
+    "sales_rank": 149,
+    "category": "unknown"
+  },
+  "SOKO 2KG HOMEBAKING FLOUR": {
+    "total_qty_sold": 1351,
+    "revenue": 203153.0,
+    "margin_pct": 1.48,
+    "gross_profit": 3014.477224,
+    "sales_rank": 150,
+    "category": "unknown"
+  },
+  "AJAB 2KG MAIZE MEAL FLOUR": {
+    "total_qty_sold": 2498,
+    "revenue": 387843.0,
+    "margin_pct": 1.59,
+    "gross_profit": 6186.032334,
+    "sales_rank": 151,
+    "category": "unknown"
+  },
+  "SOKO 1KG MAIZE MEAL FLOUR": {
+    "total_qty_sold": 2079,
+    "revenue": 164764.0,
+    "margin_pct": 5.55,
+    "gross_profit": 9141.940407,
+    "sales_rank": 152,
+    "category": "unknown"
+  },
+  "TUPIKE 2KG MAIZE MEAL FLOUR": {
+    "total_qty_sold": 3291,
+    "revenue": 462283.72,
+    "margin_pct": 1.58,
+    "gross_profit": 7285.726626,
+    "sales_rank": 153,
+    "category": "unknown"
+  },
+  "PEMBE 2KG HOMEBAKING": {
+    "total_qty_sold": 3002,
+    "revenue": 458182.0,
+    "margin_pct": 0.63,
+    "gross_profit": 2872.250168,
+    "sales_rank": 154,
+    "category": "unknown"
+  },
+  "PEMBE 2KG MAIZE MEAL": {
+    "total_qty_sold": 6694,
+    "revenue": 984051.0,
+    "margin_pct": -0.13,
+    "gross_profit": -1262.503576,
+    "sales_rank": 155,
+    "category": "unknown"
+  },
+  "EXE 1KG ALL PURPOSE": {
+    "total_qty_sold": 1611,
+    "revenue": 137924.0,
+    "margin_pct": 5.53,
+    "gross_profit": 7626.314296,
+    "sales_rank": 156,
+    "category": "unknown"
+  },
+  "EXE 2KG SELF RAISING": {
+    "total_qty_sold": 1617,
+    "revenue": 283081.0,
+    "margin_pct": 5.46,
+    "gross_profit": 15450.065352,
+    "sales_rank": 157,
+    "category": "unknown"
+  },
+  "JOGOO 2KG MAIZE MEAL": {
+    "total_qty_sold": 7062,
+    "revenue": 1024036.0,
+    "margin_pct": 2.6,
+    "gross_profit": 26644.04767,
+    "sales_rank": 158,
+    "category": "unknown"
+  },
+  "EXE 2KG CHAPATI FLOUR": {
+    "total_qty_sold": 1652,
+    "revenue": 279678.0,
+    "margin_pct": 4.75,
+    "gross_profit": 13294.618211,
+    "sales_rank": 159,
+    "category": "unknown"
+  },
+  "EXE 2KG ALL PURPOSE FLOUR": {
+    "total_qty_sold": 10115,
+    "revenue": 1619561.0,
+    "margin_pct": 4.66,
+    "gross_profit": 75458.951153,
+    "sales_rank": 160,
+    "category": "unknown"
+  },
+  "HOSTESS 2KG PREMIUM MAIZE FLOUR": {
+    "total_qty_sold": 1808,
+    "revenue": 318874.0,
+    "margin_pct": 4.33,
+    "gross_profit": 13820.417052,
+    "sales_rank": 161,
+    "category": "unknown"
+  },
+  "BIO 500ML COOKING CREAM LONG LIFE": {
+    "total_qty_sold": 1671,
+    "revenue": 589360.0,
+    "margin_pct": 18.57,
+    "gross_profit": 94350.278103,
+    "sales_rank": 162,
+    "category": "unknown"
+  },
+  "CS HASH AVOCADO PKG PLU6011": {
+    "total_qty_sold": 2246,
+    "revenue": 359093.3,
+    "margin_pct": 16.17,
+    "gross_profit": 58072.44305,
+    "sales_rank": 163,
+    "category": "unknown"
+  },
+  "CS FRESH TANGERINE IMPORTED (PLU NO.276850)": {
+    "total_qty_sold": 5365,
+    "revenue": 3089896.63,
+    "margin_pct": 16.91,
+    "gross_profit": 522647.114405,
+    "sales_rank": 164,
+    "category": "unknown"
+  },
+  "CS FRESH APPLES FUJI (PLU NO. 276001)": {
+    "total_qty_sold": 6668,
+    "revenue": 3325610.05,
+    "margin_pct": 17.07,
+    "gross_profit": 567739.91534,
+    "sales_rank": 165,
+    "category": "unknown"
+  },
+  "VP 250G STRAWBERRIES": {
+    "total_qty_sold": 2139,
+    "revenue": 629501.0,
+    "margin_pct": 11.95,
+    "gross_profit": 75203.315,
+    "sales_rank": 166,
+    "category": "unknown"
+  },
+  "CS GRAPES RED PER PNT PLU76017": {
+    "total_qty_sold": 4767,
+    "revenue": 1965195.0,
+    "margin_pct": 15.89,
+    "gross_profit": 312323.385,
+    "sales_rank": 167,
+    "category": "unknown"
+  },
+  "VP 125G BLUEBERRIES": {
+    "total_qty_sold": 2589,
+    "revenue": 1048581.0,
+    "margin_pct": 13.14,
+    "gross_profit": 137754.2,
+    "sales_rank": 168,
+    "category": "unknown"
+  },
+  "CS FRESH PAPAYA MSA (PLU NO. 276650)": {
+    "total_qty_sold": 4399,
+    "revenue": 802133.07,
+    "margin_pct": 17.3,
+    "gross_profit": 138779.0787,
+    "sales_rank": 169,
+    "category": "unknown"
+  },
+  "CS FRESH BANANA LARGE (PLU NO. 276052)": {
+    "total_qty_sold": 15424,
+    "revenue": 1633358.31,
+    "margin_pct": 16.69,
+    "gross_profit": 272555.546625,
+    "sales_rank": 170,
+    "category": "unknown"
+  },
+  "CS FRESH COCONUTS (PLU NO. 276099)": {
+    "total_qty_sold": 1998,
+    "revenue": 194372.0,
+    "margin_pct": 17.25,
+    "gross_profit": 33530.0,
+    "sales_rank": 171,
+    "category": "unknown"
+  },
+  "CS FRESH KIWIFRUIT (PLU NO. 276291)": {
+    "total_qty_sold": 2249,
+    "revenue": 311611.0,
+    "margin_pct": 16.62,
+    "gross_profit": 51793.69,
+    "sales_rank": 172,
+    "category": "unknown"
+  },
+  "CS FRESH  AVOCADO LARGE (PLU NO. 276009)": {
+    "total_qty_sold": 4259,
+    "revenue": 153610.0,
+    "margin_pct": 18.17,
+    "gross_profit": 27908.875,
+    "sales_rank": 173,
+    "category": "unknown"
+  },
+  "CS FRESH RASPBERRIES 125G": {
+    "total_qty_sold": 2267,
+    "revenue": 592414.0,
+    "margin_pct": 16.41,
+    "gross_profit": 97189.435,
+    "sales_rank": 174,
+    "category": "unknown"
+  },
+  "CS FRESH APPLE MANGOES PLU 276503": {
+    "total_qty_sold": 4544,
+    "revenue": 741641.95,
+    "margin_pct": 15.91,
+    "gross_profit": 118000.096775,
+    "sales_rank": 175,
+    "category": "unknown"
+  },
+  "CS FRESH ORANGES PIXIE (PLU NO. 276608)": {
+    "total_qty_sold": 1656,
+    "revenue": 443601.4,
+    "margin_pct": 14.58,
+    "gross_profit": 64692.116675,
+    "sales_rank": 176,
+    "category": "unknown"
+  },
+  "CS FRESH METHI (PLU NO. 276515)": {
+    "total_qty_sold": 2306,
+    "revenue": 55550.0,
+    "margin_pct": 17.44,
+    "gross_profit": 9689.075,
+    "sales_rank": 177,
+    "category": "unknown"
+  },
+  "CS FRESH BANANA BABY (PLU NO. 276051)": {
+    "total_qty_sold": 5317,
+    "revenue": 1247880.04,
+    "margin_pct": 17.52,
+    "gross_profit": 218619.840175,
+    "sales_rank": 178,
+    "category": "unknown"
+  },
+  "CS FRESH ORANGES IMPORTED (PLU NO. 276602)": {
+    "total_qty_sold": 3623,
+    "revenue": 1095409.42,
+    "margin_pct": 16.4,
+    "gross_profit": 179682.768635,
+    "sales_rank": 179,
+    "category": "unknown"
+  },
+  "CS FRESH PINEAPPLES (PLU NO. 276674)": {
+    "total_qty_sold": 6513,
+    "revenue": 1083083.81,
+    "margin_pct": 14.98,
+    "gross_profit": 162267.351675,
+    "sales_rank": 180,
+    "category": "unknown"
+  },
+  "CS FRESH  APPLES RED (PLU NO. 76003)": {
+    "total_qty_sold": 1448,
+    "revenue": 722588.67,
+    "margin_pct": 17.05,
+    "gross_profit": 123201.7962,
+    "sales_rank": 181,
+    "category": "unknown"
+  },
+  "CS IMP LEMONS PKG PLU76452": {
+    "total_qty_sold": 2164,
+    "revenue": 878120.56,
+    "margin_pct": 18.04,
+    "gross_profit": 158430.35125,
+    "sales_rank": 182,
+    "category": "unknown"
+  },
+  "CS FRESH WATER MELON (PLU NO. 276514)": {
+    "total_qty_sold": 18416,
+    "revenue": 1583163.07,
+    "margin_pct": 17.43,
+    "gross_profit": 275928.5145,
+    "sales_rank": 183,
+    "category": "unknown"
+  },
+  "CS FRESH LEMONS ROUGH (PLU NO. 276453)": {
+    "total_qty_sold": 1706,
+    "revenue": 303000.31,
+    "margin_pct": 18.02,
+    "gross_profit": 54594.137425,
+    "sales_rank": 184,
+    "category": "unknown"
+  },
+  "CS FRESH LIMES MOMBASA (PLU NO. 276458)": {
+    "total_qty_sold": 1704,
+    "revenue": 347848.84,
+    "margin_pct": 17.56,
+    "gross_profit": 61071.798425,
+    "sales_rank": 185,
+    "category": "unknown"
+  },
+  "FC 400G (30D) FRESH STREAKY BACON": {
+    "total_qty_sold": 1449,
+    "revenue": 1158288.0,
+    "margin_pct": 18.41,
+    "gross_profit": 183837.549359,
+    "sales_rank": 186,
+    "category": "unknown"
+  },
+  "FC 200G (30D) FRESH SANDWICH HAM": {
+    "total_qty_sold": 1920,
+    "revenue": 563795.0,
+    "margin_pct": 22.41,
+    "gross_profit": 108939.132013,
+    "sales_rank": 187,
+    "category": "unknown"
+  },
+  "FC 125G (30D) FRESH NYAMABITE": {
+    "total_qty_sold": 1654,
+    "revenue": 152370.0,
+    "margin_pct": 16.07,
+    "gross_profit": 21109.708712,
+    "sales_rank": 188,
+    "category": "unknown"
+  },
+  "FC 500G (14D) FRESH SAFARI BEEF SAUSAGE": {
+    "total_qty_sold": 2372,
+    "revenue": 868590.0,
+    "margin_pct": 10.29,
+    "gross_profit": 77013.971716,
+    "sales_rank": 189,
+    "category": "unknown"
+  },
+  "FC 1KG (14D) FRESH PORK VALUE PACK": {
+    "total_qty_sold": 1893,
+    "revenue": 1327220.01,
+    "margin_pct": 11.26,
+    "gross_profit": 128797.040004,
+    "sales_rank": 190,
+    "category": "unknown"
+  },
+  "FC 500G (14D) FRESH CLASSIC PORK SAUSAGE": {
+    "total_qty_sold": 1681,
+    "revenue": 618568.0,
+    "margin_pct": 11.42,
+    "gross_profit": 60915.799064,
+    "sales_rank": 191,
+    "category": "unknown"
+  },
+  "FC 200G (30D) FRESH STREAKY BACON": {
+    "total_qty_sold": 1974,
+    "revenue": 876564.0,
+    "margin_pct": 21.55,
+    "gross_profit": 162862.317965,
+    "sales_rank": 192,
+    "category": "unknown"
+  },
+  "FC 100G (30D) COLLAR BACON": {
+    "total_qty_sold": 2503,
+    "revenue": 448965.0,
+    "margin_pct": 3.69,
+    "gross_profit": 14282.103351,
+    "sales_rank": 193,
+    "category": "unknown"
+  },
+  "FC 1KG (14D) BEEF VALUE SAUSAGES": {
+    "total_qty_sold": 1698,
+    "revenue": 1207685.51,
+    "margin_pct": 9.63,
+    "gross_profit": 100271.372462,
+    "sales_rank": 194,
+    "category": "unknown"
+  },
+  "FC 200G (14D) FRESH PORK CHIPOLATA": {
+    "total_qty_sold": 1457,
+    "revenue": 325453.0,
+    "margin_pct": 23.5,
+    "gross_profit": 65941.61,
+    "sales_rank": 195,
+    "category": "unknown"
+  },
+  "ILARA  POUCH FRESH MILK 1LTR": {
+    "total_qty_sold": 5987,
+    "revenue": 700731.0,
+    "margin_pct": 2.6,
+    "gross_profit": 18213.0,
+    "sales_rank": 196,
+    "category": "unknown"
+  },
+  "BROOKSIDE 500ML DAIRY BEST (POUCH)": {
+    "total_qty_sold": 205174,
+    "revenue": 11220852.0,
+    "margin_pct": -7.88,
+    "gross_profit": -884454.012872,
+    "sales_rank": 197,
+    "category": "unknown"
+  },
+  "BROOKSIDE 2LTR FRESH MILK STANDARD BOTTLE": {
+    "total_qty_sold": 5988,
+    "revenue": 1538587.0,
+    "margin_pct": 1.54,
+    "gross_profit": 23623.0,
+    "sales_rank": 198,
+    "category": "unknown"
+  },
+  "BROOKSIDE 2LTR FRESH MILK WHOLE BOTTLE": {
+    "total_qty_sold": 4808,
+    "revenue": 1235437.0,
+    "margin_pct": 1.54,
+    "gross_profit": 19013.0,
+    "sales_rank": 199,
+    "category": "unknown"
+  },
+  "BROOKSIDE 1LTR FRESH MILK STANDARD": {
+    "total_qty_sold": 4427,
+    "revenue": 575440.0,
+    "margin_pct": 1.53,
+    "gross_profit": 8784.0,
+    "sales_rank": 200,
+    "category": "unknown"
+  },
+  "BROOKSIDE 200ML  WHOLE MILK TCA": {
+    "total_qty_sold": 3335,
+    "revenue": 106722.0,
+    "margin_pct": 6.25,
+    "gross_profit": 6672.0,
+    "sales_rank": 201,
+    "category": "unknown"
+  },
+  "BROOKSIDE 1L FARM FRESH MILK": {
+    "total_qty_sold": 3819,
+    "revenue": 496470.0,
+    "margin_pct": 1.54,
+    "gross_profit": 7638.0,
+    "sales_rank": 202,
+    "category": "unknown"
+  },
+  "TUZO 500ML FRESH MILK (POUCH)": {
+    "total_qty_sold": 30913,
+    "revenue": 1823869.0,
+    "margin_pct": 3.38,
+    "gross_profit": 61663.360891,
+    "sales_rank": 203,
+    "category": "unknown"
+  },
+  "KCC 500ML FRESH WHOLE MILK TFA 21": {
+    "total_qty_sold": 6860,
+    "revenue": 362945.0,
+    "margin_pct": 10.04,
+    "gross_profit": 36442.777931,
+    "sales_rank": 204,
+    "category": "unknown"
+  },
+  "GOLD CROWN 500ML WHOLE MILK LONGLIFE FINO TFA 20": {
+    "total_qty_sold": 13384,
+    "revenue": 731682.0,
+    "margin_pct": 10.27,
+    "gross_profit": 75169.890517,
+    "sales_rank": 205,
+    "category": "unknown"
+  },
+  "KCC 500ML GOLD CROWN  (POUCH)-55": {
+    "total_qty_sold": 5005,
+    "revenue": 287578.0,
+    "margin_pct": 9.52,
+    "gross_profit": 27390.618212,
+    "sales_rank": 206,
+    "category": "unknown"
+  },
+  "KCC 500ML FRESH W/MILK (POUCH)-84": {
+    "total_qty_sold": 6260,
+    "revenue": 353013.0,
+    "margin_pct": 10.12,
+    "gross_profit": 35717.558024,
+    "sales_rank": 207,
+    "category": "unknown"
+  },
+  "KINANGOP FRESH 500ML MILK POUCH": {
+    "total_qty_sold": 6232,
+    "revenue": 311439.0,
+    "margin_pct": 12.62,
+    "gross_profit": 39291.385502,
+    "sales_rank": 208,
+    "category": "unknown"
+  },
+  "ILARA FRESH MILK 500ML SATCHET": {
+    "total_qty_sold": 59948,
+    "revenue": 3370419.0,
+    "margin_pct": -3.16,
+    "gross_profit": -106565.0,
+    "sales_rank": 209,
+    "category": "unknown"
+  },
+  "DAIMA 500ML WHOLE ESL POUCH": {
+    "total_qty_sold": 13508,
+    "revenue": 661179.0,
+    "margin_pct": 7.89,
+    "gross_profit": 52191.325648,
+    "sales_rank": 210,
+    "category": "unknown"
+  },
+  "FRESHA 2LT WHOLE MILK": {
+    "total_qty_sold": 1455,
+    "revenue": 305550.0,
+    "margin_pct": 13.0,
+    "gross_profit": 39721.5,
+    "sales_rank": 211,
+    "category": "unknown"
+  },
+  "FRESHA 500ML ASEPTIC WHOLE MILK": {
+    "total_qty_sold": 2981,
+    "revenue": 160975.0,
+    "margin_pct": 5.96,
+    "gross_profit": 9599.82,
+    "sales_rank": 212,
+    "category": "unknown"
+  },
+  "FRESHA 500ML WHOLE MILK POUCH": {
+    "total_qty_sold": 15063,
+    "revenue": 855944.0,
+    "margin_pct": 12.73,
+    "gross_profit": 108969.83,
+    "sales_rank": 213,
+    "category": "unknown"
+  },
+  "DAIMA 450ML ESL MAZIWA BORA": {
+    "total_qty_sold": 9985,
+    "revenue": 446845.0,
+    "margin_pct": 8.14,
+    "gross_profit": 36375.708856,
+    "sales_rank": 214,
+    "category": "unknown"
+  },
+  "MT KENYA 500ML ESL UHT MILK": {
+    "total_qty_sold": 8660,
+    "revenue": 493461.0,
+    "margin_pct": 12.93,
+    "gross_profit": 63784.807484,
+    "sales_rank": 215,
+    "category": "unknown"
+  },
+  "BIO 1L FRESH SEMI SKIMMED MILK": {
+    "total_qty_sold": 3105,
+    "revenue": 487738.0,
+    "margin_pct": 10.56,
+    "gross_profit": 51499.739227,
+    "sales_rank": 216,
+    "category": "unknown"
+  },
+  "BIO 2L WHOLE FRESH MILK": {
+    "total_qty_sold": 16812,
+    "revenue": 5352465.0,
+    "margin_pct": 10.1,
+    "gross_profit": 540366.24,
+    "sales_rank": 217,
+    "category": "unknown"
+  },
+  "BIO 2L SEMI SKIMMED FRESH MILK": {
+    "total_qty_sold": 3797,
+    "revenue": 1160408.0,
+    "margin_pct": 11.67,
+    "gross_profit": 135452.587496,
+    "sales_rank": 218,
+    "category": "unknown"
+  },
+  "BIO 1L BARISTA FRESH MILK": {
+    "total_qty_sold": 1792,
+    "revenue": 320740.0,
+    "margin_pct": 12.99,
+    "gross_profit": 41671.84,
+    "sales_rank": 219,
+    "category": "unknown"
+  },
+  "BROOKSIDE 500ML TR FRESH MILK": {
+    "total_qty_sold": 29146,
+    "revenue": 1893678.0,
+    "margin_pct": 3.04,
+    "gross_profit": 57480.0,
+    "sales_rank": 220,
+    "category": "unknown"
+  },
+  "FRESHA 5L WHOLE MILK": {
+    "total_qty_sold": 3684,
+    "revenue": 1840065.0,
+    "margin_pct": 12.91,
+    "gross_profit": 237525.0,
+    "sales_rank": 221,
+    "category": "unknown"
+  },
+  "BIO 1L FRESH SKIMMED MILK": {
+    "total_qty_sold": 1515,
+    "revenue": 233135.0,
+    "margin_pct": 11.22,
+    "gross_profit": 26159.390016,
+    "sales_rank": 222,
+    "category": "unknown"
+  },
+  "BIO 1L FRESH WHOLE MILK": {
+    "total_qty_sold": 7847,
+    "revenue": 1340911.0,
+    "margin_pct": 10.9,
+    "gross_profit": 146205.25,
+    "sales_rank": 223,
+    "category": "unknown"
+  },
+  "CS FRESH CUCUMBER LOCAL (PLU NO. 276126)": {
+    "total_qty_sold": 1756,
+    "revenue": 283667.53,
+    "margin_pct": 18.16,
+    "gross_profit": 51506.52235,
+    "sales_rank": 224,
+    "category": "unknown"
+  },
+  "CS FRESH BABY SPINACH PLU 276675": {
+    "total_qty_sold": 1799,
+    "revenue": 259038.0,
+    "margin_pct": 17.36,
+    "gross_profit": 44981.475,
+    "sales_rank": 225,
+    "category": "unknown"
+  },
+  "CS FRESH CUCUMBER ENGLISH (PLU NO. 276127)": {
+    "total_qty_sold": 1440,
+    "revenue": 303084.08,
+    "margin_pct": 18.29,
+    "gross_profit": 55421.740225,
+    "sales_rank": 226,
+    "category": "unknown"
+  },
+  "CS FRESH ICEBERG HYDRO(PLU NO. 76456)": {
+    "total_qty_sold": 4769,
+    "revenue": 433153.0,
+    "margin_pct": 15.6,
+    "gross_profit": 67553.425,
+    "sales_rank": 227,
+    "category": "unknown"
+  },
+  "CS FRESH PLANTAIN (PLU NO. 276050)": {
+    "total_qty_sold": 1754,
+    "revenue": 524623.15,
+    "margin_pct": 17.5,
+    "gross_profit": 91809.1684,
+    "sales_rank": 228,
+    "category": "unknown"
+  },
+  "CS FRESH ARROWROOT (PLU NO. 76006)": {
+    "total_qty_sold": 2474,
+    "revenue": 566198.07,
+    "margin_pct": 17.42,
+    "gross_profit": 98650.2585,
+    "sales_rank": 229,
+    "category": "unknown"
+  },
+  "CS FRESH SWEET POTATOES (PLU NO.276814)": {
+    "total_qty_sold": 4946,
+    "revenue": 851460.15,
+    "margin_pct": 17.4,
+    "gross_profit": 148190.253,
+    "sales_rank": 230,
+    "category": "unknown"
+  },
+  "CS FRESH ONIONS RED (PLU NO. 276610)": {
+    "total_qty_sold": 16364,
+    "revenue": 2354476.75,
+    "margin_pct": 17.33,
+    "gross_profit": 408121.40226,
+    "sales_rank": 231,
+    "category": "unknown"
+  },
+  "CS FRESH SARAV (PLU NO.276802)": {
+    "total_qty_sold": 2574,
+    "revenue": 62600.0,
+    "margin_pct": 17.65,
+    "gross_profit": 11050.7,
+    "sales_rank": 232,
+    "category": "unknown"
+  },
+  "CS FRESH CARROTS PKG PLU76104": {
+    "total_qty_sold": 5708,
+    "revenue": 666601.03,
+    "margin_pct": 17.41,
+    "gross_profit": 116038.197075,
+    "sales_rank": 233,
+    "category": "unknown"
+  },
+  "CS FRESH DHANIA (PLU NO. 276152)": {
+    "total_qty_sold": 22769,
+    "revenue": 526725.0,
+    "margin_pct": 17.68,
+    "gross_profit": 93136.35,
+    "sales_rank": 234,
+    "category": "unknown"
+  },
+  "CS FRESH TOMATO ITALIAN (PLU NO.276856)": {
+    "total_qty_sold": 23237,
+    "revenue": 2557991.43,
+    "margin_pct": 15.97,
+    "gross_profit": 408605.01004,
+    "sales_rank": 235,
+    "category": "unknown"
+  },
+  "CS FRESH  M/P SAGETI PLU:276900": {
+    "total_qty_sold": 2337,
+    "revenue": 81795.0,
+    "margin_pct": 17.5,
+    "gross_profit": 14314.125,
+    "sales_rank": 236,
+    "category": "unknown"
+  },
+  "CS FRESH SPRING ONIONS (PLU NO.276717)": {
+    "total_qty_sold": 2409,
+    "revenue": 376491.0,
+    "margin_pct": 17.25,
+    "gross_profit": 64959.135,
+    "sales_rank": 237,
+    "category": "unknown"
+  },
+  "CS FRESH POTATO ALIKA (PLU. 276680)": {
+    "total_qty_sold": 1620,
+    "revenue": 277239.06,
+    "margin_pct": 13.7,
+    "gross_profit": 37983.40875,
+    "sales_rank": 238,
+    "category": "unknown"
+  },
+  "CS FRESH CAULIFLOWER (PLU NO. 276106)": {
+    "total_qty_sold": 1688,
+    "revenue": 377178.23,
+    "margin_pct": 16.8,
+    "gross_profit": 63379.10925,
+    "sales_rank": 239,
+    "category": "unknown"
+  },
+  "CS FRESH GINGER ROOT (PLU NO. 276256)": {
+    "total_qty_sold": 1643,
+    "revenue": 597948.89,
+    "margin_pct": 16.3,
+    "gross_profit": 97465.2404,
+    "sales_rank": 240,
+    "category": "unknown"
+  },
+  "CS CHERRY TOMATO PKT PLU76855": {
+    "total_qty_sold": 3059,
+    "revenue": 436482.0,
+    "margin_pct": 11.77,
+    "gross_profit": 51352.845,
+    "sales_rank": 241,
+    "category": "unknown"
+  },
+  "CS FRESH MATOKE (PLU NO. 276511)": {
+    "total_qty_sold": 2393,
+    "revenue": 356604.48,
+    "margin_pct": 17.5,
+    "gross_profit": 62405.619,
+    "sales_rank": 242,
+    "category": "unknown"
+  },
+  "CS BUTTON MUSHROOM PER PKT": {
+    "total_qty_sold": 3890,
+    "revenue": 1304010.0,
+    "margin_pct": 11.22,
+    "gross_profit": 146367.5,
+    "sales_rank": 243,
+    "category": "unknown"
+  },
+  "CS FRESH PALAK (PLU NO. 276651)": {
+    "total_qty_sold": 2999,
+    "revenue": 69990.0,
+    "margin_pct": 17.66,
+    "gross_profit": 12357.975,
+    "sales_rank": 244,
+    "category": "unknown"
+  },
+  "CS FRESH TERERE AMARANTHA (PLU NO.276853)": {
+    "total_qty_sold": 5446,
+    "revenue": 181616.0,
+    "margin_pct": 17.9,
+    "gross_profit": 32500.55,
+    "sales_rank": 245,
+    "category": "unknown"
+  },
+  "CS FRESH  BROCOLLI (PLU NO. 276064)": {
+    "total_qty_sold": 1523,
+    "revenue": 353093.35,
+    "margin_pct": 17.13,
+    "gross_profit": 60499.2719,
+    "sales_rank": 246,
+    "category": "unknown"
+  },
+  "CS FRESH MINT (PLU NO. 276517)": {
+    "total_qty_sold": 2577,
+    "revenue": 60326.0,
+    "margin_pct": 17.78,
+    "gross_profit": 10727.0,
+    "sales_rank": 247,
+    "category": "unknown"
+  },
+  "CS FRESH WHT CABBAGE PKG PLU76103": {
+    "total_qty_sold": 9641,
+    "revenue": 375468.52,
+    "margin_pct": 17.38,
+    "gross_profit": 65255.220175,
+    "sales_rank": 248,
+    "category": "unknown"
+  },
+  "CS FRESH PEPPERS COL LONG(PLU NO. 276672)": {
+    "total_qty_sold": 1540,
+    "revenue": 507680.12,
+    "margin_pct": 17.89,
+    "gross_profit": 90816.783675,
+    "sales_rank": 249,
+    "category": "unknown"
+  },
+  "CS FRESH PEPPERS GREEN (PLU NO. 276673)": {
+    "total_qty_sold": 1690,
+    "revenue": 291256.25,
+    "margin_pct": 18.95,
+    "gross_profit": 55182.064725,
+    "sales_rank": 250,
+    "category": "unknown"
+  },
+  "CS FRESH SPINACH BUNCH PLU76806": {
+    "total_qty_sold": 13286,
+    "revenue": 476151.0,
+    "margin_pct": 17.5,
+    "gross_profit": 83314.875,
+    "sales_rank": 251,
+    "category": "unknown"
+  },
+  "CS FRESH KALES (PLU NO.276811)": {
+    "total_qty_sold": 7040,
+    "revenue": 252305.0,
+    "margin_pct": 17.53,
+    "gross_profit": 44223.5,
+    "sales_rank": 252,
+    "category": "unknown"
+  },
+  "CS FRESH MANAGU (PLU NO.276901)": {
+    "total_qty_sold": 6602,
+    "revenue": 231070.0,
+    "margin_pct": 17.5,
+    "gross_profit": 40437.25,
+    "sales_rank": 253,
+    "category": "unknown"
+  },
+  "CS FRESH ONIONS WHITE (PLU NO. 276611)": {
+    "total_qty_sold": 1473,
+    "revenue": 263630.76,
+    "margin_pct": 16.51,
+    "gross_profit": 43516.78299,
+    "sales_rank": 254,
+    "category": "unknown"
+  },
+  "CS FRESH KUNDE PLU:276902": {
+    "total_qty_sold": 2270,
+    "revenue": 79450.0,
+    "margin_pct": 17.5,
+    "gross_profit": 13903.75,
+    "sales_rank": 255,
+    "category": "unknown"
+  },
+  "CS FRESH LETTUCE PER PKT": {
+    "total_qty_sold": 2209,
+    "revenue": 284952.0,
+    "margin_pct": 28.73,
+    "gross_profit": 81854.875,
+    "sales_rank": 256,
+    "category": "unknown"
+  },
+  "CS FRESH SPRING ONIONS (PLU NO.276805)": {
+    "total_qty_sold": 2095,
+    "revenue": 52375.0,
+    "margin_pct": 17.5,
+    "gross_profit": 9165.625,
+    "sales_rank": 257,
+    "category": "unknown"
+  },
+  "VP 250G SHELLED GARDEN PEAS": {
+    "total_qty_sold": 2239,
+    "revenue": 372682.0,
+    "margin_pct": 12.63,
+    "gross_profit": 47076.125,
+    "sales_rank": 258,
+    "category": "unknown"
+  },
+  "CS FRESH POTATO WHITE PER KG (PLU. 276684)": {
+    "total_qty_sold": 20815,
+    "revenue": 2259765.49,
+    "margin_pct": 17.23,
+    "gross_profit": 389299.549215,
+    "sales_rank": 259,
+    "category": "unknown"
+  },
+  "CS FRESH PARSELY S/S BCH (PLU NO. 276657)": {
+    "total_qty_sold": 1631,
+    "revenue": 39371.0,
+    "margin_pct": 17.42,
+    "gross_profit": 6857.75,
+    "sales_rank": 260,
+    "category": "unknown"
+  },
+  "HANAN FLUSHABLE WATER WIPES 72PCS": {
+    "total_qty_sold": 1471,
+    "revenue": 263621.0,
+    "margin_pct": 17.22,
+    "gross_profit": 39141.400836,
+    "sales_rank": 261,
+    "category": "unknown"
+  },
+  "FANTA BLACK CURRANT 350ML PET": {
+    "total_qty_sold": 3019,
+    "revenue": 146680.0,
+    "margin_pct": 15.7,
+    "gross_profit": 19858.158364,
+    "sales_rank": 262,
+    "category": "unknown"
+  },
+  "KIRICHWA 2KG ICE CUBES": {
+    "total_qty_sold": 2924,
+    "revenue": 584800.0,
+    "margin_pct": 30.5,
+    "gross_profit": 153759.128536,
+    "sales_rank": 263,
+    "category": "unknown"
+  },
+  "LYONS 60ML TOFF N CHOCO W NUTS STICKLINE": {
+    "total_qty_sold": 1995,
+    "revenue": 137109.0,
+    "margin_pct": 23.61,
+    "gross_profit": 27904.761105,
+    "sales_rank": 264,
+    "category": "unknown"
+  },
+  "DL 70ML MINI FIESTA CLASSIC": {
+    "total_qty_sold": 2031,
+    "revenue": 140224.0,
+    "margin_pct": 23.97,
+    "gross_profit": 28970.885232,
+    "sales_rank": 265,
+    "category": "unknown"
+  },
+  "DL 70ML MINI FIESTA CARAMEL N NUTS": {
+    "total_qty_sold": 1911,
+    "revenue": 131917.0,
+    "margin_pct": 23.95,
+    "gross_profit": 27231.382391,
+    "sales_rank": 266,
+    "category": "unknown"
+  },
+  "SWAMINARAYAN 500G FARAYALI  ATTA": {
+    "total_qty_sold": 2768,
+    "revenue": 526633.95,
+    "margin_pct": 26.42,
+    "gross_profit": 119924.595729,
+    "sales_rank": 267,
+    "category": "unknown"
+  },
+  "KSL TROPICAL LOLLIPOP SINGLES": {
+    "total_qty_sold": 2119,
+    "revenue": 31795.0,
+    "margin_pct": 31.28,
+    "gross_profit": 8574.604211,
+    "sales_rank": 268,
+    "category": "unknown"
+  },
+  "MR.BERRYS KING KUBWA XXL PASSION LOLLIPOP": {
+    "total_qty_sold": 2644,
+    "revenue": 43840.0,
+    "margin_pct": 34.27,
+    "gross_profit": 12952.446512,
+    "sales_rank": 269,
+    "category": "unknown"
+  },
+  "MR.BERRYS KING KUBWA XXL STRAWBERRY LOLLIPOP": {
+    "total_qty_sold": 3006,
+    "revenue": 49444.0,
+    "margin_pct": 33.74,
+    "gross_profit": 14382.454688,
+    "sales_rank": 270,
+    "category": "unknown"
+  },
+  "MR.BERRYS KING KUBWA XXL TONGUE PAINTER LOLLIPOP": {
+    "total_qty_sold": 2455,
+    "revenue": 40374.0,
+    "margin_pct": 33.73,
+    "gross_profit": 11740.366362,
+    "sales_rank": 271,
+    "category": "unknown"
+  },
+  "BIG GIANT XXL ASSORTED LOLLYPOPS": {
+    "total_qty_sold": 1617,
+    "revenue": 16176.0,
+    "margin_pct": 41.48,
+    "gross_profit": 5783.861902,
+    "sales_rank": 272,
+    "category": "unknown"
+  },
+  "BROOKSIDE 1LT UHT WHOLE MILK": {
+    "total_qty_sold": 17485,
+    "revenue": 2717182.0,
+    "margin_pct": 1.54,
+    "gross_profit": 41808.998317,
+    "sales_rank": 273,
+    "category": "unknown"
+  },
+  "BROOKSIDE 250ML UHT WHOLE MILK": {
+    "total_qty_sold": 10377,
+    "revenue": 435839.0,
+    "margin_pct": 4.76,
+    "gross_profit": 20759.0,
+    "sales_rank": 274,
+    "category": "unknown"
+  },
+  "BROOKSIDE 500ML LACTOSE FREE UHT MILK FINO": {
+    "total_qty_sold": 12524,
+    "revenue": 947120.0,
+    "margin_pct": 2.15,
+    "gross_profit": 20334.024418,
+    "sales_rank": 275,
+    "category": "unknown"
+  },
+  "TUZO 500ML WHOLE MILK (FINO PACK) 180DAYS": {
+    "total_qty_sold": 17353,
+    "revenue": 887162.0,
+    "margin_pct": -13.45,
+    "gross_profit": -119321.954367,
+    "sales_rank": 276,
+    "category": "unknown"
+  },
+  "MOLO UHT MILK 500ML ESL 90DAYS": {
+    "total_qty_sold": 2729,
+    "revenue": 127968.0,
+    "margin_pct": -15.16,
+    "gross_profit": -19398.0,
+    "sales_rank": 277,
+    "category": "unknown"
+  },
+  "DAIMA 200ML WHOLE MILK FINO TETRA 180DAYS": {
+    "total_qty_sold": 2262,
+    "revenue": 57936.0,
+    "margin_pct": 6.37,
+    "gross_profit": 3687.918414,
+    "sales_rank": 278,
+    "category": "unknown"
+  },
+  "GOLD CROWN 500ML ASEPTIC LONG LIFE 24": {
+    "total_qty_sold": 4718,
+    "revenue": 230166.0,
+    "margin_pct": -1.88,
+    "gross_profit": -4319.638313,
+    "sales_rank": 279,
+    "category": "unknown"
+  },
+  "TUZO 250ML UHT WHOLE MILK": {
+    "total_qty_sold": 1646,
+    "revenue": 65840.0,
+    "margin_pct": 5.0,
+    "gross_profit": 3292.0,
+    "sales_rank": 280,
+    "category": "unknown"
+  },
+  "DAIMA 500ML UHT PLAIN FINO 180DAYS": {
+    "total_qty_sold": 1578,
+    "revenue": 82487.0,
+    "margin_pct": 6.66,
+    "gross_profit": 5489.801449,
+    "sales_rank": 281,
+    "category": "unknown"
+  },
+  "BROOKSIDE 1LT UHT LOWFAT MILK": {
+    "total_qty_sold": 3322,
+    "revenue": 507980.0,
+    "margin_pct": -0.06,
+    "gross_profit": -286.0,
+    "sales_rank": 282,
+    "category": "unknown"
+  },
+  "BROOKSIDE 250ML UHT LOW FAT MILK": {
+    "total_qty_sold": 1342,
+    "revenue": 56364.0,
+    "margin_pct": 4.76,
+    "gross_profit": 2684.0,
+    "sales_rank": 283,
+    "category": "unknown"
+  },
+  "FRESHA MAISHA 250ML LONG LIFE MILK": {
+    "total_qty_sold": 8721,
+    "revenue": 261634.0,
+    "margin_pct": 12.5,
+    "gross_profit": 32707.75,
+    "sales_rank": 284,
+    "category": "unknown"
+  },
+  "FRESHA MAISHA 500ML LONG LIFE MILK": {
+    "total_qty_sold": 8173,
+    "revenue": 453224.0,
+    "margin_pct": 5.31,
+    "gross_profit": 24059.77,
+    "sales_rank": 285,
+    "category": "unknown"
+  },
+  "LATO 500ML ESL MILK 90DAYS": {
+    "total_qty_sold": 11375,
+    "revenue": 585698.0,
+    "margin_pct": 11.58,
+    "gross_profit": 67846.972235,
+    "sales_rank": 286,
+    "category": "unknown"
+  },
+  "LATO 500ML FINO UHT MILK 180DAYS": {
+    "total_qty_sold": 6576,
+    "revenue": 330203.0,
+    "margin_pct": 10.24,
+    "gross_profit": 33809.515099,
+    "sales_rank": 287,
+    "category": "unknown"
+  },
+  "TUZO 450ML ESL WHOLE MILK 90DAYS": {
+    "total_qty_sold": 18388,
+    "revenue": 844744.0,
+    "margin_pct": -6.66,
+    "gross_profit": -56268.0,
+    "sales_rank": 288,
+    "category": "unknown"
+  },
+  "DAIMA 500ML FINO MAZIWA BORA": {
+    "total_qty_sold": 11416,
+    "revenue": 544050.0,
+    "margin_pct": 10.32,
+    "gross_profit": 56134.492599,
+    "sales_rank": 289,
+    "category": "unknown"
+  },
+  "DAIMA 200ML MILK FINO BORA": {
+    "total_qty_sold": 2089,
+    "revenue": 52179.0,
+    "margin_pct": 9.05,
+    "gross_profit": 4721.596684,
+    "sales_rank": 290,
+    "category": "unknown"
+  },
+  "BROOKSIDE 1L LACTOSE FREE UHT MILK": {
+    "total_qty_sold": 3811,
+    "revenue": 663949.0,
+    "margin_pct": -0.13,
+    "gross_profit": -866.0,
+    "sales_rank": 291,
+    "category": "unknown"
+  },
+  "AMOO 500ML ESL WHOLE MILK": {
+    "total_qty_sold": 2502,
+    "revenue": 112497.0,
+    "margin_pct": 5.05,
+    "gross_profit": 5683.060186,
+    "sales_rank": 292,
+    "category": "unknown"
+  },
+  "KINANGOP 500ML LONGLIFE MILK": {
+    "total_qty_sold": 2108,
+    "revenue": 112443.0,
+    "margin_pct": 10.63,
+    "gross_profit": 11957.794048,
+    "sales_rank": 293,
+    "category": "unknown"
+  },
+  "KINANGOP 500ML GOLD FINO ASEPTIC": {
+    "total_qty_sold": 2743,
+    "revenue": 152236.0,
+    "margin_pct": 11.32,
+    "gross_profit": 17234.968472,
+    "sales_rank": 294,
+    "category": "unknown"
+  },
+  "RAVINE GOLD 500ML ESL UHT MILK": {
+    "total_qty_sold": 4101,
+    "revenue": 192805.0,
+    "margin_pct": 11.15,
+    "gross_profit": 21503.022282,
+    "sales_rank": 295,
+    "category": "unknown"
+  },
+  "RAVINE GOLD 200ML ESL UHT MILK": {
+    "total_qty_sold": 1310,
+    "revenue": 30447.0,
+    "margin_pct": 14.85,
+    "gross_profit": 4520.078128,
+    "sales_rank": 296,
+    "category": "unknown"
+  },
+  "THE STANDARD NEWSPAPER": {
+    "total_qty_sold": 1505,
+    "revenue": 90300.0,
+    "margin_pct": 12.39,
+    "gross_profit": 9646.740775,
+    "sales_rank": 297,
+    "category": "unknown"
+  },
+  "BLUE BAND 250G MED FAT SPREAD": {
+    "total_qty_sold": 1413,
+    "revenue": 223596.16,
+    "margin_pct": 10.49,
+    "gross_profit": 20229.651891,
+    "sales_rank": 298,
+    "category": "unknown"
+  },
+  "BLUE BAND 500G MED FAT SPREAD": {
+    "total_qty_sold": 2071,
+    "revenue": 568536.13,
+    "margin_pct": 3.39,
+    "gross_profit": 16597.00933,
+    "sales_rank": 299,
+    "category": "unknown"
+  },
+  "BLUE BAND 1KG MED FAT SPREAD": {
+    "total_qty_sold": 2081,
+    "revenue": 996016.43,
+    "margin_pct": -8.17,
+    "gross_profit": -70131.840593,
+    "sales_rank": 300,
+    "category": "unknown"
+  },
+  "STREPSILS REGULAR 2S": {
+    "total_qty_sold": 1512,
+    "revenue": 68040.0,
+    "margin_pct": 24.95,
+    "gross_profit": 16974.389648,
+    "sales_rank": 301,
+    "category": "unknown"
+  },
+  "OLA 40G TORTILLA CHIPS LIME CRUNCH": {
+    "total_qty_sold": 2127,
+    "revenue": 138050.0,
+    "margin_pct": 47.9,
+    "gross_profit": 56997.870597,
+    "sales_rank": 302,
+    "category": "unknown"
+  },
+  "OLA 40G TORTILLA CHIPS LIGHTLY SALTED": {
+    "total_qty_sold": 1670,
+    "revenue": 103522.0,
+    "margin_pct": 53.35,
+    "gross_profit": 47613.378929,
+    "sales_rank": 303,
+    "category": "unknown"
+  },
+  "FESTIVE TORTILLA WRAP 8 INCH": {
+    "total_qty_sold": 1992,
+    "revenue": 546734.0,
+    "margin_pct": 24.95,
+    "gross_profit": 117572.565647,
+    "sales_rank": 304,
+    "category": "unknown"
+  },
+  "FESTIVE TORTILLA WRAP 10 INCH": {
+    "total_qty_sold": 1334,
+    "revenue": 479430.0,
+    "margin_pct": 24.87,
+    "gross_profit": 102797.109586,
+    "sales_rank": 305,
+    "category": "unknown"
+  },
+  "BROOKSIDE 250ML VANILLA": {
+    "total_qty_sold": 1763,
+    "revenue": 121007.0,
+    "margin_pct": 2.38,
+    "gross_profit": 2485.3,
+    "sales_rank": 306,
+    "category": "unknown"
+  },
+  "BROOKSIDE 250ML STRAWBERRY": {
+    "total_qty_sold": 1607,
+    "revenue": 110243.0,
+    "margin_pct": 2.33,
+    "gross_profit": 2216.38,
+    "sales_rank": 307,
+    "category": "unknown"
+  },
+  "AQUAMIST 1.5LT MINERAL WATER": {
+    "total_qty_sold": 3310,
+    "revenue": 305355.0,
+    "margin_pct": 20.73,
+    "gross_profit": 54576.990107,
+    "sales_rank": 308,
+    "category": "unknown"
+  },
+  "AQUAMIST 1LT MINERAL WATER": {
+    "total_qty_sold": 3518,
+    "revenue": 269188.0,
+    "margin_pct": 18.65,
+    "gross_profit": 43283.41,
+    "sales_rank": 309,
+    "category": "unknown"
+  },
+  "AQUAMIST 300ML MINERAL WATER": {
+    "total_qty_sold": 13363,
+    "revenue": 409923.0,
+    "margin_pct": 26.65,
+    "gross_profit": 94185.131207,
+    "sales_rank": 310,
+    "category": "unknown"
+  },
+  "AQUAMIST 500ML MINERAL WATER": {
+    "total_qty_sold": 9530,
+    "revenue": 470279.0,
+    "margin_pct": 18.99,
+    "gross_profit": 77005.835311,
+    "sales_rank": 311,
+    "category": "unknown"
+  },
+  "AQUAMIST 20LT MINERAL WATER": {
+    "total_qty_sold": 6349,
+    "revenue": 3348920.0,
+    "margin_pct": 13.92,
+    "gross_profit": 401970.470703,
+    "sales_rank": 312,
+    "category": "unknown"
+  },
+  "AQUAMIST 5LT MINERAL WATER": {
+    "total_qty_sold": 2869,
+    "revenue": 614043.0,
+    "margin_pct": 14.17,
+    "gross_profit": 75004.217456,
+    "sales_rank": 313,
+    "category": "unknown"
+  },
+  "AQUAMIST 1LTR SPARKLING WATER": {
+    "total_qty_sold": 7556,
+    "revenue": 718065.0,
+    "margin_pct": 17.19,
+    "gross_profit": 106384.324622,
+    "sales_rank": 314,
+    "category": "unknown"
+  },
+  "AQUAMIST 500ML SPARKLING WATER": {
+    "total_qty_sold": 5797,
+    "revenue": 399397.03,
+    "margin_pct": 18.7,
+    "gross_profit": 64401.131237,
+    "sales_rank": 315,
+    "category": "unknown"
+  },
+  "AQUAMIST 19L DISPOSABLE WATER": {
+    "total_qty_sold": 1396,
+    "revenue": 790247.0,
+    "margin_pct": 13.44,
+    "gross_profit": 91563.14,
+    "sales_rank": 316,
+    "category": "unknown"
+  },
+  "AQUAMIST 20LT MINERAL WATER EMPTY BOTTLE": {
+    "total_qty_sold": 6404,
+    "revenue": 6116141.0,
+    "margin_pct": 8.9,
+    "gross_profit": 469379.520532,
+    "sales_rank": 317,
+    "category": "unknown"
+  },
+  "KERINGET 1LT MINERAL WATER": {
+    "total_qty_sold": 3942,
+    "revenue": 342429.0,
+    "margin_pct": 21.72,
+    "gross_profit": 64114.590755,
+    "sales_rank": 318,
+    "category": "unknown"
+  },
+  "KERINGET 1LT SPARKLING MINERAL WATER": {
+    "total_qty_sold": 2837,
+    "revenue": 298811.0,
+    "margin_pct": 21.19,
+    "gross_profit": 54590.466475,
+    "sales_rank": 319,
+    "category": "unknown"
+  },
+  "KERINGET 500ML MINERAL WATER": {
+    "total_qty_sold": 10919,
+    "revenue": 613057.0,
+    "margin_pct": 19.85,
+    "gross_profit": 104916.600886,
+    "sales_rank": 320,
+    "category": "unknown"
+  },
+  "KERINGET 18.9LT MINERAL WATER REFIL": {
+    "total_qty_sold": 8221,
+    "revenue": 4921389.5,
+    "margin_pct": 19.15,
+    "gross_profit": 812441.1906,
+    "sales_rank": 321,
+    "category": "unknown"
+  },
+  "KERINGET 18.9LT MINERAL WATER REFIL EMPTY BOTTLE": {
+    "total_qty_sold": 8264,
+    "revenue": 8257003.5,
+    "margin_pct": -0.08,
+    "gross_profit": -5660.756926,
+    "sales_rank": 322,
+    "category": "unknown"
+  },
+  "MAYERS 1LT SPRING MINERAL WATER": {
+    "total_qty_sold": 2823,
+    "revenue": 198820.0,
+    "margin_pct": 6.05,
+    "gross_profit": 10362.410231,
+    "sales_rank": 323,
+    "category": "unknown"
+  },
+  "MAYERS 500ML STILL MINERAL WATER": {
+    "total_qty_sold": 2813,
+    "revenue": 134655.0,
+    "margin_pct": 7.33,
+    "gross_profit": 8508.300874,
+    "sales_rank": 324,
+    "category": "unknown"
+  },
+  "SAFARI KING 500ML DRINKING WATER": {
+    "total_qty_sold": 2357,
+    "revenue": 64045.0,
+    "margin_pct": 32.54,
+    "gross_profit": 17966.286532,
+    "sales_rank": 325,
+    "category": "unknown"
+  },
+  "KABARNET 500ML SPARKLING WATER": {
+    "total_qty_sold": 1657,
+    "revenue": 81193.0,
+    "margin_pct": 30.19,
+    "gross_profit": 21128.762502,
+    "sales_rank": 326,
+    "category": "unknown"
+  },
+  "KABARNET 500ML MINERAL WATER": {
+    "total_qty_sold": 1880,
+    "revenue": 50844.0,
+    "margin_pct": 19.89,
+    "gross_profit": 8716.5828,
+    "sales_rank": 327,
+    "category": "unknown"
+  },
+  "OXYRICH 1L SPRING WATER": {
+    "total_qty_sold": 1549,
+    "revenue": 72208.0,
+    "margin_pct": 19.55,
+    "gross_profit": 12168.24,
+    "sales_rank": 328,
+    "category": "unknown"
+  },
+  "DASANI 500ML MINERAL WATER": {
+    "total_qty_sold": 3986,
+    "revenue": 133883.0,
+    "margin_pct": 22.58,
+    "gross_profit": 26063.408672,
+    "sales_rank": 329,
+    "category": "unknown"
+  },
+  "DASANI 1L MINERAL WATER": {
+    "total_qty_sold": 3182,
+    "revenue": 183748.0,
+    "margin_pct": 22.07,
+    "gross_profit": 34963.475795,
+    "sales_rank": 330,
+    "category": "unknown"
+  },
+  "AQUACLEAR 500ML MINERAL WATER": {
+    "total_qty_sold": 3305,
+    "revenue": 103377.0,
+    "margin_pct": 17.88,
+    "gross_profit": 15937.442892,
+    "sales_rank": 331,
+    "category": "unknown"
+  },
+  "MAYERS 500ML SPARKLING WATER PLASTIC": {
+    "total_qty_sold": 4236,
+    "revenue": 314877.0,
+    "margin_pct": 19.08,
+    "gross_profit": 51793.544272,
+    "sales_rank": 332,
+    "category": "unknown"
+  },
+  "MAYERS 1L SPARKLING WATER PLASTIC": {
+    "total_qty_sold": 5770,
+    "revenue": 555267.0,
+    "margin_pct": 16.4,
+    "gross_profit": 78508.17504,
+    "sales_rank": 333,
+    "category": "unknown"
+  },
+  "MAYERS 750ML GLASS SPARKLING WATER": {
+    "total_qty_sold": 1692,
+    "revenue": 167508.0,
+    "margin_pct": 24.94,
+    "gross_profit": 36011.51,
+    "sales_rank": 334,
+    "category": "unknown"
+  },
+  "KABARNET 300ML MINERAL WATER": {
+    "total_qty_sold": 3862,
+    "revenue": 73518.0,
+    "margin_pct": 21.2,
+    "gross_profit": 13438.046692,
+    "sales_rank": 335,
+    "category": "unknown"
+  },
+  "HIGHLANDS 500ML MINERAL WATER": {
+    "total_qty_sold": 4709,
+    "revenue": 117727.0,
+    "margin_pct": 22.24,
+    "gross_profit": 22571.603711,
+    "sales_rank": 336,
+    "category": "unknown"
+  },
+  "QUENCHER 18L MIN WATER PET": {
+    "total_qty_sold": 1759,
+    "revenue": 894499.0,
+    "margin_pct": 17.91,
+    "gross_profit": 138105.59543,
+    "sales_rank": 337,
+    "category": "unknown"
+  },
+  "QUENCHER LIFE 5LT PREMIUM DRINKING WATER": {
+    "total_qty_sold": 1535,
+    "revenue": 342811.0,
+    "margin_pct": 19.19,
+    "gross_profit": 56713.47597,
+    "sales_rank": 338,
+    "category": "unknown"
+  },
+  "QUENCHER 500ML DRINKING WATER": {
+    "total_qty_sold": 13651,
+    "revenue": 361050.0,
+    "margin_pct": 15.27,
+    "gross_profit": 47527.035134,
+    "sales_rank": 339,
+    "category": "unknown"
+  },
+  "QUENCHER 1LT DRINKING WATER": {
+    "total_qty_sold": 13107,
+    "revenue": 631542.0,
+    "margin_pct": 19.81,
+    "gross_profit": 107836.018,
+    "sales_rank": 340,
+    "category": "unknown"
+  },
+  "QUENCHER 10LT MINERAL WATER PET": {
+    "total_qty_sold": 1632,
+    "revenue": 487968.0,
+    "margin_pct": 19.71,
+    "gross_profit": 82896.336259,
+    "sales_rank": 341,
+    "category": "unknown"
+  },
+  "QUENCHER 300ML DRINKING WATER": {
+    "total_qty_sold": 14995,
+    "revenue": 289069.0,
+    "margin_pct": 21.52,
+    "gross_profit": 53616.010515,
+    "sales_rank": 342,
+    "category": "unknown"
+  },
+  "LITTLE DELIVERY 0-5KM": {
+    "total_qty_sold": 4548,
+    "revenue": 861669.0,
+    "margin_pct": -22.45,
+    "gross_profit": -166778.72,
+    "sales_rank": 343,
+    "category": "unknown"
+  },
+  "INDOMIE 120G CHICKEN JUMBO NOODLES": {
+    "total_qty_sold": 1431,
+    "revenue": 62923.02,
+    "margin_pct": 18.13,
+    "gross_profit": 9832.594671,
+    "sales_rank": 344,
+    "category": "unknown"
+  },
+  "INDOMIE PROM PACK CHICKEN FLV 5S": {
+    "total_qty_sold": 3268,
+    "revenue": 443154.0,
+    "margin_pct": 15.17,
+    "gross_profit": 57966.766685,
+    "sales_rank": 345,
+    "category": "unknown"
+  },
+  "SANTA LUCIA 400G SPAGHETTI": {
+    "total_qty_sold": 1760,
+    "revenue": 291960.0,
+    "margin_pct": 13.7,
+    "gross_profit": 34477.088362,
+    "sales_rank": 346,
+    "category": "unknown"
+  },
+  "BIC CRYSTAL BALL PEN MED BLUE": {
+    "total_qty_sold": 1331,
+    "revenue": 27157.0,
+    "margin_pct": 30.16,
+    "gross_profit": 7061.224896,
+    "sales_rank": 347,
+    "category": "unknown"
+  },
+  "FELIX 85G CHICKEN JUNIOR": {
+    "total_qty_sold": 1340,
+    "revenue": 256372.0,
+    "margin_pct": 25.26,
+    "gross_profit": 64752.0,
+    "sales_rank": 348,
+    "category": "unknown"
+  },
+  "FELIX 85G CAT CHICKEN": {
+    "total_qty_sold": 2427,
+    "revenue": 462234.0,
+    "margin_pct": 24.92,
+    "gross_profit": 115173.0,
+    "sales_rank": 349,
+    "category": "unknown"
+  },
+  "FELIX 85G CAT SALMON": {
+    "total_qty_sold": 1477,
+    "revenue": 280874.0,
+    "margin_pct": 24.8,
+    "gross_profit": 69663.000001,
+    "sales_rank": 350,
+    "category": "unknown"
+  },
+  "FELIX 85G CAT BEEF": {
+    "total_qty_sold": 1727,
+    "revenue": 334804.0,
+    "margin_pct": 26.24,
+    "gross_profit": 87843.0,
+    "sales_rank": 351,
+    "category": "unknown"
+  },
+  "FELIX 85G CAT TROUT": {
+    "total_qty_sold": 1360,
+    "revenue": 249158.0,
+    "margin_pct": 23.82,
+    "gross_profit": 59343.852069,
+    "sales_rank": 352,
+    "category": "unknown"
+  },
+  "YOU C-1000 500ML LEMON WATER": {
+    "total_qty_sold": 2168,
+    "revenue": 493489.0,
+    "margin_pct": 21.77,
+    "gross_profit": 92630.456374,
+    "sales_rank": 353,
+    "category": "unknown"
+  },
+  "YOU C-1000 500ML ORANGE WATER": {
+    "total_qty_sold": 3727,
+    "revenue": 848888.0,
+    "margin_pct": 21.81,
+    "gross_profit": 159641.995637,
+    "sales_rank": 354,
+    "category": "unknown"
+  },
+  "MINUTE MAID 400ML TROPICAL JUICE": {
+    "total_qty_sold": 1305,
+    "revenue": 101394.04,
+    "margin_pct": 18.81,
+    "gross_profit": 16443.497975,
+    "sales_rank": 355,
+    "category": "unknown"
+  },
+  "MINUTE MAID 400ML APPLE JUICE": {
+    "total_qty_sold": 1931,
+    "revenue": 152441.0,
+    "margin_pct": 20.15,
+    "gross_profit": 26482.042155,
+    "sales_rank": 356,
+    "category": "unknown"
+  },
+  "STENTOR 1LT SUGARCANE COCKTAIL JUICE": {
+    "total_qty_sold": 1461,
+    "revenue": 569791.0,
+    "margin_pct": 23.68,
+    "gross_profit": 116340.138433,
+    "sales_rank": 357,
+    "category": "unknown"
+  },
+  "SAFARI 300ML LEMONADE LIME DRINK": {
+    "total_qty_sold": 5778,
+    "revenue": 280654.0,
+    "margin_pct": 26.23,
+    "gross_profit": 63473.554682,
+    "sales_rank": 358,
+    "category": "unknown"
+  },
+  "ACACIA 200ML KIDS STRAWBERRY": {
+    "total_qty_sold": 1390,
+    "revenue": 67635.0,
+    "margin_pct": 23.86,
+    "gross_profit": 13912.457451,
+    "sales_rank": 359,
+    "category": "unknown"
+  },
+  "NUTFIELDS 20G CASHEW NUTS ROASTED AND SALTED": {
+    "total_qty_sold": 5312,
+    "revenue": 371840.0,
+    "margin_pct": 24.59,
+    "gross_profit": 78809.565248,
+    "sales_rank": 360,
+    "category": "unknown"
+  },
+  "NUTFIELD 20G MAC NUTS LOCAL": {
+    "total_qty_sold": 4753,
+    "revenue": 304192.0,
+    "margin_pct": 25.69,
+    "gross_profit": 67360.81,
+    "sales_rank": 361,
+    "category": "unknown"
+  },
+  "NUTFIELDS 20G MIXED NUTS": {
+    "total_qty_sold": 4915,
+    "revenue": 270325.0,
+    "margin_pct": 26.37,
+    "gross_profit": 61452.386935,
+    "sales_rank": 362,
+    "category": "unknown"
+  },
+  "SUNRICE 5KG RICE BASMATI": {
+    "total_qty_sold": 1754,
+    "revenue": 2422512.0,
+    "margin_pct": 10.78,
+    "gross_profit": 261026.771214,
+    "sales_rank": 363,
+    "category": "unknown"
+  },
+  "SUNRICE 2KG RICE BASMATI": {
+    "total_qty_sold": 1961,
+    "revenue": 1201492.0,
+    "margin_pct": 17.19,
+    "gross_profit": 206586.002266,
+    "sales_rank": 364,
+    "category": "unknown"
+  },
+  "KENSALT 500G IODIZED SALT": {
+    "total_qty_sold": 3040,
+    "revenue": 63810.0,
+    "margin_pct": 15.49,
+    "gross_profit": 8522.028236,
+    "sales_rank": 365,
+    "category": "unknown"
+  },
+  "KENSALT 2KG IODIZED SALT": {
+    "total_qty_sold": 2179,
+    "revenue": 170659.0,
+    "margin_pct": 12.42,
+    "gross_profit": 18269.319963,
+    "sales_rank": 366,
+    "category": "unknown"
+  },
+  "KENSALT 1KG IODIZED SALT": {
+    "total_qty_sold": 3450,
+    "revenue": 142507.0,
+    "margin_pct": 17.46,
+    "gross_profit": 21443.31136,
+    "sales_rank": 367,
+    "category": "unknown"
+  },
+  "ALWAYS 14S MAXI THICK EX/LONG DAY/NIGHT": {
+    "total_qty_sold": 1449,
+    "revenue": 285060.0,
+    "margin_pct": -5.41,
+    "gross_profit": -15433.620065,
+    "sales_rank": 368,
+    "category": "unknown"
+  },
+  "MAGGI 4G 28S CUBE FORTIFIED": {
+    "total_qty_sold": 5804,
+    "revenue": 615773.0,
+    "margin_pct": 24.66,
+    "gross_profit": 130926.537778,
+    "sales_rank": 369,
+    "category": "unknown"
+  },
+  "KNORR 51G 6S CHICKEN CUBES": {
+    "total_qty_sold": 3397,
+    "revenue": 320147.0,
+    "margin_pct": 19.44,
+    "gross_profit": 53639.843901,
+    "sales_rank": 370,
+    "category": "unknown"
+  },
+  "KNORR 51G 6S BEEF CUBES": {
+    "total_qty_sold": 1908,
+    "revenue": 178986.0,
+    "margin_pct": 18.99,
+    "gross_profit": 29302.366899,
+    "sales_rank": 371,
+    "category": "unknown"
+  },
+  "ROYCO 4G 40S BEEF CUBES": {
+    "total_qty_sold": 2186,
+    "revenue": 299978.0,
+    "margin_pct": 16.97,
+    "gross_profit": 43885.487952,
+    "sales_rank": 372,
+    "category": "unknown"
+  },
+  "KNORR 51G 6S BEEF CHILLI CUBES": {
+    "total_qty_sold": 1395,
+    "revenue": 131466.0,
+    "margin_pct": 19.45,
+    "gross_profit": 22041.90993,
+    "sales_rank": 373,
+    "category": "unknown"
+  },
+  "FLORA 100S SERVIETTES WHITE": {
+    "total_qty_sold": 1315,
+    "revenue": 117841.0,
+    "margin_pct": 23.53,
+    "gross_profit": 23899.305687,
+    "sales_rank": 374,
+    "category": "unknown"
+  },
+  "TENA 200S SERVIETTES WHITE": {
+    "total_qty_sold": 1300,
+    "revenue": 260010.0,
+    "margin_pct": 21.56,
+    "gross_profit": 48320.479981,
+    "sales_rank": 375,
+    "category": "unknown"
+  },
+  "TENA 100S SERVIETTES WHITE": {
+    "total_qty_sold": 1591,
+    "revenue": 158498.0,
+    "margin_pct": 17.52,
+    "gross_profit": 23944.138218,
+    "sales_rank": 376,
+    "category": "unknown"
+  },
+  "VELVEX 100S WHITE SERVIETTES": {
+    "total_qty_sold": 3823,
+    "revenue": 444215.0,
+    "margin_pct": 14.43,
+    "gross_profit": 55276.751028,
+    "sales_rank": 377,
+    "category": "unknown"
+  },
+  "KRAC KURLS 25G TANGY CHEESE": {
+    "total_qty_sold": 2748,
+    "revenue": 107418.0,
+    "margin_pct": 23.25,
+    "gross_profit": 21531.384388,
+    "sales_rank": 378,
+    "category": "unknown"
+  },
+  "KRAC KURLS 25G TOMATO": {
+    "total_qty_sold": 1675,
+    "revenue": 65461.0,
+    "margin_pct": 23.24,
+    "gross_profit": 13111.854424,
+    "sales_rank": 379,
+    "category": "unknown"
+  },
+  "OLA 40G COOL CRUNCH TORTILA CHIPS": {
+    "total_qty_sold": 3319,
+    "revenue": 215527.0,
+    "margin_pct": 43.88,
+    "gross_profit": 81534.170864,
+    "sales_rank": 380,
+    "category": "unknown"
+  },
+  "KRAC KURLS 25G CHILLI LEMON": {
+    "total_qty_sold": 2557,
+    "revenue": 99943.0,
+    "margin_pct": 23.25,
+    "gross_profit": 20027.119567,
+    "sales_rank": 381,
+    "category": "unknown"
+  },
+  "OLA 40G CHEESE CRUNCH TORTILA CHIPS": {
+    "total_qty_sold": 4532,
+    "revenue": 291955.0,
+    "margin_pct": 36.49,
+    "gross_profit": 91827.252168,
+    "sales_rank": 382,
+    "category": "unknown"
+  },
+  "OLA 40G MEXICAN CRUNCH TORTILA CHIPS": {
+    "total_qty_sold": 3872,
+    "revenue": 249610.0,
+    "margin_pct": 38.68,
+    "gross_profit": 83226.577519,
+    "sales_rank": 383,
+    "category": "unknown"
+  },
+  "KRACKLES CURLS 15G CHEESY": {
+    "total_qty_sold": 1879,
+    "revenue": 37581.0,
+    "margin_pct": 25.0,
+    "gross_profit": 8099.137114,
+    "sales_rank": 384,
+    "category": "unknown"
+  },
+  "URBAN STIX 35G CHUTNEY SNACKS": {
+    "total_qty_sold": 1842,
+    "revenue": 64470.0,
+    "margin_pct": 24.99,
+    "gross_profit": 13890.34,
+    "sales_rank": 385,
+    "category": "unknown"
+  },
+  "URBAN STIX 35G BARBEQUE SNACKS": {
+    "total_qty_sold": 4321,
+    "revenue": 151235.0,
+    "margin_pct": 24.99,
+    "gross_profit": 32585.12,
+    "sales_rank": 386,
+    "category": "unknown"
+  },
+  "URBAN STIX 35G THAI SWEET CHILLI SNACKS": {
+    "total_qty_sold": 1797,
+    "revenue": 62895.0,
+    "margin_pct": 24.99,
+    "gross_profit": 13551.04,
+    "sales_rank": 387,
+    "category": "unknown"
+  },
+  "URBAN STIX 35G KUKU CHOMA SNACK": {
+    "total_qty_sold": 1679,
+    "revenue": 58767.0,
+    "margin_pct": 25.0,
+    "gross_profit": 12662.93,
+    "sales_rank": 388,
+    "category": "unknown"
+  },
+  "TROP HEAT 18G SAFARI CHEESE": {
+    "total_qty_sold": 1465,
+    "revenue": 29300.0,
+    "margin_pct": 27.27,
+    "gross_profit": 6886.955094,
+    "sales_rank": 389,
+    "category": "unknown"
+  },
+  "COKE ZERO SUGAR 300ML": {
+    "total_qty_sold": 3011,
+    "revenue": 120440.0,
+    "margin_pct": 20.83,
+    "gross_profit": 21622.56948,
+    "sales_rank": 390,
+    "category": "unknown"
+  },
+  "FANTA PASSION 500ML PET": {
+    "total_qty_sold": 2149,
+    "revenue": 142943.0,
+    "margin_pct": 14.02,
+    "gross_profit": 17274.797217,
+    "sales_rank": 391,
+    "category": "unknown"
+  },
+  "COCA COLA 300ML": {
+    "total_qty_sold": 5434,
+    "revenue": 217360.0,
+    "margin_pct": 20.82,
+    "gross_profit": 39021.2822,
+    "sales_rank": 392,
+    "category": "unknown"
+  },
+  "COKE 1.25L PET": {
+    "total_qty_sold": 3061,
+    "revenue": 391237.0,
+    "margin_pct": 13.33,
+    "gross_profit": 44945.791326,
+    "sales_rank": 393,
+    "category": "unknown"
+  },
+  "FANTA PASSION PET 2LTS": {
+    "total_qty_sold": 2371,
+    "revenue": 362098.0,
+    "margin_pct": 7.76,
+    "gross_profit": 24229.3756,
+    "sales_rank": 394,
+    "category": "unknown"
+  },
+  "FANTA ORANGE PET 500ML": {
+    "total_qty_sold": 3507,
+    "revenue": 231680.0,
+    "margin_pct": 12.51,
+    "gross_profit": 24994.072185,
+    "sales_rank": 395,
+    "category": "unknown"
+  },
+  "SPRITE 300ML": {
+    "total_qty_sold": 1402,
+    "revenue": 56080.0,
+    "margin_pct": 20.82,
+    "gross_profit": 10067.726055,
+    "sales_rank": 396,
+    "category": "unknown"
+  },
+  "SPRITE PET 500ML": {
+    "total_qty_sold": 4103,
+    "revenue": 271180.0,
+    "margin_pct": 12.69,
+    "gross_profit": 29659.572563,
+    "sales_rank": 397,
+    "category": "unknown"
+  },
+  "SPRITE SODA PET 2LTS": {
+    "total_qty_sold": 2762,
+    "revenue": 425461.08,
+    "margin_pct": 8.73,
+    "gross_profit": 32014.063287,
+    "sales_rank": 398,
+    "category": "unknown"
+  },
+  "SCHWEPPES SODA WATER 500ML PET": {
+    "total_qty_sold": 5686,
+    "revenue": 430262.0,
+    "margin_pct": 10.35,
+    "gross_profit": 38385.329956,
+    "sales_rank": 399,
+    "category": "unknown"
+  },
+  "FANTA ORANGE PET 350ML": {
+    "total_qty_sold": 4566,
+    "revenue": 222286.02,
+    "margin_pct": 16.24,
+    "gross_profit": 31111.260057,
+    "sales_rank": 400,
+    "category": "unknown"
+  },
+  "FANTA BLACKCURRANT PET 2LTS": {
+    "total_qty_sold": 2911,
+    "revenue": 444860.0,
+    "margin_pct": 8.24,
+    "gross_profit": 31583.376602,
+    "sales_rank": 401,
+    "category": "unknown"
+  },
+  "SCHWEPPES TONIC WATER 500ML PET": {
+    "total_qty_sold": 7122,
+    "revenue": 540453.0,
+    "margin_pct": 10.39,
+    "gross_profit": 48415.894607,
+    "sales_rank": 402,
+    "category": "unknown"
+  },
+  "SPRITE PET 350ML": {
+    "total_qty_sold": 5405,
+    "revenue": 262847.05,
+    "margin_pct": 15.76,
+    "gross_profit": 35704.747878,
+    "sales_rank": 403,
+    "category": "unknown"
+  },
+  "COKE PET 2LTS": {
+    "total_qty_sold": 4174,
+    "revenue": 687124.0,
+    "margin_pct": 9.01,
+    "gross_profit": 53361.636137,
+    "sales_rank": 404,
+    "category": "unknown"
+  },
+  "COKE ZERO 500ML PET": {
+    "total_qty_sold": 8312,
+    "revenue": 541738.0,
+    "margin_pct": 11.82,
+    "gross_profit": 55223.362579,
+    "sales_rank": 405,
+    "category": "unknown"
+  },
+  "COKE PET 500ML": {
+    "total_qty_sold": 8535,
+    "revenue": 567474.04,
+    "margin_pct": 12.59,
+    "gross_profit": 61569.675195,
+    "sales_rank": 406,
+    "category": "unknown"
+  },
+  "FANTA ORANGE PET 2LTS": {
+    "total_qty_sold": 3158,
+    "revenue": 484698.0,
+    "margin_pct": 8.45,
+    "gross_profit": 35300.330414,
+    "sales_rank": 407,
+    "category": "unknown"
+  },
+  "SPRITE 1.25L PET": {
+    "total_qty_sold": 1428,
+    "revenue": 185640.0,
+    "margin_pct": 14.78,
+    "gross_profit": 23654.594713,
+    "sales_rank": 408,
+    "category": "unknown"
+  },
+  "FANTA BLACKCURRANT PET 500ML": {
+    "total_qty_sold": 3011,
+    "revenue": 199248.0,
+    "margin_pct": 13.0,
+    "gross_profit": 22331.093234,
+    "sales_rank": 409,
+    "category": "unknown"
+  },
+  "COKE PET 350ML": {
+    "total_qty_sold": 10828,
+    "revenue": 526287.0,
+    "margin_pct": 15.88,
+    "gross_profit": 72044.787011,
+    "sales_rank": 410,
+    "category": "unknown"
+  },
+  "COKE ZERO SUGAR 300ML EMPTY BOTTLE": {
+    "total_qty_sold": 3011,
+    "revenue": 45165.0,
+    "margin_pct": 0,
+    "gross_profit": -0.643374,
+    "sales_rank": 411,
+    "category": "unknown"
+  },
+  "COCA COLA 300ML EMPTY BOTTLE": {
+    "total_qty_sold": 5434,
+    "revenue": 81510.0,
+    "margin_pct": 0.01,
+    "gross_profit": 5.18,
+    "sales_rank": 412,
+    "category": "unknown"
+  },
+  "SPRITE 300ML EMPTY BOTTLE": {
+    "total_qty_sold": 1402,
+    "revenue": 21030.0,
+    "margin_pct": 0,
+    "gross_profit": -0.389668,
+    "sales_rank": 413,
+    "category": "unknown"
+  },
+  "COKE ZERO 2L PET": {
+    "total_qty_sold": 2984,
+    "revenue": 494088.0,
+    "margin_pct": 9.78,
+    "gross_profit": 41671.043624,
+    "sales_rank": 414,
+    "category": "unknown"
+  },
+  "VIMTO 300ML SPARKLING BCURRENT N RSPBRRY DRINK": {
+    "total_qty_sold": 1558,
+    "revenue": 68466.0,
+    "margin_pct": 25.25,
+    "gross_profit": 14900.411394,
+    "sales_rank": 415,
+    "category": "unknown"
+  },
+  "SAVANA DRY PREMIUM CIDER 340ML": {
+    "total_qty_sold": 1938,
+    "revenue": 549118.0,
+    "margin_pct": 16.4,
+    "gross_profit": 77654.728892,
+    "sales_rank": 416,
+    "category": "unknown"
+  },
+  "SMIRNOFF ICE BLACK 330ML CAN": {
+    "total_qty_sold": 1806,
+    "revenue": 365534.0,
+    "margin_pct": 15.57,
+    "gross_profit": 49053.300437,
+    "sales_rank": 417,
+    "category": "unknown"
+  },
+  "CHROME 250ML VODKA": {
+    "total_qty_sold": 1586,
+    "revenue": 401970.0,
+    "margin_pct": 17.89,
+    "gross_profit": 61995.24536,
+    "sales_rank": 418,
+    "category": "unknown"
+  },
+  "SMIRNOFF ICE WITH GUARANA 330ML CAN": {
+    "total_qty_sold": 1837,
+    "revenue": 372172.1,
+    "margin_pct": 15.62,
+    "gross_profit": 50108.3379,
+    "sales_rank": 419,
+    "category": "unknown"
+  },
+  "ANDEGO 3G SUPER GLUE": {
+    "total_qty_sold": 1619,
+    "revenue": 80950.0,
+    "margin_pct": 34.26,
+    "gross_profit": 23905.960867,
+    "sales_rank": 420,
+    "category": "unknown"
+  },
+  "MUMIAS 1KG SUGAR": {
+    "total_qty_sold": 5102,
+    "revenue": 825936.0,
+    "margin_pct": 9.09,
+    "gross_profit": 64718.990943,
+    "sales_rank": 421,
+    "category": "unknown"
+  },
+  "MUMIAS 2KG SUGAR": {
+    "total_qty_sold": 6717,
+    "revenue": 2154737.0,
+    "margin_pct": 7.4,
+    "gross_profit": 137471.47395,
+    "sales_rank": 422,
+    "category": "unknown"
+  },
+  "KABRAS 2KG WHITE SUGAR": {
+    "total_qty_sold": 7117,
+    "revenue": 2276558.0,
+    "margin_pct": 7.29,
+    "gross_profit": 143167.864262,
+    "sales_rank": 423,
+    "category": "unknown"
+  },
+  "KABRAS 1KG WHITE SUGAR": {
+    "total_qty_sold": 6058,
+    "revenue": 1013814.0,
+    "margin_pct": 8.26,
+    "gross_profit": 72162.409575,
+    "sales_rank": 424,
+    "category": "unknown"
+  },
+  "NUTRAMEAL 2KG SUGAR": {
+    "total_qty_sold": 5198,
+    "revenue": 1733341.0,
+    "margin_pct": 5.66,
+    "gross_profit": 84508.44811,
+    "sales_rank": 425,
+    "category": "unknown"
+  },
+  "NUTRAMEAL 1KG SUGAR": {
+    "total_qty_sold": 6276,
+    "revenue": 1081581.0,
+    "margin_pct": 8.47,
+    "gross_profit": 78982.155543,
+    "sales_rank": 426,
+    "category": "unknown"
+  },
+  "MR BERRYS TOOGOODY TOFFEE BARS": {
+    "total_qty_sold": 2362,
+    "revenue": 23684.0,
+    "margin_pct": 44.15,
+    "gross_profit": 9013.631868,
+    "sales_rank": 427,
+    "category": "unknown"
+  },
+  "KETEPA 250G FAHARI YA KENYA TEA": {
+    "total_qty_sold": 1637,
+    "revenue": 204557.0,
+    "margin_pct": 16.34,
+    "gross_profit": 30129.33732,
+    "sales_rank": 428,
+    "category": "unknown"
+  },
+  "KETEPA 500G FAHARI YA KENYA": {
+    "total_qty_sold": 1891,
+    "revenue": 457495.0,
+    "margin_pct": 14.19,
+    "gross_profit": 57688.286033,
+    "sales_rank": 429,
+    "category": "unknown"
+  },
+  "MELVINS 20G 4IN1 INST. TANGAWIZI TEA STICKS": {
+    "total_qty_sold": 1292,
+    "revenue": 38408.0,
+    "margin_pct": 22.39,
+    "gross_profit": 7539.475924,
+    "sales_rank": 430,
+    "category": "unknown"
+  },
+  "MINUTE MAID 1L TROPICAL JUICE": {
+    "total_qty_sold": 1437,
+    "revenue": 210022.0,
+    "margin_pct": 17.17,
+    "gross_profit": 31080.973011,
+    "sales_rank": 431,
+    "category": "unknown"
+  },
+  "PICK N PEEL 250ML MANGO": {
+    "total_qty_sold": 3278,
+    "revenue": 231960.07,
+    "margin_pct": 24.01,
+    "gross_profit": 48004.269127,
+    "sales_rank": 432,
+    "category": "unknown"
+  },
+  "PICK N PEEL 1LT TROPICAL MIX": {
+    "total_qty_sold": 2123,
+    "revenue": 552443.0,
+    "margin_pct": 21.87,
+    "gross_profit": 104136.400392,
+    "sales_rank": 433,
+    "category": "unknown"
+  },
+  "PICK N PEEL 1L ORANGE JUICE": {
+    "total_qty_sold": 2319,
+    "revenue": 757664.0,
+    "margin_pct": 22.0,
+    "gross_profit": 143689.530073,
+    "sales_rank": 434,
+    "category": "unknown"
+  },
+  "PICK N PEEL 250ML PINEAPPLE JUICE": {
+    "total_qty_sold": 2851,
+    "revenue": 201304.0,
+    "margin_pct": 23.77,
+    "gross_profit": 41256.592743,
+    "sales_rank": 435,
+    "category": "unknown"
+  },
+  "PICK N PEEL 250ML RED GRAPE": {
+    "total_qty_sold": 1489,
+    "revenue": 105139.0,
+    "margin_pct": 24.06,
+    "gross_profit": 21806.403992,
+    "sales_rank": 436,
+    "category": "unknown"
+  },
+  "PICK N PEEL 250ML APPLE": {
+    "total_qty_sold": 3133,
+    "revenue": 222963.0,
+    "margin_pct": 24.41,
+    "gross_profit": 46916.495789,
+    "sales_rank": 437,
+    "category": "unknown"
+  },
+  "PICK N PEEL 250ML WHITE GRAPE": {
+    "total_qty_sold": 1472,
+    "revenue": 104237.0,
+    "margin_pct": 24.09,
+    "gross_profit": 21645.631768,
+    "sales_rank": 438,
+    "category": "unknown"
+  },
+  "PICK N PEEL 250ML ORANGE JUICE": {
+    "total_qty_sold": 1987,
+    "revenue": 188069.0,
+    "margin_pct": 24.9,
+    "gross_profit": 40365.534945,
+    "sales_rank": 439,
+    "category": "unknown"
+  },
+  "PICK N PEEL 1LT APPLE": {
+    "total_qty_sold": 2599,
+    "revenue": 671978.0,
+    "margin_pct": 21.82,
+    "gross_profit": 126391.797026,
+    "sales_rank": 440,
+    "category": "unknown"
+  },
+  "PICK N PEEL 250ML TROPICAL MIX": {
+    "total_qty_sold": 3008,
+    "revenue": 212968.0,
+    "margin_pct": 24.09,
+    "gross_profit": 44228.025335,
+    "sales_rank": 441,
+    "category": "unknown"
+  },
+  "LUCOZADE 250ML BOOST TETRA": {
+    "total_qty_sold": 3008,
+    "revenue": 264736.0,
+    "margin_pct": 16.2,
+    "gross_profit": 36979.512802,
+    "sales_rank": 442,
+    "category": "unknown"
+  },
+  "RIBENA 250ML BLACKCURRANT": {
+    "total_qty_sold": 5528,
+    "revenue": 485104.08,
+    "margin_pct": 15.96,
+    "gross_profit": 66737.855532,
+    "sales_rank": 443,
+    "category": "unknown"
+  },
+  "MINUTE MAID 1L APPLE JUICE": {
+    "total_qty_sold": 1856,
+    "revenue": 267565.0,
+    "margin_pct": 16.03,
+    "gross_profit": 36985.899874,
+    "sales_rank": 444,
+    "category": "unknown"
+  },
+  "RIBENA 250ML BC&STRAWBERRY": {
+    "total_qty_sold": 4869,
+    "revenue": 427767.04,
+    "margin_pct": 16.06,
+    "gross_profit": 59206.262769,
+    "sales_rank": 445,
+    "category": "unknown"
+  },
+  "DEL 1L MIXED BERRY JUICE": {
+    "total_qty_sold": 1799,
+    "revenue": 460481.0,
+    "margin_pct": 18.64,
+    "gross_profit": 74013.976845,
+    "sales_rank": 446,
+    "category": "unknown"
+  },
+  "HANAN 10PK TISSUE PAPER": {
+    "total_qty_sold": 2456,
+    "revenue": 1084131.0,
+    "margin_pct": 3.96,
+    "gross_profit": 36997.925612,
+    "sales_rank": 447,
+    "category": "unknown"
+  },
+  "TOILEX WHITE 10S": {
+    "total_qty_sold": 1306,
+    "revenue": 481938.0,
+    "margin_pct": 18.34,
+    "gross_profit": 76181.204867,
+    "sales_rank": 448,
+    "category": "unknown"
+  },
+  "FAY TOILET PAPER WHITE 10S": {
+    "total_qty_sold": 1446,
+    "revenue": 665396.0,
+    "margin_pct": 4.59,
+    "gross_profit": 26356.915091,
+    "sales_rank": 449,
+    "category": "unknown"
+  },
+  "ROSY TOILET TISSUE WHITE 10PACK": {
+    "total_qty_sold": 1380,
+    "revenue": 411264.0,
+    "margin_pct": 13.86,
+    "gross_profit": 49121.801695,
+    "sales_rank": 450,
+    "category": "unknown"
+  },
+  "TENA 10S WHITE TOILET ROLLS": {
+    "total_qty_sold": 3622,
+    "revenue": 1632359.0,
+    "margin_pct": 16.93,
+    "gross_profit": 238289.972378,
+    "sales_rank": 451,
+    "category": "unknown"
+  },
+  "SOFTLEAF 10S VIRGIN TOILET PAPER": {
+    "total_qty_sold": 1829,
+    "revenue": 789876.0,
+    "margin_pct": 21.25,
+    "gross_profit": 144717.633719,
+    "sales_rank": 452,
+    "category": "unknown"
+  },
+  "NEPTUNE 10S BLENDED TOILET PAPER": {
+    "total_qty_sold": 1504,
+    "revenue": 553432.0,
+    "margin_pct": 20.89,
+    "gross_profit": 99669.273057,
+    "sales_rank": 453,
+    "category": "unknown"
+  },
+  "TENA 15S TOILET ROLL WHITE WRAPPED": {
+    "total_qty_sold": 1336,
+    "revenue": 865061.0,
+    "margin_pct": 18.46,
+    "gross_profit": 137682.721768,
+    "sales_rank": 454,
+    "category": "unknown"
+  },
+  "VELVEX SNOW WHITE 10 PACK": {
+    "total_qty_sold": 2873,
+    "revenue": 1313611.0,
+    "margin_pct": 12.43,
+    "gross_profit": 140806.221271,
+    "sales_rank": 455,
+    "category": "unknown"
+  },
+  "BIO 90ML VANILLA": {
+    "total_qty_sold": 1751,
+    "revenue": 138329.0,
+    "margin_pct": 19.99,
+    "gross_profit": 23840.391995,
+    "sales_rank": 456,
+    "category": "unknown"
+  },
+  "BIO 150ML STRAWBERRY YOGHURT": {
+    "total_qty_sold": 3443,
+    "revenue": 407037.0,
+    "margin_pct": 19.47,
+    "gross_profit": 68331.040064,
+    "sales_rank": 457,
+    "category": "unknown"
+  },
+  "BIO 150ML MANGO YOGHURT": {
+    "total_qty_sold": 2088,
+    "revenue": 247172.0,
+    "margin_pct": 19.58,
+    "gross_profit": 41712.932446,
+    "sales_rank": 458,
+    "category": "unknown"
+  },
+  "BIO 150ML BERRY COCKTAIL YOGHURT": {
+    "total_qty_sold": 2602,
+    "revenue": 290108.0,
+    "margin_pct": 14.61,
+    "gross_profit": 36550.390473,
+    "sales_rank": 459,
+    "category": "unknown"
+  },
+  "BIO 150ML NATURAL YOGHURT": {
+    "total_qty_sold": 3360,
+    "revenue": 387708.0,
+    "margin_pct": 17.5,
+    "gross_profit": 58477.98424,
+    "sales_rank": 460,
+    "category": "unknown"
+  },
+  "BIO 90ML NATURAL Y0GHURT": {
+    "total_qty_sold": 2310,
+    "revenue": 182490.0,
+    "margin_pct": 20.0,
+    "gross_profit": 31463.42671,
+    "sales_rank": 461,
+    "category": "unknown"
+  },
+  "BIO 150ML VANILLA YOGHURT": {
+    "total_qty_sold": 5345,
+    "revenue": 621441.0,
+    "margin_pct": 18.12,
+    "gross_profit": 97064.756733,
+    "sales_rank": 462,
+    "category": "unknown"
+  },
+  "BROOKSIDE 450G NATURAL PROBIOTIC YOGHURT": {
+    "total_qty_sold": 1615,
+    "revenue": 255905.0,
+    "margin_pct": 4.48,
+    "gross_profit": 9878.183439,
+    "sales_rank": 463,
+    "category": "unknown"
+  },
+  "BROOKSIDE 1LT NATURAL YOGHURT": {
+    "total_qty_sold": 1756,
+    "revenue": 395100.0,
+    "margin_pct": 6.22,
+    "gross_profit": 21198.394689,
+    "sales_rank": 464,
+    "category": "unknown"
+  },
+  "BROOKSIDE 500ML SWEET LALA BOTTLE": {
+    "total_qty_sold": 2849,
+    "revenue": 270656.0,
+    "margin_pct": 2.11,
+    "gross_profit": 4924.08,
+    "sales_rank": 465,
+    "category": "unknown"
+  },
+  "BROOKSIDE 500ML NATURAL LALA BOTTLE": {
+    "total_qty_sold": 5986,
+    "revenue": 538756.0,
+    "margin_pct": 2.23,
+    "gross_profit": 10356.01,
+    "sales_rank": 466,
+    "category": "unknown"
+  },
+  "BROOKSIDE 250G NATURAL PROBIOTIC YOGHURT": {
+    "total_qty_sold": 1777,
+    "revenue": 165079.0,
+    "margin_pct": 5.02,
+    "gross_profit": 7145.838935,
+    "sales_rank": 467,
+    "category": "unknown"
+  },
+  "KCC 500ML FILPACK MALA": {
+    "total_qty_sold": 2147,
+    "revenue": 139294.0,
+    "margin_pct": 10.27,
+    "gross_profit": 12333.17117,
+    "sales_rank": 468,
+    "category": "unknown"
+  },
+  "DELAMERE 250ML PREM WILD BERRIES YOG CUP": {
+    "total_qty_sold": 1664,
+    "revenue": 144121.1,
+    "margin_pct": 2.65,
+    "gross_profit": 3296.622546,
+    "sales_rank": 469,
+    "category": "unknown"
+  },
+  "BROOKSIDE 1L NATURAL LALA BOTTLE": {
+    "total_qty_sold": 2847,
+    "revenue": 469758.0,
+    "margin_pct": 1.81,
+    "gross_profit": 7348.06,
+    "sales_rank": 470,
+    "category": "unknown"
+  },
+  "BROOKSIDE 1L SWEETEND LALA BOTTLE": {
+    "total_qty_sold": 1664,
+    "revenue": 297856.0,
+    "margin_pct": 2.79,
+    "gross_profit": 7171.84,
+    "sales_rank": 471,
+    "category": "unknown"
+  },
+  "BROOKSIDE 450G PROBIOTIC FRUIT CUP YOGHURT VANILLA": {
+    "total_qty_sold": 1379,
+    "revenue": 218338.0,
+    "margin_pct": 4.49,
+    "gross_profit": 8451.074814,
+    "sales_rank": 472,
+    "category": "unknown"
+  },
+  "BROOKSIDE 250G PROBIOTIC FRUIT CUP YOGHURT VANILLA": {
+    "total_qty_sold": 2459,
+    "revenue": 228378.0,
+    "margin_pct": 5.03,
+    "gross_profit": 9907.10449,
+    "sales_rank": 473,
+    "category": "unknown"
+  },
+  "BROOKSIDE 250G PROBIOTIC FRUIT CUP YOGHURT STRAWBERRY": {
+    "total_qty_sold": 1552,
+    "revenue": 143794.0,
+    "margin_pct": 4.98,
+    "gross_profit": 6167.498592,
+    "sales_rank": 474,
+    "category": "unknown"
+  },
+  "ILARA 500ML MAZIWA LALA": {
+    "total_qty_sold": 4405,
+    "revenue": 396450.0,
+    "margin_pct": 2.23,
+    "gross_profit": 7608.84,
+    "sales_rank": 475,
+    "category": "unknown"
+  },
+  "DAIMA 500ML NATURAL PROBIOTIC CUP": {
+    "total_qty_sold": 2292,
+    "revenue": 271455.0,
+    "margin_pct": 18.94,
+    "gross_profit": 44327.229964,
+    "sales_rank": 476,
+    "category": "unknown"
+  },
+  "ILARA 500ML TNC PLAIN CUP": {
+    "total_qty_sold": 2900,
+    "revenue": 340609.0,
+    "margin_pct": 3.79,
+    "gross_profit": 11142.82,
+    "sales_rank": 477,
+    "category": "unknown"
+  },
+  "BROOKSIDE 450ML NATURAL YOGHURT CUP": {
+    "total_qty_sold": 1425,
+    "revenue": 240684.0,
+    "margin_pct": 8.47,
+    "gross_profit": 17572.441889,
+    "sales_rank": 478,
+    "category": "unknown"
+  },
+  "BIO ACTIVE 350ML BLKBRRY N RSPBRRY YOG DRINK": {
+    "total_qty_sold": 1332,
+    "revenue": 205774.0,
+    "margin_pct": 17.66,
+    "gross_profit": 31320.309979,
+    "sales_rank": 479,
+    "category": "unknown"
+  },
+  "BIO 200ML GREEK STYLE NATURE PLAIN YOGHURT": {
+    "total_qty_sold": 9491,
+    "revenue": 1640687.0,
+    "margin_pct": 17.16,
+    "gross_profit": 242735.922483,
+    "sales_rank": 480,
+    "category": "unknown"
+  },
+  "LAKI LAKI 150ML GREEK YOGHURT NATURAL": {
+    "total_qty_sold": 1819,
+    "revenue": 209185.0,
+    "margin_pct": 25.36,
+    "gross_profit": 45727.23,
+    "sales_rank": 481,
+    "category": "unknown"
+  },
+  "BIO 200ML GREEK STYLE YOGHURT VANILLA": {
+    "total_qty_sold": 2592,
+    "revenue": 446478.0,
+    "margin_pct": 16.87,
+    "gross_profit": 64916.178608,
+    "sales_rank": 482,
+    "category": "unknown"
+  },
+  "ILARA 1LT MAZIWA LALA  PLASTIC BOTTLE": {
+    "total_qty_sold": 1503,
+    "revenue": 251001.0,
+    "margin_pct": 3.0,
+    "gross_profit": 6481.926484,
+    "sales_rank": 483,
+    "category": "unknown"
+  },
+  "FRESH KENCHIC CHICKEN LEGS QUARTER PKG PLU86920": {
+    "total_qty_sold": 1638,
+    "revenue": 1122398.31,
+    "margin_pct": 28.18,
+    "gross_profit": 316237.614,
+    "sales_rank": 484,
+    "category": "unknown"
+  },
+  "FRESH KENCHIC CHICKEN STEW PKG PLU86966": {
+    "total_qty_sold": 2478,
+    "revenue": 1232190.31,
+    "margin_pct": 13.32,
+    "gross_profit": 164149.036,
+    "sales_rank": 485,
+    "category": "unknown"
+  },
+  "KENCHIC COMM SET REGULAR MINCE PKG PLU86601": {
+    "total_qty_sold": 1584,
+    "revenue": 1095351.56,
+    "margin_pct": 10.6,
+    "gross_profit": 116147.71,
+    "sales_rank": 486,
+    "category": "unknown"
+  },
+  "KENCHIC CAPON 1.6-1.8 PKG PLU86538": {
+    "total_qty_sold": 2357,
+    "revenue": 1103035.55,
+    "margin_pct": 10.23,
+    "gross_profit": 112860.35,
+    "sales_rank": 487,
+    "category": "unknown"
+  },
+  "CFB WHOLEMEAL BREAD 400G": {
+    "total_qty_sold": 2846,
+    "revenue": 156605.9,
+    "margin_pct": 47.1,
+    "gross_profit": 73754.840827,
+    "sales_rank": 488,
+    "category": "unknown"
+  },
+  "MFS BEEF SAMOSA (ORD-25)": {
+    "total_qty_sold": 6306,
+    "revenue": 378360.0,
+    "margin_pct": 38.33,
+    "gross_profit": 125031.583088,
+    "sales_rank": 489,
+    "category": "unknown"
+  },
+  "MFS CHICKEN SAMOSA (ORD-25)": {
+    "total_qty_sold": 4549,
+    "revenue": 271996.0,
+    "margin_pct": 33.1,
+    "gross_profit": 77615.799309,
+    "sales_rank": 490,
+    "category": "unknown"
+  },
+  "CFB WHOLEMEAL BREAD 600G": {
+    "total_qty_sold": 2789,
+    "revenue": 223513.4,
+    "margin_pct": 46.32,
+    "gross_profit": 103522.244055,
+    "sales_rank": 491,
+    "category": "unknown"
+  },
+  "CFB STANDARD WHITE BREAD 400G": {
+    "total_qty_sold": 3427,
+    "revenue": 188124.58,
+    "margin_pct": 45.89,
+    "gross_profit": 86334.835069,
+    "sales_rank": 492,
+    "category": "unknown"
+  },
+  "CFB STANDARD WHITE BREAD 600G": {
+    "total_qty_sold": 2781,
+    "revenue": 217640.48,
+    "margin_pct": 39.06,
+    "gross_profit": 85006.670836,
+    "sales_rank": 493,
+    "category": "unknown"
+  },
+  "CFB STANDARD WHITE BREAD 800G": {
+    "total_qty_sold": 1433,
+    "revenue": 154522.0,
+    "margin_pct": 46.6,
+    "gross_profit": 72007.721767,
+    "sales_rank": 494,
+    "category": "unknown"
+  },
+  "CFB MANDAZI 80G": {
+    "total_qty_sold": 7903,
+    "revenue": 229696.0,
+    "margin_pct": 66.74,
+    "gross_profit": 132147.499986,
+    "sales_rank": 495,
+    "category": "unknown"
+  },
+  "CFB WHITE BAGUETTE": {
+    "total_qty_sold": 1555,
+    "revenue": 169867.42,
+    "margin_pct": 78.19,
+    "gross_profit": 132820.777398,
+    "sales_rank": 496,
+    "category": "unknown"
+  },
+  "CFB MULTI CEREAL BREAD": {
+    "total_qty_sold": 2291,
+    "revenue": 476866.0,
+    "margin_pct": 45.32,
+    "gross_profit": 186315.250237,
+    "sales_rank": 497,
+    "category": "unknown"
+  },
+  "CFB PLAIN DONUT": {
+    "total_qty_sold": 2510,
+    "revenue": 71770.0,
+    "margin_pct": 67.31,
+    "gross_profit": 41643.383964,
+    "sales_rank": 498,
+    "category": "unknown"
+  },
+  "CFB KAIMATI 70G": {
+    "total_qty_sold": 2922,
+    "revenue": 58350.0,
+    "margin_pct": 49.95,
+    "gross_profit": 25124.156867,
+    "sales_rank": 499,
+    "category": "unknown"
+  },
+  "CFB MAHAMRI": {
+    "total_qty_sold": 1999,
+    "revenue": 49903.0,
+    "margin_pct": 45.69,
+    "gross_profit": 19654.55,
+    "sales_rank": 500,
+    "category": "unknown"
+  }
+}
