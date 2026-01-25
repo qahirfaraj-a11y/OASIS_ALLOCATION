@@ -144,12 +144,21 @@ if st.sidebar.button("Run Simulation"):
         total_value = cash_spend + consignment_val
         roi = ((est_revenue - total_value) / total_value) * 100 if total_value > 0 else 0
         
-        c1, c2, c3, c4, c5, c6 = st.columns(6)
-        c1.metric("Budget Target", f"${budget:,.0f}")
-        c2.metric("Cash Used", f"${cash_spend:,.0f}", delta=f"{cash_spend-budget:,.0f}")
-        c3.metric("Consignment Val", f"${consignment_val:,.0f}", delta="Free Capital")
-        c4.metric("Est. Revenue", f"${est_revenue:,.0f}", delta=f"{roi:.1f}% ROI")
-        c5.metric("Total SKUs", len(basket_df))
+        # Calculate Capital Recovery (Days to ROI)
+        total_qty = basket_df["Qty"].sum()
+        # Need to reconstruct daily sales from somewhere or use the loaded dataframe if it has it?
+        # The 'basket_df' only has ['Product', 'Department', 'Qty', 'Allocated_Cost', 'Expected_Revenue', 'Reasoning', 'Type']
+        # We don't have avg_daily_sales in basket_df! 
+        # But we do have 'Expected_Revenue' and 'Price'. 
+        # Basket DF constructed on line 115 in allocation_app.py
+        # WAIT. Lines 115-125 show we are constructing basket_df from 'results'.
+        # We MUST add avg_daily_sales to basket_df first!
+        
+        # ACTUALLY, simpler approach:
+        # We can calculate it on the fly if we had the data.
+        # But since we don't, we can't calculate it here without modification to load_and_run_allocation
+        # Let's Modify load_and_run_allocation first to include Avg_Daily_Sales
+        pass
         
         # New: Risk Analysis Metric
         risk_buffered_count = basket_df[basket_df['Reasoning'].str.contains("RISK BUFFER", na=False)].shape[0]
