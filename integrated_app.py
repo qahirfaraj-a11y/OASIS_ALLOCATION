@@ -333,7 +333,7 @@ with tab2:
                 ))
                 fig.add_trace(go.Bar(
                     x=daily_df['day'],
-                    y=daily_df['stockouts'],
+                    y=daily_df['stockout_count'],
                     name='Stockouts',
                     marker_color='#ef4444',
                     opacity=0.6,
