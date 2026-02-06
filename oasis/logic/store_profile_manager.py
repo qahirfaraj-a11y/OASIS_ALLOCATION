@@ -118,7 +118,8 @@ class StoreProfileManager:
         profile["tier_name"] = f"{lower['tier_name']} (Scaled)"
         
         # Derived Logic
-        profile["is_small"] = budget < 1_000_000
+        # v5.0 FIX: Raise threshold to 10M. 5M budget is tight for 23k SKUs, needs Fast Five protection.
+        profile["is_small"] = budget < 10_000_000
         
         logger.info(f"Generated Profile for budget ${budget:,.0f}: {profile}")
         return profile

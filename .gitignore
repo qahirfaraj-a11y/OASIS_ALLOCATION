@@ -28,3 +28,6 @@ build/
 # *.csv
 # *.xlsx
 # *.json
+
+# Large Models
+*.gguf

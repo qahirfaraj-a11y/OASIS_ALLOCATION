@@ -137,6 +137,7 @@ def apply_safety_guards(recommendations: List[dict], products_map: Dict[str, dic
 
 from .budget_manager import BudgetManager
 from .store_profile_manager import StoreProfileManager
+from .department_constants import ESSENTIAL_DEPARTMENTS, FAST_FIVE_DEPARTMENTS, FRESH_DEPARTMENTS
 
 class OrderEngine:
     def __init__(self, data_dir: str):
@@ -158,18 +159,28 @@ class OrderEngine:
             self.no_grn_suppliers = []
 
 
-
-
     def load_local_databases(self):
         """Synchronous database loading for backward compatibility."""
         logger.info(f"Loading databases synchronously from {self.data_dir}")
         if not self.grn_db:
-            self.grn_db = self.scan_grn_files()
+            # v4.0 Performance Fix: Check for cached GRN file first
+            grn_cache_match = next((f for f in os.listdir(self.data_dir) if 'grn_intelligence' in f and f.endswith('.json')), None)
+            if grn_cache_match:
+                try:
+                    with open(os.path.join(self.data_dir, grn_cache_match), 'r', encoding='utf-8') as f:
+                        self.grn_db = json.load(f)
+                    logger.info(f"Loaded GRN Intelligence from cache: {grn_cache_match}")
+                except Exception as e:
+                    logger.warning(f"Failed to load GRN cache, scanning files: {e}")
+                    self.grn_db = self.scan_grn_files()
+            else:
+                self.grn_db = self.scan_grn_files()
         
         self.load_no_grn_suppliers()
 
         db_configs = {
             'supplier_patterns': 'supplier_patterns_2025',
+            'product_supplier_map': 'product_supplier_map',
             'product_intelligence': 'sales_profitability_intelligence_2025',
             'sales_forecasting': 'sales_forecasting_2025',
             'supplier_quality': 'supplier_quality_scores_2025',
@@ -196,7 +207,18 @@ class OrderEngine:
         logger.info(f"Phase 2: Loading databases in parallel from {self.data_dir}")
         
         if not self.grn_db:
-            self.grn_db = self.scan_grn_files()
+             # v4.0 Performance Fix: Check for cached GRN file first
+            grn_cache_match = next((f for f in os.listdir(self.data_dir) if 'grn_intelligence' in f and f.endswith('.json')), None)
+            if grn_cache_match:
+                try:
+                    with open(os.path.join(self.data_dir, grn_cache_match), 'r', encoding='utf-8') as f:
+                        self.grn_db = json.load(f)
+                    logger.info(f"Loaded GRN Intelligence from cache: {grn_cache_match}")
+                except Exception as e:
+                    logger.warning(f"Failed to load GRN cache, scanning files: {e}")
+                    self.grn_db = self.scan_grn_files()
+            else:
+                self.grn_db = self.scan_grn_files()
             
             
         self.load_no_grn_suppliers()
@@ -460,6 +482,7 @@ class OrderEngine:
         sales_forecasting = self.databases.get('sales_forecasting', {})
         supplier_quality = self.databases.get('supplier_quality', {})
         sales_profitability = self.databases.get('sales_profitability', {})
+        supp_map = self.databases.get('product_supplier_map', {})
         
         logger.info(f"Phase 3: Enriching {len(products)} products...")
         
@@ -467,6 +490,14 @@ class OrderEngine:
             p_name = p.get('product_name', '')
             p_code = p.get('item_code')
             p_barcode = str(p.get('barcode', '')).strip()
+            
+            # 0. Supplier Lookup (Fix "Unknown")
+            if not p.get('supplier_name') or p.get('supplier_name') == 'Unknown':
+                 # Try exact then normalized
+                 found = supp_map.get(p_name) or supp_map.get(p_name.upper())
+                 if found:
+                     p['supplier_name'] = found
+
             supplier = p.get('supplier_name', '').upper()
             
             # v2.1 Consignment Flagging
@@ -474,12 +505,50 @@ class OrderEngine:
             is_consignment = (supplier in self.no_grn_suppliers) or ("PLU" in p_name.upper())
             p['is_consignment'] = is_consignment
 
-            # 1. Supplier Patterns
-            pat = supplier_patterns.get(supplier, {})
-            p['estimated_delivery_days'] = pat.get('estimated_delivery_days', 7)
-            p['supplier_frequency'] = pat.get('order_frequency', 'daily') # Map to the field name AI expect
-            p['reliability_score'] = pat.get('reliability_score', 90)
-            p['supplier_frequency_days'] = pat.get('median_gap_days', 7)
+            # 2. Enrich Supplier Info
+            supp_name = str(p.get('supplier_name', 'Unknown')).strip()
+            if supp_name and supp_name != 'Unknown':
+                supp_key = self.normalize_product_name(supp_name) # Using same normalizer as keys
+                
+                # Try finding pattern
+                pattern = supplier_patterns.get(supp_name) # Try exact match first
+                if not pattern:
+                     pattern = supplier_patterns.get(supp_key) # Try normalized
+                
+                # DEBUG: Trace Brookside
+                if "BROOKSIDE" in supp_name:
+                     # print(f"DEBUG: Looking up '{supp_name}' -> Key: '{supp_key}' | Found: {pattern is not None}")
+                     pass
+
+                if pattern:
+                    p['estimated_delivery_days'] = pattern.get('estimated_delivery_days', 4)
+                    p['supplier_reliability'] = pattern.get('reliability_score', 0.8)
+                    p['supplier_frequency'] = pattern.get('order_frequency', 'weekly') # Map to the field name AI expect
+                
+                # v5.0: Explicit Fallback for Strategic Partners (Data Cleaning)
+                elif "BROOKSIDE" in supp_name:
+                    # Brookside is a critical daily supplier (Milk/Yogurt). 
+                    # If pattern missing, FORCE correct parameters to avoid massive stockouts.
+                    p['estimated_delivery_days'] = 1
+                    p['supplier_reliability'] = 0.98
+                    p['supplier_frequency'] = 'daily'
+                    p['is_fresh'] = True # Ensure fresh flag
+                    
+                else: # Default values if no pattern found
+                    p['estimated_delivery_days'] = 7
+                    p['supplier_reliability'] = 0.9
+                    p['supplier_frequency'] = 'weekly'
+            else: # Default values if supplier name is unknown/empty
+                p['estimated_delivery_days'] = 7
+                p['supplier_reliability'] = 0.9
+                p['supplier_frequency'] = 'weekly'
+
+            # 1. Supplier Patterns (Original section, now using the enriched values)
+            # The original 'pat' variable is no longer directly used for these assignments,
+            # as the values are now set based on the 'pattern' found above.
+            # We'll ensure these fields are populated.
+            p['reliability_score'] = p.get('supplier_reliability', 0.9) * 100 # Convert to 0-100 scale
+            p['supplier_frequency_days'] = p.get('estimated_delivery_days', 7) # Using estimated_delivery_days as a proxy for median_gap_days if not explicitly available
 
             # 2. Sales Forecasting
             _, sales_data = self.find_best_match(p_name, sales_forecasting, p_code, p_barcode)
@@ -567,10 +636,22 @@ class OrderEngine:
                 p['safety_stock_pct'] = 10
                 
             # Reorder Point logic: sales_velocity * (delivery_days + buffer)
-            # Gold Standard: Brookside (1d) uses +1 buffer, SBC/Towfiq (7d) uses +3 buffer.
+            # v4.0 Volatility Buffering: Add safety stock for High CV + Long Lead Time items
             d_days = p['estimated_delivery_days']
+            cv = p.get('demand_cv', 0.5)
+            
+            # Base Buffer (Gold Standard)
             buffer = 3 if d_days >= 4 else 1
-            p['target_coverage_days'] = d_days + buffer
+            
+            # Volatility Cushion
+            # If CV > 0.3, we add days. 
+            vol_buffer = int(cv * 5)
+            
+            # High Risk Penalty (Long LT + High Volatility = Guaranteed Stockout without cushion)
+            if d_days > 3 and cv > 0.3:
+                 vol_buffer += 2
+                 
+            p['target_coverage_days'] = d_days + buffer + vol_buffer
             p['reorder_point'] = round(p['sales_velocity'] * p['target_coverage_days'], 2)
             
             # v2 Logic Supplements
@@ -769,8 +850,8 @@ class OrderEngine:
         is_small = profile['is_small']
         is_micro = total_budget < 200000 
         
-        # Duka Specifics
-        fast_five_depts = ['FRESH MILK', 'BREAD', 'COOKING OIL', 'FLOUR', 'SUGAR']
+        # Duka Specifics (v3.5: Use centralized constant - GAP-2 fix)
+        fast_five_depts = FAST_FIVE_DEPARTMENTS
         
         # Dynamic Configs from Profile
         depth_cap_days = profile['depth_days']
@@ -791,9 +872,70 @@ class OrderEngine:
         
         # --- PASS 1: GLOBAL WIDTH (Variety First) ---
         # --- PRE-PASS: SORTING ---
-        # Ensure we pick the Best items for the limited slots
-        recommendations.sort(key=lambda x: x.get('avg_daily_sales', 0), reverse=True)
+        # v3.2 FIX (GAP 1): Sort by Staple Priority FIRST, then by velocity
+        # This prevents high-velocity discretionary items from consuming budget before essentials
+        def staple_priority_sort(x):
+            is_staple = self.budget_manager.is_staple(x['product_name'], x.get('product_category'), x.get('avg_daily_sales', 0))
+            dept = x.get('product_category', 'GENERAL').upper()
+            # Priority tiers: 0=Fast Five Staple, 1=Other Staple, 2=Essential Dept, 3=Discretionary
+            priority = 3
+            if is_staple and dept in fast_five_depts:
+                priority = 0
+            elif is_staple:
+                priority = 1
+            elif dept in ['SUGAR', 'SALT', 'FLOUR', 'RICE', 'COOKING OIL', 'FRESH MILK', 'BREAD', 'EGGS']:
+                priority = 2
+            return (priority, -x.get('avg_daily_sales', 0))
+        recommendations.sort(key=staple_priority_sort)
         
+        # v4.2 FIX: Remove "TOTAL" summary row if present (It consumes all depth budget)
+        recommendations = [r for r in recommendations if str(r.get('product_name', '')).upper() != 'TOTAL']
+        
+        # --- PASS 0: SUPPLIER CONSOLIDATION (Gap K Fix) ---
+        # Consolidate volume to Top N Suppliers per Staple Department to ensure depth
+        # v3.7: Tiered Capping: Micro=3, Small=5, Others=Unlimited (User Request)
+        allowed_suppliers = {}
+        
+        supplier_cap = 999 # Default unlimited
+        if is_micro:
+            supplier_cap = 3
+        elif is_small:
+            supplier_cap = 5
+            
+        if supplier_cap < 999:
+            consolidation_depts = ['RICE', 'SUGAR', 'FLOUR', 'COOKING OIL', 'MAIZE MEAL', 'PASTA', 'FRESH MILK']
+            
+            # 1. Aggregate Sales by Supplier
+            supplier_sales = {d: {} for d in consolidation_depts}
+            
+            for rec in recommendations:
+                dept = rec.get('product_category', 'GENERAL').upper()
+                if dept in consolidation_depts:
+                    # v3.8 FIX: Only count TRUE STAPLES for supplier ranking (User FB: "Tropical Heat has Rice Cakes not Rice")
+                    if not self.budget_manager.is_staple(rec['product_name'], rec.get('product_category'), rec.get('avg_daily_sales', 0)):
+                        continue
+
+                    # Normalization is critical
+                    supp = str(rec.get('supplier_name', 'UNKNOWN')).upper().strip()
+                    if not supp or supp == 'NON': supp = 'UNKNOWN'
+                    
+                    sales = rec.get('avg_daily_sales', 0)
+                    price = rec.get('selling_price', 0)
+                    revenue = sales * price
+                    supplier_sales[dept][supp] = supplier_sales[dept].get(supp, 0) + revenue
+            
+            # 2. Pick Top N
+            for dept in consolidation_depts:
+                ranked = sorted(supplier_sales[dept].items(), key=lambda x: x[1], reverse=True)
+                # Only consolidate if we need to trim (Total > Cap)
+                if len(ranked) > supplier_cap:
+                    top_n = [s[0] for s in ranked[:supplier_cap]]
+                    allowed_suppliers[dept] = set(top_n)
+                    logger.info(f"Consolidated {dept} Suppliers (Top {supplier_cap}/{len(ranked)}): {top_n}")
+                elif ranked:
+                    # Allow all if within cap
+                    allowed_suppliers[dept] = set([s[0] for s in ranked])
+
         # --- PASS 1: GLOBAL WIDTH (Variety First) ---
         # "Allocates exactly 1 Pack (MDQ) to every item."
         pass1_cost = 0.0
@@ -803,7 +945,7 @@ class OrderEngine:
         for rec in recommendations:
             p_name = rec['product_name']
             dept = rec.get('product_category', 'GENERAL').upper()
-            is_staple = self.budget_manager.is_staple(p_name)
+            is_staple = self.budget_manager.is_staple(p_name, dept, rec.get('avg_daily_sales', 0))
             pack_size = int(rec.get('pack_size', 1))
             price = float(rec.get('selling_price', 0.0))
             is_consignment = rec.get('is_consignment', False)
@@ -820,6 +962,15 @@ class OrderEngine:
             should_list = True
             reason_tag = ""
             
+            # 0.5 Supplier Consolidation Check (Gap K Fix)
+            if dept in allowed_suppliers:
+                supp = str(rec.get('supplier_name', 'UNKNOWN')).upper().strip()
+                if not supp or supp == 'NON': supp = 'UNKNOWN'
+                
+                if supp not in allowed_suppliers[dept]:
+                     should_list = False
+                     reason_tag = "[PASS 1: SUPPLIER CONSOLIDATION]"
+
             # 0. Internal Production Exclusion (v2.8)
             # Bakery Foodplus is internal production, not purchased from suppliers
             if dept in ['BAKERY FOODPLUS', 'BALERY FOODPLU']:  # Handle typo variance
@@ -829,14 +980,39 @@ class OrderEngine:
             # 1. ABC / Subsistence Filters
             abc_class = rec.get('ABC_Class', 'A') 
             
+            # v3.5: Use centralized department constants (GAP-2 fix)
+            is_essential_dept = dept in ESSENTIAL_DEPARTMENTS
+            
+            # v3.12 FIX (GAP ANALYSIS): Keyword Overrides for mis-categorized essentials
+            # Ensures Yoghurt, Soda, Ghee, Lentils get essential treatment even if Dept is 'GENERAL'
+            if not is_essential_dept:
+                p_u = p_name.upper()
+                if "YOGHURT" in p_u or "YOGURT" in p_u: is_essential_dept = True
+                elif "SODA" in p_u or "COKE" in p_u or "ALVARO" in p_u or "VIMTO" in p_u: is_essential_dept = True
+                elif "GHEE" in p_u: is_essential_dept = True
+                elif "LENTIL" in p_u or "BEAN" in p_u or "NDENGU" in p_u or "POJO" in p_u: is_essential_dept = True
+                elif "DAIRY" in p_u: is_essential_dept = True
+            
+            # v3.1: Detect bulk items (5KG, 5L, 5LT, 10KG etc.) for higher ceiling
+            # v3.12 FIX: Added space variants (5 KG, 5 L)
+            p_name_upper = p_name.upper()
+            is_bulk_item = any(x in p_name_upper for x in ['5KG', '5L', '5LT', '10KG', '10L', '20L', '25KG', '5 KG', '5 L', '10 KG'])
+            
             # Unified Dynamic Constraint Logic (Replaces hardcoded Micro/Standard split)
-            # Price Ceiling Check
-            if price > price_ceiling:
+            # Price Ceiling Check - v3.1: Essentials get 2x, Bulk essentials get 3x
+            if is_essential_dept and is_bulk_item:
+                effective_ceiling = price_ceiling * 3  # Bulk staples
+            elif is_essential_dept:
+                effective_ceiling = price_ceiling * 2  # Regular essentials
+            else:
+                effective_ceiling = price_ceiling
+            
+            if price > effective_ceiling:
                 if is_staple: # Anchors override ceiling
                     reason_tag = "[PASS 1: ANCHOR OVERRIDE]"
                     should_list = True
                 else:
-                    reason_tag = f"[PASS 1: BLOCKED - PRICE > {price_ceiling:.0f}]"
+                    reason_tag = f"[PASS 1: BLOCKED - PRICE > {effective_ceiling:.0f}]"
                     should_list = False
             
             # SKU Cap Per Dept (if very small store)
@@ -845,14 +1021,23 @@ class OrderEngine:
             # Actually, the user wants "Dynamic".
             # Let's trust the profile's Price Ceiling to filter out the noise.
             
+            # v3.2 FIX (GAP 2): Changed elif to if - runs independently of price ceiling check
+            # v3.3 FIX (GAP B): Add essential department bypass for dead stock filter
             # Dead Stock Check (Dynamic)
-            elif not allow_c_class and abc_class == 'C':
+            # Dead Stock Check (Dynamic)
+            if should_list and not allow_c_class and abc_class == 'C':
                  avg_daily = rec.get('avg_daily_sales', 0)
-                 if avg_daily < 0.2: 
+                 # Bypass dead stock filter for essential/staple departments
+                 # v3.12 FIX: Use global ESSENTIAL_DEPARTMENTS instead of hardcoded subset to allow Ghee/Lentils
+                 # essential_depts = ['COOKING OIL', 'FLOUR', 'SUGAR', 'FRESH MILK', 'BREAD', 'RICE', 'MAIZE MEAL']
+                 dead_stock_threshold = 0.02 if is_micro else 0.20
+                 
+                 if avg_daily < dead_stock_threshold and not is_essential_dept:
                       should_list = False
-                      reason_tag = "[PASS 1: DEAD STOCK]"
+                      reason_tag = f"[PASS 1: DEAD STOCK < {dead_stock_threshold}]"
 
             # Hybrid Scaled Demand Logic (Standard+)
+            # v3.0 FIX: Scale threshold proportionally AND bypass for essential departments
             if should_list and not is_micro:
                 mega_budget = 114000000.0
                 budget_ratio = total_budget / mega_budget
@@ -863,17 +1048,28 @@ class OrderEngine:
                 has_lookalike = rec.get('lookalike_demand', 0) > 0
                 is_new_product = rec.get('avg_daily_sales', 0) == 0
                 
+                # v3.5: Use centralized department constants (GAP-2 fix)
+                # v3.12: REMOVED re-calculation that overwrote keyword overrides!
+                # is_essential_dept = dept in ESSENTIAL_DEPARTMENTS
+                
+                # v3.0 HYBRID FIX: Scale threshold proportionally to store size
+                # Mega (114M) uses 0.5, Small (200k) uses 0.5 * (200k/114M) = ~0.001
+                # But we apply a sqrt to prevent too aggressive filtering
+                scaled_threshold = 0.5 * (budget_ratio ** 0.5)
+                scaled_threshold = max(0.01, scaled_threshold)  # Floor at 0.01
+                
                 if should_list and is_small:
-                    if scaled_demand >= 0.5:
-                        pass 
-                    elif is_staple:
-                        reason_tag = "[PASS 1: STAPLE SAFETY NET]"
+                    if scaled_demand >= scaled_threshold:
+                        pass  # Passes threshold
+                    elif is_staple or is_essential_dept:
+                        # v3.0: Staples AND essential departments ALWAYS pass
+                        reason_tag = "[PASS 1: ESSENTIAL BYPASS]"
                     elif is_new_product or has_lookalike:
                         # Allow new products through to Get conservative allocation in Pass 2
                         reason_tag = "[PASS 1: NEW PRODUCT - PROVISIONAL]"
                     else:
                         should_list = False
-                        reason_tag = f"[SCALED DROP] Demand: {scaled_demand:.2f} < 0.5"
+                        reason_tag = f"[SCALED DROP] Demand: {scaled_demand:.2f} < {scaled_threshold:.2f}"
 
             if should_list:
                 # Apply Min Display Qty
@@ -882,21 +1078,80 @@ class OrderEngine:
                 # If pack size is 1, and MDQ is 3, we buy 3 packs (3 units).
                 
                 raw_mdq = min_display_qty
+
+                # v4.1 OPTIMIZATION: Velocity Adjusted MDQ for Large Allocations
+                # Reduces capital locked in slow movers to fund depth for fast movers.
+                if not is_small and not is_micro:
+                     velocity = rec.get('avg_daily_sales', 0)
+                     
+                     # Only reduce if NOT essential/staple
+                     if not (is_staple or is_essential_dept):
+                         if velocity < 0.1:
+                              # C-Class: 25% MDQ (e.g., 6 units for Mega instead of 24)
+                              raw_mdq = max(3, int(min_display_qty * 0.25)) 
+                         elif velocity < 0.5:
+                              # B-Class: 50% MDQ (e.g., 12 units for Mega instead of 24)
+                              raw_mdq = max(6, int(min_display_qty * 0.50))
+                
+                # v3.10 FIX (APS-3): Large Pack Optimization ("Break Bulk")
+                # If pack cost > 2x Ceiling, we break bulk to preserve capital (User Request)
+                if is_small:
+                    pack_cost_est = price * pack_size
+                    threshold = price_ceiling * 2.0
+                    if pack_cost_est > threshold and pack_size > 1:
+                        # Break Bulk Mode: Treat as loose units or smaller pack
+                        # Log it in reasoning
+                        old_pack = pack_size
+                        pack_size = max(1, int(rec.get('moq_floor', 1)))
+                        if "[BREAK BULK]" not in reason_tag:
+                             # We use reasoning field but reason_tag is used for skipping.
+                             # We'll append to rec['reasoning'] later, but `reason_tag` variable is currently used for SKIP reasons?
+                             # Line 1036 assigns reason.
+                             pass
+                        
+                        # We must ensure we don't buy 24 units if we broke bulk.
+                        # Recalculate based on new pack size.
                 
                 # Check for BUDGET GUARD (Pass 1 Safety Break)
-                # If we have already spent 90% of budget just on WIDTH, we must stop adding non-essential items.
-                if pass1_cost > (total_budget * 0.95):
-                     if is_staple:
-                          # Anchors get a pass, but maybe reduced
+                # v3.9: Dynamic Cap to enforce Depth.
+                # v3.9: Dynamic Cap to enforce Depth.
+                # v5.0 FIX: Enforce 30% Liquidity Reserve for ALL tiers to prevent Day 1 Stockouts
+                # v5.7 ADJUSTMENT: Nano/Micro/Small stores (<12M) cannot afford 30% reserve.
+                # Width IS Depth for them. Relax to 95%.
+                if total_budget < 12000000:
+                     limit_pct = 0.95 
+                else:
+                     limit_pct = 0.70
+                
+                pass1_limit = total_budget * limit_pct
+                
+                if pass1_cost > pass1_limit:
+                     # Strict Cutoff: Even Staples must stop if we want to preserve Money for Depth of specific items.
+                     # v3.9b: Strict Cap for Small/Micro (APS-1). Override only for Large stores.
+                     if is_staple and not is_small:
+                          # For larger stores, we can be lenient with staples
                           raw_mdq = max(1, raw_mdq // 2)
                      else:
-                          # Cut discretionary width if budget is critical
+                          # For Micro/Small: Strict CAP. No overrides.
+                          # Cut discretionary & overflow staples
                           rec['recommended_quantity'] = 0
-                          rec['reasoning'] = f"[PASS 1: BUDGET EXHAUSTED] Width Cut."
+                          rec['reasoning'] = f"[PASS 1: BUDGET EXHAUSTED] Cap {limit_pct:.0%}. Width Cut."
                           rec['pass1_allocated'] = False
                           continue
 
-                rec_qty_units = max(int(rec.get('moq_floor', 0)), raw_mdq)
+                # v5.6 FIX: Day 1 Launch Buffer (Prevent "Replenishment Lag")
+                # If an item sells 10/day, and MDQ is 3, we MUST buy at least LeadTiime + Buffer.
+                # Otherwise we stockout before first reorder arrives.
+                launch_target_units = 0
+                if is_staple or is_essential_dept or rec.get('avg_daily_sales', 0) > 1.0:
+                     lead_time = int(rec.get('estimated_delivery_days', 2))
+                     # Buffer: LeadTime + 2 Days (Minimum to bridge to first delivery)
+                     # For fresh, we might cap it later, but typically Fresh Pass 2 handles precision.
+                     # Here we just want a safe floor.
+                     needed_days = lead_time + 2.0
+                     launch_target_units = int(rec.get('avg_daily_sales', 0) * needed_days)
+                
+                rec_qty_units = max(int(rec.get('moq_floor', 0)), raw_mdq, launch_target_units)
                 
                 # Convert to Packs
                 required_packs = (rec_qty_units + pack_size - 1) // pack_size # Ceiling div
@@ -928,6 +1183,10 @@ class OrderEngine:
                 rec['recommended_quantity'] = rec_qty_final
                 rec['reasoning'] = f"[PASS 1: WIDTH] MDQ: {raw_mdq} -> {rec_qty_final} Units"
                 
+                # v3.10: Append Break Bulk note
+                if 'old_pack' in locals() and old_pack != pack_size:
+                     rec['reasoning'] += f" [BREAK BULK: {old_pack}->{pack_size}]"
+                
                 if is_consignment:
                     rec['reasoning'] += " [CONSIGNMENT]"
                     pass1_consignment_val += cost
@@ -950,9 +1209,76 @@ class OrderEngine:
                     skip_category = "dead_stock"
                 elif "SCALED DROP" in reason_tag:
                     skip_category = "low_demand"
+                elif "SUPPLIER CONSOLIDATION" in reason_tag:
+                    skip_category = "supplier_consolidation"
                 summary['skip_reasons'][skip_category] = summary['skip_reasons'].get(skip_category, 0) + 1
 
         logger.info(f"Pass 1 Complete. Committed: ${pass1_cost:,.2f}")
+        
+        # --- PASS 1.5: PRUNING (APS-4) ---
+        # "If Budget Exhausted and Vital Depth is missing, remove lowest ROI items from Pass 1."
+        remaining_liquidity = total_budget - pass1_cost
+        
+        # Calculate Critical Liquidity Need (Approximation: 20% of budget for Fast Five Depth?)
+        # Or use the Fast Five Reservation Logic.
+        critical_depth_need = 0.0
+        if is_small:
+             # v5.7 ALIGNMENT: If using 95% Relaxed Cap (Budget < 12M), drop reserve requirement to 5%.
+             if total_budget < 12000000:
+                  critical_depth_need = total_budget * 0.05
+             else:
+                  critical_depth_need = total_budget * 0.15 # Reserve 15% minimum for Depth
+             
+        shortfall = critical_depth_need - remaining_liquidity
+        
+        if shortfall > 0 and is_small:
+             logger.warning(f"Pass 1.5: Liquidity Shortfall ${shortfall:,.2f}. Pruning Pass 1 Tail.")
+             
+             # Identify Candidates: Discretionary Items allocated in Pass 1
+             prune_candidates = []
+             for rec in recommendations:
+                  if rec.get('pass1_allocated'):
+                       dept = rec.get('product_category', 'GENERAL').upper()
+                       is_staple = self.budget_manager.is_staple(rec['product_name'], rec.get('product_category'), rec.get('avg_daily_sales', 0))
+                       is_essential = dept in ESSENTIAL_DEPARTMENTS
+                       
+                       # Only prune Discretionary (Non-Staple, Non-Essential)
+                       if not is_staple and not is_essential:
+                            # Calculate Pruning Score (Lower is better to keep? No, Lower is candidate.)
+                            # We want to remove LOWEST value.
+                            velocity = rec.get('avg_daily_sales', 0)
+                            prune_candidates.append(rec)
+             
+             # Sort candidates by Velocity (Ascending) - Cut the slow movers
+             prune_candidates.sort(key=lambda x: x.get('avg_daily_sales', 0))
+             
+             pruned_count = 0
+             reclaimed_cash = 0.0
+             
+             for rec in prune_candidates:
+                  if reclaimed_cash >= shortfall:
+                       break
+                  
+                  # Cut this item
+                  qty = rec['recommended_quantity']
+                  price = float(rec['selling_price'])
+                  # Estimate cost (approx)
+                  cost_est = qty * (price * 0.8) # Rough cost
+                  # Better: calculate properly
+                  
+                  rec['recommended_quantity'] = 0
+                  rec['pass1_allocated'] = False
+                  rec['reasoning'] += " [PRUNED: LIQUIDITY RECOVERY]"
+                  
+                  # Reclaim (Assuming cash, not consignment - we usually prune both, but Consignment doesn't help liquidity? Actually Consignment doesn't consume width budget. So pruning consignment does NOTHING for cash. We must checking if is_consignment!)
+                  if not rec.get('is_consignment', False):
+                       reclaimed_cash += cost_est
+                       pass1_cost -= cost_est # Deduct from Pass 1 Total
+                       # Note: We should technically credit the Wallet too, but Wallets are 'spend_from_wallet'. We assume Pass 2 re-checks availability.
+                  
+                  pruned_count += 1
+             
+             logger.info(f"Pass 1.5 Pruninig Complete. Pruned {pruned_count} items. Reclaimed ${reclaimed_cash:,.2f}")
         
         # --- PASS 2: STRATEGIC DEPTH (The Wallet Pass) ---
         pass2_cost = 0.0
@@ -974,11 +1300,11 @@ class OrderEngine:
         candidates = [r for r in recommendations if r.get('pass1_allocated') and r['recommended_quantity'] > 0]
         
         # 1. Fast Five Staples (Duka Priority)
-        fast_five_candidates = [r for r in candidates if is_small and r.get('product_category','').upper() in fast_five_depts and self.budget_manager.is_staple(r['product_name'])]
+        fast_five_candidates = [r for r in candidates if is_small and r.get('product_category','').upper() in fast_five_depts and self.budget_manager.is_staple(r['product_name'], r.get('product_category'), r.get('avg_daily_sales', 0))]
         # 2. Other Staples
-        other_staple_candidates = [r for r in candidates if self.budget_manager.is_staple(r['product_name']) and r not in fast_five_candidates]
+        other_staple_candidates = [r for r in candidates if self.budget_manager.is_staple(r['product_name'], r.get('product_category'), r.get('avg_daily_sales', 0)) and r not in fast_five_candidates]
         # 3. Discretionary
-        discretionary_candidates = [r for r in candidates if not self.budget_manager.is_staple(r['product_name'])]
+        discretionary_candidates = [r for r in candidates if not self.budget_manager.is_staple(r['product_name'], r.get('product_category'), r.get('avg_daily_sales', 0))]
         
         # Sort by Sales Velocity to prioritize winners
         fast_five_candidates.sort(key=lambda x: x.get('avg_daily_sales', 0), reverse=True)
@@ -1011,137 +1337,85 @@ class OrderEngine:
         logger.info(f"Pass 2 Budget: ${total_remaining_budget:,.2f} (Staples Target: ${staple_allocation_target:,.2f}, Discretionary Cap: ${discretionary_hard_cap:,.2f})")
         
 
-        def fill_depth_constrained(candidate_list, global_spending_cap=999999999.0):
-            batch_cost = 0.0
+                # v5.4 FIX: Clean Internal Helper for Priority Allocation
+        def allocate_list_constrained(candidate_list, phase_cap, phase_name):
             
-            # Create a working queue of candidates that still need depth
-            # Store calculated targets upfront to avoid re-calc
+            # 1. Build Calculation Queue
             queue = []
             for rec in candidate_list:
                 dept = rec.get('product_category', 'GENERAL').upper()
                 avg_sales = rec.get('avg_daily_sales', 0.0)
                 
                 # --- v2.5 NEW PRODUCT HYBRID LOGIC ---
-                # Don't skip items with 0 sales; use lookalike or conservative baseline
                 effective_avg_sales = avg_sales
                 new_product_mode = False
                 
                 if avg_sales <= 0:
-                    # Check for lookalike demand
                     lookalike = rec.get('lookalike_demand', 0.0)
                     if lookalike > 0:
-                        effective_avg_sales = lookalike * 0.5  # Conservative: 50% of lookalike
+                        effective_avg_sales = lookalike * 0.5 
                         new_product_mode = True
-                        if "[NEW PRODUCT" not in rec['reasoning']:
-                            rec['reasoning'] += f" [NEW PRODUCT: Lookalike-Based]"
+                        if "[NEW PRODUCT" not in rec['reasoning']: rec['reasoning'] += " [NEW PRODUCT: Lookalike]"
                     else:
-                        # Absolute minimum baseline for items that passed Pass 1
-                        # Fresh: 0.3/day (conservative trial), Dry: 0.5/day
                         is_fresh = rec.get('is_fresh', False)
                         effective_avg_sales = 0.3 if is_fresh else 0.5
                         new_product_mode = True
-                        if "[NEW PRODUCT" not in rec['reasoning']:
-                            rec['reasoning'] += f" [NEW PRODUCT: Baseline Estimate]"
-                
-                # Skip only if effective sales is still zero (shouldn't happen after baseline)
-                if effective_avg_sales <= 0:
-                    continue
-                
-                # Depth Logic
-                # Default: Use Tier Config
+                        if "[NEW PRODUCT" not in rec['reasoning']: rec['reasoning'] += " [NEW PRODUCT: Baseline]"
+
+                # --- DEPTH CALCULATION ---
                 effective_days = depth_cap_days
                 
-                # --- v2.4 SMART DEPTH (Risk-Based Buffer) ---
-                # Strategy: Only Buffer A/B Class items. Do not buffer C-Class (Slow Movers).
-                risk_multiplier = 1.0
-                risk_reasons = []
-                
-                abc_class = rec.get('ABC_Class', 'A')
-                
-                if abc_class != 'C':
-                    # Reliability Check
-                    rel_score = rec.get('reliability_score', 90)
-                    if rel_score < 70:
-                        risk_multiplier += 0.25
-                        risk_reasons.append(f"Unreliable Supp({rel_score}%)")
-                        
-                    # Volatility Check
-                    volatility = rec.get('demand_cv', 0.5)
-                    if volatility > 0.8:
-                        risk_multiplier += 0.15
-                        risk_reasons.append(f"Volatile({volatility})")
-                        
-                    if risk_multiplier > 1.0:
-                        # Cap at 1.5x to prevent explosion
-                        risk_multiplier = min(risk_multiplier, 1.5)
-                        effective_days = int(effective_days * risk_multiplier)
-                        
-                        if "[RISK BUFFER" not in rec['reasoning']:
-                             rec['reasoning'] += f" [RISK BUFFER: +{int((risk_multiplier-1)*100)}% ({', '.join(risk_reasons)})]"
-
-                # Duka "Perfect Initial Allocation" Boost
-                # For Non-Perishable Fast Five, we ignore liquidity constraints and Stock Up (30 Days)
-                # But we MUST respect spoilage for Milk/Bread.
-                min_pack_floor = 0
-                if is_small:
-                    if dept in ['COOKING OIL', 'FLOUR', 'SUGAR']:
-                        # Anchor boost overrides standard depth, but we keep the risk buffer if it pushes it higher?
-                        # Let's say Anchor Boost is the floor.
-                        effective_days = max(effective_days, 30) 
-                        
-                        # Case Quantity Logic (Presentation Minimums)
-                        # Don't buy 3 units. Buy a Half-Case (6) or Strip (12).
-                        unit_price = float(rec.get('selling_price', 0))
-                        if unit_price < 50:
-                             min_pack_floor = 12 # Sachet Strip
-                        else:
-                             min_pack_floor = 6  # Half-Case / Row
-                             
-                    elif dept in ['FRESH MILK', 'BREAD']:
-                        effective_days = min(effective_days, 2) # Strict fresh clamp
-                        # No min floor boost for fresh (spoilage risk)
-                        min_pack_floor = 1 
-                
-                # New Product Conservative Cap
+                # Risk Logic (simplified)
                 if new_product_mode:
-                    # Cap new products to conservative depth regardless of tier
                     is_fresh = rec.get('is_fresh', False)
                     max_new_product_days = 7 if is_fresh else 14
                     effective_days = min(effective_days, max_new_product_days)
+
+                # v5.3 FIX: Dynamic Depth for Fresh (Lead Time + Buffer)
+                # User Feedback: "Don't stock 3 days if daily supplier".
+                if dept in ['FRESH MILK', 'BREAD']:
+                     lead_time = int(rec.get('estimated_delivery_days', 1))
+                     # We want to cover Lead Time + Small Buffer (0.6 days)
+                     target_days = lead_time + 0.6
+                     target_days = min(target_days, 3.0) 
+                     effective_days = min(effective_days, target_days)
+                     
+                     # Ensure we honor high velocity unlock for essential flow
+                     if effective_avg_sales > 5.0:
+                         effective_days = max(effective_days, target_days) 
                 
-                # v2.6 EXPIRY/SHELF-LIFE ENFORCEMENT
-                # Prevent ordering more than can be sold before expiry
-                shelf_life = rec.get('shelf_life_days', 365)
-                if shelf_life < 30:  # Only enforce for perishables
-                    # Leave 2-day safety buffer for delivery + shelf display
-                    max_safe_days = max(1, shelf_life - 2)
-                    if effective_days > max_safe_days:
-                        effective_days = max_safe_days
-                        if "[EXPIRY CAP" not in rec['reasoning']:
-                            rec['reasoning'] += f" [EXPIRY CAP: {shelf_life}d shelf-life]"
-                        
+                # Calculate Ideal
                 ideal_qty = int(effective_avg_sales * effective_days)
-                # Apply Min Floor for Anchors
+                
+                # Min Packs
+                min_pack_floor = 1
+                if is_small and dept in ['COOKING OIL', 'FLOUR', 'SUGAR']:
+                     unit_price = float(rec.get('selling_price', 0))
+                     min_pack_floor = 12 if unit_price < 50 else 6
+                
                 ideal_qty = max(ideal_qty, min_pack_floor)
                 
+                # Max Packs (Constraint)
                 current_qty = rec['recommended_quantity']
                 pack_size = int(rec.get('pack_size', 1))
+                max_total_packs = int(profile.get('max_packs', 10))
                 max_allowed_units = max_total_packs * pack_size
                 
-                # Boost max packs for Anchors too? 
-                # If we want 14 days of Oil (e.g. 14 units), but max_packs is 2, we fail.
-                # Override Max Packs for Boosted items.
+                # High Velocity Unlock
                 if is_small and dept in ['COOKING OIL', 'FLOUR', 'SUGAR']:
                     max_allowed_units = 999
-                elif total_budget >= 20000000: # Mega Store - Unlimited Depth
+                elif total_budget >= 20000000: 
                     max_allowed_units = 99999999
+                elif effective_avg_sales > 1.0:
+                     velocity_floor = int(effective_avg_sales * 7)
+                     max_allowed_units = max(max_allowed_units, velocity_floor)
                 
                 final_target = min(ideal_qty, max_allowed_units)
                 
                 if current_qty < final_target:
                     price = float(rec.get('selling_price', 0.0))
-                    # v2.9: Use actual cost
                     cost_price_est = self._get_actual_cost_price(rec, price)
+                    
                     queue.append({
                         'rec': rec,
                         'dept': dept,
@@ -1151,12 +1425,12 @@ class OrderEngine:
                         'cost_est': cost_price_est
                     })
 
-            # Round-Robin Loop
+            # 2. Execute Round Robin
+            phase_cost = 0.0
             active = True
+            
             while active and queue:
-                active = False 
-                
-                # We iterate a copy to allow removal from main queue
+                active = False
                 for i in range(len(queue) - 1, -1, -1):
                     item = queue[i]
                     rec = item['rec']
@@ -1164,155 +1438,307 @@ class OrderEngine:
                     pack_cost = item['cost_per_pack']
                     pack_size = item['pack_size']
                     
-                    # 1. Global Cap Check
-                    if (batch_cost + pack_cost) > global_spending_cap:
-                         rec['reasoning'] += " [PASS 2: GLOBAL BUDGET PARTITION CAP]"
-                         # Stop processing this item, and honestly stop everything
-                         # But let's just remove this item to be safe, loops will finish
-                         queue.pop(i)
-                         continue
+                    # Check Phase Cap
+                    if (phase_cost + pack_cost) > phase_cap:
+                        rec['reasoning'] += f" [{phase_name} CAP]"
+                        queue.pop(i)
+                        continue
+                        
+                    # Check Share Cap (except for Priority)
+                    is_priority = (phase_name == "PRIORITY")
+                    if not is_priority:
+                         wallet_limit_ratio = 0.25 if is_small else 0.50
+                         max_item_spend = wallets.get(dept, {}).get('allocated_budget', 0) * wallet_limit_ratio if dept in wallets else 99999999.0
+                         current_spend = rec['recommended_quantity'] * item['cost_est']
+                         if (current_spend + pack_cost) > max_item_spend:
+                             if rec.get('pass1_allocated'): rec['reasoning'] += " [SHARE CAP]"
+                             queue.pop(i)
+                             continue
 
-                    # Duka Priority Bypass Logic
-                    is_priority_bypass = False
-                    # Only bypass for Standard Duka (not Micro)
-                    if is_small and not is_micro and dept in ['COOKING OIL', 'FLOUR', 'SUGAR', 'FRESH MILK', 'BREAD']:
-                         is_priority_bypass = True
-
-                    # 2. Check Item Limits (Share Cap)
-                    # Bypass for Anchors (we want to stock them heavy)
-                    if not is_priority_bypass:
-                        wallet_limit_ratio = 0.25 if is_small else 0.50
-                        if dept in wallets:
-                            max_item_spend = wallets[dept]['allocated_budget'] * wallet_limit_ratio
-                        else:
-                            max_item_spend = 999999999.0
-                        
-                        current_qty = rec['recommended_quantity']
-                        pack_cost = item['cost_per_pack'] # Need to re-extract or assume in scope?
-                        # item is queue[i]. Loop context?
-                        # Ah, we are in the loop. 'item' is defined.
-                        current_item_spend = current_qty * item['cost_est']
-                        
-                        if (current_item_spend + pack_cost) > max_item_spend:
-                            if rec.get('pass1_allocated', False):
-                                 rec['reasoning'] += " [PASS 2: ITEM SHARE CAP]"
-                                 queue.pop(i)
-                                 continue
+                    # Check Wallet
+                    can_spend = True
+                    if not is_priority and dept in wallets:
+                         if not self.budget_manager.check_wallet_availability(wallets, dept, pack_cost):
+                             can_spend = False
                     
-                    # 3. Check Wallet Availability
-                    # Bypass for Anchors (Use the "General Liquid Fund" essentially)
-                    # Bypass for Consignment (Free Capital)
-                    
-                    is_consignment = rec.get('is_consignment', False)
-                    can_afford = False
-                    
-                    if is_consignment:
-                        can_afford = True # Always afford free stuff (subject to max packs)
-                    elif is_priority_bypass:
-                        can_afford = True
-                    else:
-                        can_afford = self.budget_manager.check_wallet_availability(wallets, dept, pack_cost)
-                    
-                    if can_afford:
-                        # We track spend even if bypassing, wallets will go negative (which is fine, reflects reality of over-investment in anchors)
-                        # BUT: Do NOT spend for Consignment (it's free)
-                        if not is_consignment:
-                            self.budget_manager.spend_from_wallet(wallets, dept, pack_cost)
-                            batch_cost += pack_cost
-                        
+                    if can_spend:
                         rec['recommended_quantity'] += pack_size
-                        active = True # We did something!
+                        if not is_priority and dept in wallets:
+                            self.budget_manager.spend_from_wallet(wallets, dept, pack_cost)
                         
-                        # Check if satisfied
+                        rec['pass2_allocated'] = True
+                        phase_cost += pack_cost
+                        active = True
+                        
                         if rec['recommended_quantity'] >= item['target_qty']:
-                            # Done with this item
-                            if "[PASS 2" not in rec['reasoning']:
-                                rec['reasoning'] += " [PASS 2: DEPTH FILL]"
                             queue.pop(i)
-                    else:
-                        rec['reasoning'] += " [PASS 2: WALLET CAP]"
-                        queue.pop(i) # Cannot buy anymore for this department
             
-            return batch_cost
+            return phase_cost
 
-        # 1. Fill Fast Five (Priority)
-        added_fast_five_cost = 0
-        if fast_five_candidates:
-             # Allow them to consume ALL remaining budget if needed
-             added_fast_five_cost = fill_depth_constrained(fast_five_candidates, global_spending_cap=total_remaining_budget) 
+        # --- EXECUTION SEQUENCE ---
         
-        # Recalculate remaining for others
+        # 1. Fast Five (Priority)
+        added_fast_five_cost = allocate_list_constrained(fast_five_candidates, total_remaining_budget, "PRIORITY")
+        
+        # 2. Other Staples
         remaining_after_ff = total_remaining_budget - added_fast_five_cost
-        
         staple_allocation_target = remaining_after_ff * pass2_staple_share
-        discretionary_hard_cap = remaining_after_ff * (1.0 - pass2_staple_share)
         
-        logger.info(f"Pass 2 Remaining: ${remaining_after_ff:,.2f} (Other Staples Target: ${staple_allocation_target:,.2f}, Disc Cap: ${discretionary_hard_cap:,.2f})")
+        logger.info(f"Pass 2 Remaining: ${remaining_after_ff:,.2f} (Other Staples Target: ${staple_allocation_target:,.2f})")
         
-        # 2. Fill Other Staples (Capped by remaining)
-        # We use 'remaining_after_ff' or 'staple_allocation_target' as the global cap?
-        # User implies Fast Five takes precedence. Other Staples get the scraps.
-        # So we cap at remaining_after_ff. 
-        # But we also have Discretionary.
-        # Implies we should split the scraps. 
-        # But if remaining is ~0, cap is ~0.
-        added_other_staple_cost = fill_depth_constrained(other_staple_candidates, global_spending_cap=staple_allocation_target)
+        added_other_staple_cost = allocate_list_constrained(other_staple_candidates, staple_allocation_target, "STAPLE")
         
-        # 3. Fill Discretionary (Capped)
-        added_disc_cost = fill_depth_constrained(discretionary_candidates, global_spending_cap=discretionary_hard_cap)
+        # 3. Discretionary
+        remaining_disc = remaining_after_ff * (1.0 - pass2_staple_share)
+        added_disc_cost = allocate_list_constrained(discretionary_candidates, remaining_disc, "DISC")
         
         pass2_cost = added_fast_five_cost + added_other_staple_cost + added_disc_cost
 
-        logger.info(f"Pass 2 Complete. Added Depth: ${pass2_cost:,.2f} (Fast5: ${added_fast_five_cost:,.0f}, OtherStaples: ${added_other_staple_cost:,.0f}, Discretionary: ${added_disc_cost:,.0f})")
+        logger.info(f"Pass 2 Complete. Added Depth: ${pass2_cost:,.2f} (Desc: {added_fast_five_cost:,.0f}/{added_other_staple_cost:,.0f}/{added_disc_cost:,.0f})")
         
-        # --- PASS 2B: BUDGET REDISTRIBUTION (v2.5) ---
-        # v2.9 FIX: Calculate TRUE unused budget (not wallet balances which include buffers)
+        # --- PASS 2B: FLEX POOL REDISTRIBUTION (v3.0 - Gap-11 Fix) ---
+        # Calculate TRUE unused budget (flex pool available)
         actual_spent = pass1_cost + pass2_cost
         true_unused = total_budget - actual_spent
-        total_allocated_budget = sum([w['max_budget'] for w in wallets.values()])
         unused_pct = (true_unused / total_budget * 100) if total_budget > 0 else 0
         
-        redistrib_cost = 0.0  # Initialize
+        redistrib_cost = 0.0
+        flex_pool_transactions = []  # Track all transactions for audit
+        items_enhanced = 0
         
-        if true_unused > (total_budget * 0.10):  # > 10% unused
-            logger.info(f"Pass 2B: Budget Redistribution Active. Unused: ${true_unused:,.2f} ({unused_pct:.1f}%)")
+        if true_unused > (total_budget * 0.05):  # > 5% unused (lowered threshold from 10%)
+            logger.info(f"Pass 2B: Flex Pool Active. Available: ${true_unused:,.2f} ({unused_pct:.1f}%)")
             
-            # Identify high-priority items that were capped (hit max_packs or wallet limit)
-            realloc_candidates = []
+            # --- EXPANDED ELIGIBILITY: All Priority 1/2 Items with Depth Potential ---
+            flex_candidates = []
+            
             for rec in recommendations:
                 if rec.get('pass1_allocated') and rec['recommended_quantity'] > 0:
-                    # Check if item is a Staple or A-Class
-                    is_staple = self.budget_manager.is_staple(rec['product_name'])
+                    # Priority check: Staples OR A-Class items
+                    is_staple = self.budget_manager.is_staple(rec['product_name'], rec.get('product_category'), rec.get('avg_daily_sales', 0))
                     abc_class = rec.get('ABC_Class', 'B')
                     is_priority = is_staple or abc_class == 'A'
                     
                     if is_priority:
-                        # Check if item was likely capped (reasoning contains "CAP" or quantity = max_packs)
-                        reasoning = rec.get('reasoning', '')
-                        was_capped = 'CAP' in reasoning or 'WALLET' in reasoning
+                        # Calculate depth potential (how much more this item could use)
+                        current_qty = rec['recommended_quantity']
+                        avg_sales = rec.get('avg_daily_sales', 0.0)
                         
-                        if was_capped:
-                            realloc_candidates.append(rec)
+                        # Handle new products
+                        if avg_sales <= 0:
+                            lookalike = rec.get('lookalike_demand', 0.0)
+                            avg_sales = lookalike * 0.5 if lookalike > 0 else (0.3 if rec.get('is_fresh') else 0.5)
+                        
+                        # Calculate ideal depth
+                        ideal_days = depth_cap_days
+                        
+                        # Enforce shelf life limits
+                        shelf_life = rec.get('shelf_life_days', 365)
+                        if shelf_life < 30:
+                            max_safe_days = max(1, shelf_life - 2)
+                            ideal_days = min(ideal_days, max_safe_days)
+                        
+                        ideal_qty = int(avg_sales * ideal_days)
+                        additional_qty = max(0, ideal_qty - current_qty)
+                        
+                        if additional_qty > 0:
+                            # Calculate ROI score for prioritization
+                            velocity = rec.get('avg_daily_sales', 0.0)
+                            margin = rec.get('profit_margin', 0.2)
+                            roi_score = velocity * margin
+                            
+                            flex_candidates.append({
+                                'rec': rec,
+                                'additional_qty': additional_qty,
+                                'ideal_days': ideal_days,
+                                'roi_score': roi_score,
+                                'dept': rec.get('product_category', 'GENERAL').upper()
+                            })
             
-            # Sort by sales velocity (prioritize winners)
-            realloc_candidates.sort(key=lambda x: x.get('avg_daily_sales', 0), reverse=True)
+            # Sort by ROI score (highest first) - maximize value from flex pool
+            flex_candidates.sort(key=lambda x: x['roi_score'], reverse=True)
             
-            # Attempt to add more depth using TRUE unused budget (not wallet balances)
-            redistrib_cost = fill_depth_constrained(realloc_candidates, global_spending_cap=true_unused)
+            logger.info(f"Pass 2B: {len(flex_candidates)} items eligible for flex pool (Priority 1/2 with depth potential)")
+            
+            # --- DISTRIBUTE FLEX POOL ---
+            flex_pool_remaining = true_unused
+            
+            for candidate in flex_candidates:
+                if flex_pool_remaining <= 0:
+                    break
+                    
+                rec = candidate['rec']
+                additional_qty = candidate['additional_qty']
+                dept = candidate['dept']
+                
+                # Calculate cost
+                price = float(rec.get('selling_price', 0.0))
+                cost_price = self._get_actual_cost_price(rec, price)
+                pack_size = int(rec.get('pack_size', 1))
+                
+                # Allocate pack-by-pack from flex pool
+                allocated_from_flex = 0
+                
+                while allocated_from_flex < additional_qty and flex_pool_remaining > 0:
+                    pack_cost = pack_size * cost_price
+                    
+                    if pack_cost <= flex_pool_remaining:
+                        # Can afford this pack from flex pool
+                        flex_pool_remaining -= pack_cost
+                        allocated_from_flex += pack_size
+                        rec['recommended_quantity'] += pack_size
+                    else:
+                        # Can't afford anymore
+                        break
+                
+                if allocated_from_flex > 0:
+                    # Track transaction
+                    flex_spent = allocated_from_flex * cost_price
+                    flex_pool_transactions.append({
+                        'item': rec['product_name'],
+                        'dept': dept,
+                        'units_added': allocated_from_flex,
+                        'flex_spent': flex_spent,
+                        'roi_score': candidate['roi_score']
+                    })
+                    
+                    # Update reasoning
+                    rec['reasoning'] += f" [FLEX POOL: +{allocated_from_flex} units, ${flex_spent:,.0f}]"
+                    items_enhanced += 1
+            
+            redistrib_cost = true_unused - flex_pool_remaining
             
             if redistrib_cost > 0:
-                logger.info(f"Pass 2B: Redistributed ${redistrib_cost:,.2f} to {len([r for r in realloc_candidates if '[PASS 2B' in r.get('reasoning', '')])} priority items")
-                # Mark items that received redistribution
-                for rec in realloc_candidates:
-                    if '[PASS 2B' not in rec.get('reasoning', '') and rec['recommended_quantity'] > rec.get('_pre_2b_qty', 0):
-                        rec['_pre_2b_qty'] = rec.get('_pre_2b_qty', rec['recommended_quantity'])
-                        rec['reasoning'] = rec['reasoning'].replace('[PASS 2: DEPTH FILL]', '[PASS 2B: REDISTRIBUTED]')
+                logger.info(f"Pass 2B: Flex Pool distributed ${redistrib_cost:,.2f} to {items_enhanced} items")
+                logger.info(f"Pass 2B: Flex Pool remaining: ${flex_pool_remaining:,.2f}")
+                
+                # Log top 5 beneficiaries for audit trail
+                for i, txn in enumerate(flex_pool_transactions[:5]):
+                    logger.info(f"  #{i+1}: {txn['item']} (+{txn['units_added']} units, ${txn['flex_spent']:,.0f}, ROI: {txn['roi_score']:.2f})")
         
+        # --- PASS 3: SUPPLIER ANCHORING (MOV TRAP FIX) ---
+        # Insight: If total spend with a supplier is < MOV, we will never be able to restock.
+        # Better to cut them Day 1 and focus budget on viable partners.
+        
+        if is_small:
+            mov_threshold = 1500 if is_micro else 3000
+            supplier_spend = {}
+            
+            # 1. Aggregate Spend
+            for rec in recommendations:
+                if rec['recommended_quantity'] > 0:
+                    supp = str(rec.get('supplier_name', 'UNKNOWN')).upper().strip()
+                    price = float(rec.get('selling_price', 0))
+                    # Use actual cost estimate
+                    cost = self._get_actual_cost_price(rec, price) * rec['recommended_quantity']
+                    supplier_spend[supp] = supplier_spend.get(supp, 0) + cost
+            
+            # 2. Prune Below Threshold
+            pruned_anchor_count = 0
+            pruned_anchor_val = 0.0
+            
+            for rec in recommendations:
+                if rec['recommended_quantity'] > 0:
+                    supp = str(rec.get('supplier_name', 'UNKNOWN')).upper().strip()
+                    total_supp_spend = supplier_spend.get(supp, 0)
+                    
+                    # Exceptions: Consignment (No MOV), Fresh (Daily Delivery usually bypasses strict MOV or has lower thresholds in reality)
+                    # But actually, Fresh delivery failure is even worse.
+                    # Let's strictly enforce for Dry, be lenient for Fresh/Consignment
+                    is_consign = rec.get('is_consignment', False)
+                    is_fresh_supp = rec.get('is_fresh', False)
+                    
+                    if not is_consign and not is_fresh_supp:
+                        if total_supp_spend < mov_threshold:
+                            # Prune
+                            qty = rec['recommended_quantity']
+                            price = float(rec.get('selling_price', 0))
+                            cost_est = self._get_actual_cost_price(rec, price) * qty
+                            
+                            rec['recommended_quantity'] = 0
+                            rec['reasoning'] += f" [ANCHOR PRUNE: Supp Spend ${total_supp_spend:,.0f} < ${mov_threshold}]"
+                            
+                            pruned_anchor_count += 1
+                            pruned_anchor_val += cost_est
+                            
+                            # Update running totals for summary accuracy
+                            if rec.get('pass1_allocated'): pass1_cost -= cost_est
+                            else: pass2_cost -= cost_est # Assumption
+                            
+            if pruned_anchor_count > 0:
+                logger.info(f"Pass 3: Pruned {pruned_anchor_count} items from low-volume suppliers. Saved ${pruned_anchor_val:,.2f}")
+                
+                # --- PASS 3B: REDISTRIBUTE TO ANCHORS ---
+                # Reinvest the saved capital into Top 3 Suppliers ("Anchors")
+                if pruned_anchor_val > 0:
+                    # 1. Identify Anchors (Top 3 by spend)
+                    # Filter out pruned suppliers (spend < threshold)
+                    viable_suppliers = {k: v for k, v in supplier_spend.items() if v >= mov_threshold}
+                    sorted_anchors = sorted(viable_suppliers.items(), key=lambda x: x[1], reverse=True)[:3]
+                    anchor_names = [x[0] for x in sorted_anchors]
+                    
+                    if anchor_names:
+                        logger.info(f"Pass 3B: Redistributing ${pruned_anchor_val:,.2f} to Anchors: {anchor_names}")
+                        
+                        # 2. Find eligible items from these anchors
+                        anchor_candidates = []
+                        for rec in recommendations:
+                            supp = str(rec.get('supplier_name', 'UNKNOWN')).upper().strip()
+                            if supp in anchor_names and rec['recommended_quantity'] > 0:
+                                # Calculate potential depth
+                                avg_sales = rec.get('avg_daily_sales', 0.1)
+                                current_qty = rec['recommended_quantity']
+                                
+                                # Cap at 45 days (Reasonable Max)
+                                max_qty = int(avg_sales * 45)
+                                headroom = max(0, max_qty - current_qty)
+                                
+                                if headroom > 0:
+                                    anchor_candidates.append({
+                                        'rec': rec,
+                                        'headroom': headroom,
+                                        'priority': avg_sales * float(rec.get('profit_margin', 0.2)) # ROI Score
+                                    })
+                        
+                        # 3. Distribute
+                        anchor_candidates.sort(key=lambda x: x['priority'], reverse=True)
+                        reinvested = 0.0
+                        
+                        for cand in anchor_candidates:
+                            if pruned_anchor_val <= 0: break
+                            
+                            rec = cand['rec']
+                            price = float(rec.get('selling_price', 0))
+                            cost = self._get_actual_cost_price(rec, price)
+                            
+                            # Buy as much as headroom allows or budget permits
+                            affordable_qty = int(pruned_anchor_val / cost) if cost > 0 else 0
+                            add_qty = min(cand['headroom'], affordable_qty)
+                            
+                            if add_qty > 0:
+                                rec['recommended_quantity'] += add_qty
+                                cost_added = add_qty * cost
+                                
+                                pruned_anchor_val -= cost_added
+                                reinvested += cost_added
+                                
+                                rec['reasoning'] += f" [ANCHOR BOOST: +{add_qty}]"
+                                
+                        logger.info(f"Pass 3B Complete. Reinvested ${reinvested:,.2f}.")
+                        pass2_cost += reinvested # Attribute to Pass 2 bucket for now
+
         # --- FINALIZE SUMMARY ---
         summary['pass1_cash'] = pass1_cost
         summary['pass1_consignment'] = pass1_consignment_val
         summary['pass2_cash'] = pass2_cost
         summary['pass2b_cash'] = redistrib_cost if 'redistrib_cost' in locals() else 0.0
+        summary['pass2b_items_enhanced'] = items_enhanced if 'items_enhanced' in locals() else 0
+        
+        # Flex pool metrics (Gap-11 fix tracking)
+        summary['flex_pool_available'] = true_unused if 'true_unused' in locals() else 0.0
+        summary['flex_pool_distributed'] = redistrib_cost if redistrib_cost > 0 else 0.0
+        summary['flex_pool_remaining'] = (true_unused - redistrib_cost) if (redistrib_cost > 0 and 'true_unused' in locals()) else 0.0
+        
         # v2.9 FIX: Include Pass 2B in total  
         summary['total_cash_used'] = pass1_cost + pass2_cost + summary['pass2b_cash']
         summary['total_consignment'] = pass1_consignment_val
