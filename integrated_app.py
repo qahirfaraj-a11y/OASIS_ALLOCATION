@@ -112,11 +112,23 @@ st.markdown("""
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
     }
-    .stMetric {
-        background-color: #f0f2f6;
-        padding: 10px;
-        border-radius: 8px;
+    /* Dark theme for metrics */
+    [data-testid="stMetric"] {
+        background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+        padding: 15px;
+        border-radius: 10px;
         border-left: 4px solid #667eea;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+    }
+    [data-testid="stMetric"] label {
+        color: #a8a8b8 !important;
+    }
+    [data-testid="stMetric"] [data-testid="stMetricValue"] {
+        color: #ffffff !important;
+        font-weight: bold;
+    }
+    [data-testid="stMetric"] [data-testid="stMetricDelta"] {
+        color: #4ade80 !important;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -355,42 +367,47 @@ with tab2:
             
             # Prepare Excel data
             from io import BytesIO
+            from dataclasses import asdict
             
             def create_excel_download(result, config):
                 """Create Excel file with multiple sheets for download."""
                 output = BytesIO()
                 
                 with pd.ExcelWriter(output, engine='openpyxl') as writer:
-                    # Sheet 1: Summary
+                    # Sheet 1: Summary (always created)
                     summary_data = {
                         'Metric': ['Fill Rate', 'Stockout Rate', 'Total Revenue', 'Lost Sales', 
                                   'Inventory Turns', 'ROI', 'Days Simulated', 'SKUs Tracked'],
                         'Value': [f"{result.avg_fill_rate:.1f}%", f"{result.stockout_rate:.2f}%",
-                                 f"KES {result.total_revenue:,.0f}", f"KES {result.lost_sales:,.0f}",
+                                 f"KES {result.total_revenue:,.0f}", f"KES {getattr(result, 'lost_sales', 0):,.0f}",
                                  f"{result.inventory_turnover:.1f}x", f"{result.roi:.1f}%",
                                  config.get('days', 'N/A'), len(result.daily_logs) if result.daily_logs else 'N/A']
                     }
                     pd.DataFrame(summary_data).to_excel(writer, sheet_name='Summary', index=False)
                     
-                    # Sheet 2: Daily Performance
+                    # Sheet 2: Daily Performance - convert dataclass objects to dicts
                     if hasattr(result, 'daily_logs') and result.daily_logs:
-                        daily_df = pd.DataFrame(result.daily_logs)
-                        daily_df.to_excel(writer, sheet_name='Daily_Performance', index=False)
+                        try:
+                            daily_data = [asdict(log) if hasattr(log, '__dataclass_fields__') else log for log in result.daily_logs]
+                            daily_df = pd.DataFrame(daily_data)
+                            daily_df.to_excel(writer, sheet_name='Daily_Performance', index=False)
+                        except Exception:
+                            # Fallback: try direct DataFrame conversion
+                            try:
+                                daily_df = pd.DataFrame(result.daily_logs)
+                                daily_df.to_excel(writer, sheet_name='Daily_Performance', index=False)
+                            except:
+                                pass
                     
-                    # Sheet 3: Daily Orders/Replenishments
-                    if hasattr(result, 'order_logs') and result.order_logs:
-                        orders_df = pd.DataFrame(result.order_logs)
-                        orders_df.to_excel(writer, sheet_name='Daily_Replenishments', index=False)
-                    
-                    # Sheet 4: Stockout Details
-                    if hasattr(result, 'stockout_details') and result.stockout_details:
-                        stockout_df = pd.DataFrame(result.stockout_details)
-                        stockout_df.to_excel(writer, sheet_name='Stockout_Details', index=False)
-                    
-                    # Sheet 5: SKU Final State
-                    if hasattr(result, 'sku_final_states') and result.sku_final_states:
-                        sku_df = pd.DataFrame(result.sku_final_states)
-                        sku_df.to_excel(writer, sheet_name='SKU_Final_State', index=False)
+                    # Sheet 3: Final SKU States - convert dataclass objects to dicts
+                    if hasattr(result, 'final_sku_states') and result.final_sku_states:
+                        try:
+                            sku_data = [asdict(sku) if hasattr(sku, '__dataclass_fields__') else sku 
+                                       for sku in result.final_sku_states.values()]
+                            sku_df = pd.DataFrame(sku_data)
+                            sku_df.to_excel(writer, sheet_name='SKU_Final_State', index=False)
+                        except Exception:
+                            pass
                 
                 output.seek(0)
                 return output.getvalue()
