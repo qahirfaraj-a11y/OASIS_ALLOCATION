@@ -1146,9 +1146,12 @@ class OrderEngine:
                 if is_staple or is_essential_dept or rec.get('avg_daily_sales', 0) > 1.0:
                      lead_time = int(rec.get('estimated_delivery_days', 2))
                      # Buffer: LeadTime + 2 Days (Minimum to bridge to first delivery)
-                     # For fresh, we might cap it later, but typically Fresh Pass 2 handles precision.
-                     # Here we just want a safe floor.
-                     needed_days = lead_time + 2.0
+                     # v5.5 FIX: Fresh Constraint for Launch Buffer
+                     if dept in FRESH_DEPARTMENTS:
+                          needed_days = min(lead_time + 1.0, 3.0) # Cap at 3 days max for fresh
+                     else:
+                          needed_days = lead_time + 2.0
+                     
                      launch_target_units = int(rec.get('avg_daily_sales', 0) * needed_days)
                 
                 rec_qty_units = max(int(rec.get('moq_floor', 0)), raw_mdq, launch_target_units)
@@ -1365,24 +1368,30 @@ class OrderEngine:
                 # --- DEPTH CALCULATION ---
                 effective_days = depth_cap_days
                 
-                # Risk Logic (simplified)
-                if new_product_mode:
-                    is_fresh = rec.get('is_fresh', False)
-                    max_new_product_days = 7 if is_fresh else 14
-                    effective_days = min(effective_days, max_new_product_days)
-
-                # v5.3 FIX: Dynamic Depth for Fresh (Lead Time + Buffer)
-                # User Feedback: "Don't stock 3 days if daily supplier".
-                if dept in ['FRESH MILK', 'BREAD']:
+                # v5.3 FIX: Global Freshness Logic (Applies to ALL products, new or old)
+                # Enforce shelf-life constraints strictly
+                is_fresh_dept = dept in FRESH_DEPARTMENTS
+                
+                if is_fresh_dept:
                      lead_time = int(rec.get('estimated_delivery_days', 1))
-                     # We want to cover Lead Time + Small Buffer (0.6 days)
-                     target_days = lead_time + 0.6
-                     target_days = min(target_days, 3.0) 
-                     effective_days = min(effective_days, target_days)
                      
-                     # Ensure we honor high velocity unlock for essential flow
-                     if effective_avg_sales > 5.0:
-                         effective_days = max(effective_days, target_days) 
+                     # Fresh Strategy:
+                     # 1. Base Coverage must be low (Lead Time + 1 Day Buffer)
+                     # 2. Hard Cap at 3 Days (prevent spoilage)
+                     
+                     target_fresh_days = lead_time + 1.0
+                     target_fresh_days = min(target_fresh_days, 3.0)
+                     
+                     effective_days = min(effective_days, target_fresh_days)
+                     
+                     # Note: We do NOT allow high velocity to override spoilge risk.
+                     # 500 units of milk selling 100/day implies 5 days stock -> Spoiled.
+                     # We stick to relevant days.
+                
+                # Risk Logic (New Products)
+                elif new_product_mode:
+                    max_new_product_days = 14
+                    effective_days = min(effective_days, max_new_product_days) 
                 
                 # Calculate Ideal
                 ideal_qty = int(effective_avg_sales * effective_days)
@@ -1392,6 +1401,14 @@ class OrderEngine:
                 if is_small and dept in ['COOKING OIL', 'FLOUR', 'SUGAR']:
                      unit_price = float(rec.get('selling_price', 0))
                      min_pack_floor = 12 if unit_price < 50 else 6
+                
+                # v5.4 FIX: Relax Floor for Fresh (Avoid spoilage due to minimums)
+                if dept in FRESH_DEPARTMENTS:
+                     min_pack_floor = 1 # Allow buying single pack/unit for fresh 
+                     # (Actually, we should respect Pack Size, but here floor is usually units? 
+                     # No, logic below uses it to update ideal_qty. 
+                     # 1396: ideal_qty = max(ideal_qty, min_pack_floor))
+                     # So we set it to 1 to allow strict demand matching.
                 
                 ideal_qty = max(ideal_qty, min_pack_floor)
                 
@@ -1532,11 +1549,18 @@ class OrderEngine:
                         # Calculate ideal depth
                         ideal_days = depth_cap_days
                         
-                        # Enforce shelf life limits
-                        shelf_life = rec.get('shelf_life_days', 365)
-                        if shelf_life < 30:
-                            max_safe_days = max(1, shelf_life - 2)
-                            ideal_days = min(ideal_days, max_safe_days)
+                        # v5.3 FIX: Strict Fresh Constraint for Flex Pool
+                        dept_upper = rec.get('product_category', 'GENERAL').upper()
+                        if dept_upper in FRESH_DEPARTMENTS:
+                             lead_time = int(rec.get('estimated_delivery_days', 1))
+                             target_fresh_days = min(lead_time + 1.0, 3.0)
+                             ideal_days = min(ideal_days, target_fresh_days)
+                        else:
+                             # Standard Shelf Life Logic
+                             shelf_life = rec.get('shelf_life_days', 365)
+                             if shelf_life < 30:
+                                 max_safe_days = max(1, shelf_life - 2)
+                                 ideal_days = min(ideal_days, max_safe_days)
                         
                         ideal_qty = int(avg_sales * ideal_days)
                         additional_qty = max(0, ideal_qty - current_qty)
