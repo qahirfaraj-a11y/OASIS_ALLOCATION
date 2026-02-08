@@ -913,9 +913,11 @@ class OrderEngine:
                 p['target_coverage_days'] = 3
                 p['floor_applied'] = True
             
-            if (any(x in name_upper for x in ['MILK', 'DAIRY', 'YOGHU']) or 'DAIRY' in dept) and p.get('target_coverage_days', 0) < 5:
-                p['target_coverage_days'] = 5
-                p['floor_applied'] = True
+            # v7.6 REFINEMENT: Remove static 5-day floor for Dairy/Milk
+            # User Feedback: "Fresh orders should ≈ Sales". 5 days is too long for daily fresh items.
+            # if (any(x in name_upper for x in ['MILK', 'DAIRY', 'YOGHU']) or 'DAIRY' in dept) and p.get('target_coverage_days', 0) < 5:
+            #     p['target_coverage_days'] = 5
+            #     p['floor_applied'] = True
                 
         return products
 
@@ -1608,6 +1610,15 @@ class OrderEngine:
                 # Default "Effective Days" starts with the smart target
                 smart_target_days = self.calculate_replenishment_target_stock(rec, tier_profile)
                 effective_days = smart_target_days
+                
+                # v7.6 REFINEMENT: Tight Coupling for Fresh (JIT)
+                # User Request: "Fresh orders ≈ Sales".
+                # We allocate LeadTime + 1.5 Days (Buffer).
+                if rec.get('is_fresh', False):
+                     lead_time = int(rec.get('estimated_delivery_days', 1)) 
+                     # Force 1.5 days buffer max
+                     effective_days = lead_time + 1.5
+                     if "[JIT FRESH]" not in rec['reasoning']: rec['reasoning'] += " [JIT FRESH]"
                 
                 # Fallback / Override for New Products Logic (Hybrid)
                 # Fallback / Override for New Products Logic (Hybrid)
