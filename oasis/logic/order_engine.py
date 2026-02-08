@@ -515,12 +515,12 @@ class OrderEngine:
             
         is_fresh = product.get('is_fresh', False)
         
-        # v6.3 FIX: Specialized Fresh Milk Rule (1 Day + 20% Buffer)
-        # User Requirement: "Fresh milk is stocked for 1 day plus 20% buffer"
+        # v6.3 FIX: Specialized Fresh Milk Rule (Lead Time + Buffer)
+        # User Requirement: "Fresh orders = Sales" but need small buffer
         if is_fresh and frequency == 'daily':
-             # Strict Day 1 + 20% logic
-             # This bypasses the standard safety buffer calculation
-             return 1.2 
+             # Logic: Daily Sales * (LeadTime + 1.25)
+             # If LeadTime=1 -> 2.25 Days Coverage
+             return float(lead_time) + 1.25 
              
         # 2. Safety Buffer (Dynamic)
         # Base: 4.0 for Fresh (non-daily?), 1.5 for Dry
@@ -1044,31 +1044,41 @@ class OrderEngine:
              # Actually, we can derive it. Scorecard items have 'avg_daily_sales'. 
              # If we compare TOTAL Scorecard Demand vs TOTAL Seasonal Demand, we find the ratio.
              
-             total_scorecard_vol = sum([r.get('avg_daily_sales', 0) for r in recommendations])
-             total_seasonal_vol = sum(seasonal_demand_map.values()) / 30.0 # Daily avg
+             # v7.9 Fix: Calculate Scale Factor based on INTERSECTION only
+             # Previous logic compared Total(2k items) vs Total(14k items) -> 0.06 factor
+             common_vol_scorecard = 0.0
+             common_vol_seasonal = 0.0
              
-             if total_seasonal_vol > 0 and total_scorecard_vol > 0:
-                 scale_factor = total_scorecard_vol / total_seasonal_vol
-                 # Dampen extreme scaling
-                 scale_factor = max(0.01, min(2.0, scale_factor)) # Safety clamps
-                 logger.info(f"Derived Seasonal Scale Factor: {scale_factor:.4f} (blending ratio)")
-                 
-                 blended_count = 0
-                 for rec in recommendations:
-                     p_name = rec.get('product_name', '').upper()
-                     if p_name in seasonal_demand_map:
-                         monthly_total = seasonal_demand_map[p_name]
-                         seasonal_daily = (monthly_total / 30.0) * scale_factor
-                         
-                         # Hybrid Formula: (Core + Seasonal) / 2
-                         core_daily = rec.get('avg_daily_sales', 0)
-                         blended_daily = (core_daily + seasonal_daily) / 2.0
-                         
-                         rec['avg_daily_sales'] = blended_daily
-                         rec['is_seasonally_adjusted'] = True
-                         blended_count += 1
-                 
-                 logger.info(f"Blended demand for {blended_count} items based on seasonal cache.")
+             for r in recommendations:
+                 p_name = r.get('product_name', '').upper()
+                 if p_name in seasonal_demand_map:
+                     common_vol_scorecard += r.get('avg_daily_sales', 0)
+                     common_vol_seasonal += seasonal_demand_map[p_name] / 30.0
+                     
+             if common_vol_seasonal > 0:
+                 scale_factor = common_vol_scorecard / common_vol_seasonal
+                 # Clamp to avoid crazy multipliers
+                 scale_factor = max(0.5, min(1.5, scale_factor)) # Tighter clamp (0.5-1.5)
+                 logger.info(f"Derived Seasonal Scale Factor (Intersection): {scale_factor:.4f}")
+             else:
+                 scale_factor = 1.0
+             
+             blended_count = 0
+             for rec in recommendations:
+                 p_name = rec.get('product_name', '').upper()
+                 if p_name in seasonal_demand_map:
+                     monthly_total = seasonal_demand_map[p_name]
+                     seasonal_daily = (monthly_total / 30.0) * scale_factor
+                     
+                     # Hybrid Formula: (Core + Seasonal) / 2
+                     core_daily = rec.get('avg_daily_sales', 0)
+                     blended_daily = (core_daily + seasonal_daily) / 2.0
+                     
+                     rec['avg_daily_sales'] = blended_daily
+                     rec['is_seasonally_adjusted'] = True
+                     blended_count += 1
+             
+             logger.info(f"Blended demand for {blended_count} items based on seasonal cache.")
 
         # --- PRE-ALLOCATION ANALYSIS ---
         # Implements the Comprehensive Tiered Allocation Logic.
@@ -1442,6 +1452,12 @@ class OrderEngine:
                 # Allow unlimited packs for staple anchors (COOKING OIL, FLOUR, SUGAR)
                 if is_small and dept in ['COOKING OIL', 'FLOUR', 'SUGAR'] and is_staple:
                     max_allowed_units = 999  # GAP-F: Anchor override
+                    
+                # v7.9 Fix: Fresh Items Exempt from Shelf Cap IN PASS 1
+                # Justification: Pass 1 calculates critical "Launch Buffer". We cannot cap this.
+                if rec.get('is_fresh', False):
+                     # Allow launch buffer to exceed shelf cap
+                     max_allowed_units = max(max_allowed_units, int(launch_target_units * 1.1))
                 
                 if rec_qty_final > max_allowed_units:
                     rec_qty_final = max_allowed_units
@@ -1692,14 +1708,26 @@ class OrderEngine:
                     floor_qty = max(min_pack_floor, int(rec.get('min_display_qty', 3)))
                 
                 # --- CONSTRAINT: MAX ALLOWED UNITS ---
-                max_total_packs = int(profile.get('max_packs', 10))
+                max_total_packs = int(tier_profile.get('max_packs', 10)) # Use tier_profile here
                 max_allowed_units = max_total_packs * pack_size
                 
-                # High Velocity Unlock
+                # Allow high velocity items to breach max_packs if needed for Minimum Coverage
+                # Rule: If ADS > 2, allow up to 1.5x Max Packs
+                if rec['avg_daily_sales'] > 2.0:
+                     max_allowed_units = int(max_allowed_units * 1.5)
+                     
+                # v7.9 Fix: Fresh Items Exempt from Shelf Cap
+                # Justification: High velocity fresh items (Milk/Bread) are floor-stacked or critically replenished.
+                # We cannot cap them at "18 packs" if they sell 60/day.
+                if rec.get('is_fresh', False):
+                    # Allow full target + 10% flex, but not less than current max_allowed_units
+                    max_allowed_units = max(max_allowed_units, int(ideal_qty * 1.1)) 
+                
+                # High Velocity Unlock (additional logic)
                 if is_small and dept in ['COOKING OIL', 'FLOUR', 'SUGAR']:
-                    max_allowed_units = 999
+                    max_allowed_units = max(max_allowed_units, 999) # Ensure it's at least 999
                 elif total_budget >= 20000000: 
-                    max_allowed_units = 99999999
+                    max_allowed_units = max(max_allowed_units, 99999999) # Ensure it's at least 99999999
                 elif effective_avg_sales > 1.0:
                      # v6.1 FIX: Allow velocity floor to match Calculated Effective Days
                      velocity_floor = int(effective_avg_sales * effective_days)
