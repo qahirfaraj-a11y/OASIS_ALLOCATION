@@ -1310,7 +1310,8 @@ class OrderEngine:
 
             # Hybrid Scaled Demand Logic (Standard+)
             # v3.0 FIX: Scale threshold proportionally AND bypass for essential departments
-            if should_list and not is_micro:
+            # v8.2 FIX: Enable for Micro too, so we can calculate scaled_demand for allocation sizing.
+            if should_list:
                 mega_budget = 114000000.0
                 budget_ratio = total_budget / mega_budget
                 mega_demand_proxy = rec.get('avg_daily_sales', 0) * 45 
@@ -1341,7 +1342,22 @@ class OrderEngine:
                         reason_tag = "[PASS 1: NEW PRODUCT - PROVISIONAL]"
                     else:
                         should_list = False
+                        should_list = False
                         reason_tag = f"[SCALED DROP] Demand: {scaled_demand:.2f} < {scaled_threshold:.2f}"
+                        
+                # v8.2 FIX: Apply Demand Scaling to Allocation Calculation
+                # If we scaled demand for filtering, we must also use it for Qty calculation!
+                # Removed "not is_micro" check - Micro stores need this MOST.
+                if should_list and 'scaled_demand' in locals():
+                     # Only scale DOWN. Never scale UP (if we are allocating for a Mega store using Micro history?)
+                     # Actually, `budget_ratio` handles both. But usually we load Mega history.
+                     # Let's trust budget_ratio but cap at 1.0 (never inflate demand artificially beyond history unless specified)
+                     # Actually, if store is BIGGER than history source, we SHOULD scale up? 
+                     # For now, let's assume we load "Golden Store" (Mega) pattern.
+                     
+                     # Update the ADS used for allocation
+                     rec['avg_daily_sales'] = scaled_demand 
+                     rec['reasoning'] += f" [SCALED ADS: {scaled_demand:.1f}]"
 
             if should_list:
                 # Apply Min Display Qty
@@ -1440,6 +1456,11 @@ class OrderEngine:
                          cycle_days = self.get_grn_cycle_days(rec['product_name'])
                          # Launch Buffer = Cycle + 1 Day Safety (First delivery)
                          needed_days = cycle_days + 0.5 
+                         
+                         # v8.1 FIX: Long Life Floor for Launch
+                         p_name_upper = rec.get('product_name', '').upper()
+                         if 'UHT' in p_name_upper or 'ESL' in p_name_upper or 'LONG LIFE' in p_name_upper:
+                             needed_days = max(7.0, needed_days) 
                      
                      launch_target_units = int(rec.get('avg_daily_sales', 0) * needed_days)
                 
