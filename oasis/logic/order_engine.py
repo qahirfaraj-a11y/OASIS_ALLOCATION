@@ -150,11 +150,24 @@ class OrderEngine:
 
     def load_no_grn_suppliers(self):
         try:
-            path = os.path.join(self.data_dir, 'app/data/no_grn_suppliers.json')
-            if not os.path.exists(path):
-                path = os.path.join(self.data_dir, 'no_grn_suppliers.json')
-            with open(path, 'r') as f:
-                self.no_grn_suppliers = [s.upper() for s in json.load(f)]
+            # Try multiple paths for robustness
+            paths = [
+                os.path.join(self.data_dir, 'app/data/no_grn_suppliers.json'),
+                os.path.join(self.data_dir, 'no_grn_suppliers.json'),
+                os.path.join(self.data_dir, 'oasis/data/no_grn_suppliers.json') # Fallback if initialized with scratch_dir
+            ]
+            
+            final_path = None
+            for p in paths:
+                if os.path.exists(p):
+                    final_path = p
+                    break
+            
+            if final_path:
+                with open(final_path, 'r') as f:
+                    self.no_grn_suppliers = [s.upper() for s in json.load(f)]
+            else:
+                self.no_grn_suppliers = []
         except:
             self.no_grn_suppliers = []
 
@@ -184,7 +197,8 @@ class OrderEngine:
             'product_intelligence': 'sales_profitability_intelligence_2025',
             'sales_forecasting': 'sales_forecasting_2025',
             'supplier_quality': 'supplier_quality_scores_2025',
-            'sales_profitability': 'sales_profitability_intelligence_2025'
+            'sales_profitability': 'sales_profitability_intelligence_2025',
+            'simulation_feedback': 'simulation_feedback'  # GAP-L: Feedback loop
         }
 
         available_files = os.listdir(self.data_dir)
@@ -474,7 +488,61 @@ class OrderEngine:
             return selling_price * (1 - margin_pct / 100.0)
         
         # 3. Fallback to 25% margin estimate
+        # 3. Fallback to 25% margin estimate
         return selling_price * 0.75
+
+    def calculate_replenishment_target_stock(self, product: dict, tier_profile: dict) -> float:
+        """
+        v6.0: Smart Greenfield Logic.
+        Calculates the ideal stock level based on Supply Chain Dynamics, not just flat depth.
+        Formula: Target = ADS * (ReviewPeriod + LeadTime + SafetyBuffer)
+        """
+        avg_sales = product.get('avg_daily_sales', 0.0)
+        if avg_sales <= 0: return 0.0
+        
+        # 1. Supply Chain Parameters
+        lead_time = int(product.get('estimated_delivery_days', 7))
+        if lead_time < 1: lead_time = 1
+        
+        # Review Period (Gap Days): How often do we order?
+        frequency = product.get('supplier_frequency', 'weekly').lower()
+        if frequency == 'daily':
+            review_period = 1
+        elif frequency == 'monthly':
+            review_period = 30
+        else:
+            review_period = 7
+            
+        is_fresh = product.get('is_fresh', False)
+        
+        # v6.3 FIX: Specialized Fresh Milk Rule (1 Day + 20% Buffer)
+        # User Requirement: "Fresh milk is stocked for 1 day plus 20% buffer"
+        if is_fresh and frequency == 'daily':
+             # Strict Day 1 + 20% logic
+             # This bypasses the standard safety buffer calculation
+             return 1.2 
+             
+        # 2. Safety Buffer (Dynamic)
+        # Base: 4.0 for Fresh (non-daily?), 1.5 for Dry
+        base_safety = 2.0 if is_fresh else 1.5
+        
+        # Volatility penalty
+        cv = product.get('demand_cv', 0.5)
+        vol_factor = 2.0
+        safety_buffer = base_safety * (1 + (vol_factor * cv))
+        
+        # 3. Calculate Cycle Stock Coverage
+        target_days = review_period + lead_time + safety_buffer
+        
+        # 4. Apply Tier Constraints
+        profile_depth = tier_profile.get('depth_days', 14)
+        
+        if is_fresh:
+             target_days = min(target_days, 3.0) 
+        else:
+             target_days = min(target_days, profile_depth * 1.5, 45.0)
+             
+        return target_days
 
     def enrich_product_data(self, products: List[dict]):
         """Phase 3: Product Enrichment. Maps all intelligence metrics."""
@@ -490,58 +558,66 @@ class OrderEngine:
             p_name = p.get('product_name', '')
             p_code = p.get('item_code')
             p_barcode = str(p.get('barcode', '')).strip()
+            p_upper = p_name.upper()
             
             # 0. Supplier Lookup (Fix "Unknown")
             if not p.get('supplier_name') or p.get('supplier_name') == 'Unknown':
-                 # Try exact then normalized
-                 found = supp_map.get(p_name) or supp_map.get(p_name.upper())
+                 found = supp_map.get(p_name) or supp_map.get(p_upper)
                  if found:
                      p['supplier_name'] = found
 
             supplier = p.get('supplier_name', '').upper()
             
             # v2.1 Consignment Flagging
-            # Check No GRN list OR "PLU" keyword in name
-            is_consignment = (supplier in self.no_grn_suppliers) or ("PLU" in p_name.upper())
+            is_consignment = (supplier in self.no_grn_suppliers) or ("PLU" in p_upper)
             p['is_consignment'] = is_consignment
 
-            # 2. Enrich Supplier Info
+            # 2. Enrich Supplier Info & Data-Driven Classification
             supp_name = str(p.get('supplier_name', 'Unknown')).strip()
+            
+            # Default Values
+            p['estimated_delivery_days'] = 7
+            p['supplier_reliability'] = 0.9
+            p['supplier_frequency'] = 'weekly'
+            p['is_fresh'] = False
+            
             if supp_name and supp_name != 'Unknown':
-                supp_key = self.normalize_product_name(supp_name) # Using same normalizer as keys
+                supp_key = self.normalize_product_name(supp_name)
+                pattern = supplier_patterns.get(supp_name) or supplier_patterns.get(supp_key)
                 
-                # Try finding pattern
-                pattern = supplier_patterns.get(supp_name) # Try exact match first
-                if not pattern:
-                     pattern = supplier_patterns.get(supp_key) # Try normalized
-                
-                # DEBUG: Trace Brookside
-                if "BROOKSIDE" in supp_name:
-                     # print(f"DEBUG: Looking up '{supp_name}' -> Key: '{supp_key}' | Found: {pattern is not None}")
-                     pass
-
                 if pattern:
                     p['estimated_delivery_days'] = pattern.get('estimated_delivery_days', 4)
                     p['supplier_reliability'] = pattern.get('reliability_score', 0.8)
-                    p['supplier_frequency'] = pattern.get('order_frequency', 'weekly') # Map to the field name AI expect
+                    p['supplier_frequency'] = pattern.get('order_frequency', 'weekly')
+                    
+                    # v6.3 FIX: Data-Driven Freshness
+                    # If confirmed Daily (< 2 days gap), treat as potential fresh supplier
+                    median_gap = pattern.get('median_gap_days', 7)
+                    if median_gap <= 2 or p['supplier_frequency'] == 'daily':
+                         p['supplier_frequency'] = 'daily' # Enforce consistency
+                         p['is_fresh'] = True # Provisional Fresh
                 
-                # v5.0: Explicit Fallback for Strategic Partners (Data Cleaning)
-                elif "BROOKSIDE" in supp_name:
-                    # Brookside is a critical daily supplier (Milk/Yogurt). 
-                    # If pattern missing, FORCE correct parameters to avoid massive stockouts.
+                elif "BROOKSIDE" in supp_name or "DAIRY" in supp_name or "BAKERY" in supp_name:
+                    # Fallback for known fresh entities if pattern missing
                     p['estimated_delivery_days'] = 1
                     p['supplier_reliability'] = 0.98
                     p['supplier_frequency'] = 'daily'
-                    p['is_fresh'] = True # Ensure fresh flag
-                    
-                else: # Default values if no pattern found
-                    p['estimated_delivery_days'] = 7
-                    p['supplier_reliability'] = 0.9
-                    p['supplier_frequency'] = 'weekly'
-            else: # Default values if supplier name is unknown/empty
-                p['estimated_delivery_days'] = 7
-                p['supplier_reliability'] = 0.9
-                p['supplier_frequency'] = 'weekly'
+                    p['is_fresh'] = True
+            
+            # 3. Product-Level Overrides (The UHT vs Fresh Correctness)
+            # "UHT", "LONG LIFE", "TETRA" -> NOT FRESH (even if supplier is fresh-capable)
+            if any(x in p_upper for x in ["UHT", "LONG LIFE", "LONGLIFE", "ESL", "TETRA"]):
+                 p['is_fresh'] = False
+                 
+                 # If it was marked daily, revert to Weekly for allocation depth purposes?
+                 if p.get('supplier_frequency') == 'daily':
+                      p['supplier_frequency'] = 'weekly'
+            
+            # "FRESH MILK" / "YOGHURT" -> Force FRESH
+            if "FRESH MILK" in p_upper or "YOGHURT" in p_upper or "BREAD" in p_upper:
+                 p['is_fresh'] = True
+                 p['supplier_frequency'] = 'daily' # Ensure strict 1.2 logic applies
+
 
             # 1. Supplier Patterns (Original section, now using the enriched values)
             # The original 'pat' variable is no longer directly used for these assignments,
@@ -622,6 +698,14 @@ class OrderEngine:
             has_fresh_keywords = any(x in p_name.upper() for x in ['MILK', 'DAIRY', 'BREAD', 'VEG', 'FRUIT', 'MEAT', 'YOGURT', 'CHEESE', 'JUICE', 'BUTTER'])
             
             p['is_fresh'] = is_daily_supplier or has_fresh_keywords
+            
+            # v6.4 FIX: Re-assert UHT/Long Life exclusion (overrides keywords)
+            if any(x in p_name.upper() for x in ["UHT", "LONG LIFE", "LONGLIFE", "ESL", "TETRA"]):
+                 p['is_fresh'] = False
+                 # Ensure weekly frequency for bulk buying efficiency
+                 if p.get('supplier_frequency') == 'daily':
+                      p['supplier_frequency'] = 'weekly'
+            
             is_fresh = p['is_fresh']
             
             if is_fresh:
@@ -713,6 +797,126 @@ class OrderEngine:
             else:
                 p['last_delivery_quantity'] = max(50, p.get('current_stocks', 0) * 2)
             
+            # --- CFB EXCLUSION: Internal bakery items (not for allocation) ---
+            if p_name.upper().startswith('CFB '):
+                p['exclude_from_allocation'] = True
+                p['exclusion_reason'] = 'Internal bakery production'
+                continue  # Skip further processing for CFB items
+            
+            # --- CATEGORY-SPECIFIC COVERAGE BOOSTS (based on simulation feedback) ---
+            name_upper = p_name.upper()
+            dept = p.get('department', '').upper()
+            
+            # Bread/Bakery: 2.0x boost (high velocity, short shelf life)
+            # Excludes CFB (already filtered above)
+            if 'BREAD' in name_upper or 'FESTIVE' in name_upper or 'NATURES' in name_upper:
+                if 'BAKERY' in dept or any(x in name_upper for x in ['800G', '600G', '400G']):
+                    base_coverage = p.get('target_coverage_days', 7)
+                    p['target_coverage_days'] = int(base_coverage * 2.0)
+                    p['category_boost'] = 2.0
+                    p['category_boost_reason'] = 'Bread/bakery high-velocity perishable'
+            
+            # Dairy/Fresh Milk: 1.5x boost (DAIMA, BIO, BROOKSIDE fresh)
+            elif any(x in name_upper for x in ['DAIMA', 'BIO ', 'FRESH MILK', 'MAZIWA']):
+                base_coverage = p.get('target_coverage_days', 7)
+                p['target_coverage_days'] = int(base_coverage * 1.5)
+                p['category_boost'] = 1.5
+                p['category_boost_reason'] = 'Fresh dairy perishable'
+            
+            # High-velocity staples: 1.3x boost (identified from feedback)
+            elif any(x in name_upper for x in ['GOLD 500ML', 'CROWN TFA', 'MACCOFFEE', 'INDOMIE']):
+                base_coverage = p.get('target_coverage_days', 7)
+                p['target_coverage_days'] = int(base_coverage * 1.3)
+                p['category_boost'] = 1.3
+                p['category_boost_reason'] = 'High-velocity staple'
+            
+            # Confectionery/Impulse: 2.5x boost (checkout aisle items)
+            elif any(x in name_upper for x in ['LOLLIPOP', 'LOLLYPOP', 'CHUPA', 'CANDY', 'GIANT', 'ORBIT', 'WRIGLEY']):
+                base_coverage = p.get('target_coverage_days', 7)
+                p['target_coverage_days'] = int(base_coverage * 2.5) # Boosted to 2.5x (was 1.5x)
+                p['category_boost'] = 2.5
+                p['category_boost_reason'] = 'Impulse confectionery high-risk'
+            
+            # Staple Commodities: 1.4x boost (bulk household essentials)
+            elif any(x in name_upper for x in ['KENSALT', 'NDOVU', 'MAIZE MEAL', 'ATTA', ' SALT', ' FLOUR']):
+                base_coverage = p.get('target_coverage_days', 7)
+                p['target_coverage_days'] = int(base_coverage * 1.4)
+                p['category_boost'] = 1.4
+                p['category_boost_reason'] = 'Staple commodity bulk'
+            
+            # Beverages/Juice: 1.5x boost (high demand drinks)
+            elif any(x in name_upper for x in ['DEL 1L', 'JUICE', 'BERRY', 'QUENCHER']):
+                base_coverage = p.get('target_coverage_days', 7)
+                p['target_coverage_days'] = int(base_coverage * 1.5)
+                p['category_boost'] = 1.5
+                p['category_boost_reason'] = 'Beverage high demand'
+            
+            # Specialty Baking: 1.3x boost
+            elif any(x in name_upper for x in ['YEAST', 'ANGEL 10G']):
+                base_coverage = p.get('target_coverage_days', 7)
+                p['target_coverage_days'] = int(base_coverage * 1.3)
+                p['category_boost'] = 1.3
+                p['category_boost_reason'] = 'Specialty baking ingredient'
+            
+            # GAP-L ENHANCED: Data-driven depth adjustment based on simulation feedback
+            # Uses stockout frequency AND avg first stockout day to calculate optimal depth
+            sim_feedback = self.databases.get('simulation_feedback', {})
+            sku_feedback = sim_feedback.get('sku_feedback', {})
+            
+            if p_name in sku_feedback:
+                fb = sku_feedback[p_name]
+                stockout_freq = fb.get('stockout_frequency', 0)
+                avg_stockout_day = fb.get('avg_first_stockout_day', 14)
+                
+                # Calculate dynamic depth multiplier based on:
+                # 1. Stockout frequency (higher = more boost)
+                # 2. Avg first stockout day (earlier = more boost)
+                
+                if stockout_freq > 0.3:  # Apply if >30% stockout frequency
+                    original_coverage = p.get('target_coverage_days', 7)
+                    
+                    # Formula: Depth Multiplier = 1 + (freq * severity_factor)
+                    # Severity increases if stockouts happen early (before day 7)
+                    if avg_stockout_day < 5:
+                        severity = 2.5  # Critical: stockout in first 5 days
+                    elif avg_stockout_day < 7:
+                        severity = 2.0  # High: stockout in first week
+                    elif avg_stockout_day < 10:
+                        severity = 1.5  # Medium: mid-period stockout
+                    else:
+                        severity = 1.2  # Low: late stockout
+                    
+                    # Dynamic multiplier: ranges from 1.3x to 3.5x (increased for early stockouts)
+                    depth_multiplier = min(3.5, 1.0 + (stockout_freq * severity))
+                    
+                    # Apply depth adjustment
+                    new_coverage = int(original_coverage * depth_multiplier)
+                    p['target_coverage_days'] = new_coverage
+                    p['simulation_adjusted'] = True
+                    p['sim_stockout_frequency'] = stockout_freq
+                    p['sim_avg_stockout_day'] = avg_stockout_day
+                    p['sim_depth_multiplier'] = round(depth_multiplier, 2)
+                    p['sim_severity'] = severity
+                    
+                    # Also boost reorder point proportionally
+                    if p.get('reorder_point'):
+                        p['reorder_point'] = int(p['reorder_point'] * depth_multiplier)
+                    
+                    # Log high-severity adjustments
+                if stockout_freq >= 0.7:
+                        logger.debug(f"High-risk SKU: {p_name[:40]} -> {depth_multiplier:.1f}x depth (freq={stockout_freq:.0%}, day={avg_stockout_day:.1f})")
+            
+            # --- FIX: MINIMUM DEPTH FLOORS FOR PERISHABLES ---
+            # Ensure bread has at least 3 days and milk has at least 5 days coverage
+            # regardless of other settings
+            if ('BREAD' in name_upper or 'BAKERY' in dept) and p.get('target_coverage_days', 0) < 3:
+                p['target_coverage_days'] = 3
+                p['floor_applied'] = True
+            
+            if (any(x in name_upper for x in ['MILK', 'DAIRY', 'YOGHU']) or 'DAIRY' in dept) and p.get('target_coverage_days', 0) < 5:
+                p['target_coverage_days'] = 5
+                p['floor_applied'] = True
+                
         return products
 
     async def analyze_batch_ai(self, products: list[dict[str, Any]], batch_num: int, total_batches: int, allocation_mode: str = "replenishment") -> list[dict[str, Any]]:
@@ -1117,9 +1321,9 @@ class OrderEngine:
                 # v3.9: Dynamic Cap to enforce Depth.
                 # v5.0 FIX: Enforce 30% Liquidity Reserve for ALL tiers to prevent Day 1 Stockouts
                 # v5.7 ADJUSTMENT: Nano/Micro/Small stores (<12M) cannot afford 30% reserve.
-                # Width IS Depth for them. Relax to 95%.
+                # v7.0 GAP-E FIX: Lowered to 85% for small stores to leave room for depth in Pass 2.
                 if total_budget < 12000000:
-                     limit_pct = 0.95 
+                     limit_pct = 0.85  # GAP-E: Was 0.95, now 0.85 for better depth allocation
                 else:
                      limit_pct = 0.70
                 
@@ -1149,21 +1353,53 @@ class OrderEngine:
                      # v5.5 FIX: Fresh Constraint for Launch Buffer
                      if dept in FRESH_DEPARTMENTS:
                           needed_days = min(lead_time + 1.0, 3.0) # Cap at 3 days max for fresh
+                          # v7.5 FIX: Fresh Milk Needs 4 Days (Weekend Pre-Load taught us this)
+                          if 'MILK' in dept:
+                              needed_days = 4.0
                      else:
-                          needed_days = lead_time + 2.0
+                          # v7.5 FIX: High Velocity Gap (Water, Maize)
+                          # If sales > 5/day, LeadTime + 2 is risky if delivery is late or demand spikes.
+                          # Boost to LeadTime + 4.0 for safety.
+                          velocity = rec.get('avg_daily_sales', 0)
+                          if velocity > 5.0:
+                              needed_days = lead_time + 4.0
+                          else:
+                              needed_days = lead_time + 2.0
                      
                      launch_target_units = int(rec.get('avg_daily_sales', 0) * needed_days)
                 
                 rec_qty_units = max(int(rec.get('moq_floor', 0)), raw_mdq, launch_target_units)
                 
                 # Convert to Packs
-                required_packs = (rec_qty_units + pack_size - 1) // pack_size # Ceiling div
-                required_packs = max(1, required_packs)
+                # v6.2 MICRO FIX: Allow Bulk Breaking for Pass 1 Width
+                is_break_bulk = False
                 
-                rec_qty_final = required_packs * pack_size
+                # Check if we should break bulk (Fresh or Expensive or just Micro/Small policy)
+                # For Micro/Small, we ALWAYS break bulk if demand < 1 pack to prevent uniformity.
+                if (is_micro or is_small) and rec_qty_units < pack_size:
+                     is_break_bulk = True
+                
+                if is_break_bulk:
+                     # Round to nearest integer unit, respecting MDQ
+                     rec_qty_final = max(int(rec.get('min_display_qty', 3)), rec_qty_units)
+                     # Ensure we don't accidentally exceed pack size
+                     rec_qty_final = min(rec_qty_final, pack_size)
+                     if "BREAK BULK" not in reason_tag:
+                         if 'reasoning' in rec: rec['reasoning'] += " [MICRO BREAK BULK]" # Append if exists
+                         else: reason_tag += " [MICRO BREAK BULK]"
+                else:
+                    required_packs = (rec_qty_units + pack_size - 1) // pack_size # Ceiling div
+                    required_packs = max(1, required_packs)
+                    rec_qty_final = required_packs * pack_size
                 
                 # v2.7: Enforce max_packs limit even in Pass 1
                 max_allowed_units = max_total_packs * pack_size
+                
+                # v7.0 GAP-F FIX: Anchor override in Pass 1 (matches Pass 2 behavior)
+                # Allow unlimited packs for staple anchors (COOKING OIL, FLOUR, SUGAR)
+                if is_small and dept in ['COOKING OIL', 'FLOUR', 'SUGAR'] and is_staple:
+                    max_allowed_units = 999  # GAP-F: Anchor override
+                
                 if rec_qty_final > max_allowed_units:
                     rec_qty_final = max_allowed_units
                     reason_tag += f" [PASS 1: CAPPED TO {max_total_packs} PACKS]"
@@ -1341,7 +1577,7 @@ class OrderEngine:
         
 
                 # v5.4 FIX: Clean Internal Helper for Priority Allocation
-        def allocate_list_constrained(candidate_list, phase_cap, phase_name):
+        def allocate_list_constrained(candidate_list, phase_cap, phase_name, tier_profile):
             
             # 1. Build Calculation Queue
             queue = []
@@ -1366,34 +1602,25 @@ class OrderEngine:
                         if "[NEW PRODUCT" not in rec['reasoning']: rec['reasoning'] += " [NEW PRODUCT: Baseline]"
 
                 # --- DEPTH CALCULATION ---
-                effective_days = depth_cap_days
+                # v6.0 FIX: Smart Replenishment Logic
+                # Instead of flat "Depth Cap", use calculated replenishment need.
                 
-                # v5.3 FIX: Global Freshness Logic (Applies to ALL products, new or old)
-                # Enforce shelf-life constraints strictly
-                is_fresh_dept = dept in FRESH_DEPARTMENTS
+                # Default "Effective Days" starts with the smart target
+                smart_target_days = self.calculate_replenishment_target_stock(rec, tier_profile)
+                effective_days = smart_target_days
                 
-                if is_fresh_dept:
-                     lead_time = int(rec.get('estimated_delivery_days', 1))
-                     
-                     # Fresh Strategy:
-                     # 1. Base Coverage must be low (Lead Time + 1 Day Buffer)
-                     # 2. Hard Cap at 3 Days (prevent spoilage)
-                     
-                     target_fresh_days = lead_time + 1.0
-                     target_fresh_days = min(target_fresh_days, 3.0)
-                     
-                     effective_days = min(effective_days, target_fresh_days)
-                     
-                     # Note: We do NOT allow high velocity to override spoilge risk.
-                     # 500 units of milk selling 100/day implies 5 days stock -> Spoiled.
-                     # We stick to relevant days.
+                # Fallback / Override for New Products Logic (Hybrid)
+                # Fallback / Override for New Products Logic (Hybrid)
+                if new_product_mode:
+                     effective_days = min(effective_days, 14.0)
                 
-                # Risk Logic (New Products)
-                elif new_product_mode:
-                    max_new_product_days = 14
-                    effective_days = min(effective_days, max_new_product_days) 
+                # --- OLD LOGIC REMOVED (Fresh/Flat checks overridden by Smart Target) ---
+                # v5.3 Global Freshness Logic -- Now handled inside `calculate_replenishment_target_stock`
+                # so we don't need to re-apply it here, avoiding double logic.
                 
                 # Calculate Ideal
+                pack_size = int(rec.get('pack_size', 1))
+                current_qty = rec['recommended_quantity']
                 ideal_qty = int(effective_avg_sales * effective_days)
                 
                 # Min Packs
@@ -1404,17 +1631,15 @@ class OrderEngine:
                 
                 # v5.4 FIX: Relax Floor for Fresh (Avoid spoilage due to minimums)
                 if dept in FRESH_DEPARTMENTS:
-                     min_pack_floor = 1 # Allow buying single pack/unit for fresh 
-                     # (Actually, we should respect Pack Size, but here floor is usually units? 
-                     # No, logic below uses it to update ideal_qty. 
-                     # 1396: ideal_qty = max(ideal_qty, min_pack_floor))
-                     # So we set it to 1 to allow strict demand matching.
+                     min_pack_floor = 1 
+
+                # MICRO STORE FIX: Allow Bulk Breaking (Cash & Carry Mode)
+                # If Micro store, allow purchasing just the MDQ (e.g. 6 units) even if PackSize is 12.
+                floor_qty = min_pack_floor * pack_size
+                if is_micro or is_small:
+                    floor_qty = max(min_pack_floor, int(rec.get('min_display_qty', 3)))
                 
-                ideal_qty = max(ideal_qty, min_pack_floor)
-                
-                # Max Packs (Constraint)
-                current_qty = rec['recommended_quantity']
-                pack_size = int(rec.get('pack_size', 1))
+                # --- CONSTRAINT: MAX ALLOWED UNITS ---
                 max_total_packs = int(profile.get('max_packs', 10))
                 max_allowed_units = max_total_packs * pack_size
                 
@@ -1424,11 +1649,18 @@ class OrderEngine:
                 elif total_budget >= 20000000: 
                     max_allowed_units = 99999999
                 elif effective_avg_sales > 1.0:
-                     velocity_floor = int(effective_avg_sales * 7)
+                     # v6.1 FIX: Allow velocity floor to match Calculated Effective Days
+                     velocity_floor = int(effective_avg_sales * effective_days)
                      max_allowed_units = max(max_allowed_units, velocity_floor)
                 
-                final_target = min(ideal_qty, max_allowed_units)
+                # --- FINAL RESOLUTION ---
+                # 1. Apply Floor
+                target_with_floor = max(ideal_qty, floor_qty)
                 
+                # 2. Apply Ceiling
+                final_target = min(target_with_floor, max_allowed_units)
+                
+                # 3. Add to Queue if actionable
                 if current_qty < final_target:
                     price = float(rec.get('selling_price', 0.0))
                     cost_price_est = self._get_actual_cost_price(rec, price)
@@ -1484,6 +1716,7 @@ class OrderEngine:
                             self.budget_manager.spend_from_wallet(wallets, dept, pack_cost)
                         
                         rec['pass2_allocated'] = True
+                        if "[PASS 2]" not in rec.get('reasoning', ''): rec['reasoning'] = rec.get('reasoning', '') + " [PASS 2]"
                         phase_cost += pack_cost
                         active = True
                         
@@ -1494,8 +1727,11 @@ class OrderEngine:
 
         # --- EXECUTION SEQUENCE ---
         
+        # v6.1 FIX: Ensure tier_profile is available for Smart Allocation
+        tier_profile = self.profile_manager.get_profile(total_budget)
+        
         # 1. Fast Five (Priority)
-        added_fast_five_cost = allocate_list_constrained(fast_five_candidates, total_remaining_budget, "PRIORITY")
+        added_fast_five_cost = allocate_list_constrained(fast_five_candidates, total_remaining_budget, "PRIORITY", tier_profile)
         
         # 2. Other Staples
         remaining_after_ff = total_remaining_budget - added_fast_five_cost
@@ -1503,11 +1739,11 @@ class OrderEngine:
         
         logger.info(f"Pass 2 Remaining: ${remaining_after_ff:,.2f} (Other Staples Target: ${staple_allocation_target:,.2f})")
         
-        added_other_staple_cost = allocate_list_constrained(other_staple_candidates, staple_allocation_target, "STAPLE")
+        added_other_staple_cost = allocate_list_constrained(other_staple_candidates, staple_allocation_target, "STAPLE", tier_profile)
         
         # 3. Discretionary
         remaining_disc = remaining_after_ff * (1.0 - pass2_staple_share)
-        added_disc_cost = allocate_list_constrained(discretionary_candidates, remaining_disc, "DISC")
+        added_disc_cost = allocate_list_constrained(discretionary_candidates, remaining_disc, "DISC", tier_profile)
         
         pass2_cost = added_fast_five_cost + added_other_staple_cost + added_disc_cost
 
@@ -1751,6 +1987,65 @@ class OrderEngine:
                         logger.info(f"Pass 3B Complete. Reinvested ${reinvested:,.2f}.")
                         pass2_cost += reinvested # Attribute to Pass 2 bucket for now
 
+        # --- PASS 4: MOP-UP (GAP-E FIX) ---
+        # If <5% budget remains after all passes, spend it on highest-priority items
+        # This ensures we don't leave money on the table for small stores
+        mop_up_cost = 0.0
+        final_unused = total_budget - (pass1_cost + pass2_cost + redistrib_cost)
+        final_unused_pct = (final_unused / total_budget * 100) if total_budget > 0 else 0
+        
+        if final_unused > 0 and final_unused_pct <= 5.0:
+            logger.info(f"Pass 4 (Mop-Up): ${final_unused:,.2f} remaining ({final_unused_pct:.1f}%). Distributing to priority items.")
+            
+            # Find items that can absorb more (staples with headroom)
+            mop_candidates = []
+            for rec in recommendations:
+                if rec['recommended_quantity'] > 0:
+                    is_staple = self.budget_manager.is_staple(rec['product_name'], rec.get('product_category'), rec.get('avg_daily_sales', 0))
+                    if is_staple:
+                        avg_sales = rec.get('avg_daily_sales', 0.1)
+                        current_qty = rec['recommended_quantity']
+                        # Allow up to 60 days for mop-up (generous ceiling)
+                        max_qty = int(avg_sales * 60)
+                        headroom = max(0, max_qty - current_qty)
+                        
+                        if headroom > 0:
+                            price = float(rec.get('selling_price', 0))
+                            cost_per_unit = self._get_actual_cost_price(rec, price)
+                            roi_score = avg_sales * float(rec.get('profit_margin', 0.2))
+                            
+                            mop_candidates.append({
+                                'rec': rec,
+                                'headroom': headroom,
+                                'cost_per_unit': cost_per_unit,
+                                'roi_score': roi_score
+                            })
+            
+            # Sort by ROI and distribute
+            mop_candidates.sort(key=lambda x: x['roi_score'], reverse=True)
+            mop_budget = final_unused
+            
+            for cand in mop_candidates:
+                if mop_budget <= 0:
+                    break
+                    
+                rec = cand['rec']
+                cost_per_unit = cand['cost_per_unit']
+                
+                # Buy as much as we can afford within headroom
+                affordable = int(mop_budget / cost_per_unit) if cost_per_unit > 0 else 0
+                add_qty = min(cand['headroom'], affordable)
+                
+                if add_qty > 0:
+                    rec['recommended_quantity'] += add_qty
+                    cost_added = add_qty * cost_per_unit
+                    mop_budget -= cost_added
+                    mop_up_cost += cost_added
+                    rec['reasoning'] += f" [MOP-UP: +{add_qty}]"
+            
+            if mop_up_cost > 0:
+                logger.info(f"Pass 4 Complete. Mop-up distributed ${mop_up_cost:,.2f}")
+
         # --- FINALIZE SUMMARY ---
         summary['pass1_cash'] = pass1_cost
         summary['pass1_consignment'] = pass1_consignment_val
@@ -1764,7 +2059,9 @@ class OrderEngine:
         summary['flex_pool_remaining'] = (true_unused - redistrib_cost) if (redistrib_cost > 0 and 'true_unused' in locals()) else 0.0
         
         # v2.9 FIX: Include Pass 2B in total  
-        summary['total_cash_used'] = pass1_cost + pass2_cost + summary['pass2b_cash']
+        # v7.0 GAP-E FIX: Include mop_up_cost in total
+        summary['mop_up_cash'] = mop_up_cost if 'mop_up_cost' in locals() else 0.0
+        summary['total_cash_used'] = pass1_cost + pass2_cost + summary['pass2b_cash'] + summary['mop_up_cash']
         summary['total_consignment'] = pass1_consignment_val
         summary['unused_budget'] = total_budget - summary['total_cash_used']
         summary['utilization_pct'] = (summary['total_cash_used'] / total_budget * 100) if total_budget > 0 else 0

@@ -29,6 +29,19 @@ class SalesSimulator:
         dow = day_index % 7
         return self.day_factors.get(dow, 1.0)
 
+    def get_lookahead_factor(self, start_day: int, duration_days: int) -> float:
+        """
+        Calculates the average demand multiplier for the upcoming period.
+        Useful for Replenishment Logic (Lookahead).
+        """
+        if duration_days <= 0: return 1.0
+        
+        total_factor = 0.0
+        for i in range(duration_days):
+            total_factor += self.get_day_factor(start_day + i)
+            
+        return total_factor / duration_days
+
     def simulate_daily_unit_sales(self, 
                                 avg_daily_sales: float, 
                                 cv: float = 0.5, 
@@ -95,8 +108,11 @@ class InventoryTracker:
                     'department': rec.get('product_category', 'UNKNOWN'),  # Added for risk analysis
                     'lead_time_days': rec.get('lead_time_days', 2),
                     'trend_multiplier': rec.get('trend_multiplier', 1.0),
+                    'trend_multiplier': rec.get('trend_multiplier', 1.0),
                     'total_sold': 0,
-                    'lost_sales_units': 0
+                    'lost_sales_units': 0,
+                    'stockout_days': 0,
+                    'first_stockout_day': None
                 }
                 count += 1
         logger.info(f"InventoryTracker: Initialized {count} SKUs from allocation.")
@@ -163,9 +179,15 @@ class InventoryTracker:
                 
                 # Create Loss Record
                 data['lost_sales_units'] += lost
+                data['lost_sales_units'] += lost
                 loss_val = lost * data['price']
                 daily_lost_revenue += loss_val
                 stockouts += 1
+                
+                # Track Stockout Stats (New v7.3)
+                data['stockout_days'] += 1
+                if data['first_stockout_day'] is None:
+                    data['first_stockout_day'] = day_index
             
             # 3. Update Totals
             data['total_sold'] += sold
@@ -577,7 +599,7 @@ class ReplenishmentLogic:
     def check_for_reorder(self, inventory: Dict[str, Any], day_index: int, month_factor: float = 1.0) -> List[Dict]:
         """
         Scans inventory for items below ROP.
-        ROP = (LeadTime + SafetyDays) * AvgSales * MonthFactor
+        ROP = (LeadTime + SafetyDays) * AvgSales * MonthFactor * LOOKAHEAD_FACTOR
         """
         orders = []
         
@@ -596,7 +618,63 @@ class ReplenishmentLogic:
             
             # v5.5 FIX: Seasonality-Aware ROP
             # If Jan demand is 3x, we need 3x the ROP trigger.
-            adjusted_sales = avg_daily * month_factor
+            # v7.2 FIX: Weekend-Aware ROP (Lookahead)
+            # Calculate demand for the COVERAGE PERIOD (Lead Time + Safety Stock)
+            # Look ahead from tomorrow (Day + 1)
+            # We need access to the SalesSimulator to know the factors.
+            # Passed via kwargs or assume default if not present?
+            # Let's add simulator arg to `check_for_reorder` signature in next step.
+            # For now, let's assume `sales_simulator` is passed in kwargs or accessible.
+            pass
+            
+    def check_for_reorder(self, inventory: Dict[str, Any], day_index: int, 
+                         month_factor: float = 1.0, 
+                         sales_simulator: Any = None) -> List[Dict]:
+        """
+        Scans inventory for items below ROP.
+        ROP = (LeadTime + SafetyDays) * AvgSales * MonthFactor * LOOKAHEAD_FACTOR
+        """
+        orders = []
+        
+        # Only check on periodic days
+        if day_index % self.check_frequency != 0:
+            return []
+            
+        for sku, data in inventory.items():
+            
+            lead_time = data.get('lead_time_days', 2) # Default 2 days
+            safety_stock_days = 3 # Policy
+            
+            # v7.4 FIX: Fresh Logic Update (Weekend Loading)
+            # If item is FRESH (Milk, Bread), we need higher safety stock and weekend pre-loading.
+            is_fresh = False
+            dept_upper = str(data.get('department', '')).upper()
+            if any(x in dept_upper for x in ['FRESH', 'MILK', 'BREAD', 'YOGHURT', 'VEGETAB']):
+                is_fresh = True
+                safety_stock_days = 4 # Boost safety stock for fresh (was 3)
+
+            avg_daily = data.get('avg_daily_sales', 0)
+            if avg_daily <= 0: continue
+            
+            # v7.2 FIX: LOOKAHEAD FACTOR
+            # If next 3 days are Fri/Sat/Sun (High Demand), ROP must be higher.
+            lookahead_factor = 1.0
+            if sales_simulator:
+                # Coverage Period = Lead Time + Safety Stock (e.g., 2+3=5 days)
+                # We need to cover demand for this period.
+                # Start looking from tomorrow (day_index + 1)
+                coverage_days = int(lead_time + safety_stock_days)
+                lookahead_factor = sales_simulator.get_lookahead_factor(day_index + 1, coverage_days)
+            
+            # v7.4 FIX: Weekend Pre-Load Multiplier
+            # If ordering on Wed (2), Thu (3), Fri (4) for Fresh items, boost quantity to survive weekend.
+            weekend_boost = 1.0
+            day_of_week = day_index % 7
+            if is_fresh and day_of_week in [2, 3, 4]: # Wed, Thu, Fri
+                weekend_boost = 1.25 # +25% Pre-load for weekend
+            
+            # Adjusted Sales Rate = Base * Month * WeekendFactor * PreLoad
+            adjusted_sales = avg_daily * month_factor * lookahead_factor * weekend_boost
             
             rop = (lead_time + safety_stock_days) * adjusted_sales
             
