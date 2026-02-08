@@ -155,8 +155,11 @@ def run_simulation(scenario_name: str = "Baseline",
         recommendations_in.append(rec)
     
     # Run Allocation
+    # v7.7: Load Specific Monthly Demand for Hybrid Allocation
+    seasonal_map = loader.load_monthly_demand(target_month)
+    
     recs_for_engine = copy.deepcopy(recommendations_in)
-    result = engine.apply_greenfield_allocation(recs_for_engine, total_budget=budget_override)
+    result = engine.apply_greenfield_allocation(recs_for_engine, total_budget=budget_override, seasonal_demand_map=seasonal_map)
     allocated_items = [r for r in result['recommendations'] if r.get('recommended_quantity', 0) > 0]
     
     logger.info(f"Day 1 Allocation Complete. Stocked {len(allocated_items)} SKUs")

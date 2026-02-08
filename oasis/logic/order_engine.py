@@ -1028,15 +1028,56 @@ class OrderEngine:
             logger.error(f"AI batch error: {e}")
             return []
 
-    def apply_greenfield_allocation(self, recommendations: List[dict], total_budget: float) -> dict:
+    def apply_greenfield_allocation(self, recommendations: List[dict], total_budget: float = 300000.0, seasonal_demand_map: Dict[str, float] = None) -> Dict:
         """
-        Implements the Comprehensive Tiered Allocation Logic.
-        Phase 1: Width (Essential Inclusion & Anchors) - "General Opening Fund"
-        Phase 2: Depth (Wallet-Constrained Volume) - Split 80/20 for Small Stores
+        Phase 1 & 2: Initial Stock Allocation (The "Greenfield" Scenario).
+        Now supports Hybrid Seasonal "Guiding".
+        """
+        logger.info(f"Starting Greenfield Allocation. Budget: ${total_budget:,.2f}")
         
-        Returns: dict with 'recommendations' and 'summary' keys
-        """
-        logger.info(f"--- Starting Tiered Allocation (Budget: ${total_budget:,.0f}) ---")
+        # --- HYBRID DEMAND BLENDING (Guide Strategy) ---
+        if seasonal_demand_map:
+             logger.info("Applying Hybrid Seasonal Blending (Scorecard + Monthly Cache)...")
+             # Calculate Scale Factor (Mega Store -> Current Budget)
+             # Mega Store Monthly Revenue approx 80M? Or we use the known benchmark.
+             # Better: Use the traffic_scale passed implicitly? 
+             # Actually, we can derive it. Scorecard items have 'avg_daily_sales'. 
+             # If we compare TOTAL Scorecard Demand vs TOTAL Seasonal Demand, we find the ratio.
+             
+             total_scorecard_vol = sum([r.get('avg_daily_sales', 0) for r in recommendations])
+             total_seasonal_vol = sum(seasonal_demand_map.values()) / 30.0 # Daily avg
+             
+             if total_seasonal_vol > 0 and total_scorecard_vol > 0:
+                 scale_factor = total_scorecard_vol / total_seasonal_vol
+                 # Dampen extreme scaling
+                 scale_factor = max(0.01, min(2.0, scale_factor)) # Safety clamps
+                 logger.info(f"Derived Seasonal Scale Factor: {scale_factor:.4f} (blending ratio)")
+                 
+                 blended_count = 0
+                 for rec in recommendations:
+                     p_name = rec.get('product_name', '').upper()
+                     if p_name in seasonal_demand_map:
+                         monthly_total = seasonal_demand_map[p_name]
+                         seasonal_daily = (monthly_total / 30.0) * scale_factor
+                         
+                         # Hybrid Formula: (Core + Seasonal) / 2
+                         core_daily = rec.get('avg_daily_sales', 0)
+                         blended_daily = (core_daily + seasonal_daily) / 2.0
+                         
+                         rec['avg_daily_sales'] = blended_daily
+                         rec['is_seasonally_adjusted'] = True
+                         blended_count += 1
+                 
+                 logger.info(f"Blended demand for {blended_count} items based on seasonal cache.")
+
+        # --- PRE-ALLOCATION ANALYSIS ---
+        # Implements the Comprehensive Tiered Allocation Logic.
+        # Phase 1: Width (Essential Inclusion & Anchors) - "General Opening Fund"
+        # Phase 2: Depth (Wallet-Constrained Volume) - Split 80/20 for Small Stores
+        
+        # Returns: dict with 'recommendations' and 'summary' keys
+        
+        # logger.info(f"--- Starting Tiered Allocation (Budget: ${total_budget:,.0f}) ---") # This line is replaced by the new logger.info above
         
         # Initialize summary tracking
         summary = {
