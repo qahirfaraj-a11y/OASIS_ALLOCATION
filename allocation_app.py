@@ -21,9 +21,14 @@ def get_engine():
     return OrderEngine(DATA_DIR)
 
 @st.cache_data
-def load_and_run_allocation(budget):
+def load_and_run_allocation(budget, target_month="JAN"):
     if not os.path.exists(SCORECARD_FILE):
         return None
+    
+    # v2.9: Load Seasonal Data (Hybrid Guide)
+    from oasis.simulation.data_loader import HistoricalDataLoader
+    loader = HistoricalDataLoader(DATA_DIR)
+    seasonal_map = loader.load_monthly_demand(target_month)
     
     # Load Data
     df = pd.read_csv(SCORECARD_FILE)
@@ -51,7 +56,7 @@ def load_and_run_allocation(budget):
     engine = get_engine()
     
     # Run Logic (now returns dict with 'recommendations' and 'summary')
-    result = engine.apply_greenfield_allocation(recommendations, budget)
+    result = engine.apply_greenfield_allocation(recommendations, budget, seasonal_demand_map=seasonal_map)
     final_recs = result['recommendations']
     allocation_summary = result['summary']
     

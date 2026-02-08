@@ -162,9 +162,15 @@ with tab1:
         
         # Store type selection
         is_online = st.checkbox("🌐 Online Store Mode", help="Enable special dynamics for e-commerce (fresh/artisanal boost)")
+        
+        # v4.1: Target Month Selection (Dynamic Demand)
+        target_month = st.selectbox("Simulation Month", 
+                                   ["JAN", "FEB", "MAR", "APR", "MAY", "JUN", 
+                                    "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"], index=0)
     
     with col2:
         st.info(f"**Budget:** KES {budget:,}")
+        st.caption(f"Seasonality: **{target_month}** Hybrid Guide")
         if is_online:
             st.success("Online Mode Active\n- Fresh category boost\n- Artisanal boost\n- Higher supplier risk")
     
@@ -172,7 +178,7 @@ with tab1:
         with st.spinner("Running OrderEngine v4.0..."):
             try:
                 from allocation_app import load_and_run_allocation
-                basket_df, cash, consign, summary = load_and_run_allocation(budget)
+                basket_df, cash, consign, summary = load_and_run_allocation(budget, target_month)
                 
                 st.session_state.basket = basket_df
                 st.session_state.summary = summary
@@ -190,6 +196,30 @@ with tab1:
         col_m3.metric("Expected Revenue", f"KES {df['Expected_Revenue'].sum():,.0f}")
         
         st.dataframe(df, height=300, use_container_width=True)
+        
+        # --- Visualizations (Ported from allocation_app.py) ---
+        st.divider()
+        vis_col1, vis_col2 = st.columns(2)
+        
+        with vis_col1:
+            st.subheader("Department Spend")
+            try:
+                # Group by Department for the pie chart
+                dept_summ = df.groupby("Department")["Allocated_Cost"].sum().reset_index()
+                fig_dept = px.pie(dept_summ, values="Allocated_Cost", names="Department", hole=0.3)
+                fig_dept.update_layout(margin=dict(t=0, b=0, l=0, r=0), height=300)
+                st.plotly_chart(fig_dept, use_container_width=True)
+            except Exception as e:
+                st.error(f"Could not render Department chart: {e}")
+            
+        with vis_col2:
+            st.subheader("Pack Count Distribution")
+            try:
+                fig_hist = px.histogram(df, x="Qty", nbins=20, title="Distribution of Pack Quantities")
+                fig_hist.update_layout(margin=dict(t=30, b=0, l=0, r=0), height=300, showlegend=False)
+                st.plotly_chart(fig_hist, use_container_width=True)
+            except Exception as e:
+                st.error(f"Could not render Histogram: {e}")
 
 
 # --- TAB 2: SIMULATION ---
