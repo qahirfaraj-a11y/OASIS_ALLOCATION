@@ -147,6 +147,9 @@ class OrderEngine:
         self.no_grn_suppliers = []
         self.budget_manager = BudgetManager(data_dir)
         self.profile_manager = StoreProfileManager()
+        
+        # Load GRN Frequency Map (v8.0)
+        self.grn_frequency_map = self.load_grn_frequency()
 
     def load_no_grn_suppliers(self):
         try:
@@ -515,12 +518,24 @@ class OrderEngine:
             
         is_fresh = product.get('is_fresh', False)
         
-        # v6.3 FIX: Specialized Fresh Milk Rule (Lead Time + Buffer)
-        # User Requirement: "Fresh orders = Sales" but need small buffer
-        if is_fresh and frequency == 'daily':
-             # Logic: Daily Sales * (LeadTime + 1.25)
-             # If LeadTime=1 -> 2.25 Days Coverage
-             return float(lead_time) + 1.25 
+        if is_fresh:
+             # v8.0 FIX: GRN Frequency Based Logic (User Request)
+             # "Stocked for 1 day plus small buffer"
+             # Query GRN Frequency Map (e.g., 1.0 = Daily, 0.5 = Every 2 Days)
+             cycle_days = self.get_grn_cycle_days(product.get('product_name'))
+             
+             # Target = Cycle Days + Buffer
+             # Buffer = 0.25 days (Small buffer as requested)
+             target_days = cycle_days + 0.25
+             
+             # Ensure Long Life (UHT) isn't crushed if data missing
+             p_name_upper = product.get('product_name', '').upper()
+             if 'UHT' in p_name_upper or 'ESL' in p_name_upper or 'LONG LIFE' in p_name_upper:
+                 # v8.1 FIX: Long Life should have decent coverage (e.g. 7 days minimum)
+                 # Even if ordered daily, we can stock more.
+                 target_days = max(7.0, target_days)
+                      
+             return target_days 
              
         # 2. Safety Buffer (Dynamic)
         # Base: 4.0 for Fresh (non-daily?), 1.5 for Dry
@@ -1419,6 +1434,13 @@ class OrderEngine:
                           else:
                               needed_days = lead_time + 2.0
                      
+                     # v8.0 FIX: Revert Fresh Milk "4 Days" rule. User says "1 Day + Buffer" based on velocity.
+                     # We will rely on get_grn_cycle_days logic (implied frequency)
+                     if rec.get('is_fresh', False):
+                         cycle_days = self.get_grn_cycle_days(rec['product_name'])
+                         # Launch Buffer = Cycle + 1 Day Safety (First delivery)
+                         needed_days = cycle_days + 0.5 
+                     
                      launch_target_units = int(rec.get('avg_daily_sales', 0) * needed_days)
                 
                 rec_qty_units = max(int(rec.get('moq_floor', 0)), raw_mdq, launch_target_units)
@@ -1671,10 +1693,10 @@ class OrderEngine:
                 # v7.6 REFINEMENT: Tight Coupling for Fresh (JIT)
                 # User Request: "Fresh orders ≈ Sales".
                 # We allocate LeadTime + 1.5 Days (Buffer).
+                # v7.6 REFINEMENT: Tight Coupling for Fresh (JIT)
+                # Now handled by calculate_replenishment_target_stock using GRN frequency
+                # We trust smart_target_days.
                 if rec.get('is_fresh', False):
-                     lead_time = int(rec.get('estimated_delivery_days', 1)) 
-                     # Force 1.5 days buffer max
-                     effective_days = lead_time + 1.5
                      if "[JIT FRESH]" not in rec['reasoning']: rec['reasoning'] += " [JIT FRESH]"
                 
                 # Fallback / Override for New Products Logic (Hybrid)
@@ -1847,6 +1869,10 @@ class OrderEngine:
             
             for rec in recommendations:
                 if rec.get('pass1_allocated') and rec['recommended_quantity'] > 0:
+                    # v7.6 FIX: Ignore Fresh Items for Flex Pool (They have strict JIT targets)
+                    if rec.get('is_fresh', False):
+                         continue
+                         
                     # Priority check: Staples OR A-Class items
                     is_staple = self.budget_manager.is_staple(rec['product_name'], rec.get('product_category'), rec.get('avg_daily_sales', 0))
                     abc_class = rec.get('ABC_Class', 'B')
@@ -2319,7 +2345,38 @@ class OrderEngine:
             logger.error(f"Failed to generate Excel report: {e}")
             raise
 
-    def scan_grn_files(self):
+        # Load GRN Frequency Map (v8.0)
+        self.grn_frequency_map = self.load_grn_frequency()
+
+    def load_grn_frequency(self):
+        """Loads SKU order frequency data (0.0 - 1.0)."""
+        try:
+            path = os.path.join(self.data_dir, "sku_grn_frequency.json")
+            if os.path.exists(path):
+                with open(path, 'r') as f:
+                    return json.load(f)
+        except Exception as e:
+            logger.error(f"Failed to load GRN Frequency Map: {e}")
+        return {}
+
+    def get_grn_cycle_days(self, product_name):
+        """Calculates Cycle Days based on GRN Frequency (1/Freq)."""
+        # Default fresh cycle = 1 day (Daily)
+        if not product_name: return 1.0
+        
+        freq = self.grn_frequency_map.get(product_name.upper(), 0)
+        if freq <= 0: return 1.0 # Default to Daily if unknown
+        
+        # Cycle Days = 1 / Frequency
+        # Freq 1.0 -> 1 Day
+        # Freq 0.5 -> 2 Days
+        # Freq 0.25 -> 4 Days
+        return 1.0 / freq
+
+    def has_grn_data(self, product_name):
+        return product_name.upper() in self.grn_frequency_map
+        
+    def _load_products(self):
         """
         Scans all GRN Excel files (grnds_*.xlsx) and aggregates valid order history.
         Structure: { 'barcode_or_name': {'total': X, 'count': Y} }
