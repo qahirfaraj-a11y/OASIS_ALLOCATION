@@ -5,7 +5,7 @@ import os
 import difflib
 
 # --- Configuration ---
-DATA_DIR = r"c:\Users\iLink\.gemini\antigravity\scratch\app\data"
+DATA_DIR = r"c:\Users\iLink\.gemini\antigravity\scratch\oasis\data"
 OUTPUT_FILE = r"c:\Users\iLink\.gemini\antigravity\scratch\Full_Product_Allocation_Scorecard_v3.csv"
 
 FILES = {
@@ -480,17 +480,405 @@ def main():
     # --- KEYWORD MAPPING (O(N) Deterministic Classification) ---
     print("Applying Keyword Mapping for Unknown Suppliers...")
     gen_merch_indices = df[df["Department"] == "General Merchandise"].index
+    # EXPANDED KEYWORD MAP - Comprehensive Classification to Reduce MISC Allocation
     keyword_map = {
-        "STATIONARIES": ["TAPE", "GLUE", "FILE", "PEN", "MARKER", "NOTEBOOK", "STAPLER", "PAPER"],
-        "HOUSEHOLD ITEMS": ["LADLE", "SPOON", "STRAINER", "KNIFE", "GRATER", "KETTLE", "JUG", "MOP", "BROOM", "BRUSH", "SCRUB", "FOIL", "CLING"],
-        "CANDLES": ["MATCHES", "LIGHTER", "CANDLE"],
-        "INCENSE STICKS": ["INCENSE", "COPAL", "STICKS"],
-        "VITAMIN SUPPLEMENTS": ["VITAMIN", "SUPPLEMENT", "TABLET"],
-        "COSMETICS": ["FACE WASH", "LOTION", "CREAM", "GEL", "LIPGLOSS", "PERFUME"],
-        "SPICES": ["SEEDS", "SPICE", "PEPPER", "MASALA", "GINGER", "GARLIC"],
-        "GLASSWARE ITEMS": ["GLASS", "CUP", "PLATE", "BOWL", "MUG"],
-        "TOYS": ["TOY", "BALL", "DOLL"],
-        "PET ASSESORIES": ["DOG", "CAT", "PET", "LEASH"]
+        # Stationery & Office
+        "STATIONARIES": [
+            "TAPE", "GLUE", "FILE", "PEN", "MARKER", "NOTEBOOK", "STAPLER", "PAPER",
+            "PENCIL", "ERASER", "RULER", "SCISSORS", "ENVELOPE", "FOLDER", "BINDER",
+            "HIGHLIGHTER", "STAMP", "INK", "REFILL", "SHARPENER", "CALCULATOR", "DIARY",
+            "CALENDAR", "STICKER", "CLIP", "PIN", "RUBBER BAND", "CORRECTION", "TIPP-EX"
+        ],
+        # Household & Kitchen
+        "HOUSEHOLD ITEMS": [
+            "LADLE", "SPOON", "STRAINER", "KNIFE", "GRATER", "KETTLE", "JUG", "MOP",
+            "BROOM", "BRUSH", "SCRUB", "FOIL", "CLING", "BUCKET", "BASIN", "DUSTPAN",
+            "HANGER", "PEG", "CLOTHESPIN", "RACK", "HOOK", "CONTAINER", "STORAGE",
+            "TRAY", "THERMOS", "FLASK", "LUNCH BOX", "COOLER", "TRASH BAG", "GARBAGE",
+            "BIN", "DUSTBIN", "SPONGE", "WIPER", "SQUEEGEE", "DUSTER", "CLOTH", "RAG",
+            "APRON", "GLOVE", "OVEN MITT", "POT HOLDER", "PEELER", "OPENER", "CORKSCREW",
+            "CUTTING BOARD", "CHOPPING", "SIEVE", "COLANDER", "FUNNEL", "MEASURING",
+            "SCALE", "TIMER", "THERMOMETER", "BLENDER", "MIXER", "JUICER", "IRON",
+            "IRONING BOARD", "CLOTHES LINE", "ROPE"
+        ],
+        # Candles & Lighting
+        "CANDLES": ["MATCHES", "LIGHTER", "CANDLE", "WAX", "TEALIGHT", "WICK", "TORCH", "FLASHLIGHT"],
+        # Incense & Air Fresheners
+        "INCENSE STICKS": ["INCENSE", "COPAL", "AIR FRESHENER", "ROOM SPRAY", "DIFFUSER", "FRAGRANCE"],
+        # Health & Supplements
+        "VITAMIN SUPPLEMENTS": [
+            "VITAMIN", "SUPPLEMENT", "TABLET", "CAPSULE", "MULTIVITAMIN", "OMEGA",
+            "CALCIUM", "IRON", "ZINC", "PROBIOTIC", "FIBER", "PROTEIN POWDER"
+        ],
+        # Cosmetics & Beauty
+        "COSMETICS": [
+            "FACE WASH", "LOTION", "CREAM", "GEL", "LIPGLOSS", "PERFUME", "COLOGNE",
+            "MASCARA", "EYELINER", "EYESHADOW", "FOUNDATION", "CONCEALER", "BLUSH",
+            "BRONZER", "POWDER", "LIPSTICK", "LIP BALM", "NAIL POLISH", "NAIL",
+            "MAKEUP", "REMOVER", "TONER", "SERUM", "MOISTURIZER", "SUNSCREEN", "SPF",
+            "ANTI-AGING", "WRINKLE", "ACNE", "CLEANSER", "EXFOLIANT", "MASK", "SCRUB",
+            "BEAUTY", "COSMETIC", "KAJAL", "BROW", "LASH"
+        ],
+        # Spices & Seasonings
+        "SPICES": [
+            "SEEDS", "SPICE", "PEPPER", "MASALA", "GINGER", "GARLIC", "TURMERIC",
+            "CUMIN", "CORIANDER", "CARDAMOM", "CLOVE", "CINNAMON", "NUTMEG", "BAY LEAF",
+            "OREGANO", "BASIL", "THYME", "ROSEMARY", "PARSLEY", "DILL", "MINT",
+            "CHILI", "PAPRIKA", "CURRY", "PILAU", "BIRYANI", "TANDOORI", "BBQ",
+            "SEASONING", "HERB", "SAFFRON", "VANILLA", "EXTRACT", "ESSENCE"
+        ],
+        # Glassware & Tableware
+        "GLASSWARE ITEMS": [
+            "GLASS", "CUP", "PLATE", "BOWL", "MUG", "TUMBLER", "GOBLET", "WINE GLASS",
+            "BEER MUG", "SHOT GLASS", "PITCHER", "CARAFE", "DECANTER", "VASE",
+            "SAUCER", "DISH", "PLATTER", "SERVING", "DINNER SET", "TEA SET", "CUTLERY SET"
+        ],
+        # Toys & Games
+        "TOYS": [
+            "TOY", "BALL", "DOLL", "PUZZLE", "GAME", "LEGO", "BUILDING BLOCK",
+            "ACTION FIGURE", "TEDDY", "STUFFED", "PLUSH", "REMOTE CONTROL", "RC CAR",
+            "BOARD GAME", "CARD GAME", "PLAYING CARDS", "DICE", "CHESS", "CHECKERS"
+        ],
+        # Pet Products
+        "PET ASSESORIES": [
+            "DOG", "CAT", "PET", "LEASH", "COLLAR", "HARNESS", "BOWL", "FEEDER",
+            "LITTER", "CAGE", "AQUARIUM", "FISH FOOD", "BIRD SEED", "TREAT", "CHEW"
+        ],
+        # Beverages (catch-all for drinks not in SODA/JUICE)
+        "BEVERAGES": [
+            "DRINKING CHOCOLATE", "HOT CHOCOLATE", "COCOA", "MILO", "OVALTINE",
+            "ENERGY DRINK", "RED BULL", "MONSTER", "POWER HORSE", "SPORTS DRINK",
+            "GATORADE", "LUCOZADE", "ELECTROLYTE", "ISOTONIC"
+        ],
+        # Snacks & Confectionery
+        "SNACKS": [
+            "CHIPS", "CRISPS", "POPCORN", "NUTS", "PEANUT", "CASHEW", "ALMOND",
+            "TRAIL MIX", "DRIED FRUIT", "RAISIN", "PRUNE", "DATE", "FIG",
+            "CRACKER", "PRETZEL", "RICE CAKE", "GRANOLA BAR", "ENERGY BAR", "PROTEIN BAR"
+        ],
+        # Sweets & Candy
+        "SWEETS": [
+            "CANDY", "SWEET", "LOLLIPOP", "GUMMY", "JELLY BEAN", "HARD CANDY",
+            "TOFFEE", "CARAMEL", "FUDGE", "MARSHMALLOW", "LIQUORICE", "MINT",
+            "CHEWING GUM", "BUBBLE GUM", "MENTOS", "HALLS", "STREPSILS"
+        ],
+        # Chocolates
+        "CHOCOLATES": [
+            "CHOCOLATE", "CHOCO", "COCOA", "TRUFFLE", "PRALINE", "FERRERO",
+            "LINDT", "GODIVA", "TOBLERONE", "SNICKERS", "MARS", "TWIX", "BOUNTY",
+            "MILKY WAY", "KIT KAT", "HERSHEY", "CADBURY", "DAIRY MILK", "OREO"
+        ],
+        # Bakery & Pastry
+        "CAKES": [
+            "CAKE", "CUPCAKE", "MUFFIN", "BROWNIE", "COOKIE", "PASTRY", "PIE",
+            "TART", "CROISSANT", "DONUT", "DOUGHNUT", "DANISH", "ECLAIR",
+            "SWISS ROLL", "SPONGE", "GATEAU"
+        ],
+        # Biscuits & Cookies
+        "BISCUITS": [
+            "BISCUIT", "WAFER", "DIGESTIVE", "MARIE", "SHORTBREAD", "CREAM BISCUIT",
+            "SANDWICH BISCUIT", "OATMEAL COOKIE", "GINGER SNAP", "CRUNCHIE"
+        ],
+        # Canned & Preserved Foods
+        "CANNED MEAT": [
+            "CANNED", "TINNED", "CORNED BEEF", "SPAM", "TUNA", "SARDINE", "MACKEREL",
+            "SALMON", "ANCHOVY", "PILCHARD"
+        ],
+        "CANNED VEGETABLES": [
+            "CANNED BEANS", "CANNED PEAS", "CANNED CORN", "CANNED TOMATO",
+            "CANNED MUSHROOM", "CANNED OLIVE", "PICKLED", "PRESERVED"
+        ],
+        # Sauces & Condiments
+        "SAUCES": [
+            "SAUCE", "KETCHUP", "MAYONNAISE", "MAYO", "MUSTARD", "CHUTNEY", "RELISH",
+            "SOY SAUCE", "TERIYAKI", "WORCESTERSHIRE", "HOT SAUCE", "TABASCO",
+            "BBQ SAUCE", "SALSA", "GUACAMOLE", "HUMMUS", "PESTO", "DRESSING",
+            "VINEGAR", "VINAIGRETTE", "MARINADE"
+        ],
+        # Jams & Spreads
+        "JAMS": [
+            "JAM", "JELLY", "MARMALADE", "PRESERVE", "SPREAD", "PEANUT BUTTER",
+            "NUTELLA", "HAZELNUT", "CHOCOLATE SPREAD", "HONEY", "MAPLE SYRUP",
+            "GOLDEN SYRUP", "MOLASSES", "TREACLE"
+        ],
+        # Cleaning Products
+        "ALL CLEANERS": [
+            "CLEANER", "DETERGENT", "DISINFECTANT", "SANITIZER", "BLEACH", "JIK",
+            "HARPIC", "TOILET CLEANER", "DRAIN CLEANER", "GLASS CLEANER", "WINDEX",
+            "FLOOR CLEANER", "TILE CLEANER", "MULTI-PURPOSE", "ALL PURPOSE",
+            "DEGREASER", "STAIN REMOVER", "FABRIC SOFTENER", "CONDITIONER"
+        ],
+        # Laundry
+        "DETERGENTS": [
+            "WASHING POWDER", "LAUNDRY", "ARIEL", "OMO", "PERSIL", "TIDE",
+            "SURF", "DOWNY", "COMFORT", "SOFTENER", "STARCH"
+        ],
+        # Personal Care
+        "BATH SOAP": [
+            "SOAP", "BODY WASH", "SHOWER GEL", "BATH", "LUX", "DOVE", "DETTOL",
+            "LIFEBUOY", "PALMOLIVE", "GEISHA", "PROTEX", "SAFEGUARD"
+        ],
+        "SHAMPOOS/CONDITIONER": [
+            "SHAMPOO", "CONDITIONER", "HAIR", "HEAD", "SHOULDERS", "PANTENE",
+            "SUNSILK", "CLEAR", "TRESEMME", "HERBAL ESSENCE", "GARNIER",
+            "ANTI-DANDRUFF", "2-IN-1", "KERATIN"
+        ],
+        "TOOTHPASTES": [
+            "TOOTHPASTE", "TOOTHBRUSH", "MOUTHWASH", "DENTAL", "ORAL",
+            "COLGATE", "SENSODYNE", "AQUAFRESH", "CLOSE UP", "CREST",
+            "LISTERINE", "FLOSS", "WHITENING"
+        ],
+        "DEODORANTS": [
+            "DEODORANT", "ANTIPERSPIRANT", "ROLL ON", "SPRAY", "BODY SPRAY",
+            "AXE", "NIVEA", "REXONA", "SURE", "OLD SPICE", "DEGREE"
+        ],
+        # Baby Products
+        "DIAPERS": [
+            "DIAPER", "NAPPY", "PAMPERS", "HUGGIES", "MOLFIX", "SOFTCARE",
+            "PULL UP", "TRAINING PANTS", "BABY DRY"
+        ],
+        "BABY FOODS": [
+            "BABY FOOD", "INFANT", "FORMULA", "CERELAC", "NESTUM", "NAN",
+            "SIMILAC", "ENFAMIL", "BABY CEREAL", "PABLUM", "BABY BISCUIT"
+        ],
+        "BABY COSMETICS": [
+            "BABY LOTION", "BABY OIL", "BABY POWDER", "BABY CREAM", "BABY WASH",
+            "BABY SHAMPOO", "JOHNSON", "BABY WIPES"
+        ],
+        # Sanitary Products
+        "SANITARY TOWELS": [
+            "SANITARY", "PAD", "PANTY LINER", "ALWAYS", "KOTEX", "STAYFREE",
+            "WHISPER", "TAMPAX", "TAMPON", "MENSTRUAL", "PERIOD"
+        ],
+        # Tissue & Paper Products
+        "TISSUE PAPER": [
+            "TISSUE", "TOILET PAPER", "KITCHEN ROLL", "PAPER TOWEL", "SERVIETTE",
+            "NAPKIN", "FACIAL TISSUE", "KLEENEX", "FINE", "VIVA"
+        ],
+        # Electronics & Batteries
+        "BATTERIES": [
+            "BATTERY", "DURACELL", "ENERGIZER", "EVEREADY", "PANASONIC",
+            "ALKALINE", "RECHARGEABLE", "AAA", "AA", "9V", "D CELL", "C CELL"
+        ],
+        # Party & Events
+        "PARTY ITEMS": [
+            "PARTY", "BALLOON", "BANNER", "STREAMER", "CONFETTI", "DECORATION",
+            "DISPOSABLE", "PAPER PLATE", "PAPER CUP", "PLASTIC FORK", "PLASTIC SPOON",
+            "NAPKIN", "TABLECLOTH", "GIFT WRAP", "RIBBON", "BOW", "GIFT BAG",
+            "PARTY HAT", "BLOWER", "WHISTLE", "PIÑATA", "CANDLE HOLDER"
+        ],
+        # Gift & Wrap
+        "GIFT WRAP&RIBBON": [
+            "GIFT", "WRAP", "WRAPPING", "RIBBON", "BOW", "GIFT BOX", "GIFT BAG",
+            "TISSUE PAPER", "GREETING CARD", "CARD", "ENVELOPE"
+        ],
+        # Hardware & Tools (basic)
+        "HARDWARE": [
+            "NAIL", "SCREW", "BOLT", "NUT", "WASHER", "HINGE", "LOCK", "KEY",
+            "HAMMER", "SCREWDRIVER", "PLIER", "WRENCH", "TAPE MEASURE", "LEVEL",
+            "DRILL", "SAW", "SANDPAPER", "PAINT", "BRUSH", "ROLLER", "PUTTY"
+        ],
+        # Gardening
+        "GARDENING": [
+            "SEED", "PLANT", "FERTILIZER", "PESTICIDE", "INSECTICIDE", "HERBICIDE",
+            "GARDEN", "POT", "PLANTER", "WATERING CAN", "HOSE", "SPRINKLER",
+            "RAKE", "SHOVEL", "SPADE", "HOE", "WHEELBARROW", "GLOVE"
+        ],
+        # Automotive
+        "AUTOMOTIVE": [
+            "CAR", "MOTOR", "ENGINE", "OIL", "LUBRICANT", "BRAKE", "COOLANT",
+            "WIPER", "BULB", "HEADLIGHT", "AIR FRESHENER", "CAR WASH", "POLISH",
+            "WAX", "TIRE", "TYRE", "PUMP", "JACK", "JUMPER CABLE"
+        ],
+        # Books & Media
+        "BOOKS": [
+            "BOOK", "NOVEL", "MAGAZINE", "NEWSPAPER", "COMIC", "JOURNAL",
+            "TEXTBOOK", "DICTIONARY", "ENCYCLOPEDIA", "ATLAS", "MAP"
+        ],
+        # Sports & Fitness
+        "SPORTS": [
+            "FOOTBALL", "SOCCER", "BASKETBALL", "TENNIS", "BADMINTON", "VOLLEYBALL",
+            "CRICKET", "RACKET", "BAT", "BALL", "NET", "GOAL", "JERSEY",
+            "SHORTS", "TRAINERS", "SNEAKERS", "GYM", "YOGA", "MAT", "DUMBBELL",
+            "WEIGHT", "SKIPPING ROPE", "JUMP ROPE"
+        ],
+        # Clothing Accessories
+        "CLOTHING ACCESSORIES": [
+            "SOCK", "UNDERWEAR", "VEST", "BRIEF", "BOXER", "BRA", "PANTY",
+            "BELT", "TIE", "SCARF", "HAT", "CAP", "GLOVE", "UMBRELLA",
+            "WALLET", "PURSE", "BAG", "BACKPACK", "LUGGAGE", "SUITCASE"
+        ],
+        # Frozen Foods
+        "FROZEN GOURMET": [
+            "FROZEN", "ICE", "FRIES", "NUGGET", "FISH FINGER", "PIZZA",
+            "SAMOSA", "SPRING ROLL", "MEAT PIE", "SAUSAGE ROLL"
+        ],
+        "ICE-CREAM": [
+            "ICE CREAM", "ICECREAM", "GELATO", "SORBET", "FROZEN YOGURT",
+            "POPSICLE", "ICE LOLLY", "CONE", "SUNDAE", "RIPPLE", "MELBA", "DL 1L"
+        ],
+        # Dairy Products
+        "CHEESE": [
+            "CHEESE", "CHEDDAR", "MOZZARELLA", "PARMESAN", "GOUDA", "BRIE",
+            "FETA", "CREAM CHEESE", "COTTAGE CHEESE", "RICOTTA"
+        ],
+        # Alcoholic Beverages
+        "WINES": [
+            "WINE", "CHAMPAGNE", "PROSECCO", "SPARKLING", "RED WINE", "WHITE WINE",
+            "ROSE", "MERLOT", "CABERNET", "CHARDONNAY", "SAUVIGNON", "PINOT",
+            "SHIRAZ", "RIESLING", "MOSCATO"
+        ],
+        "SPIRITS": [
+            "WHISKY", "WHISKEY", "VODKA", "GIN", "RUM", "BRANDY", "COGNAC",
+            "TEQUILA", "LIQUEUR", "SCOTCH", "BOURBON", "HENNESSY", "JOHNNIE WALKER",
+            "SMIRNOFF", "ABSOLUT", "BACARDI", "CAPTAIN MORGAN", "BAILEYS"
+        ],
+        "BEER": [
+            "BEER", "LAGER", "ALE", "STOUT", "PILSNER", "IPA", "CRAFT BEER",
+            "TUSKER", "GUINNESS", "HEINEKEN", "CORONA", "BUDWEISER", "STELLA",
+            "CARLSBERG", "BAVARIA"
+        ],
+        # Medicinal (OTC)
+        "MEDICARE": [
+            "PANADOL", "PARACETAMOL", "ASPIRIN", "IBUPROFEN", "ANTACID",
+            "COUGH SYRUP", "COLD", "FLU", "ALLERGY", "BANDAGE", "PLASTER",
+            "FIRST AID", "ANTISEPTIC", "COTTON WOOL", "GAUZE", "THERMOMETER"
+        ],
+        # Insect Control
+        "INSECTICIDES": [
+            "INSECTICIDE", "PESTICIDE", "DOOM", "RAID", "MORTEIN", "BAYGON",
+            "MOSQUITO", "FLY", "COCKROACH", "ANT", "BUG SPRAY", "REPELLENT",
+            "COIL", "FUMIGATOR"
+        ],
+        # Kitchen Utensils (Brand-Specific: ROSS, VINOD, KMW)
+        "KITCHEN UTENSILS": [
+            "TURNER", "SKIMMER", "MASHER", "WHISK", "WOK", "CASSEROLE", "ROASTER",
+            "BASTING", "LADLE", "SPATULA", "TONGS", "PASTA SERVER", "SLOTTED",
+            "EGG BEATER", "CHOPPER", "CUTTER", "PEELER", "GRATER", "SLICER",
+            "ROSS ", "VINOD ", "KMW ", "KITCH ", "LIONSTAR", "HOMKART", "DKW ",
+            "TABLEWARE", "CUTLERY SET", "AIR FRYER", "LINER", "LUNCHBOX",
+            "FOOD COVER", "EGG HOLDER", "PILL BOX", "MEDICINE BOX"
+        ],
+        # Exercise Books & Stationery (Brand: POLAR)
+        "EXERCISE BOOKS": [
+            "POLAR ", "EX BK", "EXERCISE BOOK", "NOTEBOOK", "RULED", "SQUARED",
+            "A4", "A5", "64PG", "80PG", "96PG", "120PG", "LAMINATING", "POUCHES"
+        ],
+        # Ayurvedic & Herbal Products (Brands: ZANDU, HIMALAYA, KAYAM, HAWABAN)
+        "AYURVEDIC PRODUCTS": [
+            "AYURVEDIC", "AYURVEDA", "ZANDU", "HIMALAYA", "KAYAM", "HAWABAN",
+            "CHURNA", "GRANUELS", "DIGESTION", "HERBAL", "TRUPTI", "GASEX"
+        ],
+        # Hair Care (African specific brands)
+        "HAIR CARE": [
+            "AFRICAN PRIDE", "DREAM KIDS", "OLIVE MIRACLE", "DETANGLER",
+            "RELAXER", "EDGE CONTROL", "BRAID", "HAIR OIL", "HAIR FOOD",
+            "SCALP", "MOISTURE", "SILKY SMOOTH"
+        ],
+        # Infant Formula & Baby (Brand: S26, SIMILAC, etc.)
+        "BABY FORMULA": [
+            "S26 ", "PROMIL", "STAGE 1", "STAGE 2", "STAGE 3", "INFANT FORMULA",
+            "FOLLOW-ON", "GROWING UP", "NAN ", "LACTOGEN", "ENFAMIL", "SIMILAC"
+        ],
+        # Conserves & Preserves
+        "CONSERVES": [
+            "CONSERVE", "PRESERVE", "STUTE ", "FORNO BONOMI", "SAVOIARDI",
+            "LADY FINGER", "BISCOTTI"
+        ],
+        # Novelty & Party (PMS Brand specifics)
+        "NOVELTY ITEMS": [
+            "PMS ", "YOYO", "SOFTLINGS", "FOODIES", "GOGGLES", "EAR PLUG",
+            "WRIST BAND", "CITRONELLA", "DEHUMIDIFIER", "WARDROBE", "MAZE",
+            "CROSS WORD", "CRAFT MODEL", "SEWING KIT", "LAMPSHADE"
+        ],
+        # Bathroom & Shower
+        "BATHROOM ACCESSORIES": [
+            "SHOWER", "DUCHA", "BATH MAT", "LOOFAH", "SCRUBBER", "BATH SPONGE",
+            "FAUCET", "TAP", "PIPE", "SHOWERHEAD", "FAME SUPA"
+        ],
+        # Art & Drawing Supplies
+        "ART SUPPLIES": [
+            "ARTLINE", "DRAWING SET", "SKETCH", "CANVAS", "EASEL", "PAINT BRUSH",
+            "WATERCOLOR", "ACRYLIC", "OIL PAINT", "CHARCOAL", "PASTEL"
+        ],
+        # Dish Washing (catch more brands)
+        "WASHING UP LIQUID": [
+            "WASH UP", "DISH WASH", "ECOVER", "CAMOMILE", "CLEMENTINE",
+            "ECO FRIENDLY", "PLANT BASED"
+        ],
+        # Energy Drinks (additional keywords)
+        "ENERGY DRINKS": [
+            "RUBICON", "RAW ENERGY", "BOOST", "REDBULL", "RED BULL", "MONSTER",
+            "ROCKSTAR", "POWER HORSE", "V ENERGY", "EMERGE"
+        ],
+        # Spices (additional Indian spices)
+        "SPICES": [
+            "FENUCREEK", "FENUGREEK", "CRUSHED", "WHOLE SPICE", "METHI",
+            "JEERA", "AJWAIN", "ASAFOETIDA", "HING", "MUSTARD SEED"
+        ],
+        # Combs & Hair Tools
+        "HAIR ACCESSORIES": [
+            "COMB", "HAIR BRUSH", "HAIR CLIP", "BOBBY PIN", "HAIR BAND",
+            "SCRUNCHIE", "HAIR TIE", "HEADBAND", "BARRETTE"
+        ],
+        # Pressure Cookers & Heavy Kitchen
+        "COOKWARE": [
+            "PRESSURE COOKER", "P/COOKER", "ALLUMINIUM", "ALUMINUM", "STAINLESS",
+            "NON STICK", "NON-STICK", "N/S ", "TEFLON", "CERAMIC"
+        ],
+        # Air Fresheners (catch remaining brands)
+        "AIR FRESHENERS": [
+            "GLADE", "AIR FRESHENER", "A/FRESHENER", "TRIGGER", "ODOUR ELIMINATOR",
+            "ODUOR ELIMINATOR", "SENSO", "ROOM SPRAY", "AEROSOL", "AUTOMATIC SPRAY"
+        ],
+        # Dried Vegetables (African greens)
+        "DRIED VEGETABLES": [
+            "DRIED SAGA", "DRIED DODO", "DRIED SUKUMA", "DRIED KUNDE", "DRIED MANAGU",
+            "DRIED TERERE", "DRIED MRENDA", "DRIED SPINACH", "DRIED KALE", "SUN DRIED"
+        ],
+        # Body Wash & Men's Grooming
+        "MENS GROOMING": [
+            "MEN SPORT", "MEN BODY", "MENS BODY", "AFTERSHAVE", "SHAVING",
+            "RAZOR", "BLADE", "GILLETTE", "NIVEA MEN", "NIVEA FOR MEN"
+        ],
+        # Office Supplies (badges, filing, envelopes)
+        "OFFICE SUPPLIES": [
+            "BADGE", "NAME TAG", "CONFERENCE", "FILING", "POCKET", "ENVELOPE",
+            "EMVELOPE", "FOLDER", "BINDER", "CLIP", "STAPLE"
+        ],
+        # Olives & Mediterranean
+        "OLIVES": [
+            "OLIVE", "PITTED", "KVUZAT", "YAVNE", "KALAMATA", "STUFFED OLIVE"
+        ],
+        # Pest Control
+        "PEST CONTROL": [
+            "COCKRAKILL", "ROACH KILLER", "RAT POISON", "MOUSE TRAP", "RODENT",
+            "PEST CONTROL", "TERMITE", "ANT KILLER"
+        ],
+        # Health Supplements & Tonics
+        "HEALTH TONICS": [
+            "SCOTT EMULSION", "EMULSION", "HAJMOLA", "DABUR", "TONIC", "SYRUP",
+            "LIVER OIL", "COD LIVER", "OMEGA 3"
+        ],
+        # Soft Drinks & Beverages (catch more brands)
+        "SOFT DRINKS": [
+            "PEP ", "OSTERBERG", "OSTERBER", "APPLE GRAPE", "ALOE VERA DRINK",
+            "SPARKLING", "FIZZY", "CARBONATED"
+        ],
+        # Gluten-Free & Specialty Bread
+        "SPECIALTY BREAD": [
+            "KIRSTEN", "GLUTEN FREE", "GF BREAD", "SOURDOUGH", "ARTISAN BREAD",
+            "WHOLE GRAIN BREAD", "MULTIGRAIN BREAD"
+        ],
+        # Service Items (To mark as non-product - they'll still go to MISC but that's OK)
+        "SERVICE FEES": [
+            "DELIVERY", "ADVERTISING FEE", "PILFERAGE", "BONUS CARD", "EMPTY BOX",
+            "SERVICE CHARGE", "HANDLING FEE"
+        ],
+        # Plastics & Storage
+        "PLASTIC CONTAINERS": [
+            "SAVENA", "PLASTIC", "CONTAINER", "TUPPERWARE", "STORAGE BOX"
+        ]
     }
     
     keyword_corrected = 0
@@ -809,7 +1197,8 @@ def main():
             wallet_limit = dept_wallets.get(dept, 0) * price_ceiling_pct
             relaxed_ceiling = max(500, wallet_limit) 
             
-            if cost > relaxed_ceiling and "Small" in tier_name:
+            # STAPLE BYPASS: Staple departments ALWAYS pass price ceiling
+            if cost > relaxed_ceiling and "Small" in tier_name and not is_staple_dept:
                 continue
             
             # Pool Check

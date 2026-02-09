@@ -11,9 +11,28 @@ sys.path.append(os.getcwd())
 from oasis.logic.order_engine import OrderEngine
 
 # Configuration
-# Use current directory for data, compatible with both local and cloud
-DATA_DIR = os.getcwd() # Was: r"c:\Users\iLink\.gemini\antigravity\scratch"
-SCORECARD_FILE = os.path.join(DATA_DIR, "Full_Product_Allocation_Scorecard_v3.csv")
+from pathlib import Path
+
+# Use directory of this script for data
+DATA_DIR = Path(__file__).parent.resolve()
+
+def find_latest_scorecard():
+    # Search for latest scorecard in base dir
+    candidates = list(Path(DATA_DIR).glob("Full_Product_Allocation_Scorecard_v*.csv"))
+    if not candidates:
+        return os.path.join(DATA_DIR, "Full_Product_Allocation_Scorecard_v3.csv")
+    
+    # Sort by version number
+    def get_version(p):
+        try:
+            return int(p.stem.split('_v')[-1])
+        except:
+            return 0
+            
+    latest = max(candidates, key=get_version)
+    return str(latest)
+
+SCORECARD_FILE = find_latest_scorecard()
 
 # --- Helper Logic ---
 @st.cache_resource
@@ -138,7 +157,7 @@ st.markdown("Powered by **OrderEngine 2.0**: Two-Pass Allocation with Efficiency
 
 # Sidebar
 st.sidebar.header("Configuration")
-budget = st.sidebar.slider("Capital Budget ($)", min_value=50000, max_value=150000000, value=300000, step=10000)
+budget = st.sidebar.slider("Capital Budget ($)", min_value=50000, max_value=200000000, value=300000, step=10000)
 
 if st.sidebar.button("Run Simulation"):
     with st.spinner("Running Allocation Logic..."):

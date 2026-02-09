@@ -4,7 +4,7 @@ import asyncio
 
 sys.path.append(os.getcwd())
 
-from app.logic.order_engine import OrderEngine
+from oasis.logic.order_engine import OrderEngine
 
 # Mock data: Mix of established and new products
 MOCK_PRODUCTS = [
@@ -31,7 +31,8 @@ async def run_test():
         p['is_consignment'] = False
         
     # Run allocation with moderate budget
-    res = engine.apply_greenfield_allocation(MOCK_PRODUCTS.copy(), 500_000)
+    result = engine.apply_greenfield_allocation(MOCK_PRODUCTS.copy(), 500_000)
+    res = result['recommendations']  # Extract recommendations from returned dict
     
     print("Allocation Results:")
     print("-" * 100)

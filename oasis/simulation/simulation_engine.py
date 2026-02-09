@@ -188,6 +188,9 @@ class InventoryTracker:
                 data['stockout_days'] += 1
                 if data['first_stockout_day'] is None:
                     data['first_stockout_day'] = day_index
+                    # v9.1 ENHANCED: Diagnostic logging for early stockouts
+                    if day_index <= 3:
+                        logger.warning(f"⚠️ EARLY STOCKOUT (Day {day_index}): {sku[:40]} | Dept: {data.get('department', 'N/A')} | Lost: {lost} units")
             
             # 3. Update Totals
             data['total_sold'] += sold
@@ -196,6 +199,10 @@ class InventoryTracker:
             
         self.total_revenue += daily_revenue
         self.total_lost_revenue += daily_lost_revenue
+        
+        # v9.1 ENHANCED: Log daily stockout summary if significant
+        if stockouts > 10:
+            logger.warning(f"📊 Day {day_index}: {stockouts} stockouts detected, Lost Revenue: ${daily_lost_revenue:,.0f}")
         
         return {
             'day': day_index,
@@ -680,12 +687,31 @@ class ReplenishmentLogic:
             
             if data['current_stock'] <= rop:
                 # ORDER!
-                # EOQ or Min Max? Let's use simple "Fill to Max" (Order up to 7 days + Safety)
-                target_stock = adjusted_sales * (lead_time + safety_stock_days + 7) # +7 Cycle Stock
+                # v9.2 FIX: Increase order quantities to prevent stockouts
+                # Problem: 7 days cycle stock was insufficient, causing 72.6% stockout rate
+                # Solution: Use 14 days base + velocity scaling
+                
+                # Base cycle stock: 14 days for standard items
+                cycle_stock_days = 14
+                
+                # v9.2: Velocity-based scaling
+                # High-velocity items need more buffer
+                if avg_daily > 5.0:
+                    cycle_stock_days = 21  # 3 weeks for fast movers
+                elif avg_daily > 2.0:
+                    cycle_stock_days = 17  # 2.5 weeks for medium velocity
+                
+                # Fresh items: shorter cycle (don't overstock perishables)
+                if is_fresh:
+                    cycle_stock_days = min(cycle_stock_days, 10)  # Cap at 10 days for fresh
+                
+                # Target = (Lead Time + Safety) + Cycle Stock
+                target_stock = adjusted_sales * (lead_time + safety_stock_days + cycle_stock_days)
                 qty_needed = target_stock - data['current_stock']
                 
-                # Round to pack size (if we had it)
-                qty_order = max(1, int(qty_needed))
+                # v9.2: Minimum order quantity - never order less than 2 days of sales
+                min_order = adjusted_sales * 2
+                qty_order = max(min_order, int(qty_needed))
                 
                 orders.append({
                     'sku': sku,

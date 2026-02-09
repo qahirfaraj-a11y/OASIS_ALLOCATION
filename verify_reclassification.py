@@ -1,7 +1,7 @@
 import json
 
 def verify():
-    filepath = 'app/data/sales_profitability_intelligence_2025_reclassified.json'
+    filepath = 'oasis/data/sales_profitability_intelligence_2025_reclassified.json'
     try:
         with open(filepath, 'r') as f:
             data = json.load(f)

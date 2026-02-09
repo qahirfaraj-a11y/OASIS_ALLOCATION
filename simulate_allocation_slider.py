@@ -3,7 +3,7 @@ import numpy as np
 import sys
 
 # Configuration
-SCORECARD_FILE = r"c:\Users\iLink\.gemini\antigravity\scratch\Full_Product_Allocation_Scorecard_v2.csv"
+SCORECARD_FILE = r"c:\Users\iLink\.gemini\antigravity\scratch\Full_Product_Allocation_Scorecard_v7.csv"
 
 def load_data():
     print(f"Loading Scorecard from {SCORECARD_FILE}...")
@@ -23,7 +23,7 @@ def get_allocation_profile(budget):
             "name": "Small Retailer (Efficiency Mode)",
             "allowed_abc": ["A"], # Only Top Movers
             "allowed_roles": ["Cash Cow", "Star", "Profit Driver"], # No Dogs/Standard
-            "min_gmroi": 5.0, # High efficiency required
+            "min_gmroi": 0.2, # High efficiency required (Top ~10-15%)
             "dept_balance_strictness": "Loose" # Focus on ROI over perfect variety
         }
     elif budget < 5000000:
@@ -31,7 +31,7 @@ def get_allocation_profile(budget):
             "name": "Medium Retailer (Growth Mode)",
             "allowed_abc": ["A", "B"], # A and B items
             "allowed_roles": ["Cash Cow", "Star", "Profit Driver", "Standard"], 
-            "min_gmroi": 1.0, # Moderate efficiency
+            "min_gmroi": 0.05, # Moderate efficiency (Top ~50%)
             "dept_balance_strictness": "Moderate"
         }
     elif budget < 20000000:

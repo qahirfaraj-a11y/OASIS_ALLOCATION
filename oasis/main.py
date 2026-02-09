@@ -1,8 +1,8 @@
 import flet as ft
 import os
 import asyncio
-from app.logic.order_engine import OrderEngine
-from app.llm.inference import RuleBasedLLM, LocalLLM
+from oasis.logic.order_engine import OrderEngine
+from oasis.llm.inference import RuleBasedLLM, LocalLLM
 
 # Configure Logging
 import logging
@@ -16,7 +16,7 @@ def main(page: ft.Page):
     
     # State
     current_file_paths = []
-    engine = OrderEngine("app/data")
+    engine = OrderEngine("oasis/data")
     engine.load_local_databases() # Load JSON DBs and Scan GRN files on startup
     
     # Auto-detect Local Model

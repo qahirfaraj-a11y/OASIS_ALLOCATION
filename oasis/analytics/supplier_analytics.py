@@ -17,10 +17,33 @@ from dataclasses import dataclass, field
 from typing import List, Dict, Optional, Any
 from pathlib import Path
 import json
+import os
 
-# Data paths
-DATA_DIR = Path(r"c:\Users\iLink\.gemini\antigravity\scratch\oasis\data")
-SCORECARD_FILE = Path(r"c:\Users\iLink\.gemini\antigravity\scratch\Full_Product_Allocation_Scorecard_v7.csv")
+# Determine paths relative to this script
+# Layout: scratch/oasis/analytics/supplier_analytics.py
+# Scorecard is in: scratch/
+CURRENT_FILE = Path(__file__).resolve()
+PROJECT_ROOT = CURRENT_FILE.parent.parent.parent  # scratch/
+DATA_DIR = PROJECT_ROOT / "oasis" / "data"
+
+def find_latest_scorecard():
+    # Search for latest scorecard in project root
+    candidates = list(PROJECT_ROOT.glob("Full_Product_Allocation_Scorecard_v*.csv"))
+    if not candidates:
+        # Fallback
+        return PROJECT_ROOT / "Full_Product_Allocation_Scorecard_v7.csv"
+    
+    # Sort by version number
+    def get_version(p):
+        try:
+            return int(p.stem.split('_v')[-1])
+        except:
+            return 0
+            
+    latest = max(candidates, key=get_version)
+    return latest
+
+SCORECARD_FILE = find_latest_scorecard()
 SUPPLIER_MAP_FILE = DATA_DIR / "product_supplier_map.json"
 
 

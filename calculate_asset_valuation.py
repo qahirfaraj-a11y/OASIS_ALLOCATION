@@ -2,7 +2,7 @@ import pandas as pd
 import os
 
 # Configuration
-DATA_DIR = r"c:\Users\iLink\.gemini\antigravity\scratch\app\data"
+DATA_DIR = r"c:\Users\iLink\.gemini\antigravity\scratch\oasis\data"
 DEPT_FILES = [
     "dept_1_50.xlsx",
     "dept_51_100.xlsx",

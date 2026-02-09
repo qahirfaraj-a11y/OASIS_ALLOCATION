@@ -88,9 +88,11 @@ def apply_pack_rounding(
     rounded = int(round(base_qty)) # Default fallthrough
 
     if is_key_sku or stockout_risk == "high":
-        if overage_ratio_if_up <= max_overage_ratio:
+        # NEW: For small requirements (< 1 pack), always allow rounding up to 1 pack 
+        # to prevent perpetual stockouts in low-volume tiers.
+        if (overage_ratio_if_up <= max_overage_ratio) or (base_qty > 0 and base_qty < pack_size):
             rounded = qty_up
-            decision_reason = "Key/high-risk SKU; prefer rounding up within allowed overage."
+            decision_reason = "Key/high-risk SKU; prefer rounding up (Minimum 1 Pack Rule)."
             direction = "up"
         else:
             # Over-up would be too much; accept slight shortage

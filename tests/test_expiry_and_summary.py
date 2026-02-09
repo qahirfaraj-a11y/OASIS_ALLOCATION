@@ -5,7 +5,7 @@ import json
 
 sys.path.append(os.getcwd())
 
-from app.logic.order_engine import OrderEngine
+from oasis.logic.order_engine import OrderEngine
 
 # Mock data: Fresh items with different shelf lives
 MOCK_PRODUCTS = [
@@ -74,10 +74,10 @@ async def run_test():
     
     print("\n" + "="*100)
     print("VERIFICATION:")
-    print("1. ✓ Ultra Fresh Yogurt (5d shelf) should be capped to ~3 days max")
-    print("2. ✓ Fresh Milk (7d shelf) should be capped to ~5 days max")
-    print("3. ✓ Pasta (365d shelf) should NOT be capped by expiry")
-    print("4. ✓ Summary should show skip reason for expensive item")
+    print("1. [OK] Ultra Fresh Yogurt (5d shelf) should be capped to ~3 days max")
+    print("2. [OK] Fresh Milk (7d shelf) should be capped to ~5 days max")
+    print("3. [OK] Pasta (365d shelf) should NOT be capped by expiry")
+    print("4. [OK] Summary should show skip reason for expensive item")
 
 if __name__ == "__main__":
     asyncio.run(run_test())

@@ -175,6 +175,14 @@ class OrderEngine:
             self.no_grn_suppliers = []
 
 
+    def scan_grn_files(self) -> dict:
+        """
+        Scans raw GRN files to build the GRN database.
+        Currently a stub to prevent ActributeError if cache is missing.
+        """
+        logger.warning("scan_grn_files is not fully implemented. Returning empty GRN database.")
+        return {}
+
     def load_local_databases(self):
         """Synchronous database loading for backward compatibility."""
         logger.info(f"Loading databases synchronously from {self.data_dir}")
@@ -540,8 +548,9 @@ class OrderEngine:
              cycle_days = self.get_grn_cycle_days(product.get('product_name'))
              
              # Target = Cycle Days + Buffer
-             # Buffer = 0.25 days (Small buffer as requested)
-             target_days = cycle_days + 0.25
+             # v9.1 FIX: Increased buffer for volatile fresh items (yogurt, eggs)
+             # Buffer = 0.5 days (increased from 0.25 to reduce early stockouts)
+             target_days = cycle_days + 0.5
              
              # Ensure Long Life (UHT) isn't crushed if data missing
              p_name_upper = product.get('product_name', '').upper()
@@ -552,25 +561,64 @@ class OrderEngine:
                       
              return target_days 
              
-        # 2. Safety Buffer (Dynamic)
-        # Base: 4.0 for Fresh (non-daily?), 1.5 for Dry
-        base_safety = 2.0 if is_fresh else 1.5
+        # v9.5 PRECISION ALLOCATION FIX
+        # Root cause: Items allocated ~5 days, stocked out before replenishment (lead time 3-7 days)
+        # Solution: Precision formula using actual lead times + velocity scaling
         
-        # Volatility penalty
-        cv = product.get('demand_cv', 0.5)
-        vol_factor = 2.0
-        safety_buffer = base_safety * (1 + (vol_factor * cv))
+        # 2. Base Coverage Calculation
+        # Formula: (Lead Time + Safety Buffer + Cycle Stock) × Demand Correction
+        base_safety = 2  # ROP safety buffer
+        cycle_stock = 3  # Minimum cycle stock
         
-        # 3. Calculate Cycle Stock Coverage
-        target_days = review_period + lead_time + safety_buffer
+        # Base days before any scaling
+        base_days = lead_time + base_safety + cycle_stock
         
-        # 4. Apply Tier Constraints
-        profile_depth = tier_profile.get('depth_days', 14)
+        # Apply demand correction (simulation runs 1.14x higher than allocated ADS)
+        base_days *= 1.15
         
-        if is_fresh:
-             target_days = min(target_days, 3.0) 
+        # 3. Velocity-Based Depth Scaling
+        # High-velocity items need more depth, low-velocity need less (reduce waste)
+        if avg_sales > 10:
+            velocity_multiplier = 1.4  # Very high velocity
+        elif avg_sales > 5:
+            velocity_multiplier = 1.3  # High velocity  
+        elif avg_sales > 2:
+            velocity_multiplier = 1.2  # Medium-high velocity
+        elif avg_sales > 1:
+            velocity_multiplier = 1.0  # Medium velocity
         else:
-             target_days = min(target_days, profile_depth * 1.5, 45.0)
+            velocity_multiplier = 0.8  # Low velocity (reduce overstocking)
+        
+        target_days = base_days * velocity_multiplier
+        
+        # 4. Category-Specific Caps (User Constraints)
+        p_name_upper = product.get('product_name', '').upper()
+        
+        # v9.6 FIX: Fresh Item Buffer for Stockouts
+        # If fresh item has stockout history, increase buffer by 20% (User Request)
+        if is_fresh:
+            # Check simulation feedback
+            sim_feedback = self.databases.get('simulation_feedback', {})
+            sku_feedback = sim_feedback.get('sku_feedback', {})
+            p_name = product.get('product_name', '')
+            
+            fresh_cap = 5.0
+            
+            if p_name in sku_feedback:
+                fb = sku_feedback[p_name]
+                if fb.get('stockout_days', 0) > 0:
+                    target_days *= 1.2  # +20% buffer
+                    fresh_cap = 6.0     # Relax cap slightly to allow buffer
+            
+            # STRICT: Fresh items max 5-6 days (spoilage + returns risk)
+            target_days = min(target_days, fresh_cap)
+            
+        elif 'UHT' in p_name_upper or 'ESL' in p_name_upper or 'LONG LIFE' in p_name_upper:
+            # Long-life items: max 7 days (user constraint: 90-day shelf, reorder 1-2x/week)
+            target_days = min(target_days, 7.0)
+        else:
+            # Standard items: reasonable cap to prevent excessive capital tie-up
+            target_days = min(target_days, 25.0)
              
         return target_days
 
@@ -1499,23 +1547,29 @@ class OrderEngine:
                           # Boost to LeadTime + 4.0 for safety.
                           velocity = rec.get('avg_daily_sales', 0)
                           if velocity > 5.0:
-                              needed_days = lead_time + 4.0
+                              needed_days = lead_time + 7.0 # Boost for high velocity
                           else:
-                              needed_days = lead_time + 2.0
+                              needed_days = lead_time + 5.0 # Boost for standard items
                      
                      # v8.0 FIX: Revert Fresh Milk "4 Days" rule. User says "1 Day + Buffer" based on velocity.
                      # We will rely on get_grn_cycle_days logic (implied frequency)
                      if rec.get('is_fresh', False):
                          cycle_days = self.get_grn_cycle_days(rec['product_name'])
                          # Launch Buffer = Cycle + 1 Day Safety (First delivery)
-                         needed_days = cycle_days + 0.5 
+                         # v8.3 FIX: High Velocity Fresh needs more buffer on Launch (Brookside Fix)
+                         velocity = rec.get('avg_daily_sales', 0)
+                         if velocity > 10.0:
+                             needed_days = max(3.0, cycle_days + 2.0)
+                         else:
+                             needed_days = cycle_days + 0.5 
                          
                          # v8.1 FIX: Long Life Floor for Launch
                          p_name_upper = rec.get('product_name', '').upper()
                          if 'UHT' in p_name_upper or 'ESL' in p_name_upper or 'LONG LIFE' in p_name_upper:
                              needed_days = max(7.0, needed_days) 
                      
-                     launch_target_units = int(rec.get('avg_daily_sales', 0) * needed_days)
+                     import math
+                     launch_target_units = int(math.ceil(rec.get('avg_daily_sales', 0) * needed_days))
                 
                 rec_qty_units = max(int(rec.get('moq_floor', 0)), raw_mdq, launch_target_units)
                 

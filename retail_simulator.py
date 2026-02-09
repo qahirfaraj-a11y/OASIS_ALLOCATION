@@ -132,6 +132,11 @@ class SKUState:
     orders_placed: int = 0
     total_ordered: float = 0.0
     first_stockout_day: Optional[int] = None
+    
+    # GAP-N: Deferred order tracking for feedback loop
+    deferred_order_count: int = 0
+    deferred_order_value: float = 0.0
+    last_deferred_day: Optional[int] = None
 
 @dataclass 
 class DailyLog:
@@ -232,7 +237,7 @@ def load_scorecard_data(engine: OrderEngine, budget: float, tier_name: str, dema
             # OrderEngine logic uses `avg_daily_sales` from input.
             # So pass the SCALED ADS here.
             'current_stocks': 0.0, # Greenfield
-            'pack_size': 1, # Default
+            'pack_size': int(float(row.get('Pack_Size', 1) or 1)), # Read Pack Size
             'ABC_Class': str(row.get('ABC_Class', 'C')),
             'reliability_score': 90, # Default, will be enriched
             'is_consignment': False # Enriched later
@@ -363,24 +368,39 @@ class RetailSimulator:
         # Initialize Logic Bridge with CORRECT path (root scratch dir where JSONs are)
         self.bridge = SimulationOrderUtil(os.getcwd())
         
-    def simulate_daily_demand(self, sku: SKUState) -> float:
+    def simulate_daily_demand(self, sku: SKUState, day_of_week: int = 0) -> float:
         """
         Generate stochastic daily demand based on ADS and CV.
         Uses Poisson for low-volume items, Normal for high-volume.
+        Applies weekend demand multiplier for Fri-Sun (day 4-6).
+        
+        Args:
+            sku: SKU state object
+            day_of_week: 0=Mon, 1=Tue, ..., 4=Fri, 5=Sat, 6=Sun
         """
         if sku.avg_daily_sales <= 0:
             return 0.0
         
+        # Weekend demand multiplier (Fri-Sun = higher demand)
+        weekend_multiplier = 1.0
+        if day_of_week >= 4:  # Friday, Saturday, Sunday
+            weekend_multiplier = 1.3  # 30% demand spike on weekends
+        
         # Fresh items have higher volatility
         cv = sku.demand_cv * (1.3 if sku.is_fresh else 1.0)
         
-        if sku.avg_daily_sales < 1.0:
+        # Apply weekend multiplier to base demand
+        adjusted_ads = sku.avg_daily_sales * weekend_multiplier
+        
+        if adjusted_ads < 1.0:
             # Low volume: use Poisson (discrete)
-            demand = np.random.poisson(sku.avg_daily_sales)
+            demand = np.random.poisson(adjusted_ads)
         else:
             # Higher volume: use Normal (continuous, rounded)
-            std_dev = sku.avg_daily_sales * cv
-            demand = np.random.normal(sku.avg_daily_sales, std_dev)
+            std_dev = adjusted_ads * cv
+            # Ensure std_dev is non-negative (fix for Mega tier data quality issue)
+            std_dev = max(0.1, abs(std_dev))
+            demand = np.random.normal(adjusted_ads, std_dev)
             demand = max(0, round(demand))
         
         return float(demand)
@@ -506,7 +526,21 @@ class RetailSimulator:
                      supplier_batches[supplier].append((r, sku, qty, cost))
         
         # Process each Supplier Batch
-        min_order_val = self.config.get('min_order_value', 0)
+        # v6.5 FIX: Dynamic MOV Scaling
+        # Problem: Micro stores (0.1% volume) cannot hit Mega MOVs (25k)
+        # Solution: Scale MOV by the square root of demand scale to be fair but efficient
+        base_mov = self.config.get('min_order_value', 0)
+        demand_scale = self.config.get('demand_scale_factor', 1.0)
+        
+        # Formula: Scaled = Base * sqrt(Scale) 
+        # (Square root keeps it from dropping to pennies, maintains some efficiency pressure)
+        scaled_mov = base_mov * (demand_scale ** 0.5)
+        
+        # Hard Floor for Logistics Reality (e.g. Boda Boda delivery cost)
+        mov_floor = 500.0 if demand_scale < 0.1 else 1000.0
+        min_order_val = max(scaled_mov, mov_floor)
+        
+        # print(f"DEBUG: MOV Check for {self.tier_name} -> Base: {base_mov}, Scale: {demand_scale}, Eff: {min_order_val:.0f}")
         
         for supplier, items in supplier_batches.items():
             batch_value = sum(item[3] for item in items)
@@ -560,8 +594,16 @@ class RetailSimulator:
                     orders_placed_count += 1
                     total_orders_value += cost
             else:
-                # Optional: tracking deferred value statistics could go here
-                pass
+                # GAP-N FIX: Track deferred orders for feedback loop
+                for (r, sku, qty, cost) in items:
+                    sku.deferred_order_count += 1
+                    sku.deferred_order_value += cost
+                    sku.last_deferred_day = current_day
+                    # Mark for next-day escalation if critical threshold approaching
+                    if sku.avg_daily_sales > 0:
+                        coverage = sku.current_stock / sku.avg_daily_sales
+                        if coverage < (sku.lead_time_days + 1):  # Approaching danger zone
+                            sku.reorder_point_override = sku.avg_daily_sales * (sku.lead_time_days + 3)
                     
         return orders_placed_count, total_orders_value
     
@@ -573,8 +615,9 @@ class RetailSimulator:
         self.process_arrivals(day_num)
         
         # 2. Simulate sales for each SKU
+        day_of_week = date.weekday()
         for sku in self.skus.values():
-            demand = self.simulate_daily_demand(sku)
+            demand = self.simulate_daily_demand(sku, day_of_week)
             sku.total_demand += demand
             
             # Fulfill what we can
@@ -828,6 +871,112 @@ def export_to_excel(results: List[SimulationResult], output_file: str):
     
     print(f"\n[OK] Results exported to: {output_file}")
 
+def save_feedback(results: List[SimulationResult], feedback_file: str = None):
+    """
+    GAP-K: Persist simulation stockout patterns to JSON for feedback loop.
+    Uses rolling average of last 10 simulations (user selection).
+    """
+    from datetime import datetime
+    
+    if feedback_file is None:
+        feedback_file = os.path.join(DATA_DIR, "simulation_feedback.json")
+    
+    # Load existing feedback or create new
+    existing_feedback = {}
+    if os.path.exists(feedback_file):
+        try:
+            with open(feedback_file, 'r') as f:
+                existing_feedback = json.load(f)
+        except:
+            existing_feedback = {}
+    
+    # Initialize if new
+    if 'simulation_count' not in existing_feedback:
+        existing_feedback = {
+            'last_updated': None,
+            'simulation_count': 0,
+            'sku_feedback': {},
+            'tier_feedback': {}
+        }
+    
+    # Process each simulation result
+    for result in results:
+        tier = result.tier_name
+        existing_feedback['simulation_count'] += 1
+        
+        # Update tier-level feedback
+        if tier not in existing_feedback['tier_feedback']:
+            existing_feedback['tier_feedback'][tier] = {
+                'avg_fill_rate': result.avg_fill_rate,
+                'run_count': 1,
+                'problematic_departments': []
+            }
+        else:
+            tf = existing_feedback['tier_feedback'][tier]
+            # Rolling average
+            old_count = tf['run_count']
+            tf['avg_fill_rate'] = (tf['avg_fill_rate'] * old_count + result.avg_fill_rate) / (old_count + 1)
+            tf['run_count'] = min(10, old_count + 1)  # Cap at 10 for rolling
+        
+        # Update SKU-level feedback
+        for sku in result.final_sku_states.values():
+            sku_name = sku.product_name
+            
+            if sku_name not in existing_feedback['sku_feedback']:
+                existing_feedback['sku_feedback'][sku_name] = {
+                    'first_stockout_days': [],
+                    'stockout_frequency': 0.0,
+                    'avg_first_stockout_day': None,
+                    'recommended_coverage_boost': 1.0,
+                    'deferred_order_count': 0,
+                    'last_10_runs': []
+                }
+            
+            sf = existing_feedback['sku_feedback'][sku_name]
+            
+            # Track stockout day (or None if no stockout)
+            sf['last_10_runs'].append({
+                'stockout_day': sku.first_stockout_day,
+                'lost_sales': sku.lost_sales,
+                'deferred_count': sku.deferred_order_count
+            })
+            
+            # Keep only last 10 runs (rolling window)
+            sf['last_10_runs'] = sf['last_10_runs'][-10:]
+            
+            # Calculate stockout frequency
+            stockout_runs = [r for r in sf['last_10_runs'] if r['stockout_day'] is not None]
+            sf['stockout_frequency'] = len(stockout_runs) / len(sf['last_10_runs'])
+            
+            # Calculate average first stockout day
+            if stockout_runs:
+                sf['avg_first_stockout_day'] = sum(r['stockout_day'] for r in stockout_runs) / len(stockout_runs)
+                
+                # Calculate coverage boost recommendation
+                # Earlier stockouts = higher boost
+                avg_day = sf['avg_first_stockout_day']
+                if avg_day < 5:
+                    sf['recommended_coverage_boost'] = 2.0  # Critical
+                elif avg_day < 10:
+                    sf['recommended_coverage_boost'] = 1.5  # Moderate
+                else:
+                    sf['recommended_coverage_boost'] = 1.2  # Light
+            
+            # Track deferred orders (GAP-N)
+            sf['deferred_order_count'] += sku.deferred_order_count
+    
+    # Update timestamp
+    existing_feedback['last_updated'] = datetime.now().isoformat()
+    
+    # Save
+    with open(feedback_file, 'w') as f:
+        json.dump(existing_feedback, f, indent=2)
+    
+    print(f"[OK] Feedback saved to: {feedback_file}")
+    print(f"     Simulation count: {existing_feedback['simulation_count']}")
+    problem_skus = len([s for s in existing_feedback['sku_feedback'].values() if s['stockout_frequency'] > 0.5])
+    print(f"     Problem SKUs (>50% stockout freq): {problem_skus}")
+
 # --- Main Entry Point ---
 def main():
     parser = argparse.ArgumentParser(description="Retail Replenishment & Sales Simulator")
@@ -876,6 +1025,9 @@ def main():
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         output_file = args.output or f"simulation_results_{timestamp}.xlsx"
         export_to_excel(results, output_file)
+        
+        # GAP-K: Persist feedback for allocation improvements
+        save_feedback(results)
     
     # Print tier comparison if all-tiers
     if args.all_tiers and len(results) > 1:

@@ -23,8 +23,9 @@ try:
         load_scorecard_data
     )
     SUPPLIER_ANALYTICS_AVAILABLE = True
-except ImportError:
+except ImportError as e:
     SUPPLIER_ANALYTICS_AVAILABLE = False
+    st.error(f"Failed to import supplier analytics: {e}")
 
 
 # --- Helper Logic ---
@@ -38,13 +39,14 @@ def get_bridge():
     data_path = os.path.join(os.getcwd(), 'oasis', 'data')
     return SimulationOrderUtil(data_path)
 
-@st.cache_data
+# @st.cache_data (Disabled for debugging)
 def get_scorecard_data():
     """Load scorecard data for supplier analytics."""
     if SUPPLIER_ANALYTICS_AVAILABLE:
         try:
             return load_scorecard_data()
-        except:
+        except Exception as e:
+            st.error(f"Error loading scorecard: {e}")
             return None
     return None
 
@@ -475,6 +477,12 @@ with tab3:
             
             if df_scorecard is None:
                 st.error("Could not load scorecard data.")
+                # Debug info
+                try:
+                    from oasis.analytics.supplier_analytics import SCORECARD_FILE
+                    st.code(f"Attempted to load: {SCORECARD_FILE}\nExists: {SCORECARD_FILE.exists()}")
+                except Exception as ex:
+                    st.code(f"Could not resolve path debug info: {ex}")
             else:
                 categories = get_major_categories()
                 selected_cat = st.selectbox("Select Category", categories, key="analysis_cat")

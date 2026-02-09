@@ -2232,7 +2232,8 @@
         "margin_pct": 10.23,
         "gross_profit": 112860.35,
         "sales_rank": 279,
-        "category": "unknown"
+        "category": "FRESH GOURMET",
+        "reclassification_method": "keyword_override: KENCHIC/CAPON"
     },
     "SAFARI KING 500ML DRINKING WATER": {
         "total_qty_sold": 2357,
@@ -2649,7 +2650,8 @@
         "margin_pct": 15.7,
         "gross_profit": 254150.66,
         "sales_rank": 331,
-        "category": "unknown"
+        "category": "FRESH GOURMET",
+        "reclassification_method": "keyword_override: KENCHIC/CAPON"
     },
     "SUNRICE 2KG RICE BASMATI": {
         "total_qty_sold": 1961,

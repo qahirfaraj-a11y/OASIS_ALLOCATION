@@ -22,9 +22,9 @@ def normalize_text(text):
     return re.sub(r'[^a-z0-9\s]', '', text.lower()).strip()
 
 def reclassify_items():
-    map_file = 'app/data/product_department_map.json'
-    target_file = 'app/data/sales_profitability_intelligence_2025_updated.json'
-    output_file = 'app/data/sales_profitability_intelligence_2025_reclassified.json'
+    map_file = 'oasis/data/product_department_map.json'
+    target_file = 'oasis/data/sales_profitability_intelligence_2025_updated.json'
+    output_file = 'oasis/data/sales_profitability_intelligence_2025_reclassified.json'
 
     print("Loading data...")
     dept_map = load_json(map_file)
@@ -98,6 +98,13 @@ def reclassify_items():
                  details['reclassification_method'] = f"fuzzy_match_normalized: {best_match_norm}"
                  reclassified_count += 1
                  continue
+
+            # Strategy 5: Specific Keyword Overrides (User Feedback)
+            if "KENCHIC" in product_name.upper() or "CAPON" in product_name.upper():
+                details['category'] = "FRESH GOURMET"
+                details['reclassification_method'] = "keyword_override: KENCHIC/CAPON"
+                reclassified_count += 1
+                continue
 
     print(f"Reclassification complete.")
     print(f"Total 'unknown' items processed: {total_unknowns}")

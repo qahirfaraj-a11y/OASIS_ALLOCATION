@@ -3,8 +3,8 @@ import os
 import json
 import glob
 
-DATA_DIR = r"c:\Users\iLink\.gemini\antigravity\scratch\app\data"
-OUTPUT_JSON = r"c:\Users\iLink\.gemini\antigravity\scratch\app\data\product_supplier_map.json"
+DATA_DIR = r"c:\Users\iLink\.gemini\antigravity\scratch\oasis\data"
+OUTPUT_JSON = r"c:\Users\iLink\.gemini\antigravity\scratch\oasis\data\product_supplier_map.json"
 
 def get_grn_files():
     # Pattern to match the user's requested files (grnds_*.xlsx and grnd_*.xlsx)
