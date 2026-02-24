@@ -125,6 +125,9 @@ st.markdown("""
 # ─────────────────────────────────────────────────────────────────────
 DATA_DIR = os.path.join(os.getcwd(), "oasis", "data")
 DB_PATH = os.path.join(DATA_DIR, "mock_pos_erp.db")
+if not os.path.exists(DB_PATH):
+    # Fallback to the lightweight database for Cloud deployment
+    DB_PATH = os.path.join(DATA_DIR, "mock_pos_erp_lite.db")
 
 @st.cache_resource
 def get_connector():
