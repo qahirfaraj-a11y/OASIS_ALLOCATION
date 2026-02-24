@@ -315,10 +315,11 @@ def load_scorecard_data(engine: OrderEngine, budget: float, tier_name: str, dema
 class RetailSimulator:
     """Core simulation engine for retail inventory dynamics."""
     
-    def __init__(self, tier_name: str, store_config: dict, seed: int = None, bridge: SimulationOrderUtil = None, initial_skus: List[SKUState] = None):
+    def __init__(self, tier_name: str, store_config: dict, seed: int = None, bridge: SimulationOrderUtil = None, initial_skus: List[SKUState] = None, seasonal_demand_map: Dict[str, float] = None):
         self.tier_name = tier_name
         self.config = store_config
         self.seed = seed or random.randint(1, 10000)
+        self.seasonal_demand_map = seasonal_demand_map or {}
         random.seed(self.seed)
         np.random.seed(self.seed)
         
@@ -392,6 +393,20 @@ class RetailSimulator:
         # Apply weekend multiplier to base demand
         adjusted_ads = sku.avg_daily_sales * weekend_multiplier
         
+        # v9.6 FIX: Seasonal Demand Blending
+        # The store is allocated for seasonality, but customers must also behave seasonally.
+        # Blend: (Core ADS + Scaled Seasonal ADS) / 2
+        p_name_upper = sku.product_name.upper()
+        if p_name_upper in self.seasonal_demand_map:
+            monthly_raw = self.seasonal_demand_map[p_name_upper]
+            # Scale to store size (e.g. Micro = 0.0015)
+            # Use demand_scale_factor from config
+            scale = self.config.get('demand_scale_factor', 1.0)
+            seasonal_daily_scaled = (monthly_raw / 30.0) * scale
+            
+            # Blend with 50% weight (Conservative Guide)
+            adjusted_ads = (adjusted_ads + seasonal_daily_scaled) / 2.0
+            
         if adjusted_ads < 1.0:
             # Low volume: use Poisson (discrete)
             demand = np.random.poisson(adjusted_ads)
@@ -403,6 +418,11 @@ class RetailSimulator:
             demand = np.random.normal(adjusted_ads, std_dev)
             demand = max(0, round(demand))
         
+        # v2026 FIX: Bulk Buyer Event (1% chance of 5x demand - Fat Tail Simulation)
+        if np.random.random() < 0.01:
+            demand *= 5.0
+            demand = round(demand)
+
         return float(demand)
     
     def calculate_reorder_point(self, sku: SKUState) -> float:
@@ -446,6 +466,24 @@ class RetailSimulator:
         
         for arrival_day, product_name, qty in self.pending_orders:
             if arrival_day <= current_day:
+                
+                # v2026 FIX: Supply Chain Realism (5% Failure Rate)
+                # Simulates vehicle breakdown, depot stockout, or lost order.
+                # 5% chance the order simply doesn't arrive (qty=0)
+                if np.random.random() < 0.05:
+                    # Order FAILED
+                    # Logic: We remove it from 'on_order' but don't add to stock.
+                    # It's a "Lost Receipt".
+                    # We should probably notify the user/logs?
+                    if product_name in self.skus:
+                        sku = self.skus[product_name]
+                        sku.on_order -= qty
+                        sku.on_order = max(0, sku.on_order)
+                        # No stock added.
+                        # Ideally, we should trigger an immediate re-order for critical items?
+                        # For now, let the reorder cycle pick it up next time.
+                    continue
+
                 if product_name in self.skus:
                     sku = self.skus[product_name]
                     sku.current_stock += qty
@@ -890,14 +928,11 @@ def save_feedback(results: List[SimulationResult], feedback_file: str = None):
         except:
             existing_feedback = {}
     
-    # Initialize if new
-    if 'simulation_count' not in existing_feedback:
-        existing_feedback = {
-            'last_updated': None,
-            'simulation_count': 0,
-            'sku_feedback': {},
-            'tier_feedback': {}
-        }
+    # Initialize defaults if keys missing (Fix for legacy JSONs)
+    if 'simulation_count' not in existing_feedback: existing_feedback['simulation_count'] = 0
+    if 'sku_feedback' not in existing_feedback: existing_feedback['sku_feedback'] = {}
+    if 'tier_feedback' not in existing_feedback: existing_feedback['tier_feedback'] = {}
+    if 'last_updated' not in existing_feedback: existing_feedback['last_updated'] = None
     
     # Process each simulation result
     for result in results:

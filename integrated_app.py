@@ -180,10 +180,11 @@ with tab1:
         with st.spinner("Running OrderEngine v4.0..."):
             try:
                 from allocation_app import load_and_run_allocation
-                basket_df, cash, consign, summary = load_and_run_allocation(budget, target_month)
+                basket_df, cash, consign, summary, seasonal_map = load_and_run_allocation(budget, target_month)
                 
                 st.session_state.basket = basket_df
                 st.session_state.summary = summary
+                st.session_state.seasonal_map = seasonal_map  # Store for Simulation
                 st.session_state.is_online = is_online
                 st.success(f"Allocation Generated! {len(basket_df)} SKUs")
             except Exception as e:
@@ -326,7 +327,8 @@ with tab2:
                     st.info(f"Using Profile: **{tier_key}** | Reorder Every {config['reorder_frequency_days']} Days")
                     
                     # Run Sim
-                    sim = RetailSimulator("Custom Scenario", config, seed=42, bridge=get_bridge(), initial_skus=initial_skus)
+                    seasonal_map = st.session_state.get('seasonal_map', None)
+                    sim = RetailSimulator("Custom Scenario", config, seed=42, bridge=get_bridge(), initial_skus=initial_skus, seasonal_demand_map=seasonal_map)
                     result = sim.run(days)
                     
                     st.session_state.sim_result = result

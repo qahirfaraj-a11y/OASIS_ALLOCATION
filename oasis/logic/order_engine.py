@@ -549,8 +549,8 @@ class OrderEngine:
              
              # Target = Cycle Days + Buffer
              # v9.1 FIX: Increased buffer for volatile fresh items (yogurt, eggs)
-             # Buffer = 0.5 days (increased from 0.25 to reduce early stockouts)
-             target_days = cycle_days + 0.5
+             # v2026 UPDATE: Shift Fresh Cover to Cycle + 1.2 days (Morning Rush Protection)
+             target_days = cycle_days + 1.2
              
              # Ensure Long Life (UHT) isn't crushed if data missing
              p_name_upper = product.get('product_name', '').upper()
@@ -1561,7 +1561,8 @@ class OrderEngine:
                          if velocity > 10.0:
                              needed_days = max(3.0, cycle_days + 2.0)
                          else:
-                             needed_days = cycle_days + 0.5 
+                             # v2026 UPDATE: Increased Launch Buffer to 1.2 days
+                             needed_days = cycle_days + 1.2 
                          
                          # v8.1 FIX: Long Life Floor for Launch
                          p_name_upper = rec.get('product_name', '').upper()

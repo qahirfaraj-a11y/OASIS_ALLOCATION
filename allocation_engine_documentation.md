@@ -1,99 +1,75 @@
-# OASIS Allocation Engine (v2.9) - Technical Logic Breakdown
+# OASIS Allocation Strategy: Field Operations Guide
 
-## 1. High-Level Architecture
-The engine uses a **Multi-Pass Waterfall** approach to allocate inventory. It prioritizes "Width" (assortment presence) before "Depth" (volume), ensuring stores look full even with limited budgets. It integrates financial, operational, and risk constraints at every step.
-
----
-
-## 2. Core Allocation Flow
-
-### Phase 1: Initialization & Profiling
-Before allocating a single item, the engine profiles the store based on the total budget:
-- **Dynamic Tiering**: Maps budget to 8 store profiles (Micro to Ultra).
-- **Constraint Setting**:
-  - `depth_days`: Target days of cover (e.g., 7 days for Micro, 14 days for Standard).
-  - `price_ceiling`: Max allowed unit price (e.g., Micro stores cap at 750 KES).
-  - `max_packs`: Max pack size allowed (prevents bulk items in small kiosks).
-  - `min_display_qty`: Minimum units needed for shelf presence (MDQ).
-
-### Phase 2: Pass 1 - Global Width (The "Survival" Pass)
-**Goal**: Ensure every essential SKU is represented on the shelf with at least 1 display unit/pack.
-**Logic**:
-1. **Filtering**:
-   - **Internal Production**: Exclude "BAKERY FOODPLUS" (internal transfer, not purchase).
-   - **Price Ceiling**: Skip items > `price_ceiling` (except Staples).
-   - **Dead Stock**: Skip C-Class items if disabled for this tier.
-   - **Scaled Demand**: For small stores, skip non-staples with negligible demand.
-2. **Quantifying**:
-   - `raw_mdq` = Minimum Display Qty (e.g., 3 units).
-   - **Pack Constraint**: Round `raw_mdq` UP to nearest `pack_size`.
-   - **Safety Cap**: Check if `units > max_packs`. If yes, cap to `max_packs`.
-3. **Budget Check**:
-   - Calculate cost using **Actual Cost Priority** (GRN → Margin% → Estimate).
-   - If `pass1_cost + item_cost > total_budget`, hard stop.
-4. **Outcome**: Every valid item gets ~1 pack. Shelf width is secured.
-
-### Phase 3: Pass 2 - Strategic Depth (The "Growth" Pass)
-**Goal**: Allocate remaining budget to build volume for high-velocity items.
-**Logic**:
-1. **Wallet Partitioning**:
-   - Divide remaining budget into Department Wallets (e.g., 25% to Staples, 10% to Beverages).
-   - **Buffer**: Wallets get a "soft cap" (buffer pct) to allow flexibility.
-2. **Prioritization**:
-   - **Consignment First**: Items flagged `is_consignment` bypass cash budget checks (Free Capital).
-   - **Fast Five Anchors**: (Cooking Oil, Flour, Sugar) get priority access to depth.
-3. **Calculation**:
-   - `target_days` = Store Tier Depth (e.g., 14 days).
-   - **Smart Depth (Risk Buffer)**:
-     - Supplier Reliability < 70%? **+25% Depth**.
-     - Demand Volatility > 0.8? **+15% Depth**.
-   - **New Product Logic**:
-     - No sales history? Use **Lookalike Demand** or **Baseline** (0.3/day Fresh, 0.5/day Dry).
-     - Caps: Max 7 days (Fresh), 14 days (Dry).
-   - **Expiry Enforcement**:
-     - `effective_days = min(target, shelf_life - 2 days)`.
-     - Prevents 5-day yogurt getting 14-day stock.
-4. **Execution**:
-   - Iterate items by velocity (high sales first).
-   - Fill up to `target_days`.
-   - Deduct from Department Wallet.
-   - Stop if Wallet Empty.
-
-### Phase 4: Pass 2B - Budget Redistribution (The "Optimizer")
-**Goal**: Ensure 100% budget utilization.
-**Problem**: Some departments (e.g., Stationery) might have unused budget, while Staples are starved.
-**Logic**:
-1. Calculate `true_unused = total_budget - actual_spent`.
-2. If `unused > 10%`:
-   - Identify **Priority Items** (Staples/A-Class) that were capped by wallet limits.
-   - Create a "Global Pool" from unused funds.
-   - Re-allocate to these winners until pool is empty.
+## 1. The Core Philosophy
+The system thinks like a **Human Merchandiser**, not a computer script. It priorities three simple rules:
+1.  **Look Full**: A customer should never see an empty shelf (Shelf Fill).
+2.  **Sell More**: Put the inventory money behind the items that actually move (Velocity).
+3.  **Don't Waste Money**: Stop ordering from suppliers who don't deliver, and don't buy slow-moving expensive items for small stores.
 
 ---
 
-## 3. Financial Intelligence Logic
+## 2. The Allocation "Waterfall" Process
 
-### ROI & Cost Calculation (v2.9)
-To prevent budget overruns (the "Milk Problem"), the engine calculates cost with strict priority:
-1. **GRN Database**: Actual historical purchase price (Most Accurate).
-2. **Margin Derivation**: `Price * (1 - Margin_Pct)` (Accurate).
-3. **Fallback**: `Price * 0.75` (Estimate).
-*Result:* Allocations align perfectly with financial reporting.
+We use a 4-step process to build the perfect order for every store.
 
-### Funding Source Split
-- **Cash Budget**: Strictly capped. Used for most items.
-- **Consignment**: Treated as "Free Capital". Tracked separately (infinite ROI). 
-*Result:* Engine maximizes consignment orders to preserve cash for other goods.
+### Phase 1: The "Merchandising" Pass (Shelf Presence)
+**Goal**: Make the store look complete.
+**Action**: We buy the **Minimum Presentation Quantity** for every valid item in the range.
+*   **What we do**: If a shelf holds 6 units of face wash, we buy 6. If it holds 24 cans of beans, we buy 24.
+*   **The Safety Checks**:
+    *   **Price Check**: We don't send 1,000 KES liquors to a small kiosk. Costly items are blocked to protect cash flow.
+    *   **Dead Stock Kill Switch**: If an item hasn't sold in months, we don't restock it just to look pretty.
+    *   **Launch Protection**: For fast-moving items, we add an extra 2 days of stock *on top* of the shelf fill, so you don't sell out on Day 1.
+
+### Phase 2: The "Investment" Pass (Volume)
+**Goal**: Fund the winners.
+**Action**: Now that the shelves look full, we use the remaining budget to pile up stock for high-velocity items.
+*   **Priority 1: The "Fast Five" Anchors**: Cooking Oil, Flour, Sugar, Milk, and Bread get first dibs on the budget. We *never* compromise on these.
+*   **Priority 2: The Core Range**: Everyday staples get funded next.
+*   **Priority 3: The Nice-to-Haves**: Discretionary items (like fancy biscuits or niche spices) only get volume if there is money left over.
+*   **Smart Depth**:
+    *   **Fast Movers**: We buy **1.4x** the normal coverage to prevent stockouts.
+    *   **Fresh Goods**: We treat Milk & Bread as "Just-In-Time". We only buy exactly what you will sell in 36 hours. No spoilage allowed.
+
+### Phase 3: The "Vendor Trap" Fix
+**Goal**: Stop placing orders that will never arrive.
+**Action**: The system checks if our total order value for a supplier is too low.
+*   *Scenario*: If we order 500 KES of spices, but the supplier's minimum delivery is 3,000 KES, they won't deliver.
+*   **The Fix**: The system **cancels** those tiny orders automatically. It takes that saved money and re-invests it into your **Top 3 Reliable Suppliers** (e.g., buying more Coke or Unilver products) so we guarantee stock on the floor.
+
+### Phase 4: The "Sweep"
+**Goal**: Zero idle cash.
+**Action**: If we have a tiny amount of budget left (e.g., 5,000 KES), we don't leave it in the bank. We dump it into **Non-Perishable Commodities** (Rice, Maize Meal). It's better to have extra Rice than idle cash.
 
 ---
 
-## 4. Constraint Matrix Summary
+## 3. Store Tier Operations
 
-| Constraint | Logic | Purpose |
-| :--- | :--- | :--- |
-| **Price Ceiling** | `Price > X` (Tier dependent) | Keep expensive items out of small kiosks. |
-| **Max Packs** | `Units > Max * PackSize` | Prevent bulk overflow (physically fitting on shelf). |
-| **Expiry Cap** | `Days > ShelfLife - 2` | Prevent spoilage/waste. |
-| **Wallet Cap** | `DeptSpend > DeptBudget` | Prevent one category eating all cash. |
-| **Global Cap** | `TotalSpend > TotalBudget` | Hard financial limit. |
-| **Risk Buffer** | `RelScore < 70 → +25%` | Prevent stockouts from bad suppliers. |
+Every store is different. The system automatically adjusts its rules based on the store's size (Budget).
+
+### Tier 1: The "Duka" (Kiosk)
+*   **Profile**: High traffic, tiny space, strictly essentials.
+*   **Strategy**: **"Survival Mode"**
+    *   **Break Bulk**: We buy loose units instead of full cases if a pack is too expensive.
+    *   **The 60% Rule**: We hard-lock 60% of the budget for the Fast Five (Oil, Sugar, Flour, Milk, Bread). Nothing else matters until these are safe.
+    *   **Cap**: Max 7 Days of stock.
+
+### Tier 2: The "Mini-Mart" (Convenience)
+*   **Profile**: Neighborhood store, decent range.
+*   **Strategy**: **"Efficiency Mode"**
+    *   **Supplier Lock**: We restrict key staples to the Top 5 Suppliers only. We don't want 10 brands of rice; we want the 5 that sell.
+    *   **Cap**: Max 14 Days of stock.
+
+### Tier 3: The "Supermarket" (Standard Branch)
+*   **Profile**: Full retail experience.
+*   **Strategy**: **"Growth Mode"**
+    *   **Full Range**: We allow "C-Class" (slow moving) items to build a complete assortment.
+    *   **Cycle**: Weekly replenishment for Dry goods, Daily for Fresh.
+    *   **Cap**: Max 21 Days of stock.
+
+### Tier 4: The "Mega" (Wholesale/Hub)
+*   **Profile**: The warehouse store.
+*   **Strategy**: **"Dominance Mode"**
+    *   **Bulk Buying**: We buy full pallets (999 packs).
+    *   **Risk On**: We carry deep investments in long-tail items to be the "one-stop-shop".
+    *   **Cap**: 30-60 Days of stock.

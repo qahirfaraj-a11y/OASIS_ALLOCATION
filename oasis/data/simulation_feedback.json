@@ -1,0 +1,641 @@
+{
+    "simulation_count": 1,
+    "sku_feedback": {
+        "BROOKSIDE 500ML TR FRESH MILK": {
+            "stockout_frequency": 0.07142857142857142,
+            "avg_first_stockout_day": 3,
+            "lost_sales": 28,
+            "stockout_days": 1
+        },
+        "TUZO 450ML ESL WHOLE MILK 30DAYS": {
+            "stockout_frequency": 0.07142857142857142,
+            "avg_first_stockout_day": 3,
+            "lost_sales": 8,
+            "stockout_days": 1
+        },
+        "FESTIVE 400G MILKY WHITE SLICED": {
+            "stockout_frequency": 0.07142857142857142,
+            "avg_first_stockout_day": 3,
+            "lost_sales": 26,
+            "stockout_days": 1
+        },
+        "BROOKSIDE 1LT UHT WHOLE MILK": {
+            "stockout_frequency": 0.07142857142857142,
+            "avg_first_stockout_day": 3,
+            "lost_sales": 26,
+            "stockout_days": 1
+        },
+        "NATURES 400G GOLD WHITE": {
+            "stockout_frequency": 0.07142857142857142,
+            "avg_first_stockout_day": 3,
+            "lost_sales": 10,
+            "stockout_days": 1
+        },
+        "BIO 2L WHOLE FRESH MILK": {
+            "stockout_frequency": 0.07142857142857142,
+            "avg_first_stockout_day": 3,
+            "lost_sales": 30,
+            "stockout_days": 1
+        },
+        "FESTIVE 600G FAMILY WHITE BREAD": {
+            "stockout_frequency": 0.07142857142857142,
+            "avg_first_stockout_day": 3,
+            "lost_sales": 44,
+            "stockout_days": 1
+        },
+        "FESTIVE 800G WHITE MILKY BREAD": {
+            "stockout_frequency": 0.14285714285714285,
+            "avg_first_stockout_day": 2,
+            "lost_sales": 54,
+            "stockout_days": 2
+        },
+        "TUZO 500ML WHOLE MILK (FINO PACK) 180DAYS": {
+            "stockout_frequency": 0.07142857142857142,
+            "avg_first_stockout_day": 3,
+            "lost_sales": 8,
+            "stockout_days": 1
+        },
+        "BROOKSIDE 250ML UHT WHOLE MILK": {
+            "stockout_frequency": 0.14285714285714285,
+            "avg_first_stockout_day": 2,
+            "lost_sales": 42,
+            "stockout_days": 2
+        },
+        "FRESHA MAISHA 250ML LONG LIFE MILK": {
+            "stockout_frequency": 0.14285714285714285,
+            "avg_first_stockout_day": 2,
+            "lost_sales": 6,
+            "stockout_days": 2
+        },
+        "NATURES 600G WHITE BREAD": {
+            "stockout_frequency": 0.07142857142857142,
+            "avg_first_stockout_day": 3,
+            "lost_sales": 6,
+            "stockout_days": 1
+        },
+        "DAIMA 450ML ESL MAZIWA BORA": {
+            "stockout_frequency": 0.14285714285714285,
+            "avg_first_stockout_day": 2,
+            "lost_sales": 20,
+            "stockout_days": 2
+        },
+        "DAIMA 500ML WHOLE ESL POUCH": {
+            "stockout_frequency": 0.07142857142857142,
+            "avg_first_stockout_day": 3,
+            "lost_sales": 2,
+            "stockout_days": 1
+        },
+        "KCC 500ML FRESH W/MILK (POUCH)-84": {
+            "stockout_frequency": 0.07142857142857142,
+            "avg_first_stockout_day": 3,
+            "lost_sales": 2,
+            "stockout_days": 1
+        },
+        "BIO 1L FRESH WHOLE MILK": {
+            "stockout_frequency": 0.14285714285714285,
+            "avg_first_stockout_day": 2,
+            "lost_sales": 20,
+            "stockout_days": 2
+        },
+        "ILARA  POUCH FRESH MILK 1LTR": {
+            "stockout_frequency": 0.07142857142857142,
+            "avg_first_stockout_day": 3,
+            "lost_sales": 6,
+            "stockout_days": 1
+        },
+        "SOKO 2KG MAIZE MEAL": {
+            "stockout_frequency": 0.07142857142857142,
+            "avg_first_stockout_day": 3,
+            "lost_sales": 26,
+            "stockout_days": 1
+        },
+        "KCC 500ML GOLD CROWN  (POUCH)-55": {
+            "stockout_frequency": 0.07142857142857142,
+            "avg_first_stockout_day": 3,
+            "lost_sales": 8,
+            "stockout_days": 1
+        },
+        "BROOKSIDE 2LTR FRESH MILK STANDARD BOTTLE": {
+            "stockout_frequency": 0.07142857142857142,
+            "avg_first_stockout_day": 3,
+            "lost_sales": 10,
+            "stockout_days": 1
+        },
+        "NATURES 800G WHITE BREAD": {
+            "stockout_frequency": 0.07142857142857142,
+            "avg_first_stockout_day": 3,
+            "lost_sales": 6,
+            "stockout_days": 1
+        },
+        "FESTIVE 600G FAMILY BRWN BREAD": {
+            "stockout_frequency": 0.07142857142857142,
+            "avg_first_stockout_day": 3,
+            "lost_sales": 4,
+            "stockout_days": 1
+        },
+        "FESTIVE 400G WHOLE MEAL": {
+            "stockout_frequency": 0.07142857142857142,
+            "avg_first_stockout_day": 3,
+            "lost_sales": 4,
+            "stockout_days": 1
+        },
+        "BROOKSIDE 2LTR FRESH MILK WHOLE BOTTLE": {
+            "stockout_frequency": 0.07142857142857142,
+            "avg_first_stockout_day": 3,
+            "lost_sales": 6,
+            "stockout_days": 1
+        },
+        "FRESHA MAISHA 500ML LONG LIFE MILK": {
+            "stockout_frequency": 0.14285714285714285,
+            "avg_first_stockout_day": 2,
+            "lost_sales": 14,
+            "stockout_days": 2
+        },
+        "BROOKSIDE 1LT UHT LOWFAT MILK": {
+            "stockout_frequency": 0.07142857142857142,
+            "avg_first_stockout_day": 3,
+            "lost_sales": 10,
+            "stockout_days": 1
+        },
+        "BIO 2L SEMI SKIMMED FRESH MILK": {
+            "stockout_frequency": 0.14285714285714285,
+            "avg_first_stockout_day": 2,
+            "lost_sales": 14,
+            "stockout_days": 2
+        },
+        "FRESHA 500ML ASEPTIC WHOLE MILK": {
+            "stockout_frequency": 0.07142857142857142,
+            "avg_first_stockout_day": 3,
+            "lost_sales": 6,
+            "stockout_days": 1
+        },
+        "BROOKSIDE 1L FARM FRESH MILK": {
+            "stockout_frequency": 0.07142857142857142,
+            "avg_first_stockout_day": 3,
+            "lost_sales": 6,
+            "stockout_days": 1
+        },
+        "FESTIVE 400G FINEST SUPER SEEDED BREAD": {
+            "stockout_frequency": 0.14285714285714285,
+            "avg_first_stockout_day": 2,
+            "lost_sales": 14,
+            "stockout_days": 2
+        },
+        "BROADWAY 400G WHITE SLICED BREAD": {
+            "stockout_frequency": 0.07142857142857142,
+            "avg_first_stockout_day": 3,
+            "lost_sales": 6,
+            "stockout_days": 1
+        },
+        "BROOKSIDE 1LTR FRESH MILK STANDARD": {
+            "stockout_frequency": 0.07142857142857142,
+            "avg_first_stockout_day": 3,
+            "lost_sales": 4,
+            "stockout_days": 1
+        },
+        "FRESHA 5L WHOLE MILK": {
+            "stockout_frequency": 0.07142857142857142,
+            "avg_first_stockout_day": 3,
+            "lost_sales": 4,
+            "stockout_days": 1
+        },
+        "FESTIVE 400G WHITE SLICED": {
+            "stockout_frequency": 0.07142857142857142,
+            "avg_first_stockout_day": 2,
+            "lost_sales": 4,
+            "stockout_days": 1
+        },
+        "BROOKSIDE 1L LACTOSE FREE UHT MILK": {
+            "stockout_frequency": 0.14285714285714285,
+            "avg_first_stockout_day": 2,
+            "lost_sales": 10,
+            "stockout_days": 2
+        },
+        "SUPA 400G BUTTER TOAST BREAD": {
+            "stockout_frequency": 0.14285714285714285,
+            "avg_first_stockout_day": 2,
+            "lost_sales": 12,
+            "stockout_days": 2
+        },
+        "BROOKSIDE 200ML  WHOLE MILK TCA": {
+            "stockout_frequency": 0.07142857142857142,
+            "avg_first_stockout_day": 3,
+            "lost_sales": 6,
+            "stockout_days": 1
+        },
+        "FESTIVE 300G 6S PREM SESSAME SLICED BURGER BUNS": {
+            "stockout_frequency": 0.07142857142857142,
+            "avg_first_stockout_day": 3,
+            "lost_sales": 2,
+            "stockout_days": 1
+        },
+        "BIO 1L FRESH SEMI SKIMMED MILK": {
+            "stockout_frequency": 0.07142857142857142,
+            "avg_first_stockout_day": 3,
+            "lost_sales": 2,
+            "stockout_days": 1
+        },
+        "FESTIVE 300G 6S PREM PLAIN BURGER BUNS": {
+            "stockout_frequency": 0.14285714285714285,
+            "avg_first_stockout_day": 2,
+            "lost_sales": 6,
+            "stockout_days": 2
+        },
+        "WHITE CAP 500ML LAGER CANS": {
+            "stockout_frequency": 0.07142857142857142,
+            "avg_first_stockout_day": 3,
+            "lost_sales": 20,
+            "stockout_days": 1
+        },
+        "KERINGET 500ML MINERAL WATER": {
+            "stockout_frequency": 0.07142857142857142,
+            "avg_first_stockout_day": 3,
+            "lost_sales": 22,
+            "stockout_days": 1
+        },
+        "DUNHILL 20S SWITCH": {
+            "stockout_frequency": 0.07142857142857142,
+            "avg_first_stockout_day": 3,
+            "lost_sales": 8,
+            "stockout_days": 1
+        },
+        "COKE PET 350ML": {
+            "stockout_frequency": 0.14285714285714285,
+            "avg_first_stockout_day": 2,
+            "lost_sales": 28,
+            "stockout_days": 2
+        },
+        "NUTFIELD 20G MAC NUTS LOCAL": {
+            "stockout_frequency": 0.07142857142857142,
+            "avg_first_stockout_day": 3,
+            "lost_sales": 20,
+            "stockout_days": 1
+        },
+        "KERINGET 18.9LT MINERAL WATER REFIL": {
+            "stockout_frequency": 0.07142857142857142,
+            "avg_first_stockout_day": 3,
+            "lost_sales": 20,
+            "stockout_days": 1
+        },
+        "NUTFIELDS 20G CASHEW NUTS ROASTED AND SALTED": {
+            "stockout_frequency": 0.07142857142857142,
+            "avg_first_stockout_day": 3,
+            "lost_sales": 8,
+            "stockout_days": 1
+        },
+        "COKE PET 500ML": {
+            "stockout_frequency": 0.14285714285714285,
+            "avg_first_stockout_day": 2,
+            "lost_sales": 16,
+            "stockout_days": 2
+        },
+        "EMBASSY BY DUNHILL BLUE 20S": {
+            "stockout_frequency": 0.07142857142857142,
+            "avg_first_stockout_day": 3,
+            "lost_sales": 22,
+            "stockout_days": 1
+        },
+        "TUSKER 500ML LAGER BEER": {
+            "stockout_frequency": 0.07142857142857142,
+            "avg_first_stockout_day": 3,
+            "lost_sales": 4,
+            "stockout_days": 1
+        },
+        "TUSKER CAN 500ML BEER": {
+            "stockout_frequency": 0.07142857142857142,
+            "avg_first_stockout_day": 3,
+            "lost_sales": 4,
+            "stockout_days": 1
+        },
+        "COKE ZERO 330ML CAN": {
+            "stockout_frequency": 0.07142857142857142,
+            "avg_first_stockout_day": 3,
+            "lost_sales": 10,
+            "stockout_days": 1
+        },
+        "NESTLE 41.5G KITKAT 4 FINGER MILK": {
+            "stockout_frequency": 0.07142857142857142,
+            "avg_first_stockout_day": 3,
+            "lost_sales": 4,
+            "stockout_days": 1
+        },
+        "AQUAMIST 500ML MINERAL WATER": {
+            "stockout_frequency": 0.14285714285714285,
+            "avg_first_stockout_day": 2,
+            "lost_sales": 28,
+            "stockout_days": 2
+        },
+        "KRACKLES PERFECTLY SALTED 30G": {
+            "stockout_frequency": 0.07142857142857142,
+            "avg_first_stockout_day": 3,
+            "lost_sales": 10,
+            "stockout_days": 1
+        },
+        "SCHWEPPES SODA WATER 500ML PET": {
+            "stockout_frequency": 0.07142857142857142,
+            "avg_first_stockout_day": 3,
+            "lost_sales": 8,
+            "stockout_days": 1
+        },
+        "AQUAMIST 500ML SPARKLING WATER": {
+            "stockout_frequency": 0.07142857142857142,
+            "avg_first_stockout_day": 2,
+            "lost_sales": 2,
+            "stockout_days": 1
+        },
+        "SPRITE 330ML CAN REGULAR": {
+            "stockout_frequency": 0.07142857142857142,
+            "avg_first_stockout_day": 3,
+            "lost_sales": 4,
+            "stockout_days": 1
+        },
+        "COCA COLA 300ML EMPTY BOTTLE": {
+            "stockout_frequency": 0.14285714285714285,
+            "avg_first_stockout_day": 2,
+            "lost_sales": 24,
+            "stockout_days": 2
+        },
+        "AQUAMIST 1LTR SPARKLING WATER": {
+            "stockout_frequency": 0.07142857142857142,
+            "avg_first_stockout_day": 3,
+            "lost_sales": 4,
+            "stockout_days": 1
+        },
+        "SPRITE PET 500ML": {
+            "stockout_frequency": 0.14285714285714285,
+            "avg_first_stockout_day": 2,
+            "lost_sales": 4,
+            "stockout_days": 2
+        },
+        "SPRITE PET 350ML": {
+            "stockout_frequency": 0.14285714285714285,
+            "avg_first_stockout_day": 2,
+            "lost_sales": 16,
+            "stockout_days": 2
+        },
+        "FANTA ORANGE PET 350ML": {
+            "stockout_frequency": 0.14285714285714285,
+            "avg_first_stockout_day": 2,
+            "lost_sales": 18,
+            "stockout_days": 2
+        },
+        "ISINYA 6S EGGS": {
+            "stockout_frequency": 0.14285714285714285,
+            "avg_first_stockout_day": 2,
+            "lost_sales": 28,
+            "stockout_days": 2
+        },
+        "VELVEX 100S WHITE SERVIETTES": {
+            "stockout_frequency": 0.07142857142857142,
+            "avg_first_stockout_day": 3,
+            "lost_sales": 4,
+            "stockout_days": 1
+        },
+        "ISINYA 30S EGGS": {
+            "stockout_frequency": 0.07142857142857142,
+            "avg_first_stockout_day": 3,
+            "lost_sales": 6,
+            "stockout_days": 1
+        },
+        "SCHWEPPES TONIC WATER 500ML PET": {
+            "stockout_frequency": 0.07142857142857142,
+            "avg_first_stockout_day": 3,
+            "lost_sales": 10,
+            "stockout_days": 1
+        },
+        "COKE 1.25L PET": {
+            "stockout_frequency": 0.07142857142857142,
+            "avg_first_stockout_day": 3,
+            "lost_sales": 6,
+            "stockout_days": 1
+        },
+        "COKE PET 2LTS": {
+            "stockout_frequency": 0.07142857142857142,
+            "avg_first_stockout_day": 3,
+            "lost_sales": 4,
+            "stockout_days": 1
+        },
+        "KERINGET 1LT MINERAL WATER": {
+            "stockout_frequency": 0.07142857142857142,
+            "avg_first_stockout_day": 3,
+            "lost_sales": 10,
+            "stockout_days": 1
+        },
+        "BIO 150ML NATURAL YOGHURT": {
+            "stockout_frequency": 0.07142857142857142,
+            "avg_first_stockout_day": 3,
+            "lost_sales": 4,
+            "stockout_days": 1
+        },
+        "DASANI 1L MINERAL WATER": {
+            "stockout_frequency": 0.07142857142857142,
+            "avg_first_stockout_day": 3,
+            "lost_sales": 8,
+            "stockout_days": 1
+        },
+        "KCC 500ML FILPACK MALA": {
+            "stockout_frequency": 0.07142857142857142,
+            "avg_first_stockout_day": 3,
+            "lost_sales": 4,
+            "stockout_days": 1
+        },
+        "BIO 200ML GREEK STYLE YOGHURT VANILLA": {
+            "stockout_frequency": 0.07142857142857142,
+            "avg_first_stockout_day": 3,
+            "lost_sales": 2,
+            "stockout_days": 1
+        },
+        "KNORR 51G 6S CHICKEN CUBES": {
+            "stockout_frequency": 0.07142857142857142,
+            "avg_first_stockout_day": 3,
+            "lost_sales": 4,
+            "stockout_days": 1
+        },
+        "KRAC KURLS 25G TANGY CHEESE": {
+            "stockout_frequency": 0.14285714285714285,
+            "avg_first_stockout_day": 2,
+            "lost_sales": 14,
+            "stockout_days": 2
+        },
+        "BIO 150ML BERRY COCKTAIL YOGHURT": {
+            "stockout_frequency": 0.14285714285714285,
+            "avg_first_stockout_day": 2,
+            "lost_sales": 12,
+            "stockout_days": 2
+        },
+        "FANTA ORANGE PET 2LTS": {
+            "stockout_frequency": 0.07142857142857142,
+            "avg_first_stockout_day": 3,
+            "lost_sales": 4,
+            "stockout_days": 1
+        },
+        "CARTOONS 30G TANGY TOMATO CRISPS": {
+            "stockout_frequency": 0.07142857142857142,
+            "avg_first_stockout_day": 3,
+            "lost_sales": 2,
+            "stockout_days": 1
+        },
+        "COKE ZERO 2L PET": {
+            "stockout_frequency": 0.07142857142857142,
+            "avg_first_stockout_day": 2,
+            "lost_sales": 4,
+            "stockout_days": 1
+        },
+        "KRAC KURLS 25G CHILLI LEMON": {
+            "stockout_frequency": 0.07142857142857142,
+            "avg_first_stockout_day": 3,
+            "lost_sales": 2,
+            "stockout_days": 1
+        },
+        "AQUACLEAR 500ML MINERAL WATER": {
+            "stockout_frequency": 0.07142857142857142,
+            "avg_first_stockout_day": 3,
+            "lost_sales": 2,
+            "stockout_days": 1
+        },
+        "OREO 55.2G ORIGINAL COOKIES": {
+            "stockout_frequency": 0.07142857142857142,
+            "avg_first_stockout_day": 3,
+            "lost_sales": 4,
+            "stockout_days": 1
+        },
+        "SPRITE SODA PET 2LTS": {
+            "stockout_frequency": 0.07142857142857142,
+            "avg_first_stockout_day": 3,
+            "lost_sales": 4,
+            "stockout_days": 1
+        },
+        "FANTA PASSION 500ML PET": {
+            "stockout_frequency": 0.07142857142857142,
+            "avg_first_stockout_day": 3,
+            "lost_sales": 4,
+            "stockout_days": 1
+        },
+        "SMIRNOFF 330ML PINEAPPLE PUNCH ICE CAN": {
+            "stockout_frequency": 0.07142857142857142,
+            "avg_first_stockout_day": 3,
+            "lost_sales": 2,
+            "stockout_days": 1
+        },
+        "BROOKSIDE 250G PROBIOTIC FRUIT CUP YOGHURT VANILLA": {
+            "stockout_frequency": 0.14285714285714285,
+            "avg_first_stockout_day": 2,
+            "lost_sales": 14,
+            "stockout_days": 2
+        },
+        "STONEY ZERO 500ML  PET": {
+            "stockout_frequency": 0.07142857142857142,
+            "avg_first_stockout_day": 3,
+            "lost_sales": 4,
+            "stockout_days": 1
+        },
+        "FC 1KG (14D) FRESH PORK VALUE PACK": {
+            "stockout_frequency": 0.07142857142857142,
+            "avg_first_stockout_day": 3,
+            "lost_sales": 2,
+            "stockout_days": 1
+        },
+        "FESTIVE TORTILLA WRAP 8 INCH": {
+            "stockout_frequency": 0.14285714285714285,
+            "avg_first_stockout_day": 2,
+            "lost_sales": 8,
+            "stockout_days": 2
+        },
+        "ROYCO 4G 40S BEEF CUBES": {
+            "stockout_frequency": 0.07142857142857142,
+            "avg_first_stockout_day": 3,
+            "lost_sales": 2,
+            "stockout_days": 1
+        },
+        "MAYERS 750ML GLASS SPARKLING EMPTY BOTTLE": {
+            "stockout_frequency": 0.07142857142857142,
+            "avg_first_stockout_day": 3,
+            "lost_sales": 4,
+            "stockout_days": 1
+        },
+        "TENA 100S SERVIETTES WHITE": {
+            "stockout_frequency": 0.07142857142857142,
+            "avg_first_stockout_day": 3,
+            "lost_sales": 10,
+            "stockout_days": 1
+        },
+        "CADBURY 80G DAIRY MILK": {
+            "stockout_frequency": 0.07142857142857142,
+            "avg_first_stockout_day": 3,
+            "lost_sales": 4,
+            "stockout_days": 1
+        },
+        "ZESTA 100G BI-CARBONATE OF SODA": {
+            "stockout_frequency": 0.07142857142857142,
+            "avg_first_stockout_day": 3,
+            "lost_sales": 2,
+            "stockout_days": 1
+        },
+        "ILARA 1LT MAZIWA LALA  PLASTIC BOTTLE": {
+            "stockout_frequency": 0.07142857142857142,
+            "avg_first_stockout_day": 4,
+            "lost_sales": 4,
+            "stockout_days": 1
+        },
+        "VELVEX ECO-FRIENDLY KITCHEN TOWEL TWIN PACK": {
+            "stockout_frequency": 0.07142857142857142,
+            "avg_first_stockout_day": 3,
+            "lost_sales": 2,
+            "stockout_days": 1
+        },
+        "FIESTA SERVIETTES WHITE 100S": {
+            "stockout_frequency": 0.07142857142857142,
+            "avg_first_stockout_day": 4,
+            "lost_sales": 4,
+            "stockout_days": 1
+        },
+        "MILL BAKERS 200G QUEEN CAKE": {
+            "stockout_frequency": 0.07142857142857142,
+            "avg_first_stockout_day": 6,
+            "lost_sales": 2,
+            "stockout_days": 1
+        },
+        "GREEN FARM 6S Y/YORK EGGS": {
+            "stockout_frequency": 0.07142857142857142,
+            "avg_first_stockout_day": 5,
+            "lost_sales": 2,
+            "stockout_days": 1
+        },
+        "KLEENEX SERVIETES 1 PLYX100S WHITE": {
+            "stockout_frequency": 0.07142857142857142,
+            "avg_first_stockout_day": 7,
+            "lost_sales": 2,
+            "stockout_days": 1
+        },
+        "WANPY 100G CHICKEN RAWHIDE CD10H": {
+            "stockout_frequency": 0.07142857142857142,
+            "avg_first_stockout_day": 5,
+            "lost_sales": 2,
+            "stockout_days": 1
+        },
+        "HANAN TOILET ROLL 15PK": {
+            "stockout_frequency": 0.07142857142857142,
+            "avg_first_stockout_day": 4,
+            "lost_sales": 2,
+            "stockout_days": 1
+        },
+        "SIRIMON 250G MOZZARELLA CHEESE": {
+            "stockout_frequency": 0.07142857142857142,
+            "avg_first_stockout_day": 5,
+            "lost_sales": 4,
+            "stockout_days": 1
+        },
+        "SNAPPY TOM 85G POUCH CAT FOOD CHICKEN": {
+            "stockout_frequency": 0.07142857142857142,
+            "avg_first_stockout_day": 4,
+            "lost_sales": 2,
+            "stockout_days": 1
+        },
+        "OREO 26.25G ORIGINAL": {
+            "stockout_frequency": 0.07142857142857142,
+            "avg_first_stockout_day": 5,
+            "lost_sales": 2,
+            "stockout_days": 1
+        }
+    }
+}

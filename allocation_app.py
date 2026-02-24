@@ -147,7 +147,7 @@ def load_and_run_allocation(budget, target_month="JAN"):
                 "Avg_Daily_Sales": r.get('avg_daily_sales', 0)
             })
             
-    return pd.DataFrame(results), total_cash_spend, total_consignment_val, allocation_summary
+    return pd.DataFrame(results), total_cash_spend, total_consignment_val, allocation_summary, seasonal_map
 
 # --- Streamlit UI ---
 st.set_page_config(page_title="Inventory Allocation Engine", layout="wide")
