@@ -16,11 +16,14 @@ import plotly.graph_objects as go
 import os
 import sys
 import json
+import asyncio
 import sqlite3
 import random
 import math
 import io
 import gc
+import tempfile
+import time
 from datetime import datetime, date, timedelta
 
 # Add project root
@@ -309,11 +312,12 @@ store_name = org_names.get(selected_org, selected_org)
 # ─────────────────────────────────────────────────────────────────────
 # Main Tabs
 # ─────────────────────────────────────────────────────────────────────
-tab_sales, tab_transfer, tab_stock, tab_ordering = st.tabs([
+tab_sales, tab_transfer, tab_stock, tab_ordering, tab_processor = st.tabs([
     "📊 Live Sales Feed",
     "🔄 Transfer Intelligence",
     "📦 End-of-Day Stock",
-    "🛒 Smart Ordering"
+    "🛒 Smart Ordering",
+    "🚀 OASIS Processor"
 ])
 
 
@@ -870,6 +874,116 @@ with tab_ordering:
             df_csv = pd.DataFrame(pos_recs)
             csv_data = df_csv.to_csv(index=False)
             st.download_button("📥 Export Purchase Orders", data=csv_data, file_name="po.csv", type="primary")
+
+# =====================================================================
+# TAB 5: 🚀 OASIS PROCESSOR (BATCH FILE PROCESSING)
+# =====================================================================
+with tab_processor:
+    st.markdown("### 🚀 Batch Inventory Processor")
+    st.info("Upload Picking Lists or GRN files (Excel/CSV) to generate intelligence-driven order recommendations in bulk.")
+    
+    uploaded_files = st.file_uploader(
+        "Upload Inventory Files", 
+        type=["xlsx", "xls", "csv"], 
+        accept_multiple_files=True,
+        help="You can upload multiple files at once. Each will be processed individually."
+    )
+    
+    if uploaded_files:
+        st.write(f"📁 **{len(uploaded_files)} files selected.**")
+        
+        if st.button("▶️ Process All Orders", type="primary"):
+            progress_bar = st.progress(0)
+            status_text = st.empty()
+            
+            all_recommendations = []
+            results_container = st.container()
+            
+            # Use RuleBasedLLM for consistency and reliability
+            llm = RuleBasedLLM()
+            engine = OrderEngine(DATA_DIR)
+            engine.load_local_databases()
+            
+            for i, uploaded_file in enumerate(uploaded_files):
+                file_name = uploaded_file.name
+                status_text.text(f"Processing {file_name}...")
+                
+                try:
+                    # Save uploaded file to temp path for processing
+                    with tempfile.NamedTemporaryFile(delete=False, suffix=os.path.splitext(file_name)[1]) as tmp:
+                        tmp.write(uploaded_file.getbuffer())
+                        tmp_path = tmp.name
+                    
+                    # 1. Parse
+                    status_text.text(f"[{file_name}] Parsing...")
+                    products = engine.parse_inventory_file(tmp_path)
+                    
+                    # 2. Enrich
+                    status_text.text(f"[{file_name}] Enriching with Intelligence...")
+                    products = engine.enrich_product_data(products)
+                    
+                    # 3. AI Analysis (Rule-Based)
+                    status_text.text(f"[{file_name}] Running Decision Engine...")
+                    recommendations = asyncio.run(llm.analyze(products))
+                    all_recommendations.extend(recommendations)
+                    
+                    # 4. Generate Output Report
+                    output_name = f"processed_{file_name}"
+                    output_path = os.path.join(tempfile.gettempdir(), output_name)
+                    engine.generate_excel_report(tmp_path, recommendations, output_path)
+                    
+                    # 5. Provide Download
+                    with open(output_path, "rb") as f:
+                        processed_data = f.read()
+                        
+                    with results_container:
+                        col1, col2 = st.columns([3, 1])
+                        col1.write(f"✅ **{file_name}** ({len(products)} products)")
+                        col2.download_button(
+                            label=f"📥 Download Report",
+                            data=processed_data,
+                            file_name=output_name,
+                            key=f"dl_{file_name}_{i}"
+                        )
+                    
+                    # Cleanup
+                    os.unlink(tmp_path)
+                    # Note: processed report stays in temp for duration of session if needed, 
+                    # but typically we'd cleanup. Here we trust the temp dir cleanup.
+                    
+                except Exception as ex:
+                    st.error(f"Error processing {file_name}: {ex}")
+                
+                # Update progress
+                progress = (i + 1) / len(uploaded_files)
+                progress_bar.progress(progress)
+            
+            status_text.success(f"Processing Complete! {len(uploaded_files)} files processed.")
+            
+            # Show summary table of top recommendations across all files
+            if all_recommendations:
+                st.markdown("---")
+                st.markdown("#### 🔦 Top Recommendations (Overview)")
+                df_summary = pd.DataFrame(all_recommendations)
+                # Ensure columns exist
+                for c in ["product_name", "recommended_quantity", "reasoning"]:
+                    if c not in df_summary.columns: df_summary[c] = ""
+                
+                display_cols = ["product_name", "recommended_quantity", "reasoning"]
+                st.dataframe(
+                    df_summary[df_summary["recommended_quantity"] > 0][display_cols].sort_values("recommended_quantity", ascending=False).head(50),
+                    use_container_width=True,
+                    hide_index=True
+                )
+    else:
+        # Guidance for user
+        st.write("---")
+        st.markdown("""
+        #### 💡 How it works
+        1. **Upload** your current Picking List or GRN files.
+        2. **Process**: The system enriches your data with ADS, trends, and risk scores.
+        3. **Download**: Get an enhanced version of your file with the 'Recommended Qty' and AI logic already populated.
+        """)
 
 # ─────────────────────────────────────────────────────────────────────
 # Footer
