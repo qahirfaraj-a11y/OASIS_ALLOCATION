@@ -20,6 +20,7 @@ import sqlite3
 import random
 import math
 import io
+import gc
 from datetime import datetime, date, timedelta
 
 # Add project root
@@ -744,12 +745,35 @@ with tab_ordering:
                         o_products = load_products(o_cd)
                         if not o_products:
                             continue
-                        all_stock_data[o_cd] = o_products
+                        
+                        # Memory Optimization: Trim product data for the network map
+                        # We only need key fields for transfer logic
+                        trimmed_products = []
+                        for p in o_products:
+                            trimmed_products.append({
+                                'itm_cd': p.get('item_code', p.get('itm_cd')),
+                                'product_name': p.get('product_name'),
+                                'current_stocks': p.get('current_stocks'),
+                                'avg_daily_sales': p.get('avg_daily_sales'),
+                                'selling_price': p.get('selling_price'),
+                                'department': p.get('department'),
+                                'is_fresh': p.get('is_fresh'),
+                                'supplier_name': p.get('supplier_name'),
+                                'estimated_delivery_days': p.get('estimated_delivery_days')
+                            })
+                        all_stock_data[o_cd] = trimmed_products
+                        
                         # Run per-store engine (UNTOUCHED)
                         o_enriched = sim_util.prepare_sku_data(list(o_products))
                         o_raw = sim_util.calculate_order_quantity(o_enriched)
                         o_final = sim_util.finalize_orders(o_raw)
                         all_store_orders[o_cd] = o_final
+                        
+                        # Explicitly clear large objects if possible
+                        del o_products
+                        del o_enriched
+                        del o_raw
+                        gc.collect()
 
                     # Build consolidated service
                     cts = ConsolidatedTransferService(
