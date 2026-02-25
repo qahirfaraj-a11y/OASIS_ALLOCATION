@@ -767,6 +767,7 @@ class OrderEngine:
                     p['total_units_sold_last_90d'] = 0
                     p['avg_daily_sales_last_30d'] = 0.0
             else:
+                p['avg_daily_sales'] = p.get('estimated_daily_sales', 0.0)
                 p['demand_cv'] = 0.5 # Default high volatility for new/unknown items
                 p['days_since_last_sale'] = 999
                 p['total_units_sold_last_90d'] = 0

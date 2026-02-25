@@ -480,13 +480,13 @@ class PosErpAdapter:
             name = product["product_name"]
             intel = sales_intel.get(name, {})
 
-            if intel:
-                product["avg_daily_sales"] = intel.get("avg_daily_sales", 0)
-                product["estimated_daily_sales"] = intel.get("avg_daily_sales", 0)
-                product["units_sold_last_month"] = intel.get("avg_monthly_sales", 0)
-                product["sales_trend"] = intel.get("trend", "stable")
-                product["months_active"] = intel.get("months_active", 0)
+            product["avg_daily_sales"] = intel.get("avg_daily_sales", 0.0)
+            product["estimated_daily_sales"] = intel.get("avg_daily_sales", 0.0)
+            product["units_sold_last_month"] = intel.get("avg_monthly_sales", 0.0)
+            product["sales_trend"] = intel.get("trend", "stable")
+            product["months_active"] = intel.get("months_active", 0)
 
+            if intel:
                 # Calculate CV from monthly data
                 monthly_vals = list(intel.get("monthly_sales", {}).values())
                 if len(monthly_vals) >= 2:
@@ -497,6 +497,8 @@ class PosErpAdapter:
                         product["demand_cv"] = 1.0
                 else:
                     product["demand_cv"] = 0.5
+            else:
+                product["demand_cv"] = 0.5
 
         logger.info(f"Enriched {len(products)} products for {org_cd}")
         return products

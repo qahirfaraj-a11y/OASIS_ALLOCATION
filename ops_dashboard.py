@@ -679,6 +679,12 @@ with tab_stock:
     products = load_products(selected_org)
     if products:
         df_p = pd.DataFrame(products)
+        
+        # Defensive: Ensure required columns exist for calculation
+        for col in ["avg_daily_sales", "current_stocks"]:
+            if col not in df_p.columns:
+                df_p[col] = 0.0
+                
         df_p["days_cover"] = np.where(df_p["avg_daily_sales"] > 0, (df_p["current_stocks"] / df_p["avg_daily_sales"]).round(1), 999)
         df_p["health"] = df_p["days_cover"].apply(lambda d: "🔴 Stockout" if d < 0.5 else "🟡 Critical" if d < 2 else "🟢 Healthy" if d < 30 else "⚪ Overstock")
         
