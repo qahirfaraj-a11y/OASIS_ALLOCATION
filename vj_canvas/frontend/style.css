@@ -1,0 +1,101 @@
+body {
+  margin: 0;
+  overflow: hidden;
+  background-color: #050510;
+  color: #fff;
+  font-family: 'Inter', 'Segoe UI', sans-serif;
+  user-select: none;
+}
+
+#controls {
+  position: absolute;
+  top: 20px;
+  left: 20px;
+  background: rgba(10, 10, 20, 0.8);
+  padding: 20px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(10px);
+  z-index: 10;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+  max-width: 300px;
+}
+
+h1 {
+  margin-top: 0;
+  font-size: 1.2rem;
+  font-weight: 500;
+  letter-spacing: 1px;
+  color: #a0a0ff;
+  text-transform: uppercase;
+}
+
+input[type="file"] {
+  width: 100%;
+  padding: 10px;
+  margin-bottom: 15px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px dashed rgba(255, 255, 255, 0.2);
+  border-radius: 6px;
+  color: #ccc;
+  cursor: pointer;
+}
+
+button {
+  width: 100%;
+  padding: 12px;
+  background: linear-gradient(135deg, #6e45e2, #88d3ce);
+  border: none;
+  border-radius: 6px;
+  color: #fff;
+  font-weight: bold;
+  cursor: pointer;
+  transition: opacity 0.2s, transform 0.1s;
+}
+
+button:hover:not(:disabled) {
+  opacity: 0.9;
+}
+
+button:active:not(:disabled) {
+  transform: scale(0.98);
+}
+
+button:disabled {
+  background: #333;
+  color: #777;
+  cursor: not-allowed;
+}
+
+#status {
+  margin-top: 15px;
+  font-size: 0.85rem;
+  color: #aaa;
+  word-wrap: break-word;
+}
+
+#visual-canvas {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 1;
+}
+
+/* Loading spinner */
+.spinner {
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  border: 2px solid rgba(255,255,255,0.3);
+  border-radius: 50%;
+  border-top-color: #fff;
+  animation: spin 1s ease-in-out infinite;
+  margin-right: 8px;
+  vertical-align: middle;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}

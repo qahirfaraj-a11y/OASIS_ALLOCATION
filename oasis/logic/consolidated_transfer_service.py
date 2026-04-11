@@ -78,21 +78,40 @@ class ConsolidatedTransferService:
                  org_names: Dict[str, str],
                  stock_data: Dict[str, List[dict]],
                  transfer_cost_kes: float = 500.0,
-                 min_shortfall_qty: float = 1.0):
+                 min_shortfall_qty: float = 1.0,
+                 registry_path: Optional[str] = None,
+                 distance_map: Optional[Dict[str, Dict[str, float]]] = None):
         """
         Args:
             org_names: {org_cd: org_name} for all stores
             stock_data: {org_cd: [product dicts]} — current stock per store
             transfer_cost_kes: Fixed logistics cost per transfer
             min_shortfall_qty: Minimum shortfall to consider for transfer
+            registry_path: Path to persistent transfer registry file
+            distance_map: Optional {org_cd: {lat: L, lon: L}} for distance-aware selection
         """
         self.org_names = org_names
         self.stock_data = stock_data
         self.transfer_cost_kes = transfer_cost_kes
         self.min_shortfall_qty = min_shortfall_qty
+        self.registry_path = registry_path
+        self.distance_map = distance_map or {}
 
         self.tracker = TransferStateTracker()
-        self.decider = FulfillmentDecider(transfer_cost_kes=transfer_cost_kes)
+        if self.registry_path:
+            self.tracker.load_from_file(self.registry_path)
+
+        # Detect warehouse hubs from distance_map (entries with is_warehouse_hub=True)
+        warehouse_hubs = [
+            org_cd for org_cd, info in self.distance_map.items()
+            if isinstance(info, dict) and info.get('is_warehouse_hub', False)
+        ]
+
+        self.decider = FulfillmentDecider(
+            transfer_cost_kes=transfer_cost_kes,
+            distance_map=self.distance_map,
+            warehouse_hubs=warehouse_hubs,
+        )
 
         # Build network availability map from stock data
         self.network_map = self._build_network_map()
@@ -126,6 +145,8 @@ class ConsolidatedTransferService:
                     is_fresh=is_fresh,
                     sell_price=float(p.get('selling_price', p.get('sell_price', 0)) or 0),
                     department=dept,
+                    days_since_delivery=int(p.get('last_days_since_last_delivery', 0) or 0),
+                    velocity_ratio=float(ads / max(1.0, current)) if current > 0 else 0.0
                 ))
         return nmap
 
@@ -133,6 +154,7 @@ class ConsolidatedTransferService:
                          store_orders: Dict[str, List[dict]],
                          supplier_schedule: Dict[str, bool] = None,
                          pending_orders: Dict[str, Dict[str, dict]] = None,
+                         risk_scores: Dict[str, float] = None,
                          ) -> NetworkPlan:
         """
         Main optimization entry point.
@@ -150,6 +172,7 @@ class ConsolidatedTransferService:
             pending_orders: {org_cd: {itm_cd: {"qty": N, "eta_days": D}}}
                 Pending supplier orders per store per item.
                 If None, no pending-order awareness is applied.
+            risk_scores: {org_cd: score} from GNN
         
         Returns:
             NetworkPlan with adjusted orders, transfers, and donor additions
@@ -158,6 +181,8 @@ class ConsolidatedTransferService:
             supplier_schedule = {}
         if pending_orders is None:
             pending_orders = {}
+        if risk_scores is None:
+            risk_scores = {}
 
         plan = NetworkPlan()
         self.tracker.clear_all()
@@ -207,10 +232,19 @@ class ConsolidatedTransferService:
             all_shortfalls,
             self.network_map,
             org_names=self.org_names,
+            risk_scores=risk_scores,
         )
         plan.decisions = decisions
 
-        # Step 3: Build adjusted orders + transfer list + donor additions
+        # Step 3: Identify proactive transfers (Dead Stock rebalancing)
+        proactive_transfers = self._identify_proactive_transfers(risk_scores)
+        plan.transfers.extend(proactive_transfers)
+        for t in proactive_transfers:
+            self.tracker.register_transfer(t)
+            plan.total_items_transferred += 1
+            plan.total_units_transferred += t.qty
+
+        # Step 4: Build adjusted orders + transfer list + donor additions
         # Start with copies of original orders
         for org_cd, recs in store_orders.items():
             plan.adjusted_orders[org_cd] = [r.copy() for r in recs]
@@ -272,7 +306,78 @@ class ConsolidatedTransferService:
             f"{plan.total_orders_reduced} orders reduced, "
             f"est. savings KES {plan.estimated_savings_kes:,.0f}"
         )
+
+        if self.registry_path:
+            self.tracker.save_to_file(self.registry_path)
+
         return plan
+
+    def _identify_proactive_transfers(self, risk_scores: Dict[str, float]) -> List[TransferRecord]:
+        """
+        Identify 'Dead Stock' to move to stores with 'Demand Spikes' or low stock.
+        Proactive rebalancing doesn't wait for a shortfall PO.
+        
+        Dead-stock elimination: Items sitting unsold at one branch can be
+        transferred to another branch that has demand, or back to the warehouse
+        hub for redistribution.
+        """
+        transfers = []
+        # Detect warehouse hubs for receiving dead stock
+        warehouse_hubs = [
+            org_cd for org_cd, info in self.distance_map.items()
+            if isinstance(info, dict) and info.get('is_warehouse_hub', False)
+        ]
+
+        # itm_cd -> [StoreSkuState]
+        for itm_cd, states in self.network_map._index.items():
+            # 1. Identify Donors (Dead Stock: High Stock, Low Velocity, aged)
+            #    Relaxed thresholds: 45 days, velocity < 0.05, stock > 5
+            potential_donors = [
+                s for s in states 
+                if s.days_since_delivery > 45 and s.velocity_ratio < 0.05 and s.current_stock > 5
+            ]
+            
+            # 2. Identify Recipients:
+            #    a) High Velocity or Risk-triggered demand at branches
+            #    b) Warehouse hubs (for redistribution)
+            potential_recipients = [
+                s for s in states
+                if s.velocity_ratio > 0.1 or risk_scores.get(s.org_cd, 0) > 0.7
+            ]
+            
+            # Also allow warehouse hubs as recipients for dead stock consolidation
+            for hub_cd in warehouse_hubs:
+                hub_state = self.network_map.get_store_state(hub_cd, itm_cd)
+                if hub_state and hub_state not in potential_recipients:
+                    potential_recipients.append(hub_state)
+            
+            for donor in potential_donors:
+                for recipient in potential_recipients:
+                    if donor.org_cd == recipient.org_cd: continue
+                    
+                    # Already too much stock at recipient?
+                    if recipient.current_stock > recipient.safety_stock * 3: continue
+                    
+                    # More aggressive dead stock clearing: up to 50% or 50 units
+                    qty_to_move = min(donor.current_stock * 0.5, 50.0)
+                    if qty_to_move >= 1.0:
+                        is_to_hub = recipient.org_cd in warehouse_hubs
+                        urgency = "LOW" if not is_to_hub else "MEDIUM"
+                        transfers.append(TransferRecord(
+                            from_org=donor.org_cd,
+                            to_org=recipient.org_cd,
+                            itm_cd=itm_cd,
+                            product_name=donor.product_name,
+                            qty=qty_to_move,
+                            department=donor.department,
+                            urgency=urgency,
+                            cost_kes=self.transfer_cost_kes,
+                        ))
+                        # Update donor state to prevent double-counting in this loop
+                        donor.current_stock -= qty_to_move
+                        break # One recipient per donor per item for simplicity
+
+        return transfers
 
     # ------------------------------------------------------------------
     # Internal helpers

@@ -21,13 +21,12 @@ dist/
 build/
 *.egg-info/
 
-# Logs
+# Large Data Files
+OASIS_Offline_App.zip
 *.log
-
-# Large Data Files (Optional - Uncomment if you want to exclude data)
-# *.csv
-# *.xlsx
-# *.json
-
-# Large Models
 *.gguf
+
+# Maintain crítico data (do not exclude for git)
+mock_pos_erp.db
+# stores_network.json
+# Full_Product_Allocation_Scorecard*.csv

@@ -31,6 +31,8 @@ import os
 sys.path.append(os.getcwd())
 from retail_simulator import STORE_UNIVERSES
 
+from oasis.logic.transfer_state import TransferStateTracker
+
 logger = logging.getLogger("IntraDaySimulator")
 
 TRADING_HOURS      = 14      # store open 06:00 – 20:00
@@ -111,18 +113,26 @@ class IntraDaySimulator:
     _hour   : int   last simulated hour (memoised)
     """
 
-    def __init__(self, stores_state: dict, seed: int = 42):
+    def __init__(self, stores_state: dict, seed: int = 42, registry_path: Optional[str] = None):
         self._stores  = stores_state   # {org_cd -> {...}}
         self._seed    = seed
         self._hour    = -1
         self._cache: Optional[dict] = None
+        self.registry_path = registry_path
+        self.tracker = TransferStateTracker()
+        if self.registry_path:
+            self.tracker.load_from_file(self.registry_path)
+        # ── Multi-day state ──
+        self._current_day: int = 1
+        self._day_history: Dict[int, dict] = {}
+        self._replenishment_pending: List[dict] = []  # {org_cd, itm_cd, qty, arrival_day}
 
     # ------------------------------------------------------------------
     # Factory: load opening stock from SQLite
     # ------------------------------------------------------------------
 
     @classmethod
-    def from_db(cls, db_path: str, seed: int = 42) -> "IntraDaySimulator":
+    def from_db(cls, db_path: str, seed: int = 42, registry_path: Optional[str] = None) -> "IntraDaySimulator":
         """Build simulator by reading today's opening stock from the mock DB."""
         conn = sqlite3.connect(db_path)
         conn.row_factory = sqlite3.Row
@@ -222,7 +232,7 @@ class IntraDaySimulator:
 
         conn.close()
         logger.info(f"IntraDaySimulator initialised: {len(stores_state)} stores")
-        return cls(stores_state, seed)
+        return cls(stores_state, seed, registry_path=registry_path)
 
     # ------------------------------------------------------------------
     # Core simulation tick
@@ -242,7 +252,7 @@ class IntraDaySimulator:
         if hour == self._hour and self._cache is not None:
             return self._cache
 
-        rng = random.Random(self._seed + hour * 1000)
+        rng = random.Random(self._seed + self._current_day * 100_000 + hour * 1000)
 
         # Fraction of daily demand that has elapsed by this hour
         elapsed = max(0, hour - OPENING_HOUR)
@@ -330,7 +340,18 @@ class IntraDaySimulator:
 
         # For each stockout, find a donor
         seen_transfers = set()
+        
+        # Reload latest registry from file if path is set
+        if self.registry_path:
+            self.tracker.load_from_file(self.registry_path)
+
         for so in stockouts:
+            # OPTIMIZATION: Check if an active transfer is already inbound for this SKU
+            active_inbound = self.tracker.get_inbound_qty(so.org_cd, so.itm_cd)
+            if active_inbound > 0:
+                logger.debug(f"Skipping transfer opportunity for {so.itm_cd} at {so.org_cd} - existing inbound: {active_inbound}")
+                continue
+
             if so.itm_cd not in sku_index:
                 continue
             donor_qtys = sku_index[so.itm_cd]
@@ -386,6 +407,179 @@ class IntraDaySimulator:
             'frac'       : frac,
         }
         return self._cache
+
+    # ------------------------------------------------------------------
+    # Multi-day simulation
+    # ------------------------------------------------------------------
+
+    @property
+    def current_day(self) -> int:
+        """Current simulation day (1-based)."""
+        return self._current_day
+
+    def advance_to_day(self, target_day: int) -> dict:
+        """
+        Advance the simulation to `target_day` (1-based).
+
+        If the simulator is on day 1 and you call advance_to_day(3), it will:
+          1. Auto-complete day 1 (advance_to_hour(20))
+          2. Run end-of-day close for day 1
+          3. Run overnight replenishment for day 2
+          4. Transition to day 2, repeat until reaching target_day
+
+        Returns the day summary for the current (target) day.
+        """
+        if target_day < 1:
+            target_day = 1
+
+        # If going backwards, we'd need to reinitialise — for now, no-op
+        if target_day < self._current_day:
+            logger.warning(
+                f"Cannot rewind from day {self._current_day} to {target_day}. "
+                f"Returning cached summary."
+            )
+            return self._day_history.get(target_day, {})
+
+        # Already on the target day
+        if target_day == self._current_day:
+            return self._day_history.get(self._current_day, {
+                'day': self._current_day,
+                'status': 'in_progress',
+            })
+
+        # Step through each intermediate day
+        while self._current_day < target_day:
+            # 1. Complete the current day
+            self.advance_to_hour(20)
+
+            # 2. End-of-day close — snapshot metrics
+            self._end_of_day_close()
+
+            # 3. Transition to next day
+            next_day = self._current_day + 1
+
+            # 4. Overnight replenishment for the new day
+            self._overnight_replenishment(next_day)
+
+            # 5. Reset hour state for the new day
+            self._current_day = next_day
+            self._hour = -1
+            self._cache = None
+
+            # 6. Carry forward: current_qty becomes new opening_qty
+            for org_cd, store in self._stores.items():
+                for sku in store['skus']:
+                    sku.opening_qty = sku.current_qty
+                    sku.depleted_qty = 0.0
+
+            logger.info(f"Day {next_day} started — stock carried forward")
+
+        return self._day_history.get(self._current_day, {
+            'day': self._current_day,
+            'status': 'in_progress',
+        })
+
+    def _end_of_day_close(self):
+        """Snapshot end-of-day metrics and build replenishment orders for stocked-out items."""
+        state = self._cache or self.advance_to_hour(20)
+
+        # Aggregate metrics
+        total_revenue = sum(s.total_revenue for s in state['hour_stats'].values())
+        total_units   = sum(s.total_units   for s in state['hour_stats'].values())
+        total_so      = sum(s.n_stockouts   for s in state['hour_stats'].values())
+        total_xfer    = sum(s.n_transfers   for s in state['hour_stats'].values())
+
+        summary = {
+            'day':          self._current_day,
+            'status':       'closed',
+            'revenue':      round(total_revenue, 2),
+            'units_sold':   total_units,
+            'stockouts':    total_so,
+            'transfers':    total_xfer,
+            'lost_sales':   round(
+                sum(e.lost_sales_kes for e in state['stockouts']), 2
+            ),
+        }
+        self._day_history[self._current_day] = summary
+
+        # Auto-generate replenishment orders for stocked-out items
+        for org_cd, store in self._stores.items():
+            for sku in store['skus']:
+                if sku.current_qty <= 0 and sku.ads > 0:
+                    # Determine lead time by department
+                    dept_upper = (sku.dept or '').upper()
+                    is_fresh = any(k in dept_upper for k in [
+                        'MILK', 'DAIRY', 'FRESH', 'MEAT', 'CHICKEN',
+                        'BREAD', 'BAKERY', 'FISH', 'VEGETABLE', 'FRUIT'
+                    ])
+                    lead_time = 1 if is_fresh else 2
+
+                    order_qty = round(sku.ads * (lead_time + 1) * 1.2)
+                    arrival_day = self._current_day + lead_time
+
+                    self._replenishment_pending.append({
+                        'org_cd':      org_cd,
+                        'itm_cd':      sku.itm_cd,
+                        'qty':         max(1, order_qty),
+                        'arrival_day': arrival_day,
+                        'order_day':   self._current_day,
+                    })
+
+        logger.info(
+            f"Day {self._current_day} closed — "
+            f"Rev: {total_revenue:,.0f}, SO: {total_so}, "
+            f"Pending orders: {len(self._replenishment_pending)}"
+        )
+
+    def _overnight_replenishment(self, next_day: int):
+        """Deliver pending orders scheduled for `next_day`."""
+        delivered = 0
+        remaining = []
+
+        for order in self._replenishment_pending:
+            if order['arrival_day'] <= next_day:
+                # Find the SKU and add stock
+                store = self._stores.get(order['org_cd'])
+                if store:
+                    sku = next(
+                        (s for s in store['skus'] if s.itm_cd == order['itm_cd']),
+                        None
+                    )
+                    if sku:
+                        sku.current_qty += order['qty']
+                        delivered += 1
+                        logger.debug(
+                            f"  Delivered {order['qty']} of {order['itm_cd']} "
+                            f"to {order['org_cd']}"
+                        )
+            else:
+                remaining.append(order)
+
+        self._replenishment_pending = remaining
+        if delivered:
+            logger.info(
+                f"Overnight replenishment: {delivered} orders delivered, "
+                f"{len(remaining)} still pending"
+            )
+
+    def get_day_summary(self, day: int) -> dict:
+        """Return the stored summary for a given day."""
+        return self._day_history.get(day, {})
+
+    def get_multi_day_trends(self, up_to_day: int) -> List[dict]:
+        """
+        Return a list of day summaries from day 1 to up_to_day.
+        Days not yet completed will have partial/empty summaries.
+        """
+        trends = []
+        for d in range(1, up_to_day + 1):
+            entry = self._day_history.get(d, {
+                'day': d, 'status': 'not_reached',
+                'revenue': 0, 'units_sold': 0,
+                'stockouts': 0, 'transfers': 0, 'lost_sales': 0,
+            })
+            trends.append(entry)
+        return trends
 
     # ------------------------------------------------------------------
     # Helpers for ops_dashboard

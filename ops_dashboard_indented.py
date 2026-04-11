@@ -1,0 +1,1318 @@
+"""
+OASIS Operations Command Center
+================================
+A "Day in the Life" demo dashboard showing real-time engine reasoning
+across all 4 operational pillars: Sales Monitoring, Transfer Intelligence,
+Stock Review, and Smart Ordering.
+
+Run:  streamlit run ops_dashboard.py
+"""
+
+import streamlit as st
+import os
+import sys
+import json
+import sqlite3
+import pandas as pd
+import numpy as np
+import plotly.express as px
+import plotly.graph_objects as go
+import asyncio
+import random
+import math
+import io
+import gc
+import tempfile
+import time
+from datetime import datetime, date, timedelta
+from typing import List, Dict, Optional, Any, Tuple
+import logging
+
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+# Add project root
+sys.path.insert(0, os.getcwd())
+
+from oasis.logic.db_connector import UniversalConnector, SchemaMapper, load_system_config, load_system_config_full, save_system_config, ensure_oasis_tables
+from oasis.logic.pos_erp_adapter import PosErpAdapter
+from oasis.logic.alert_monitor import AlertMonitor
+from oasis.logic.order_engine import OrderEngine
+from oasis.llm.inference import RuleBasedLLM
+from oasis.data.supplier_calendar import SupplierCalendar
+from oasis.logic.order_engine import apply_safety_guards
+from oasis.simulation.black_swan_events import SupplierRiskAnalyzer, SupplierFailureEvent, SCENARIO_TEMPLATES
+from oasis.logic.consolidated_transfer_service import ConsolidatedTransferService, NetworkPlan
+from oasis.logic.transfer_state import TransferRecord
+from oasis.logic.auth_manager import authenticate, get_user_permissions, get_all_users
+from oasis.logic.audit_logger import (
+    log_action, get_recent_logs, get_action_summary,
+    ACTION_LOGIN, ACTION_LOGOUT, ACTION_PO_GENERATED, ACTION_PO_EXPORTED,
+    ACTION_TRANSFER_EXECUTED, ACTION_FILE_PROCESSED, ACTION_CONFIG_CHANGED,
+    ENTITY_PO, ENTITY_TRANSFER, ENTITY_FILE, ENTITY_CONFIG, ENTITY_SESSION
+)
+from intraday_sim import IntraDaySimulator
+
+# ─────────────────────────────────────────────────────────────────────
+# Page Config & Styling
+# ─────────────────────────────────────────────────────────────────────
+st.set_page_config(
+    page_title="OASIS Command Center",
+    page_icon="🔮",
+    layout="wide",
+    initial_sidebar_state="expanded",
+)
+
+st.markdown("""
+<style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+    
+    .stApp { font-family: 'Inter', sans-serif; }
+    
+    /* Dark premium cards */
+    .metric-card {
+        background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+        border: 1px solid rgba(255,255,255,0.08);
+        border-radius: 12px;
+        padding: 20px;
+        margin: 8px 0;
+        color: white;
+    }
+    .metric-card h3 { margin: 0; font-size: 0.85em; color: #888; font-weight: 400; }
+    .metric-card .value { font-size: 2em; font-weight: 700; margin: 4px 0; }
+    .metric-card .sub { font-size: 0.8em; color: #aaa; }
+    
+    /* Alert cards */
+    .alert-card {
+        background: linear-gradient(135deg, #3d0000 0%, #5c1a1a 100%);
+        border: 1px solid #ff4444;
+        border-radius: 10px;
+        padding: 16px;
+        margin: 8px 0;
+        color: #ffcccc;
+    }
+    .alert-card .alert-title { color: #ff6666; font-weight: 600; font-size: 1.1em; }
+    
+    /* Transfer cards */
+    .transfer-card {
+        background: linear-gradient(135deg, #0a1628 0%, #132743 100%);
+        border: 1px solid #2e6ba6;
+        border-radius: 10px;
+        padding: 16px;
+        margin: 8px 0;
+        color: #cce0ff;
+    }
+    
+    /* Reasoning expander */
+    .reasoning-box {
+        background: #0d1117;
+        border: 1px solid #30363d;
+        border-radius: 8px;
+        padding: 12px;
+        font-family: 'Courier New', monospace;
+        font-size: 0.85em;
+        color: #c9d1d9;
+        white-space: pre-wrap;
+    }
+    
+    /* Status badge */
+    .badge-green { background: #1a4d1a; color: #4caf50; padding: 2px 10px; border-radius: 12px; font-size: 0.8em; }
+    .badge-yellow { background: #4d3d00; color: #ffc107; padding: 2px 10px; border-radius: 12px; font-size: 0.8em; }
+    .badge-red { background: #4d0000; color: #f44336; padding: 2px 10px; border-radius: 12px; font-size: 0.8em; }
+    
+    /* Header bar */
+    .header-bar {
+        background: linear-gradient(90deg, #0f0c29, #302b63, #24243e);
+        padding: 20px 30px;
+        border-radius: 12px;
+        margin-bottom: 20px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+    .header-bar h1 { margin: 0; font-size: 1.6em; color: white; }
+    .header-bar .subtitle { color: #aaa; font-size: 0.9em; }
+</style>
+""", unsafe_allow_html=True)
+
+
+# ─────────────────────────────────────────────────────────────────────
+# Data Loading (Cached)
+# ─────────────────────────────────────────────────────────────────────
+DATA_DIR = os.path.join(os.getcwd(), "oasis", "data")
+DB_PATH = os.path.join(DATA_DIR, "mock_pos_erp.db")
+if not os.path.exists(DB_PATH):
+    # Fallback to the lightweight database for Cloud deployment
+    DB_PATH = os.path.join(DATA_DIR, "mock_pos_erp_lite.db")
+
+# Ensure OASIS auth/audit/config tables exist (migration-safe)
+ensure_oasis_tables(DB_PATH)
+
+REGISTRY_PATH = os.path.join(DATA_DIR, "transfers_registry.json")
+
+@st.cache_resource
+def get_connector():
+    """Create a cached UniversalConnector to mock DB."""
+    uri = f"sqlite:///{DB_PATH}"
+    mapper = SchemaMapper.for_pos_erp()
+    return UniversalConnector(uri, mapper)
+
+@st.cache_resource
+def get_adapter():
+    """Create a cached PosErpAdapter."""
+    return PosErpAdapter(get_connector())
+
+@st.cache_resource
+def get_distance_map():
+    """Load store coordinates for distance-aware transfers."""
+    try:
+        path = os.path.join(os.getcwd(), "store_coords.json")
+        if os.path.exists(path):
+            with open(path, 'r') as f:
+                return json.load(f)
+    except Exception as e:
+        st.error(f"Error loading distance map: {e}")
+    return {}
+
+@st.cache_data(ttl=60)
+def load_sales_data(org_cd: str, days: int = 90):
+    """Load sales history as DataFrame."""
+    adapter = get_adapter()
+    return adapter.fetch_sales_history(org_cd, days=days)
+
+@st.cache_data(ttl=60)
+def load_products(org_cd: str):
+    """Load enriched product list."""
+    adapter = get_adapter()
+    return adapter.fetch_enriched_products(org_cd)
+
+@st.cache_data(ttl=600)
+def load_network_stock(org_cds: List[str]):
+    """Load enriched product data for all stores in the network at once."""
+    adapter = get_adapter()
+    all_data = {}
+    for org_cd in org_cds:
+        try:
+            all_data[org_cd] = adapter.fetch_enriched_products(org_cd)
+        except Exception as e:
+            logger.error(f"Failed to load products for {org_cd}: {e}")
+            all_data[org_cd] = []
+    return all_data
+
+@st.cache_data(ttl=60)
+def load_sales_intel(org_cd: str):
+    """Load sales intelligence."""
+    adapter = get_adapter()
+    return adapter.fetch_sales_intelligence(org_cd, days=300)
+
+@st.cache_data(ttl=300)
+def get_all_store_risks(sim_hour: int):
+    """Run GNN to get risk scores for all stores."""
+    gnn_model, gnn_sim = get_gnn_resources()
+    if gnn_model is None or gnn_sim is None:
+        return {}
+    
+    import torch
+    try:
+        x_t = gnn_sim.get_feature_matrix()
+        T = 30
+        x_seq = x_t.unsqueeze(0).unsqueeze(0).expand(1, T, -1, -1)
+        traffic_mat = gnn_sim.get_traffic_matrix()
+        if sim_hour >= 17: traffic_mat = traffic_mat + 0.3
+        with torch.no_grad():
+            gnn_out = gnn_model(x_seq, gnn_sim.adj, traffic_mat)
+        
+        gnn_stores = gnn_sim.stores_data
+        gnn_ids = [s['store_id'] for s in gnn_stores]
+        risk_scores = gnn_out['risk'].squeeze().tolist()
+        if not isinstance(risk_scores, list): risk_scores = [risk_scores]
+        
+        return {sid: rscore for sid, rscore in zip(gnn_ids, risk_scores)}
+    except Exception as e:
+        logger.error(f"GNN risk calculation failed: {e}")
+        return {}
+
+@st.cache_data(ttl=300)
+def load_all_stocks():
+    """Load stock for all orgs in the DB."""
+    adapter = get_adapter()
+    orgs = adapter.fetch_all_organizations()
+    result = {}
+    for o in orgs:
+        org_cd = o["ORG_CD"]
+        result[org_cd] = adapter.fetch_stock_snapshot(org_cd)
+    return result
+
+@st.cache_data(ttl=300)
+def load_orgs():
+    """Load organization list."""
+    adapter = get_adapter()
+    return adapter.fetch_all_organizations()
+
+@st.cache_resource
+def get_order_engine():
+    """Create a cached OrderEngine and load local databases."""
+    engine = OrderEngine(DATA_DIR)
+    engine.load_local_databases()
+    return engine
+
+@st.cache_resource
+def get_calendar():
+    """Load Supplier Calendar."""
+    cal_path = os.path.join(os.getcwd(), "Supplier_Order_Calendar_2026.xlsx")
+    cal = SupplierCalendar(cal_path)
+    cal.load()
+    return cal
+
+
+# ─────────────────────────────────────────────────────────────────────
+# Authentication Gate
+# ─────────────────────────────────────────────────────────────────────
+if 'user' not in st.session_state:
+    st.session_state['user'] = None
+
+def show_login_screen():
+    """Display the login form."""
+    st.markdown("""
+    <div class="header-bar">
+        <div>
+            <h1>🔮 OASIS Retail Manager</h1>
+            <div class="subtitle">Operations, Allocation, Sales Intelligence & Simulation</div>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    col1, col2, col3 = st.columns([1, 2, 1])
+    with col2:
+        st.markdown("### 🔐 Sign In")
+        st.caption("Enter your credentials to access the dashboard.")
+        
+        with st.form("login_form"):
+            username = st.text_input("Username", placeholder="e.g. ops_admin")
+            password = st.text_input("Password", type="password", placeholder="Enter password")
+            submitted = st.form_submit_button("Sign In", type="primary", use_container_width=True)
+            
+            if submitted:
+                if username and password:
+                    user = authenticate(username, password, DB_PATH)
+                    if user:
+                        st.session_state['user'] = user
+                        log_action(DB_PATH, username, ACTION_LOGIN, ENTITY_SESSION)
+                        st.rerun()
+                    else:
+                        st.error("❌ Invalid username or password.")
+                else:
+                    st.warning("Please enter both username and password.")
+        
+        st.markdown("---")
+        st.markdown("""
+        <div style="text-align:center; color:#666; font-size:0.85em;">
+            <strong>Demo Accounts:</strong><br/>
+            <code>ops_admin</code> / <code>oasis2026</code> — Full Access<br/>
+            <code>regional_mgr</code> / <code>oasis2026</code> — Regional View<br/>
+            <code>branch_mgr</code> / <code>oasis2026</code> — Branch View<br/>
+        </div>
+        """, unsafe_allow_html=True)
+
+if st.session_state['user'] is None:
+    show_login_screen()
+    st.stop()
+
+# ── User is authenticated ──
+current_user = st.session_state['user']
+user_perms = current_user['permissions']
+user_role = current_user['role']
+user_org = current_user.get('assigned_org')  # None for regional/admin
+
+# ─────────────────────────────────────────────────────────────────────
+# Header (with user info)
+# ─────────────────────────────────────────────────────────────────────
+role_labels = {
+    'ops_admin': '🔧 Operations Admin',
+    'regional_manager': '🌐 Regional Manager',
+    'branch_manager': '🏪 Branch Manager'
+}
+st.markdown(f"""
+<div class="header-bar">
+    <div>
+        <h1>🔮 OASIS Retail Manager</h1>
+        <div class="subtitle">Operations, Allocation, Sales Intelligence & Simulation</div>
+    </div>
+    <div style="text-align: right; color: #ccc;">
+        <div style="font-size: 1.1em; font-weight: 600;">{current_user['display_name']}</div>
+        <div style="font-size: 0.85em; color: #888;">{role_labels.get(user_role, user_role)}</div>
+    </div>
+</div>
+""", unsafe_allow_html=True)
+
+
+# ─────────────────────────────────────────────────────────────────────
+# Sidebar: Day Simulator
+# ─────────────────────────────────────────────────────────────────────
+st.sidebar.markdown("## 🎛️ Day Simulator")
+
+# Date Picker
+sim_date = st.sidebar.date_input("📅 Simulation Date", value=date(2026, 1, 1))
+
+# Store picker (role-filtered)
+orgs = load_orgs()
+org_names = {o["ORG_CD"]: o["ORG_NAME"] for o in orgs}
+
+# Branch managers can only see their assigned store
+if not user_perms['can_view_all_stores'] and user_org:
+    available_orgs = [user_org] if user_org in org_names else list(org_names.keys())[:1]
+else:
+    available_orgs = list(org_names.keys())
+
+selected_org = st.sidebar.selectbox(
+    "📍 Store",
+    available_orgs,
+    format_func=lambda x: f"{org_names.get(x, x)} ({x})"
+)
+
+# Time of day
+sim_hour = st.sidebar.slider(
+    "🕐 Time of Day",
+    min_value=6, max_value=22, value=14,
+    format="%d:00",
+    help="Simulate what the store sees at this hour"
+)
+
+# ── IntraDaySimulator: initialise once per session, cache in session_state ──
+if 'intraday_sim' not in st.session_state or st.sidebar.button("♻️ Reset Simulator"):
+    try:
+        with st.spinner("🔄 Loading intra-day simulation engine…"):
+            st.session_state['intraday_sim'] = IntraDaySimulator.from_db(DB_PATH, registry_path=REGISTRY_PATH)
+        st.session_state['intraday_sim_error'] = None
+    except Exception as _e:
+        st.session_state['intraday_sim'] = None
+        st.session_state['intraday_sim_error'] = str(_e)
+
+_sim = st.session_state.get('intraday_sim')
+_sim_err = st.session_state.get('intraday_sim_error')
+
+# Re-run sim for current hour (cached inside the simulator object)
+_sim_state = None
+if _sim:
+    try:
+        _sim_state = _sim.advance_to_hour(sim_hour)
+    except Exception as _ex:
+        _sim_err = str(_ex)
+
+# 🔴 LIVE SIM badge in sidebar
+if _sim:
+    n_so = sum(s.n_stockouts for s in _sim_state['hour_stats'].values()) if _sim_state else 0
+    n_tr = sum(s.n_transfers for s in _sim_state['hour_stats'].values()) if _sim_state else 0
+    st.sidebar.markdown(f"""
+    <div style="background:#7b2d2d22; border:1px solid #ef5350; border-radius:8px;
+                padding:8px 12px; margin-top:8px; font-size:13px;">
+        🔴 <strong>LIVE SIM ACTIVE</strong><br/>
+        <span style="color:#888;">{sim_hour:02d}:00 &nbsp;▸&nbsp; {n_so} stockouts &nbsp;▸&nbsp; {n_tr} transfers</span>
+    </div>
+    """, unsafe_allow_html=True)
+elif _sim_err:
+    st.sidebar.warning(f"⚠️ Sim: {_sim_err[:60]}")
+
+# Phase indicator
+if sim_hour < 10:
+    phase = "☀️ **Morning** — Stock Review & Ordering"
+    phase_color = "#4a8c1c"
+elif sim_hour < 17:
+    phase = "🕐 **Midday** — Live Monitoring"
+    phase_color = "#2e6ba6"
+elif sim_hour < 20:
+    phase = "⚡ **Peak** — Alert Response"
+    phase_color = "#d94f00"
+else:
+    phase = "🌙 **Evening** — End-of-Day Close"
+    phase_color = "#6b4c9a"
+
+st.sidebar.markdown(f"""
+<div style="background: {phase_color}22; border-left: 4px solid {phase_color}; 
+            padding: 10px 14px; border-radius: 0 8px 8px 0; margin: 10px 0;">
+    {phase}
+</div>
+""", unsafe_allow_html=True)
+
+# Connection status with health check
+st.sidebar.markdown("---")
+st.sidebar.markdown("### 🔗 ERP Connection")
+if os.path.exists(DB_PATH):
+    try:
+        connector = get_connector()
+        health = connector.health_check()
+        db_size = os.path.getsize(DB_PATH) / (1024 * 1024)
+        if health['status'] == 'healthy':
+            st.sidebar.markdown(f"""
+            <div style="background:#1a4d1a22; border:1px solid #4caf50; border-radius:8px;
+                        padding:8px 12px; font-size:13px;">
+                🟢 <strong>Connected</strong> — {health['tables_found']} tables<br/>
+                <span style="color:#888;">Latency: {health['latency_ms']}ms · {db_size:.1f} MB</span>
+            </div>
+            """, unsafe_allow_html=True)
+        elif health['status'] == 'degraded':
+            st.sidebar.warning(f"⚠️ Degraded — {health['tables_found']} tables · {db_size:.1f} MB")
+        else:
+            st.sidebar.error("🔴 Database connection failed")
+    except Exception as e:
+        st.sidebar.error(f"🔴 DB Error: {str(e)[:60]}")
+else:
+    st.sidebar.error("Mock DB not found. Run:  \n`python -m oasis.logic.mock_pos_erp`")
+    st.stop()
+
+# Logout button
+st.sidebar.markdown("---")
+if st.sidebar.button("🚪 Logout", use_container_width=True):
+    log_action(DB_PATH, current_user['username'], ACTION_LOGOUT, ENTITY_SESSION)
+    st.session_state['user'] = None
+    st.rerun()
+
+# Audit Log viewer (ops_admin and regional_manager)
+if user_perms.get('can_view_audit_log'):
+    with st.sidebar.expander("📋 Recent Activity", expanded=False):
+        audit_df = get_recent_logs(DB_PATH, limit=20)
+        if not audit_df.empty:
+            for _, row in audit_df.iterrows():
+                action_icon = {
+                    'LOGIN': '🔑', 'LOGOUT': '🚪', 'PO_GENERATED': '📋',
+                    'PO_EXPORTED': '📥', 'TRANSFER_EXECUTED': '🔄',
+                    'FILE_PROCESSED': '📂', 'CONFIG_CHANGED': '⚙️', 'PO_APPROVED': '✅'
+                }.get(row.get('ACTION', ''), '📌')
+                ts = str(row.get('CREATED_DT', ''))[:16]
+                st.markdown(
+                    f"<div style='font-size:0.8em; color:#aaa; padding:2px 0;'>"
+                    f"{action_icon} <strong>{row.get('USERNAME','')}</strong> · {row.get('ACTION','')} · {ts}</div>",
+                    unsafe_allow_html=True
+                )
+        else:
+            st.caption("No recent activity.")
+
+store_name = org_names.get(selected_org, selected_org)
+
+
+# ─────────────────────────────────────────────────────────────────────
+# Main Tabs (Role-Based)
+# ─────────────────────────────────────────────────────────────────────
+tab_labels = []
+tab_keys = []
+
+# Always available
+if user_perms['tabs'].get('live_sales'):
+    tab_labels.append("📊 Live Sales Feed")
+    tab_keys.append("live_sales")
+if user_perms['tabs'].get('transfer_intelligence'):
+    tab_labels.append("🔄 Transfer Intelligence")
+    tab_keys.append("transfer_intelligence")
+if user_perms['tabs'].get('stock_review'):
+    tab_labels.append("📦 End-of-Day Stock")
+    tab_keys.append("stock_review")
+if user_perms['tabs'].get('smart_ordering'):
+    tab_labels.append("🛒 Smart Ordering")
+    tab_keys.append("smart_ordering")
+if user_perms['tabs'].get('oasis_processor'):
+    tab_labels.append("🚀 OASIS Processor")
+    tab_keys.append("oasis_processor")
+if user_perms['tabs'].get('settings'):
+    tab_labels.append("⚙️ Settings")
+    tab_keys.append("settings")
+
+tabs = st.tabs(tab_labels)
+
+# Build a tab lookup
+tab_map = {key: tabs[i] for i, key in enumerate(tab_keys)}
+
+
+# =====================================================================
+# TAB 1: LIVE SALES FEED
+# =====================================================================
+if "live_sales" in tab_map:
+ with tab_map["live_sales"]:
+    st.markdown(f"### 📊 Live Sales — {store_name}")
+    
+    # Load sales data (for historical total SKUs count)
+    df_sales = load_sales_data(selected_org, days=90)
+    
+    if df_sales.empty and not _sim_state:
+        st.warning("No sales data available.")
+    else:
+        # If simulation is active, use simulated rows for the current store
+        if _sim_state:
+            df_visible = pd.DataFrame([
+                r for r in _sim_state['sales_rows'] 
+                if r['org_cd'] == selected_org
+            ])
+            # Map column names to match expected schema if needed
+            if not df_visible.empty:
+                df_visible = df_visible.rename(columns={
+                    'itm_cd': 'itm_cd', 'name': 'item_name', 'dept': 'department',
+                    'price': 'sell_price', 'revenue': 'net_amt', 'qty': 'qty',
+                    'hour': 'sim_hour'
+                })
+            else:
+                df_visible = pd.DataFrame(columns=['itm_cd', 'item_name', 'department', 'qty', 'sell_price', 'net_amt', 'sim_hour'])
+        else:
+            # Fallback to historical simulation (the original logic)
+            df_sales["hour"] = pd.to_datetime(df_sales["bill_dt"]).dt.hour.fillna(12)
+            latest_date = df_sales["bill_dt"].max()
+            df_today = df_sales[df_sales["bill_dt"] == latest_date].copy()
+            if df_today.empty:
+                unique_dates = sorted(df_sales["bill_dt"].unique())
+                last_dates = unique_dates[-3:] if len(unique_dates) >= 3 else unique_dates
+                df_today = df_sales[df_sales["bill_dt"].isin(last_dates)].copy()
+            np.random.seed(42)
+            n = len(df_today)
+            hours = np.clip(np.random.normal(14, 3, n), 6, 22).astype(int)
+            df_today["sim_hour"] = hours
+            df_visible = df_today[df_today["sim_hour"] <= sim_hour]
+
+        # ── Metrics Row ──
+        col1, col2, col3, col4 = st.columns(4)
+        total_revenue = df_visible["net_amt"].sum() if not df_visible.empty else 0
+        total_units = df_visible["qty"].sum() if not df_visible.empty else 0
+        total_txns = len(df_visible)
+        unique_items = df_visible["itm_cd"].nunique() if not df_visible.empty else 0
+        
+        with col1:
+            st.markdown(f"""
+            <div class="metric-card">
+                <h3>Revenue (Today)</h3>
+                <div class="value" style="color: #4caf50;">KES {total_revenue:,.0f}</div>
+                <div class="sub">Up to {sim_hour}:00</div>
+            </div>""", unsafe_allow_html=True)
+        with col2:
+            st.markdown(f"""
+            <div class="metric-card">
+                <h3>Units Sold</h3>
+                <div class="value" style="color: #2196f3;">{total_units:,.0f}</div>
+                <div class="sub">{total_txns:,} line items</div>
+            </div>""", unsafe_allow_html=True)
+        with col3:
+            avg_basket = total_revenue / max(1, total_txns) * 5 if total_txns > 0 else 0
+            st.markdown(f"""
+            <div class="metric-card">
+                <h3>Avg Basket Value</h3>
+                <div class="value" style="color: #ff9800;">KES {avg_basket:,.0f}</div>
+                <div class="sub">per transaction</div>
+            </div>""", unsafe_allow_html=True)
+        with col4:
+            n_skus_db = unique_items
+            n_skus_total = df_sales["itm_cd"].nunique() if not df_sales.empty else 2000
+            st.markdown(f"""
+            <div class="metric-card">
+                <h3>Active SKUs</h3>
+                <div class="value" style="color: #ab47bc;">{n_skus_db:,}</div>
+                <div class="sub">of {n_skus_total:,} total</div>
+            </div>""", unsafe_allow_html=True)
+
+        # ── IntraDay Sim overlay: stockout warning banner ──
+        if _sim_state:
+            store_so = [e for e in _sim_state['stockouts'] if e.org_cd == selected_org]
+            if store_so:
+                top5 = sorted(store_so, key=lambda e: e.lost_sales_kes, reverse=True)[:5]
+                items_str = ", ".join(f"<em>{e.product_name[:30]}</em>" for e in top5)
+                st.markdown(f"""
+                <div style="background:#7b2d2d33; border-left:4px solid #ef5350;
+                            padding:10px 16px; border-radius:0 8px 8px 0; margin:10px 0;">
+                    ⚠️ <strong>{len(store_so)} live stockout(s) at {sim_hour:02d}:00</strong>
+                    &mdash; {items_str}
+                </div>""", unsafe_allow_html=True)
+        
+        # ── Hourly Revenue Chart ──
+        st.markdown("#### ⏰ Hourly Revenue Pattern")
+        if _sim_state:
+            chart_data = []
+            prev_rev, prev_units = 0.0, 0
+            for h in range(6, sim_hour + 1):
+                st_h = _sim.advance_to_hour(h)
+                stats = st_h['hour_stats'].get(selected_org)
+                if stats:
+                    rev = stats.total_revenue - prev_rev
+                    uni = stats.total_units - prev_units
+                    chart_data.append({"sim_hour": h, "revenue": max(0, rev), "units": max(0, uni)})
+                    prev_rev = stats.total_revenue
+                    prev_units = stats.total_units
+                else:
+                    chart_data.append({"sim_hour": h, "revenue": 0.0, "units": 0})
+            hourly = pd.DataFrame(chart_data)
+            _sim_state = _sim.advance_to_hour(sim_hour) # restore
+        else:
+            if not df_visible.empty:
+                hourly = df_visible.groupby("sim_hour").agg(
+                    revenue=("net_amt", "sum"),
+                    units=("qty", "sum"),
+                ).reset_index()
+            else:
+                hourly = pd.DataFrame(columns=["sim_hour", "revenue", "units"])
+
+        all_hours = pd.DataFrame({"sim_hour": range(6, 23)})
+        hourly = all_hours.merge(hourly, on="sim_hour", how="left").fillna(0)
+        hourly["status"] = hourly["sim_hour"].apply(
+            lambda h: "Past" if h <= sim_hour else "Future"
+        )
+        
+        fig_hourly = px.bar(
+            hourly, x="sim_hour", y="revenue", color="status",
+            color_discrete_map={"Past": "#4caf50", "Future": "#333333"},
+            labels={"sim_hour": "Hour", "revenue": "Revenue (KES)"},
+        )
+        fig_hourly.update_layout(
+            plot_bgcolor="#0d1117", paper_bgcolor="#0d1117",
+            font_color="#c9d1d9", showlegend=False,
+            margin=dict(t=20, b=40, l=60, r=20), height=280,
+            xaxis=dict(dtick=1, gridcolor="#1a1a2e"),
+            yaxis=dict(gridcolor="#1a1a2e"),
+        )
+        fig_hourly.add_vline(x=sim_hour, line_dash="dash", line_color="#ff9800", 
+                            annotation_text="NOW", annotation_font_color="#ff9800")
+        st.plotly_chart(fig_hourly, use_container_width=True)
+
+        # ── Top Movers + Spike Detection ──
+        col_movers, col_alerts = st.columns([3, 2])
+        if not df_visible.empty:
+            with col_movers:
+                st.markdown("#### 🔥 Top Movers")
+                top_items = df_visible.groupby(["itm_cd", "item_name"]).agg(
+                    units=("qty", "sum"),
+                    revenue=("net_amt", "sum"),
+                ).sort_values("units", ascending=False).head(15).reset_index()
+                
+                intel = load_sales_intel(selected_org)
+                top_items["ads"] = top_items["item_name"].apply(
+                    lambda n: intel.get(n, {}).get("avg_daily_sales", 0)
+                )
+                top_items["velocity_ratio"] = np.where(
+                    top_items["ads"] > 0,
+                    (top_items["units"] / (top_items["ads"] * (max(0, sim_hour-6)/14))).round(1),
+                    0
+                )
+                
+                def color_velocity(val):
+                    if val > 3: return "background: #5c1a1a; color: #ff6666;"
+                    elif val > 1.5: return "background: #4d3d00; color: #ffc107;"
+                    else: return "background: #1a4d1a; color: #4caf50;"
+                
+                display_df = top_items[["item_name", "units", "revenue", "velocity_ratio"]].copy()
+                display_df.columns = ["Product", "Units Sold", "Revenue (KES)", "Velocity Ratio"]
+                display_df["Revenue (KES)"] = display_df["Revenue (KES)"].apply(lambda x: f"{x:,.0f}")
+                
+                st.dataframe(
+                    display_df.style.applymap(color_velocity, subset=["Velocity Ratio"]),
+                    use_container_width=True, hide_index=True, height=400,
+                )
+            
+            with col_alerts:
+                st.markdown("#### ⚠️ Velocity Alerts")
+                monitor = AlertMonitor(spike_threshold_pct=200.0)
+                spike_items = top_items[top_items["velocity_ratio"] > 2.0]
+                realtime_batch = []
+                hist_stats = {}
+                for _, row in spike_items.iterrows():
+                    realtime_batch.append({"sku": row["itm_cd"], "qty": row["units"]})
+                    item_intel = intel.get(row["item_name"], {})
+                    hist_stats[row["itm_cd"]] = {
+                        "avg_daily_sales": item_intel.get("avg_daily_sales", 1),
+                        "product_name": row["item_name"],
+                    }
+                alerts = monitor.check_velocity_spikes(realtime_batch, hist_stats)
+                if alerts:
+                    for alert in alerts[:5]:
+                        st.markdown(f"""
+                        <div class="alert-card">
+                            <div class="alert-title">⚠️ {alert['type']}</div>
+                            <strong>{alert['product_name']}</strong><br/>
+                            <span style="font-size: 0.9em;">{alert['message']}</span><br/>
+                            <span style="color: #ffa500; font-size: 0.85em;">💡 {alert['recommended_action']}</span>
+                        </div>""", unsafe_allow_html=True)
+                else:
+                    st.markdown("""
+                    <div class="metric-card">
+                        <h3>Status</h3>
+                        <div class="value" style="color: #4caf50; font-size: 1.3em;">✅ All Normal</div>
+                        <div class="sub">No velocity spikes detected</div>
+                    </div>""", unsafe_allow_html=True)
+
+# =====================================================================
+# TAB 2: TRANSFER INTELLIGENCE
+# =====================================================================
+@st.cache_resource
+def get_gnn_resources():
+    """Load NetworkSimulator + StoreGraphNetwork if available."""
+    network_path = os.path.join(os.getcwd(), "stores_network.json")
+    if not os.path.exists(network_path): return None, None
+    try:
+        import torch
+        from network_simulation import NetworkSimulator
+        from models.store_gnn import StoreGraphNetwork
+        sim = NetworkSimulator(network_path)
+        stub = sim.get_feature_matrix()
+        model = StoreGraphNetwork(in_features=stub.shape[1], edge_dim=1)
+        pt_path = os.path.join(os.getcwd(), "st_gat_v2.pt")
+        if os.path.exists(pt_path):
+            sd = torch.load(pt_path, map_location="cpu")
+            # Logic to handle minor state_dict mismatches if necessary
+            model.load_state_dict(sd, strict=False)
+        model.eval()
+        return model, sim
+    except Exception as e:
+        return None, str(e)
+
+if "transfer_intelligence" in tab_map:
+ with tab_map["transfer_intelligence"]:
+    st.markdown(f"### 🔄 Transfer Intelligence — Intra-Day Stockout Prevention")
+
+    # ── SECTION 0: Live Simulation Transfer Opportunities ────────────
+    if _sim_state:
+        st.markdown("#### 🔴 LIVE SIMULATION: Intra-Day Transfers")
+        st.caption("Real-time transfer opportunities detected by the simulator as items stock out across the network.")
+        
+        sim_transfers = [t for t in _sim_state['transfers'] if t.to_org == selected_org]
+        
+        if sim_transfers:
+            cols = st.columns(2)
+            for i, t in enumerate(sim_transfers[:6]):
+                with cols[i % 2]:
+                    urgency_color = "#f44336" if t.urgency == "CRITICAL" else "#ff9800"
+                    st.markdown(f"""
+                    <div class="transfer-card" style="border-left: 5px solid {urgency_color};">
+                        <div style="font-weight:bold; font-size:1.1em;">{t.product_name}</div>
+                        <div style="font-size:0.9em; color:#888;">{t.department}</div>
+                        <hr style="margin:8px 0; border:0; border-top:1px solid #333;"/>
+                        <div style="display:flex; justify-content:space-between;">
+                            <span>From: <strong>{t.from_name}</strong></span>
+                            <span>Qty: <strong>{t.transfer_qty}</strong></span>
+                        </div>
+                        <div style="font-size:0.85em; margin-top:4px;">
+                            Saves: <span style="color:#4caf50;">KES {t.value_kes:,.0f}</span> in lost sales
+                        </div>
+                    </div>
+                    """, unsafe_allow_html=True)
+            if st.button("🚀 Execute Live Sim Transfers", key="exec_sim_xfer"):
+                st.success(f"Dispatched {len(sim_transfers)} inter-branch transfers!")
+        else:
+            st.success("✅ No urgent inter-branch transfers required for the current hour.")
+        st.markdown("---")
+
+    # ── SECTION A: Neural-Network Transfer Hub (ST-GAT) ──────────────
+    gnn_model, gnn_sim = get_gnn_resources()
+    if gnn_model is not None and gnn_sim is not None:
+        import torch
+        st.markdown("#### 🧠 ST-GAT Network Intelligence")
+        # Run GNN inference
+        x_t = gnn_sim.get_feature_matrix()
+        T = 30
+        x_seq = x_t.unsqueeze(0).unsqueeze(0).expand(1, T, -1, -1)
+        traffic_mat = gnn_sim.get_traffic_matrix()
+        if sim_hour >= 17: traffic_mat = traffic_mat + 0.3
+        with torch.no_grad():
+            gnn_out = gnn_model(x_seq, gnn_sim.adj, traffic_mat)
+        
+        gnn_stores = gnn_sim.stores_data
+        gnn_ids = [s['store_id'] for s in gnn_stores]
+        risk_scores = gnn_out['risk'].squeeze().tolist()
+        if not isinstance(risk_scores, list): risk_scores = [risk_scores]
+        
+        risk_cols = st.columns(min(len(gnn_ids), 5))
+        for ci, (sid, rscore) in enumerate(zip(gnn_ids, risk_scores)):
+            color = "#f44336" if rscore > 0.7 else ("#ff9800" if rscore > 0.4 else "#4caf50")
+            icon = "🔴" if rscore > 0.7 else ("🟠" if rscore > 0.4 else "🟢")
+            with risk_cols[ci % len(risk_cols)]:
+                st.markdown(f"""
+                <div class="metric-card" style="text-align:center;">
+                    <h3>{icon} {sid}</h3>
+                    <div class="value" style="color:{color};font-size:1.8em;">{rscore:.2f}</div>
+                    <div class="sub">Risk Score</div>
+                </div>""", unsafe_allow_html=True)
+        
+        transfer_mat = gnn_out['transfer'][0]
+        traffic_sq = traffic_mat.squeeze(-1)
+        gnn_recs = []
+        for si, src in enumerate(gnn_stores):
+            for dj, dst in enumerate(gnn_stores):
+                if si == dj: continue
+                score = transfer_mat[si, dj].item()
+                fric = traffic_sq[si, dj].item()
+                if score > 0.45:
+                    profit_pulse = score * 1000
+                    friction_pen = fric * 400
+                    net_gain = profit_pulse - friction_pen
+                    gnn_recs.append({
+                        "From": src['store_id'], "To": dst['store_id'],
+                        "Score": f"{score:.2f}", "Net Gain": f"KES {net_gain:,.0f}",
+                        "_net_gain": net_gain
+                    })
+        if gnn_recs:
+            gnn_recs.sort(key=lambda x: -x["_net_gain"])
+            st.dataframe(pd.DataFrame(gnn_recs).drop(columns=["_net_gain"]).head(8), use_container_width=True, hide_index=True)
+        st.markdown("---")
+
+    # ── SECTION B: Item-Level Intra-Day Heuristic ────────
+    st.markdown("#### ⏱️ Item-Level Intra-Day Stockout Risk (ADS Heuristic)")
+    all_stocks = load_all_stocks()
+    hours_remaining = max(1, 22 - sim_hour)
+    comparison_data = []
+    for org_cd, stocks in all_stocks.items():
+        org_intel = load_sales_intel(org_cd)
+        for item in stocks:
+            name = item.get("product_name", "Unknown")
+            qty = float(item.get("current_stocks", 0))
+            ads = org_intel.get(name, {}).get("avg_daily_sales", 0)
+            if ads > 0:
+                if qty <= 0:
+                    # Append 0.0 so we can sort properly
+                    comparison_data.append({
+                        "Product": name, "Store": org_names.get(org_cd, org_cd),
+                        "Stock": 0, "ADS": round(ads, 1), "Hours to SO": 0.0
+                    })
+                else:
+                    hours_to_so = qty / (ads / 16)
+                    if hours_to_so <= hours_remaining:
+                        comparison_data.append({
+                            "Product": name, "Store": org_names.get(org_cd, org_cd),
+                            "Stock": qty, "ADS": round(ads, 1), "Hours to SO": round(hours_to_so, 1)
+                        })
+    if comparison_data:
+        df_comp = pd.DataFrame(comparison_data).sort_values("Hours to SO")
+        df_comp["Hours to SO"] = df_comp["Hours to SO"].apply(
+            lambda x: "ALREADY OUT" if isinstance(x, (int, float)) and x <= 0 else x
+        )
+        st.dataframe(df_comp, use_container_width=True, hide_index=True)
+    else:
+        st.success("✅ No heuristic stockouts projected for the rest of the day.")
+
+# =====================================================================
+# TAB 3: END-OF-DAY STOCK REVIEW
+# =====================================================================
+if "stock_review" in tab_map:
+ with tab_map["stock_review"]:
+    st.markdown(f"### 📦 Stock Review — {store_name}")
+    products = load_products(selected_org)
+    if products:
+        df_p = pd.DataFrame(products)
+        
+        # Defensive: Ensure required columns exist for calculation
+        for col in ["avg_daily_sales", "current_stocks"]:
+            if col not in df_p.columns:
+                df_p[col] = 0.0
+                
+        df_p["days_cover"] = np.where(df_p["avg_daily_sales"] > 0, (df_p["current_stocks"] / df_p["avg_daily_sales"]).round(1), 999)
+        df_p["health"] = df_p["days_cover"].apply(lambda d: "🔴 Stockout" if d < 0.5 else "🟡 Critical" if d < 2 else "🟢 Healthy" if d < 30 else "⚪ Overstock")
+        
+        # ── SECTION: Stock Metrics ──
+        c1, c2, c3, c4 = st.columns(4)
+        c1.metric("🟢 Healthy", len(df_p[df_p["health"] == "🟢 Healthy"]))
+        c2.metric("🟡 Critical", len(df_p[df_p["health"] == "🟡 Critical"]))
+        c3.metric("🔴 Stockout", len(df_p[df_p["health"] == "🔴 Stockout"]))
+        c4.metric("⚪ Overstock", len(df_p[df_p["health"] == "⚪ Overstock"]))
+        
+        st.markdown("#### 📋 Stock Detail")
+        disp_cols = ["product_name", "department", "current_stocks", "avg_daily_sales", "days_cover", "health"]
+        df_disp = df_p[disp_cols].sort_values("days_cover").copy()
+        df_disp.columns = ["Product", "Department", "Stock Qty", "ADS", "Days Cover", "Health"]
+        st.dataframe(df_disp, use_container_width=True, hide_index=True)
+        
+        st.markdown("#### 📈 Stock Volume vs Demand")
+        fig_stock = px.scatter(df_p[df_p["days_cover"] < 100], x="avg_daily_sales", y="current_stocks", color="health",
+                               hover_name="product_name", color_discrete_map={"🟢 Healthy": "#4caf50", "🟡 Critical": "#ffc107", "🔴 Stockout": "#f44336", "⚪ Overstock": "#888"})
+        fig_stock.update_layout(plot_bgcolor="#0d1117", paper_bgcolor="#0d1117", font_color="#c9d1d9")
+        st.plotly_chart(fig_stock, use_container_width=True)
+
+# =====================================================================
+# TAB 4: SMART ORDERING
+# =====================================================================
+if "smart_ordering" in tab_map:
+ with tab_map["smart_ordering"]:
+    st.markdown(f"### 🛒 Smart Ordering — {store_name}")
+        engine = get_order_engine()
+        calendar = get_calendar()
+        products = load_products(selected_org)
+        if products:
+            st.info("OASIS Ordering Engine logic is currently active for replenishment.")
+            from oasis.logic.simulation_bridge import SimulationOrderUtil
+            
+            sim_util = SimulationOrderUtil(DATA_DIR)
+            enriched = sim_util.prepare_sku_data(products)
+            raw_recs = sim_util.calculate_order_quantity(enriched)
+            final_recs = sim_util.finalize_orders(raw_recs)
+            
+            # ── Consolidated Network Transfer Overlay (NEW) ──
+            st.markdown("---")
+            enable_network = st.checkbox(
+                "🔄 Apply Network Transfer Optimization",
+                help="Identifies items that can be fulfilled via inter-branch transfer "
+                     "instead of supplier order. Per-store engine logic is NOT modified."
+            )
+    
+            network_plan = None
+            if enable_network:
+                with st.spinner("🌐 Running network-level optimization across all stores..."):
+                    try:
+                        # Run all stores' engines to get their raw orders
+                        all_store_orders = {}
+                        all_stock_data = {}
+                        
+                        # Caching Optimization: Load all products for the network at once
+                        network_products = load_network_stock([o["ORG_CD"] for o in orgs])
+                        
+                        for o in orgs:
+                            o_cd = o["ORG_CD"]
+                            o_products = network_products.get(o_cd, [])
+                            if not o_products:
+                                continue
+                            
+                            # Memory Optimization: Trim product data for the network map
+                            trimmed_products = []
+                            for p in o_products:
+                                trimmed_products.append({
+                                    'itm_cd': p.get('item_code', p.get('itm_cd')),
+                                    'product_name': p.get('product_name'),
+                                    'current_stocks': p.get('current_stocks'),
+                                    'avg_daily_sales': p.get('avg_daily_sales'),
+                                    'selling_price': p.get('selling_price'),
+                                    'department': p.get('department'),
+                                    'is_fresh': p.get('is_fresh'),
+                                    'supplier_name': p.get('supplier_name'),
+                                    'estimated_delivery_days': p.get('estimated_delivery_days')
+                                })
+                            all_stock_data[o_cd] = trimmed_products
+                            
+                            # Run per-store engine (UNTOUCHED)
+                            o_enriched = sim_util.prepare_sku_data(list(o_products))
+                            o_raw = sim_util.calculate_order_quantity(o_enriched)
+                            o_final = sim_util.finalize_orders(o_raw)
+                            all_store_orders[o_cd] = o_final
+                            
+                            # Explicitly clear large objects if possible
+                            del o_enriched
+                            del o_raw
+                            gc.collect()
+    
+                        # Build consolidated service
+                        cts = ConsolidatedTransferService(
+                            org_names=org_names,
+                            stock_data=all_stock_data,
+                            registry_path=REGISTRY_PATH,
+                            distance_map=get_distance_map()
+                        )
+                        network_plan = cts.optimize_network(
+                            all_store_orders,
+                            risk_scores=get_all_store_risks(sim_hour)
+                        )
+    
+                        # Apply adjusted orders for the selected store
+                        if selected_org in network_plan.adjusted_orders:
+                            final_recs = network_plan.adjusted_orders[selected_org]
+                    except Exception as e:
+                        st.warning(f"⚠️ Network optimization failed: {e}")
+                        network_plan = None
+    
+            # ── Network Optimization Results ──
+            if network_plan:
+                # Summary metrics
+                mc1, mc2, mc3, mc4 = st.columns(4)
+                with mc1:
+                    st.markdown(f"""
+                    <div class="metric-card">
+                        <h3>Transfers Found</h3>
+                        <div class="value" style="color: #2196f3;">{network_plan.total_items_transferred}</div>
+                        <div class="sub">across network</div>
+                    </div>""", unsafe_allow_html=True)
+                with mc2:
+                    st.markdown(f"""
+                    <div class="metric-card">
+                        <h3>Units via Transfer</h3>
+                        <div class="value" style="color: #4caf50;">{network_plan.total_units_transferred:,.0f}</div>
+                        <div class="sub">saved from supplier PO</div>
+                    </div>""", unsafe_allow_html=True)
+                with mc3:
+                    st.markdown(f"""
+                    <div class="metric-card">
+                        <h3>Orders Reduced</h3>
+                        <div class="value" style="color: #ff9800;">{network_plan.total_orders_reduced}</div>
+                        <div class="sub">items fulfilled by network</div>
+                    </div>""", unsafe_allow_html=True)
+                with mc4:
+                    st.markdown(f"""
+                    <div class="metric-card">
+                        <h3>Est. Savings</h3>
+                        <div class="value" style="color: #4caf50;">KES {network_plan.estimated_savings_kes:,.0f}</div>
+                        <div class="sub">vs supplier ordering</div>
+                    </div>""", unsafe_allow_html=True)
+    
+                # Transfer recommendations for this store
+                store_transfers = [t for t in network_plan.transfers if t.to_org == selected_org]
+                if store_transfers:
+                    st.markdown("#### 🔄 Incoming Transfers")
+                    tf_data = [{
+                        "Product": t.product_name,
+                        "From": org_names.get(t.from_org, t.from_org),
+                        "Qty": t.qty,
+                        "Urgency": t.urgency,
+                        "ETA": f"{t.eta_hours:.0f}h",
+                    } for t in store_transfers]
+                    st.dataframe(pd.DataFrame(tf_data), use_container_width=True, hide_index=True)
+    
+                # Donor compensation (items this store needs to order extra)
+                donor_adds = network_plan.donor_additions.get(selected_org, [])
+                if donor_adds:
+                    st.markdown("#### 📦 Donor Replenishment (Extra Orders)")
+                    st.caption("These items need to be added to your PO because stock was donated to another branch.")
+                    da_data = [{
+                        "Product": d['product_name'],
+                        "Extra Qty": d['recommended_quantity'],
+                        "Reason": d['reasoning'],
+                    } for d in donor_adds]
+                    st.dataframe(pd.DataFrame(da_data), use_container_width=True, hide_index=True)
+    
+                st.markdown("---")
+    
+            # ── Standard Order Display (per-store engine output, possibly adjusted) ──
+            # UI Toggle
+            show_all = st.checkbox("Show Blocked/Zero Quantity Items (Display AI Reasoning)")
+            
+            if show_all:
+                recs_to_show = final_recs
+            else:
+                recs_to_show = [r for r in final_recs if r.get('recommended_quantity', 0) > 0]
+            
+            if recs_to_show:
+                display_cols = ["product_name", "recommended_quantity", "reasoning"]
+                st.dataframe(pd.DataFrame(recs_to_show)[display_cols].head(50), use_container_width=True, hide_index=True)
+            else:
+                st.info("No orders recommended at this time based on current stock and intelligence.")
+                
+            # Keep export to only positive orders
+            pos_recs = [r for r in final_recs if r.get('recommended_quantity', 0) > 0]
+            if pos_recs:
+                df_csv = pd.DataFrame(pos_recs)
+                csv_data = df_csv.to_csv(index=False)
+                if st.download_button("📥 Export Purchase Orders", data=csv_data, file_name="po.csv", type="primary"):
+                    log_action(DB_PATH, current_user['username'], ACTION_PO_EXPORTED,
+                               ENTITY_PO, f"batch_{len(pos_recs)}", selected_org,
+                               {"items": len(pos_recs), "total_qty": sum(r.get('recommended_quantity', 0) for r in pos_recs)})
+    
+# =====================================================================
+# TAB 5: 🚀 OASIS PROCESSOR (BATCH FILE PROCESSING)
+# =====================================================================
+if "oasis_processor" in tab_map:
+ with tab_map["oasis_processor"]:
+    st.markdown("### 🚀 Batch Inventory Processor")
+    st.info("Upload Picking Lists or GRN files (Excel/CSV) to generate intelligence-driven order recommendations in bulk.")
+    
+    uploaded_files = st.file_uploader(
+        "Upload Inventory Files", 
+        type=["xlsx", "xls", "csv"], 
+        accept_multiple_files=True,
+        help="You can upload multiple files at once. Each will be processed individually."
+    )
+    
+    if uploaded_files:
+        st.write(f"📁 **{len(uploaded_files)} files selected.**")
+        
+        if st.button("▶️ Process All Orders", type="primary"):
+            progress_bar = st.progress(0)
+            status_text = st.empty()
+            
+            all_recommendations = []
+            results_container = st.container()
+            
+            # Use RuleBasedLLM for consistency and reliability
+            llm = RuleBasedLLM()
+            engine = OrderEngine(DATA_DIR)
+            engine.load_local_databases()
+            
+            for i, uploaded_file in enumerate(uploaded_files):
+                file_name = uploaded_file.name
+                status_text.text(f"Processing {file_name}...")
+                
+                try:
+                    # Save uploaded file to temp path for processing
+                    with tempfile.NamedTemporaryFile(delete=False, suffix=os.path.splitext(file_name)[1]) as tmp:
+                        tmp.write(uploaded_file.getbuffer())
+                        tmp_path = tmp.name
+                    
+                    # 1. Parse
+                    status_text.text(f"[{file_name}] Parsing...")
+                    products = engine.parse_inventory_file(tmp_path)
+                    
+                    # 2. Enrich
+                    status_text.text(f"[{file_name}] Enriching with Intelligence...")
+                    products = engine.enrich_product_data(products)
+                    
+                    # 3. AI Analysis (Rule-Based)
+                    status_text.text(f"[{file_name}] Running Decision Engine...")
+                    recommendations = asyncio.run(llm.analyze(products))
+                    all_recommendations.extend(recommendations)
+                    
+                    # 4. Generate Output Report
+                    output_name = f"processed_{file_name}"
+                    output_path = os.path.join(tempfile.gettempdir(), output_name)
+                    engine.generate_excel_report(tmp_path, recommendations, output_path)
+                    
+                    # 5. Provide Download
+                    with open(output_path, "rb") as f:
+                        processed_data = f.read()
+                        
+                    with results_container:
+                        col1, col2 = st.columns([3, 1])
+                        col1.write(f"✅ **{file_name}** ({len(products)} products)")
+                        col2.download_button(
+                            label=f"📥 Download Report",
+                            data=processed_data,
+                            file_name=output_name,
+                            key=f"dl_{file_name}_{i}"
+                        )
+                    
+                    # Audit log
+                    log_action(DB_PATH, current_user['username'], ACTION_FILE_PROCESSED,
+                               ENTITY_FILE, file_name, selected_org,
+                               {"products": len(products), "recommendations": len(recommendations)})
+                    
+                    # Cleanup
+                    os.unlink(tmp_path)
+                    
+                except Exception as ex:
+                    st.error(f"Error processing {file_name}: {ex}")
+                
+                # Update progress
+                progress = (i + 1) / len(uploaded_files)
+                progress_bar.progress(progress)
+            
+            status_text.success(f"Processing Complete! {len(uploaded_files)} files processed.")
+            
+            # Show summary table of top recommendations across all files
+            if all_recommendations:
+                st.markdown("---")
+                st.markdown("#### 🔦 Top Recommendations (Overview)")
+                df_summary = pd.DataFrame(all_recommendations)
+                # Ensure columns exist
+                for c in ["product_name", "recommended_quantity", "reasoning"]:
+                    if c not in df_summary.columns: df_summary[c] = ""
+                
+                display_cols = ["product_name", "recommended_quantity", "reasoning"]
+                st.dataframe(
+                    df_summary[df_summary["recommended_quantity"] > 0][display_cols].sort_values("recommended_quantity", ascending=False).head(50),
+                    use_container_width=True,
+                    hide_index=True
+                )
+    else:
+        # Guidance for user
+        st.write("---")
+        st.markdown("""
+        #### 💡 How it works
+        1. **Upload** your current Picking List or GRN files.
+        2. **Process**: The system enriches your data with ADS, trends, and risk scores.
+        3. **Download**: Get an enhanced version of your file with the 'Recommended Qty' and AI logic already populated.
+        """)
+
+
+# =====================================================================
+# TAB 6: ⚙️ SETTINGS (OPS_ADMIN ONLY)
+# =====================================================================
+if "settings" in tab_map:
+ with tab_map["settings"]:
+    st.markdown("### ⚙️ System Settings")
+    st.caption(f"Logged in as **{current_user['display_name']}** ({role_labels.get(user_role, user_role)})")
+    
+    # ── Config Editor ──
+    configs = load_system_config_full(DB_PATH)
+    
+    if configs:
+        # Group by CONFIG_GROUP
+        groups = {}
+        for cfg in configs:
+            g = cfg.get('CONFIG_GROUP', 'general')
+            if g not in groups:
+                groups[g] = []
+            groups[g].append(cfg)
+        
+        group_icons = {'alerting': '🚨', 'ordering': '🛒', 'transfers': '🔄', 'general': '⚙️'}
+        
+        with st.form("config_form"):
+            updated_values = {}
+            
+            for group_name, items in groups.items():
+                icon = group_icons.get(group_name, '📌')
+                st.markdown(f"#### {icon} {group_name.title()}")
+                
+                cols = st.columns(2)
+                for idx, cfg in enumerate(items):
+                    with cols[idx % 2]:
+                        key = cfg['CONFIG_KEY']
+                        desc = cfg.get('DESCRIPTION', key)
+                        current_val = cfg['CONFIG_VALUE']
+                        new_val = st.text_input(
+                            desc,
+                            value=current_val,
+                            key=f"cfg_{key}",
+                            help=f"Key: {key} · Last updated by {cfg.get('UPDATED_BY', 'system')}"
+                        )
+                        updated_values[key] = new_val
+                
+                st.markdown("---")
+            
+            save_btn = st.form_submit_button("💾 Save All Settings", type="primary")
+            
+            if save_btn:
+                changes_made = 0
+                for key, new_val in updated_values.items():
+                    old_val = next((c['CONFIG_VALUE'] for c in configs if c['CONFIG_KEY'] == key), None)
+                    if old_val != new_val:
+                        save_system_config(DB_PATH, key, new_val, current_user['username'])
+                        changes_made += 1
+                        log_action(DB_PATH, current_user['username'], ACTION_CONFIG_CHANGED,
+                                   ENTITY_CONFIG, key, None,
+                                   {"old_value": old_val, "new_value": new_val})
+                
+                if changes_made > 0:
+                    st.success(f"✅ Saved {changes_made} configuration change(s).")
+                else:
+                    st.info("No changes detected.")
+    else:
+        st.warning("No configuration entries found. The database may need to be rebuilt.")
+    
+    # ── User Management (Read-Only) ──
+    st.markdown("---")
+    st.markdown("#### 👥 User Accounts")
+    users = get_all_users(DB_PATH)
+    if users:
+        df_users = pd.DataFrame(users)
+        role_emoji = {'ops_admin': '🔧', 'regional_manager': '🌐', 'branch_manager': '🏪'}
+        if 'ROLE' in df_users.columns:
+            df_users['ROLE'] = df_users['ROLE'].apply(lambda r: f"{role_emoji.get(r, '')} {r}")
+        st.dataframe(df_users, use_container_width=True, hide_index=True)
+    else:
+        st.info("No users found.")
+    
+    # ── Full Audit Log ──
+    st.markdown("---")
+    st.markdown("#### 📋 Full Audit Trail")
+    
+    audit_col1, audit_col2 = st.columns(2)
+    with audit_col1:
+        audit_limit = st.number_input("Rows to show", min_value=10, max_value=500, value=50, step=10)
+    with audit_col2:
+        action_filter = st.selectbox("Filter by action", ["All", ACTION_PO_GENERATED, ACTION_PO_EXPORTED,
+                                     ACTION_TRANSFER_EXECUTED, ACTION_FILE_PROCESSED,
+                                     ACTION_CONFIG_CHANGED, ACTION_LOGIN, ACTION_LOGOUT])
+    
+    action_arg = None if action_filter == "All" else action_filter
+    audit_df_full = get_recent_logs(DB_PATH, limit=int(audit_limit), action=action_arg)
+    
+    if not audit_df_full.empty:
+        st.dataframe(audit_df_full, use_container_width=True, hide_index=True)
+    else:
+        st.info("No audit entries yet.")
+
+
+# ─────────────────────────────────────────────────────────────────────
+# Footer
+# ─────────────────────────────────────────────────────────────────────
+st.sidebar.markdown("---")
+st.sidebar.markdown("""
+<div style="text-align: center; color: #666; font-size: 0.75em; padding: 10px;">
+    OASIS Retail Manager v4.0<br/>
+    Operations · Allocation · Sales Intelligence · Simulation<br/>
+    © 2026
+</div>
+""", unsafe_allow_html=True)

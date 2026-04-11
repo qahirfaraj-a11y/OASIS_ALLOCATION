@@ -1,0 +1,96 @@
+# Version control
+.git
+.gitignore
+
+# Python
+__pycache__
+*.pyc
+*.pyo
+.pytest_cache
+.mypy_cache
+
+# Build artifacts
+build/
+dist/
+*.spec
+*.zip
+
+# Large data files (not needed for deployment)
+*.diff
+*.txt
+!requirements.txt
+recent_changes*
+
+# IDE and tools
+.vscode
+.idea
+.devcontainer
+.gemini
+
+# Generated reports and temp files
+simulation_results_*.xlsx
+allocation_gap_analysis_*.xlsx
+orders_*.csv
+simulation_metrics_*.csv
+
+# Separate projects
+vj_canvas/
+payslip_generator/
+hayat_analysis/
+
+# Documents (not needed for deployment)
+*.docx
+*.pdf
+*.md
+!USER_GUIDE.md
+!DEPLOYMENT_GUIDE.md
+
+# Large binary model files (optional, copy manually if GNN is needed)
+# Uncomment these to exclude model files and reduce image size:
+# *.pt
+# stores_network.json
+
+# Test files
+tests/
+test_*.py
+verify_*.py
+debug_*.py
+analyze_*.py
+inspect_*.py
+check_*.py
+
+# Misc utility scripts
+run_*.bat
+*.bat
+convert_*.py
+generate_*.py
+extract_*.py
+find_*.py
+fix_*.py
+patch_*.py
+build_*.py
+export_*.py
+calculate_*.py
+compare_*.py
+diagnose_*.py
+dump_*.py
+explore_*.py
+root_cause_*.py
+reverse_*.py
+simulate_*.py
+backtest_*.py
+validate_*.py
+recover_*.py
+match_*.py
+recalculate_*.py
+reclassify_*.py
+inject_*.py
+ingest_*.py
+indent_*.py
+shrink_*.py
+
+# Scorecard versions (keep only latest)
+# Full_Product_Allocation_Scorecard_v[1-6].csv
+
+# Large network data
+# stores_network.json

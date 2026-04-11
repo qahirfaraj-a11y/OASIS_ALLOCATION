@@ -17,7 +17,7 @@ import random
 import sqlite3
 import logging
 from datetime import datetime, timedelta
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Any
 
 logger = logging.getLogger("MockPosErp")
 
@@ -258,7 +258,64 @@ CREATE TABLE IF NOT EXISTS INTEGRATION_PURCHASE_ORDERS (
     REASONING       TEXT,
     STATUS          TEXT DEFAULT 'PENDING',
     CREATED_DT      TEXT,
-    APPROVED_DT     TEXT
+    APPROVED_DT     TEXT,
+    APPROVED_BY     TEXT,
+    BATCH_ID        TEXT
+);
+
+-- OASIS User Management
+CREATE TABLE IF NOT EXISTS OASIS_USERS (
+    USER_ID       INTEGER PRIMARY KEY AUTOINCREMENT,
+    USERNAME      TEXT UNIQUE NOT NULL,
+    PASSWORD_HASH TEXT NOT NULL,
+    DISPLAY_NAME  TEXT NOT NULL,
+    ROLE          TEXT NOT NULL CHECK(ROLE IN ('branch_manager','regional_manager','ops_admin')),
+    ASSIGNED_ORG  TEXT,
+    EMAIL         TEXT,
+    ACTIVE_FLAG   TEXT DEFAULT 'Y',
+    CREATED_DT    TEXT,
+    LAST_LOGIN_DT TEXT,
+    FOREIGN KEY (ASSIGNED_ORG) REFERENCES ORGANIZATION_MST(ORG_CD)
+);
+
+-- Audit Trail
+CREATE TABLE IF NOT EXISTS OASIS_AUDIT_LOG (
+    LOG_ID        INTEGER PRIMARY KEY AUTOINCREMENT,
+    USERNAME      TEXT NOT NULL,
+    ACTION        TEXT NOT NULL,
+    ENTITY_TYPE   TEXT,
+    ENTITY_ID     TEXT,
+    ORG_CD        TEXT,
+    DETAILS       TEXT,
+    CREATED_DT    TEXT NOT NULL
+);
+
+-- System Configuration (editable thresholds)
+CREATE TABLE IF NOT EXISTS OASIS_SYSTEM_CONFIG (
+    CONFIG_KEY    TEXT PRIMARY KEY,
+    CONFIG_VALUE  TEXT NOT NULL,
+    CONFIG_GROUP  TEXT DEFAULT 'general',
+    DESCRIPTION   TEXT,
+    UPDATED_BY    TEXT,
+    UPDATED_DT    TEXT
+);
+
+-- Integration Transfer Orders
+CREATE TABLE IF NOT EXISTS INTEGRATION_TRANSFER_ORDERS (
+    TRANSFER_ID   INTEGER PRIMARY KEY AUTOINCREMENT,
+    FROM_ORG_CD   TEXT NOT NULL,
+    TO_ORG_CD     TEXT NOT NULL,
+    ITM_CD        TEXT NOT NULL,
+    PRODUCT_NAME  TEXT,
+    QUANTITY      REAL DEFAULT 0,
+    VALUE_KES     REAL DEFAULT 0,
+    STATUS        TEXT DEFAULT 'REQUESTED',
+    URGENCY       TEXT DEFAULT 'NORMAL',
+    REQUESTED_BY  TEXT,
+    CREATED_DT    TEXT,
+    COMPLETED_DT  TEXT,
+    FOREIGN KEY (FROM_ORG_CD) REFERENCES ORGANIZATION_MST(ORG_CD),
+    FOREIGN KEY (TO_ORG_CD) REFERENCES ORGANIZATION_MST(ORG_CD)
 );
 """
 
@@ -271,17 +328,21 @@ def _load_json(filename: str) -> dict:
     """Load JSON file from the data directory, trying multiple name patterns."""
     # Try exact filename first
     path = os.path.join(DATA_DIR, filename)
-    if os.path.exists(path):
-        with open(path, 'r', encoding='utf-8') as f:
-            return json.load(f)
+    try:
+        if os.path.exists(path):
+            with open(path, 'r', encoding='utf-8') as f:
+                return json.load(f)
+        
+        # Try finding by partial match
+        if os.path.exists(DATA_DIR):
+            for f in os.listdir(DATA_DIR):
+                if filename.replace('.json', '') in f and f.endswith('.json'):
+                    with open(os.path.join(DATA_DIR, f), 'r', encoding='utf-8') as fh:
+                        return json.load(fh)
+    except (json.JSONDecodeError, OSError) as e:
+        logger.error(f"Error loading JSON file {filename}: {e}")
     
-    # Try finding by partial match
-    for f in os.listdir(DATA_DIR):
-        if filename.replace('.json', '') in f and f.endswith('.json'):
-            with open(os.path.join(DATA_DIR, f), 'r', encoding='utf-8') as fh:
-                return json.load(fh)
-    
-    logger.warning(f"Could not find {filename} in {DATA_DIR}")
+    logger.warning(f"Could not find or load {filename} in {DATA_DIR}")
     return {}
 
 
@@ -316,8 +377,8 @@ class MockPosErpBuilder:
         self.product_catalog: Dict[str, dict] = {}   # ITM_CD -> product info
         self.supplier_catalog: Dict[str, dict] = {}  # name.upper() -> {cd, ...}
         self.org_codes: List[str]  = []
-        self.store_meta: List[dict] = []              # parallel to org_codes
-        self._network: dict = {}
+        self.store_meta: List[Dict[str, Any]] = []    # parallel to org_codes
+        self._network: Dict[str, Any] = {}
 
     def build(self, reset: bool = False) -> str:
         """Build the complete mock database. Returns the database path."""
@@ -336,8 +397,10 @@ class MockPosErpBuilder:
             logger.info(f"Removed existing database: {self.db_path}")
 
         self.conn = sqlite3.connect(self.db_path)
-        self.conn.execute("PRAGMA journal_mode=WAL")
-        self.conn.execute("PRAGMA foreign_keys=ON")
+        conn = self.conn
+        if conn is not None:
+            conn.execute("PRAGMA journal_mode=WAL")
+            conn.execute("PRAGMA foreign_keys=ON")
 
         try:
             self._create_schema()
@@ -352,18 +415,25 @@ class MockPosErpBuilder:
             self._seed_stock()
             self._seed_sales_transactions()
             self._seed_bi_report()
-            self.conn.commit()
-            mode_tag = f"FAST ({FAST_MODE_SKU_LIMIT} SKUs)" if self.fast_mode else "FULL"
-            logger.info(f"Mock POS/ERP database built [{mode_tag}]: {self.db_path}")
+            self._seed_oasis_users()
+            self._seed_system_config()
+            if self.conn is not None:
+                self.conn.commit()
+                mode_tag = f"FAST ({FAST_MODE_SKU_LIMIT} SKUs)" if self.fast_mode else "FULL"
+                logger.info(f"Mock POS/ERP database built [{mode_tag}]: {self.db_path}")
         finally:
-            self.conn.close()
+            if self.conn:
+                self.conn.close()
+                self.conn = None
 
         return self.db_path
 
     def _create_schema(self):
         """Create all tables."""
-        self.conn.executescript(SCHEMA_SQL)
-        logger.info("Schema created (15 tables)")
+        conn = self.conn
+        if conn is not None:
+            conn.executescript(SCHEMA_SQL)
+            logger.info("Schema created (15 tables)")
 
     # ------------------------------------------------------------------
     # Seed: Organizations (3 store tiers)
@@ -407,54 +477,70 @@ class MockPosErpBuilder:
                  'Karen Road, Hardy','Nairobi','Nairobi','KE','00200',
                  '+254-20-3456789','karen@chandarana.co.ke','KES',None,1,None),
             ]
+
+        conn = self.conn
+        if self.org_codes and conn:
+            # Already seeded or customized
+            return
+
+        # Tiered store config (Rhapta=1.0, Lavington=1.4, Karen=0.6)
+        # Rhapta is usually the 'Master' store in our patterns
+        if not self.org_codes:
+            orgs = [
+                ('ORG001', 'OASIS Central Support', 'OCS', 'Kiambu Rd, Nairobi', 'Nairobi', 'Nairobi', 'Kenya', '00100', '+25420123456', 'ocs@oasis-retail.com', 'KES', 'KRA123456789', 0, None),
+                ('ORG002', 'Flagship Mall Store', 'FMS', 'Two Rivers, Nairobi', 'Nairobi', 'Nairobi', 'Kenya', '00100', '+25420234567', 'fms@oasis-retail.com', 'KES', 'KRA234567890', 1, 'ORG001'),
+                ('ORG003', 'Suburban Branch Karen', 'SBK', 'Karen, Nairobi', 'Nairobi', 'Nairobi', 'Kenya', '00100', '+25420345678', 'sbk@oasis-retail.com', 'KES', 'KRA345678901', 1, 'ORG001'),
+            ]
+
             self.store_meta = [
-                {'org_cd':'ORG001','store_id':'CFP-007','name':'Rhapta Road','dsf':1.0,'stock_profile':[]},
-                {'org_cd':'ORG002','store_id':'CFP-005','name':'Lavington Mall','dsf':1.4,'stock_profile':[]},
+                {'org_cd':'ORG002','store_id':'FMS-001','name':'Two Rivers','dsf':1.2,'stock_profile':[]},
                 {'org_cd':'ORG003','store_id':'CFP-002','name':'Karen Well','dsf':0.6,'stock_profile':[]},
             ]
 
-        self.conn.executemany(
-            """INSERT OR IGNORE INTO ORGANIZATION_MST
-               (ORG_CD, ORG_NAME, ORG_SHORT_NAME, ORG_ADDRESS, ORG_CITY,
-                ORG_STATE, ORG_COUNTRY, ORG_PIN, ORG_PHONE, ORG_EMAIL,
-                CURRENCY_CD, GST_NO, LEVEL_NUMBER, PARENT_ORG_CD)
-               VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
-            orgs
-        )
-        self.org_codes = [o[0] for o in orgs]
+        if not self.org_codes:
+            self.store_meta = [
+                {'org_cd':'ORG002','store_id':'FMS-001','name':'Two Rivers','dsf':1.2,'stock_profile':[]},
+                {'org_cd':'ORG003','store_id':'CFP-002','name':'Karen Well','dsf':0.6,'stock_profile':[]},
+            ]
+
+        if conn:
+            conn.executemany(
+                """INSERT OR IGNORE INTO ORGANIZATION_MST
+                   (ORG_CD, ORG_NAME, ORG_SHORT_NAME, ORG_ADDRESS, ORG_CITY,
+                    ORG_STATE, ORG_COUNTRY, ORG_PIN, ORG_PHONE, ORG_EMAIL,
+                    CURRENCY_CD, GST_NO, LEVEL_NUMBER, PARENT_ORG_CD)
+                   VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+                orgs
+            )
+        self.org_codes = [str(o[0]) for o in orgs]
         logger.info(f"  Organizations: {len(orgs)}")
+
 
     # ------------------------------------------------------------------
     # Seed: Suppliers (from supplier_patterns JSON)
     # ------------------------------------------------------------------
     def _seed_suppliers(self):
-        patterns = _load_json("supplier_patterns_2025")
-        if not patterns:
-            # Fallback minimal suppliers
-            patterns = {
-                "BROOKSIDE DAIRY LIMITED": {"order_frequency": "daily", "estimated_delivery_days": 1, "reliability_score": 0.905},
-                "COCA COLA BEVERAGES KENYA LTD": {"order_frequency": "every_2_3_days", "estimated_delivery_days": 2, "reliability_score": 0.905},
-                "UNILEVER KENYA LTD": {"order_frequency": "weekly", "estimated_delivery_days": 7, "reliability_score": 0.9},
-                "KENCHIC LIMITED": {"order_frequency": "daily", "estimated_delivery_days": 1, "reliability_score": 0.95},
-                "PROCTER AND GAMBLE": {"order_frequency": "bi_weekly", "estimated_delivery_days": 10, "reliability_score": 0.85},
-            }
-
+        conn = self.conn
+        names = ["Unilever Kenya", "Kapa Oil", "Bidco Africa", "Brookside Dairy", 
+                 "Farmer's Choice", "Coca-Cola NEAB", "P&G East Africa", "Nestle Kenya"]
         rows = []
-        for idx, (name, data) in enumerate(patterns.items()):
-            supp_cd = f"SUP{idx+1:04d}"
-            freq = data.get("order_frequency", "weekly")
-            lead = data.get("estimated_delivery_days", 7)
-            rel = data.get("reliability_score", 0.9)
+        for i, name in enumerate(names):
+            supp_cd = f"SUPP{i+1:03d}"
+            lead = random.randint(1, 7)
+            rel  = float(round(float(random.uniform(0.7, 0.99)), 2))
+            freq = random.choice(["W", "D", "B"])
+            data = {"lead": lead, "rel": rel, "freq": freq}
             rows.append((supp_cd, name, None, None, None, None, "NET30", freq, lead, rel))
             self.supplier_catalog[name.upper()] = {"cd": supp_cd, **data}
 
-        self.conn.executemany(
-            """INSERT OR IGNORE INTO SUPPLIER_MST 
-               (SUPPLIER_CD, SUPPLIER_NAME, CONTACT_PERSON, PHONE, EMAIL, 
-                ADDRESS, PAYMENT_TERMS, ORDER_FREQUENCY, LEAD_TIME_DAYS, RELIABILITY_SCORE)
-               VALUES (?,?,?,?,?,?,?,?,?,?)""",
-            rows
-        )
+        if conn:
+            conn.executemany(
+                """INSERT OR IGNORE INTO SUPPLIER_MST 
+                   (SUPPLIER_CD, SUPPLIER_NAME, CONTACT_PERSON, PHONE, EMAIL, 
+                    ADDRESS, PAYMENT_TERMS, ORDER_FREQUENCY, LEAD_TIME_DAYS, RELIABILITY_SCORE)
+                   VALUES (?,?,?,?,?,?,?,?,?,?)""",
+                rows
+            )
         logger.info(f"  Suppliers: {len(rows)}")
 
     # ------------------------------------------------------------------
@@ -478,26 +564,32 @@ class MockPosErpBuilder:
 
         if ref_profile:
             # Sort by ADS desc, take top `limit`
-            ref_profile_sorted = sorted(
-                ref_profile, key=lambda x: x.get('ads_scaled', 0), reverse=True
+            ref_profile_sorted: List[Dict[str, Any]] = sorted(
+                ref_profile, key=lambda x: float(x.get('ads_scaled', 0.0)), reverse=True
             )[:limit]
         else:
             # Fallback to intelligence JSON
-            intel = _load_json("sales_profitability_intelligence_2025")
+            intel: Dict[str, Any] = _load_json("sales_profitability_intelligence_2025")
+            intel_items = list(intel.items())
+            limited_intel_items = intel_items[:limit]
             ref_profile_sorted = [
                 {
                     'sku': name,
                     'barcode': _generate_barcode(i),
                     'department': data.get('category', 'GROCERY'),
                     'supplier': 'DEFAULT SUPPLIER',
-                    'qty': 20,
-                    'price': data.get('revenue', 1) / max(1, data.get('total_qty_sold', 1)),
-                    'cost': data.get('revenue', 1) / max(1, data.get('total_qty_sold', 1)) * 0.75,
-                    'ads_scaled': data.get('total_qty_sold', 0) / 300,
+                    'qty': 20.0,
+                    'price': float(data.get('revenue', 1.0)) / max(1.0, float(data.get('total_qty_sold', 1.0))),
+                    'cost': float(data.get('revenue', 1.0)) / max(1.0, float(data.get('total_qty_sold', 1.0))) * 0.75,
+                    'ads_scaled': float(data.get('total_qty_sold', 0.0)) / 300.0,
                     'velocity_tier': 'B (Core)',
                 }
-                for i, (name, data) in enumerate(intel.items())
-            ][:limit]
+                for i, (name, data) in enumerate(limited_intel_items)
+            ]
+        
+        if not ref_profile_sorted:
+            logger.error("No products found in stores_network.json or intelligence fallback. Aborting product seeding.")
+            return
 
         rows = []
         for idx, sku_entry in enumerate(ref_profile_sorted):
@@ -507,9 +599,9 @@ class MockPosErpBuilder:
             dept    = sku_entry.get('department', 'GROCERY').strip().upper()
             supp_name = sku_entry.get('supplier', 'UNKNOWN SUPPLIER').strip().upper()
             sell_price = float(sku_entry.get('price', 100.0))
-            cost_price = float(sku_entry.get('cost', sell_price * 0.75))
-            ads        = float(sku_entry.get('ads_scaled', 0.1))
-            velocity   = sku_entry.get('velocity_tier', 'C (Filler)')
+            cost_price = float(sku_entry.get('cost', 75.0))
+            ads        = float(sku_entry.get('ads_scaled', 1.0))
+            velocity   = str(sku_entry.get('velocity_tier', 'B (Core)'))
 
             # Department -> type flags
             is_fresh = any(k in dept for k in [
@@ -522,11 +614,16 @@ class MockPosErpBuilder:
             category = dept
 
             # Supplier lookup / assign
-            supp_cd = self.supplier_catalog.get(supp_name, {}).get('cd')
+            supp_cd = None
+            supp_info = self.supplier_catalog.get(supp_name)
+            if supp_info:
+                supp_cd = str(supp_info.get('cd', ''))
+            
             if not supp_cd and self.supplier_catalog:
-                supp_cd = list(self.supplier_catalog.values())[idx % len(self.supplier_catalog)]['cd']
+                first_supp = list(self.supplier_catalog.values())[idx % len(self.supplier_catalog)]
+                supp_cd = str(first_supp.get('cd', ''))
 
-            margin_pct = round((sell_price - cost_price) / sell_price * 100, 1) if sell_price else 20.0
+            margin_pct = float(round(float((sell_price - cost_price) / sell_price * 100.0), 1)) if sell_price > 0 else 20.0
 
             rows.append((
                 itm_cd, name, name[:30], barcode, None, uom,
@@ -550,17 +647,19 @@ class MockPosErpBuilder:
                 'supplier_name': supp_name,
                 'velocity_tier': velocity,
                 # Store the original ref qty for per-store scaling later
-                '_ref_qty':    max(0.0, float(sku_entry.get('qty', 0))),
+                '_ref_qty':    max(0.0, float(sku_entry.get('qty', 0.0))),
             }
 
-        self.conn.executemany(
-            """INSERT OR IGNORE INTO ITEM_MST
-               (ITM_CD, ITM_LONG_NAME, ITM_SHORT_NAME, SCAN_ITM_CD, HSN_CD,
-                UOM_CD, UOM_DESC, ITM_GROUP_CD, ITM_TYPE, TAX_PLAN_CD,
-                WEIGHT_FLAG, SERIAL_FLAG, PRODUCTION_FLAG, CATEGORY, DEPARTMENT, SUPPLIER_CD)
-               VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
-            rows
-        )
+        conn = self.conn
+        if conn is not None:
+            conn.executemany(
+                """INSERT OR IGNORE INTO ITEM_MST
+                   (ITM_CD, ITM_LONG_NAME, ITM_SHORT_NAME, SCAN_ITM_CD, HSN_CD,
+                    UOM_CD, UOM_DESC, ITM_GROUP_CD, ITM_TYPE, TAX_PLAN_CD,
+                    WEIGHT_FLAG, SERIAL_FLAG, PRODUCTION_FLAG, CATEGORY, DEPARTMENT, SUPPLIER_CD)
+                   VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+                rows
+            )
         mode_tag = f"FAST-{FAST_MODE_SKU_LIMIT}" if self.fast_mode else 'FULL'
         logger.info(f"  Products: {len(rows)} [{mode_tag}]")
 
@@ -579,20 +678,23 @@ class MockPosErpBuilder:
 
                 # Slight price variation across stores (+/- 2%)
                 sv = 1.0 + random.uniform(-0.02, 0.02)
-                sp = round(sell_price * sv, 2)
-                cp = round(cost_price * sv, 2)
+                sp = float(round(float(sell_price * sv), 2))
+                cp = float(round(float(cost_price * sv), 2))
 
                 sp_rows.append((org_cd, itm_cd, sp, sp, today))
                 cp_rows.append((org_cd, itm_cd, cp, today))
 
-        self.conn.executemany(
-            "INSERT OR IGNORE INTO BASIC_SP_MST (BSP_ORG_CD, BSP_ITEM_CD, BSP_SP, BSP_MRP, BSP_EFF_DATE) VALUES (?,?,?,?,?)",
-            sp_rows
-        )
-        self.conn.executemany(
-            "INSERT OR IGNORE INTO BASIC_CP_MST (BCP_ORG_CD, BCP_ITEM_CD, BCP_CP, BCP_EFF_DATE) VALUES (?,?,?,?)",
-            cp_rows
-        )
+        if self.conn is not None:
+            self.conn.executemany(
+                "INSERT OR IGNORE INTO BASIC_SP_MST (BSP_ORG_CD, BSP_ITEM_CD, BSP_SP, BSP_MRP, BSP_EFF_DATE) VALUES (?,?,?,?,?)",
+                sp_rows
+            )
+            self.conn.executemany(
+                "INSERT OR IGNORE INTO BASIC_CP_MST (BCP_ORG_CD, BCP_ITEM_CD, BCP_CP, BCP_EFF_DATE) VALUES (?,?,?,?)",
+                cp_rows
+            )
+        else:
+            logger.error("Cannot seed prices: No database connection")
         logger.info(f"  Selling prices: {len(sp_rows)}, Cost prices: {len(cp_rows)}")
 
     # ------------------------------------------------------------------
@@ -604,6 +706,10 @@ class MockPosErpBuilder:
         We use the reference SKU qty (from the network reference store) and scale it
         by each store's dsf.  Fresh items are capped at 3-day cover.
         """
+        if not self.product_catalog:
+            logger.warning("No products in catalog. Skipping stock seeding.")
+            return
+
         rows = []
         today = datetime.now()
 
@@ -619,18 +725,19 @@ class MockPosErpBuilder:
                 ref_qty   = info.get('_ref_qty', 0.0)
                 wac       = info['cost_price']
 
+                stock_qty = 0.0 # Initialize stock_qty
                 if ref_qty > 0:
                     # Scale the real reference qty by this store's demand factor
-                    base_qty = ref_qty * dsf
+                    base_qty = float(ref_qty) * dsf
                     # Add +-15% noise for realism
                     noise = random.uniform(0.85, 1.15)
-                    stock_qty = round(base_qty * noise, 1)
+                    stock_qty = round(float(base_qty * noise), 1)
                 else:
                     # Zero stock in reference: simulate with ADS-based estimate
                     if is_fresh:
-                        stock_qty = round(ads * dsf * random.uniform(0, 2), 1)
+                        stock_qty = float(round(float(ads * dsf * random.uniform(0, 2)), 1))
                     else:
-                        stock_qty = 0.0 if random.random() < 0.12 else round(ads * dsf * random.uniform(2, 14), 1)
+                        stock_qty = 0.0 if random.random() < 0.12 else float(round(float(ads * dsf * random.uniform(2, 14)), 1))
 
                 # Cap fresh at max 3-day cover
                 if is_fresh and ads > 0:
@@ -639,19 +746,22 @@ class MockPosErpBuilder:
 
                 stock_qty = max(0.0, stock_qty)
 
-                days_ago_recv  = random.randint(0, 3)  if is_fresh else random.randint(0, 30)
+                days_ago_recv  = random.randint(1, 15) if is_fresh else random.randint(0, 30)
                 days_ago_issue = random.randint(0, 1)
                 last_recv  = (today - timedelta(days=days_ago_recv)).strftime("%Y-%m-%d")
                 last_issue = (today - timedelta(days=days_ago_issue)).strftime("%Y-%m-%d")
 
-                rows.append((org_cd, itm_cd, 'MAIN', stock_qty, round(wac, 2), last_recv, last_issue))
+                rows.append((org_cd, itm_cd, 'MAIN', stock_qty, round(float(wac), 2), last_recv, last_issue))
 
-        self.conn.executemany(
-            """INSERT OR IGNORE INTO STOCK_MASTER
-               (SM_ORG_CD, SM_ITM_CD, SM_LOC_CD, SM_QTY, SM_WAC, SM_LAST_RECV_DT, SM_LAST_ISSUE_DT)
-               VALUES (?,?,?,?,?,?,?)""",
-            rows
-        )
+        if self.conn is not None:
+            self.conn.executemany(
+                """INSERT OR IGNORE INTO STOCK_MASTER
+                   (SM_ORG_CD, SM_ITM_CD, SM_LOC_CD, SM_QTY, SM_WAC, SM_LAST_RECV_DT, SM_LAST_ISSUE_DT)
+                   VALUES (?,?,?,?,?,?,?)""",
+                rows
+            )
+        else:
+            logger.error("Cannot seed stock: No database connection")
         logger.info(f"  Stock records: {len(rows)} ({len(self.org_codes)} stores x {len(self.product_catalog)} SKUs)")
 
     # ------------------------------------------------------------------
@@ -663,11 +773,18 @@ class MockPosErpBuilder:
         Transaction volume and basket sizes are scaled by each store's
         demand_scale_factor relative to the reference store (dsf=1.0 ~ 120 bills/day).
         """
+        if not self.product_catalog:
+            logger.warning("No products in catalog. Skipping sales transaction seeding.")
+            return
+
         today = datetime.now()
         hdr_rows = []
         dtl_rows = []
         bill_counter = 0
         items_list = list(self.product_catalog.items())
+        
+        if not items_list:
+            return # Extra safety guard
 
         # Build org -> dsf map
         dsf_map = {m['org_cd']: m['dsf'] for m in self.store_meta}
@@ -713,22 +830,22 @@ class MockPosErpBuilder:
                         # Qty: ADS-based with variance
                         base_qty = max(1, info['ads'] * dsf * random.uniform(0.2, 3.0) * weekend_mult / max(1, n_bills) * 100)
                         qty = round(base_qty, 1 if info.get('is_fresh') else 0)
-                        qty = max(1, qty)
-
-                        sell_price = info['sell_price']
-                        line_amt   = round(qty * sell_price, 2)
-                        line_tax   = round(line_amt * 0.16, 2)
-                        net_amt    = round(line_amt - line_tax, 2) if random.random() > 0.5 else line_amt
+                        sell_price = float(info['sell_price'])
+                        cost_price = float(info['cost_price'])
+                        line_amt   = float(round(qty * sell_price, 2))
+                        tax_amt    = float(round(line_amt * 0.16, 2)) # 16% VAT
+                        net_amt    = float(round(line_amt - tax_amt, 2))
+                        total_val  = float(round(line_amt, 2))
 
                         dtl_rows.append((
                             org_cd, bill_no, bill_dt_str, serial_no,
-                            itm_cd, info['name'], qty, sell_price,
-                            net_amt, line_tax, 0, line_tax, line_amt,
+                            itm_cd, info['name'], qty, sell_price, cost_price,
+                            net_amt, tax_amt, 0, tax_amt, total_val,
                             'EA', 'Each', 'F', 'N', info['barcode'], None
                         ))
                         total_qty += qty
-                        total_amt += line_amt
-                        total_tax += line_tax
+                        total_amt += total_val # Accumulate total value for the bill
+                        total_tax += tax_amt # Accumulate tax for the bill
 
                     cust_cd    = f"CUST{random.randint(1,50):04d}" if random.random() > 0.6 else None
                     counter_cd = f"CNT{random.randint(1,4):03d}"
@@ -736,8 +853,8 @@ class MockPosErpBuilder:
 
                     hdr_rows.append((
                         org_cd, bill_no, bill_dt_str, cust_cd, counter_cd,
-                        1, round(total_qty, 1), round(total_amt, 2),
-                        round(total_amt - total_tax, 2), round(total_tax, 2),
+                        1, round(float(total_qty), 1), round(float(total_amt), 2),
+                        round(float(total_amt - total_tax), 2), round(float(total_tax), 2),
                         0, payment, 'F', None, None
                     ))
 
@@ -765,6 +882,7 @@ class MockPosErpBuilder:
 
         # Final batch insert
         if hdr_rows:
+            assert self.conn is not None
             self.conn.executemany(
                 """INSERT INTO POS_SALES_HDR 
                    (ORG_CD, BILL_NO, BILL_DT, CUST_CD, COUNTER_CD,
@@ -774,6 +892,7 @@ class MockPosErpBuilder:
                 hdr_rows
             )
         if dtl_rows:
+            assert self.conn is not None
             self.conn.executemany(
                 """INSERT INTO POS_SALES_DTL 
                    (ORG_CD, BILL_NO, BILL_DT, SERIAL_NO,
@@ -792,6 +911,7 @@ class MockPosErpBuilder:
     # ------------------------------------------------------------------
     def _seed_bi_report(self):
         """Aggregate sales into monthly BI report table."""
+        assert self.conn is not None
         self.conn.execute("""
             INSERT OR REPLACE INTO BI_SALES_REPORT (ORG_CD, ITM_CD, REPORT_MONTH, QUANTITY, TAX_INCL, TAX_EXCL, TOTAL_TAX, COST, TRANSACTION_COUNT)
             SELECT 
@@ -830,6 +950,7 @@ class MockPosErpBuilder:
 
             rows.append((cust_cd, f"{first} {last}", "Mr" if i % 2 else "Ms", mobile, None, loyalty))
 
+        assert self.conn is not None
         self.conn.executemany(
             """INSERT OR IGNORE INTO CUSTOMER_MST 
                (CUST_CD, CUST_NAME, CUST_SALUTATION, MOBILE_NO, EMAIL, LOYALTY_CARD_NO)
@@ -847,6 +968,7 @@ class MockPosErpBuilder:
             for c in range(1, 6):   # 5 tills per store
                 cnt_cd = f"{org_cd}_CNT{c:03d}"
                 rows.append((cnt_cd, f"Counter {c}", org_cd, 'Y', 'Y'))
+        assert self.conn is not None
         self.conn.executemany(
             "INSERT OR IGNORE INTO COUNTER_MST (COUNTER_CD, COUNTER_NAME, ORG_CD, ONLINE_FLAG, BILL_REFUND) VALUES (?,?,?,?,?)",
             rows
@@ -874,6 +996,7 @@ class MockPosErpBuilder:
             ("DEFAULT_CURRENCY", "KES", "SYSTEM"),
             ("TAX_RATE_DEFAULT", "16", "SYSTEM"),
         ]
+        assert self.conn is not None
         self.conn.executemany(
             "INSERT OR IGNORE INTO BASE_SYSTEM_PREFERENCES (BSP_PREF_DESC, BSP_PREF_VALUE, BSP_MODULE) VALUES (?,?,?)",
             prefs
@@ -894,15 +1017,78 @@ class MockPosErpBuilder:
             ("TX002", "VAT Exempt", 0.0, "V", "TP002"),
             ("TX003", "Zero Rated", 0.0, "V", "TP003"),
         ]
+        assert self.conn is not None
         self.conn.executemany(
             "INSERT OR IGNORE INTO TAX_PLAN_HDR (TAX_PLAN_CD, TAX_PLAN_NAME, TAX_PLAN_TYPE) VALUES (?,?,?)",
             plans
         )
+        assert self.conn is not None
         self.conn.executemany(
             "INSERT OR IGNORE INTO TAX_MST (TAX_CD, TAX_NAME, TAX_PERC, TAX_TYPE, TAX_PLAN_CD) VALUES (?,?,?,?,?)",
             taxes
         )
         logger.info(f"  Tax plans: {len(plans)}, Tax codes: {len(taxes)}")
+
+    # ------------------------------------------------------------------
+    # Seed: OASIS Users
+    # ------------------------------------------------------------------
+    def _seed_oasis_users(self):
+        """Seed default OASIS users for authentication."""
+        try:
+            # Try absolute import first for Pyre/static analysis
+            from oasis.logic.auth_manager import hash_password, DEFAULT_USERS
+        except Exception:
+            try:
+                # Try relative if running from within logic/
+                from .auth_manager import hash_password, DEFAULT_USERS
+            except Exception:
+                # Last resort fallback
+                def hash_password(p): return p
+                DEFAULT_USERS = []
+        
+        now = datetime.now().isoformat()
+        rows = []
+        for user in DEFAULT_USERS:
+            pw_hash = hash_password(user["password"])
+            rows.append((
+                user["username"], pw_hash, user["display_name"],
+                user["role"], user["assigned_org"], user["email"], now
+            ))
+        assert self.conn is not None
+        self.conn.executemany(
+            """INSERT OR IGNORE INTO OASIS_USERS
+               (USERNAME, PASSWORD_HASH, DISPLAY_NAME, ROLE, ASSIGNED_ORG, EMAIL, CREATED_DT)
+               VALUES (?,?,?,?,?,?,?)""",
+            rows
+        )
+        logger.info(f"  OASIS Users: {len(rows)}")
+
+    # ------------------------------------------------------------------
+    # Seed: System Config (editable thresholds)
+    # ------------------------------------------------------------------
+    def _seed_system_config(self):
+        """Seed default system configuration."""
+        now = datetime.now().isoformat()
+        configs = [
+            ("spike_threshold_pct", "200.0", "alerting", "Velocity spike detection threshold (%)"),
+            ("stockout_warning_hours", "8", "alerting", "Hours-to-stockout warning threshold"),
+            ("safety_stock_days", "14", "ordering", "Default safety stock in days"),
+            ("min_order_value_kes", "5000", "ordering", "Minimum order value (KES)"),
+            ("max_supplier_concentration_pct", "40", "ordering", "Max % of budget from single supplier"),
+            ("max_transfer_cost_kes", "500", "transfers", "Maximum cost per inter-branch transfer (KES)"),
+            ("min_excess_ratio", "2.0", "transfers", "Minimum excess ratio before donating stock"),
+            ("fresh_transfer_max_hours", "6", "transfers", "Max hours for fresh item transfers"),
+            ("auto_approve_po_below_kes", "50000", "ordering", "Auto-approve POs below this value"),
+            ("simulation_seed", "42", "general", "Random seed for simulation reproducibility"),
+        ]
+        assert self.conn is not None
+        self.conn.executemany(
+            """INSERT OR IGNORE INTO OASIS_SYSTEM_CONFIG
+               (CONFIG_KEY, CONFIG_VALUE, CONFIG_GROUP, DESCRIPTION, UPDATED_BY, UPDATED_DT)
+               VALUES (?,?,?,?,?,?)""",
+            [(k, v, g, d, "system", now) for k, v, g, d in configs]
+        )
+        logger.info(f"  System config: {len(configs)} defaults")
 
 
 # ---------------------------------------------------------------------------

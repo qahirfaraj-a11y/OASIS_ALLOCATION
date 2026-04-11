@@ -165,6 +165,67 @@ class TransferStateTracker:
         }
 
     # ------------------------------------------------------------------
+    # Persistence
+    # ------------------------------------------------------------------
+
+    def save_to_file(self, file_path: str):
+        """Save all transfers to a JSON file."""
+        import json
+        data = []
+        for t in self._transfers:
+            data.append({
+                "transfer_id": t.transfer_id,
+                "from_org": t.from_org,
+                "to_org": t.to_org,
+                "itm_cd": t.itm_cd,
+                "product_name": t.product_name,
+                "qty": t.qty,
+                "status": t.status,
+                "created_at": t.created_at.isoformat(),
+                "eta_hours": t.eta_hours,
+                "cost_kes": t.cost_kes,
+                "department": t.department,
+                "urgency": t.urgency
+            })
+        try:
+            with open(file_path, "w") as f:
+                json.dump(data, f, indent=2)
+            logger.info(f"Saved {len(data)} transfers to {file_path}")
+        except Exception as e:
+            logger.error(f"Failed to save transfers to {file_path}: {e}")
+
+    def load_from_file(self, file_path: str):
+        """Load transfers from a JSON file."""
+        import json
+        import os
+        if not os.path.exists(file_path):
+            return
+        try:
+            with open(file_path, "r") as f:
+                data = json.load(f)
+            self._transfers.clear()
+            for d in data:
+                t = TransferRecord(
+                    from_org=d["from_org"],
+                    to_org=d["to_org"],
+                    itm_cd=d["itm_cd"],
+                    product_name=d["product_name"],
+                    qty=d["qty"],
+                    status=d["status"],
+                    created_at=datetime.fromisoformat(d["created_at"]),
+                    eta_hours=d["eta_hours"],
+                    cost_kes=d["cost_kes"],
+                    transfer_id=d["transfer_id"],
+                    department=d.get("department", ""),
+                    urgency=d.get("urgency", "MEDIUM")
+                )
+                self._transfers.append(t)
+            self._rebuild_indices()
+            logger.info(f"Loaded {len(self._transfers)} transfers from {file_path}")
+        except Exception as e:
+            logger.error(f"Failed to load transfers from {file_path}: {e}")
+
+    # ------------------------------------------------------------------
     # Internal
     # ------------------------------------------------------------------
 

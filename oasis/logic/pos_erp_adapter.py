@@ -103,13 +103,13 @@ class PosErpAdapter:
                 is_fresh = dept in ("DAIRY", "FRESH PRODUCE", "BUTCHERY", "BAKERY")
 
                 product = {
-                    "item_code": row["ITM_CD"],
-                    "product_name": row["ITM_LONG_NAME"],
-                    "barcode": row["SCAN_ITM_CD"] or "",
-                    "current_stocks": float(row["SM_QTY"] or 0),
-                    "selling_price": float(row["BSP_SP"] or 0),
-                    "cost_price": float(row["BCP_CP"] or row["SM_WAC"] or 0),
-                    "mrp": float(row["BSP_MRP"] or 0),
+                    "item_code": str(row["ITM_CD"] or ""),
+                    "product_name": str(row["ITM_LONG_NAME"] or ""),
+                    "barcode": str(row["SCAN_ITM_CD"] or ""),
+                    "current_stocks": float(row["SM_QTY"] or 0.0),
+                    "selling_price": float(row["BSP_SP"] or 0.0),
+                    "cost_price": float(row["BCP_CP"] or row["SM_WAC"] or 0.0),
+                    "mrp": float(row["BSP_MRP"] or 0.0),
                     "supplier_name": row["SUPPLIER_NAME"] or "Unknown",
                     "supplier_cd": row["SUPPLIER_CD"] or "",
                     "category": row["CATEGORY"] or "GENERAL",
@@ -191,8 +191,14 @@ class PosErpAdapter:
             ORDER BY d.BILL_DT DESC, d.BILL_NO, d.SERIAL_NO
         """)
 
+        # v2026 Optimization: Use chunked loading for large result sets
+        chunk_size = 5000
+        chunks = []
         with self.engine.connect() as conn:
-            df = pd.read_sql(query, conn, params={"org_cd": org_cd, "cutoff": cutoff})
+            for chunk in pd.read_sql(query, conn, params={"org_cd": org_cd, "cutoff": cutoff}, chunksize=chunk_size):
+                chunks.append(chunk)
+        
+        df = pd.concat(chunks, ignore_index=True) if chunks else pd.DataFrame()
         logger.info(f"Sales history: {len(df)} rows for {org_cd} (last {days} days)")
         return df
 
@@ -234,8 +240,14 @@ class PosErpAdapter:
             ORDER BY d.ITM_CD, year_month
         """)
 
+        # v2026 Optimization: Chunked aggregation to save memory
+        chunk_size = 5000
+        dfs = []
         with self.engine.connect() as conn:
-            df = pd.read_sql(query, conn, params={"org_cd": org_cd, "cutoff": cutoff})
+            for chunk in pd.read_sql(query, conn, params={"org_cd": org_cd, "cutoff": cutoff}, chunksize=chunk_size):
+                dfs.append(chunk)
+        
+        df = pd.concat(dfs, ignore_index=True) if dfs else pd.DataFrame()
 
         if df.empty:
             logger.warning(f"No sales data found for {org_cd}")
@@ -256,7 +268,8 @@ class PosErpAdapter:
             monthly_sales = {}
             for _, row in group.iterrows():
                 ym = str(row["year_month"])
-                month_num = ym.split("-")[1] if "-" in ym else "01"
+                # Ensure ym is long enough before slicing
+                month_num = ym.split("-")[1] if "-" in ym and len(ym) >= 7 else "01" # type: ignore
                 month_name = month_names.get(month_num, "January")
                 monthly_sales[month_name] = int(row["total_qty"])
 
@@ -371,8 +384,14 @@ class PosErpAdapter:
             ORDER BY b.ITM_CD, b.REPORT_MONTH
         """)
 
+        # v2026 Optimization: Chunked loading
+        chunk_size = 5000
+        dfs = []
         with self.engine.connect() as conn:
-            df = pd.read_sql(query, conn, params={"org_cd": org_cd})
+            for chunk in pd.read_sql(query, conn, params={"org_cd": org_cd}, chunksize=chunk_size):
+                dfs.append(chunk)
+        
+        df = pd.concat(dfs, ignore_index=True) if dfs else pd.DataFrame()
         logger.info(f"BI summary: {len(df)} rows for {org_cd}")
         return df
 
@@ -442,6 +461,89 @@ class PosErpAdapter:
         logger.info(f"Pushed {len(rows)} PO lines for {org_cd}")
         return len(rows)
 
+    def fetch_pending_pos(self, org_cd: Optional[str] = None) -> pd.DataFrame:
+        """Fetch all PENDING purchase orders, optionally filtered by organization."""
+        query_str = "SELECT * FROM INTEGRATION_PURCHASE_ORDERS WHERE STATUS = 'PENDING'"
+        params = {}
+        if org_cd:
+            query_str += " AND ORG_CD = :org_cd"
+            params["org_cd"] = org_cd
+            
+        with self.engine.connect() as conn:
+            df = pd.read_sql(text(query_str), conn, params=params)
+        return df
+
+    def fetch_pending_po_by_sku(self, org_cd: str) -> Dict[str, dict]:
+        """
+        G1 Fix: Fetch pending PO quantities per SKU for on-order awareness.
+        
+        Returns:
+            {itm_cd: {"qty": total_pending_qty, "eta_days": estimated_days_to_arrival}}
+        """
+        try:
+            query = text("""
+                SELECT ITM_CD, SUM(QUANTITY) AS total_qty, CREATED_DT
+                FROM INTEGRATION_PURCHASE_ORDERS
+                WHERE ORG_CD = :org_cd AND STATUS IN ('PENDING', 'APPROVED')
+                GROUP BY ITM_CD, CREATED_DT
+            """)
+            result = {}
+            with self.engine.connect() as conn:
+                rows = conn.execute(query, {"org_cd": org_cd}).mappings()
+                for row in rows:
+                    itm_cd = str(row["ITM_CD"])
+                    qty = float(row["total_qty"] or 0)
+                    # Estimate ETA: days since PO was created vs typical lead time
+                    created = str(row.get("CREATED_DT", "")) # type: ignore
+                    try:
+                        # Ensure created string is long enough for slicing
+                        created_dt = datetime.strptime(created[:10], "%Y-%m-%d") # type: ignore
+                        days_since = (datetime.now() - created_dt).days
+                        eta_days = max(0, 3 - days_since)  # Assume 3-day default lead time
+                    except (ValueError, TypeError):
+                        eta_days = 3
+                    
+                    if itm_cd in result:
+                        result[itm_cd]["qty"] += qty
+                        result[itm_cd]["eta_days"] = min(result[itm_cd]["eta_days"], eta_days)
+                    else:
+                        result[itm_cd] = {"qty": qty, "eta_days": eta_days}
+            
+            logger.info(f"Pending PO by SKU: {len(result)} items for {org_cd}")
+            return result
+        except Exception as e:
+            logger.warning(f"Could not fetch pending POs for {org_cd}: {e}")
+            return {}
+
+    def update_po_status(self, po_id: int, status: str, approved_by: str, 
+                         new_quantity: Optional[float] = None, reason: Optional[str] = None) -> bool:
+        """Update PO status (e.g., APPROVED, REJECTED) and optionally override quantity."""
+        now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        
+        updates = ["STATUS = :status", "APPROVED_DT = :now", "APPROVED_BY = :by"]
+        params = {"status": status, "now": now, "by": approved_by, "po_id": po_id}
+        
+        if new_quantity is not None:
+            updates.append("QUANTITY = :qty")
+            # Recalculate total cost if cost is available? We can just let it be or do it in UI.
+            # We'll just update qty here
+            params["qty"] = new_quantity
+            
+        if reason is not None:
+            updates.append("REASONING = :reason")
+            params["reason"] = reason
+            
+        set_clause = ", ".join(updates)
+        query = text(f"UPDATE INTEGRATION_PURCHASE_ORDERS SET {set_clause} WHERE PO_ID = :po_id")
+        
+        try:
+            with self.engine.begin() as conn:
+                result = conn.execute(query, params)
+                return result.rowcount > 0
+        except Exception as e:
+            logger.error(f"Failed to update PO status {po_id}: {e}")
+            return False
+
     # ------------------------------------------------------------------
     # 10. Write-Back: Push Transfer Request
     # ------------------------------------------------------------------
@@ -451,12 +553,127 @@ class PosErpAdapter:
         In production, this would create a Transfer Out document in the ERP.
         """
         now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        logger.info(f"Transfer request: {len(items)} items from {from_org} → {to_org}")
-        # For now, log it. In production, this maps to TRANSFER_OUT_HDR/DTL tables.
-        return True
+        rows = []
+        for item in items:
+            rows.append({
+                "FROM_ORG_CD": from_org,
+                "TO_ORG_CD": to_org,
+                "ITM_CD": item.get("item_code", ""),
+                "PRODUCT_NAME": item.get("product_name", ""),
+                "QUANTITY": item.get("transfer_qty", 0),
+                "VALUE_KES": item.get("transfer_value", 0),
+                "STATUS": "REQUESTED",
+                "URGENCY": item.get("urgency", "NORMAL"),
+                "REQUESTED_BY": item.get("requested_by", "system"),
+                "CREATED_DT": now
+            })
+            
+        if rows:
+            df = pd.DataFrame(rows)
+            df.to_sql("INTEGRATION_TRANSFER_ORDERS", self.engine, if_exists="append", index=False)
+            
+        logger.info(f"Transfer request: Created {len(rows)} records. {from_org} → {to_org}")
+        return len(rows) > 0
+
+    def fetch_transfers(self, org_cd: Optional[str] = None) -> pd.DataFrame:
+        """Fetch transfer history, optionally filtered by org_cd (as sender or receiver)."""
+        query_str = "SELECT * FROM INTEGRATION_TRANSFER_ORDERS"
+        params = {}
+        if org_cd:
+            query_str += " WHERE FROM_ORG_CD = :org_cd OR TO_ORG_CD = :org_cd"
+            params["org_cd"] = org_cd
+            
+        query_str += " ORDER BY CREATED_DT DESC"
+            
+        with self.engine.connect() as conn:
+            df = pd.read_sql(text(query_str), conn, params=params)
+        return df
+
+    def update_transfer_status(self, transfer_id: int, status: str) -> bool:
+        """Update transfer status (REQUESTED → IN_TRANSIT → RECEIVED)."""
+        now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        query = text("""
+            UPDATE INTEGRATION_TRANSFER_ORDERS 
+            SET STATUS = :status, COMPLETED_DT = CASE WHEN :status = 'RECEIVED' THEN :now ELSE COMPLETED_DT END
+            WHERE TRANSFER_ID = :tid
+        """)
+        try:
+            with self.engine.begin() as conn:
+                result = conn.execute(query, {"status": status, "now": now, "tid": transfer_id})
+                return result.rowcount > 0
+        except Exception as e:
+            logger.error(f"Failed to update transfer status {transfer_id}: {e}")
+            return False
 
     # ------------------------------------------------------------------
-    # 11. Enriched Products (Convenience: combines master + stock + sales)
+    # 11b. G12 Fix: Recency-Weighted ADS Calculator
+    # ------------------------------------------------------------------
+    def _calc_weighted_ads(self, org_cd: str) -> Dict[str, dict]:
+        """
+        G12 Fix: Calculate recency-weighted Average Daily Sales.
+        
+        Weights: Last 30d = 60%, 30-60d = 30%, 60-90d = 10%
+        This gives trending items higher demand signal and declining items lower signal.
+        
+        Returns:
+            {itm_cd: {"weighted_ads": float, "total_90d": int, "ads_30d": float, "ads_60d": float}}
+        """
+        now = datetime.now()
+        cutoff_90 = (now - timedelta(days=90)).strftime("%Y-%m-%d")
+        cutoff_60 = (now - timedelta(days=60)).strftime("%Y-%m-%d")
+        cutoff_30 = (now - timedelta(days=30)).strftime("%Y-%m-%d")
+        today = now.strftime("%Y-%m-%d")
+
+        try:
+            query = text("""
+                SELECT 
+                    d.ITM_CD AS itm_cd,
+                    SUM(CASE WHEN d.BILL_DT >= :c30 THEN d.QTY ELSE 0 END) AS qty_30d,
+                    SUM(CASE WHEN d.BILL_DT >= :c60 AND d.BILL_DT < :c30 THEN d.QTY ELSE 0 END) AS qty_30_60d,
+                    SUM(CASE WHEN d.BILL_DT >= :c90 AND d.BILL_DT < :c60 THEN d.QTY ELSE 0 END) AS qty_60_90d,
+                    SUM(d.QTY) AS qty_total
+                FROM POS_SALES_DTL d
+                WHERE d.ORG_CD = :org_cd 
+                    AND d.BILL_DT >= :c90
+                    AND d.VOID_FLAG = 'F'
+                GROUP BY d.ITM_CD
+            """)
+
+            result = {}
+            with self.engine.connect() as conn:
+                rows = conn.execute(query, {
+                    "org_cd": org_cd, "c30": cutoff_30, "c60": cutoff_60, "c90": cutoff_90
+                }).mappings()
+
+                for row in rows:
+                    itm_cd = str(row["itm_cd"])
+                    q30 = float(row["qty_30d"] or 0)
+                    q30_60 = float(row["qty_30_60d"] or 0)
+                    q60_90 = float(row["qty_60_90d"] or 0)
+                    total = float(row["qty_total"] or 0)
+
+                    # Weighted ADS: 60% recent + 30% mid + 10% old
+                    ads_30 = q30 / 30.0 if q30 > 0 else 0
+                    ads_30_60 = q30_60 / 30.0 if q30_60 > 0 else 0
+                    ads_60_90 = q60_90 / 30.0 if q60_90 > 0 else 0
+
+                    weighted = (ads_30 * 0.60) + (ads_30_60 * 0.30) + (ads_60_90 * 0.10)
+
+                    result[itm_cd] = {
+                        "weighted_ads": round(weighted, 4),
+                        "total_90d": int(total),
+                        "ads_30d": round(ads_30, 4),
+                        "ads_60d": round(ads_30_60, 4),
+                    }
+
+            logger.info(f"Weighted ADS: calculated for {len(result)} SKUs at {org_cd}")
+            return result
+        except Exception as e:
+            logger.warning(f"Weighted ADS calculation failed for {org_cd}: {e}")
+            return {}
+
+    # ------------------------------------------------------------------
+    # 12. Enriched Products (Convenience: combines master + stock + sales)
     # ------------------------------------------------------------------
     def fetch_enriched_products(self, org_cd: str, sales_days: int = 90) -> List[dict]:
         """
@@ -472,19 +689,45 @@ class PosErpAdapter:
         products = self.fetch_product_master(org_cd)
         product_map = {p["product_name"]: p for p in products}
 
-        # 2. Get sales intelligence
+        # 2. Get sales intelligence (monthly aggregation for trend/CV)
         sales_intel = self.fetch_sales_intelligence(org_cd, days=sales_days)
 
-        # 3. Merge sales data into products
+        # 2b. G12 Fix: Recency-weighted ADS from raw POS data
+        #     Last 30d = 60% weight, 30-60d = 30%, 60-90d = 10%
+        weighted_ads = self._calc_weighted_ads(org_cd)
+
+        # 3. G1 Fix: Get pending PO quantities for on-order awareness
+        pending_po_map = self.fetch_pending_po_by_sku(org_cd)
+
+        # 4. Merge sales data + on-order into products
         for product in products:
             name = product["product_name"]
+            itm_cd_key = product.get("item_code", "")
             intel = sales_intel.get(name, {})
 
-            product["avg_daily_sales"] = intel.get("avg_daily_sales", 0.0)
-            product["estimated_daily_sales"] = intel.get("avg_daily_sales", 0.0)
+            # G12 Fix: Use weighted ADS if available, else fall back to flat average
+            w_ads = weighted_ads.get(itm_cd_key, {})
+            w_ads_val = w_ads.get("weighted_ads", 0.0)
+            if w_ads_val > 0:
+                product["avg_daily_sales"] = float(w_ads_val)
+                product["estimated_daily_sales"] = float(w_ads_val)
+                product["flat_ads"] = float(intel.get("avg_daily_sales", 0.0))  # Keep flat for compare
+                product["total_units_sold_last_90d"] = int(w_ads.get("total_90d", 0))
+            else:
+                flat_ads = float(intel.get("avg_daily_sales", 0.0))
+                product["avg_daily_sales"] = flat_ads
+                product["estimated_daily_sales"] = flat_ads
+                product["total_units_sold_last_90d"] = 0
+
             product["units_sold_last_month"] = intel.get("avg_monthly_sales", 0.0)
             product["sales_trend"] = intel.get("trend", "stable")
             product["months_active"] = intel.get("months_active", 0)
+
+            # G1 Fix: Inject on-order quantity from pending POs
+            itm_cd = product.get("item_code", "")
+            po_info = pending_po_map.get(itm_cd, {})
+            product["on_order_qty"] = po_info.get("qty", 0)
+            product["pending_po_eta_days"] = po_info.get("eta_days", 999)
 
             if intel:
                 # Calculate CV from monthly data
@@ -500,5 +743,5 @@ class PosErpAdapter:
             else:
                 product["demand_cv"] = 0.5
 
-        logger.info(f"Enriched {len(products)} products for {org_cd}")
+        logger.info(f"Enriched {len(products)} products for {org_cd} (on_order for {len(pending_po_map)} SKUs)")
         return products
