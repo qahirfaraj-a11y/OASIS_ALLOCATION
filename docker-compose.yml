@@ -1,0 +1,38 @@
+version: "3.8"
+
+services:
+  oasis-app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: oasis-command-center
+    ports:
+      - "8501:8501"
+    volumes:
+      # Persist the SQLite database between container restarts
+      - oasis-data:/app/oasis/data
+      # Mount uploads directory
+      - oasis-uploads:/app/oasis/uploads
+    environment:
+      - STREAMLIT_SERVER_PORT=8501
+      - STREAMLIT_SERVER_HEADLESS=true
+      - STREAMLIT_BROWSER_GATHER_USAGE_STATS=false
+      # For production MSSQL, set these:
+      # - OASIS_DB_TYPE=mssql
+      # - OASIS_DB_HOST=your-db-server
+      # - OASIS_DB_NAME=your-db-name
+      # - OASIS_DB_USER=your-user
+      # - OASIS_DB_PASS=your-password
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8501/_stcore/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+volumes:
+  oasis-data:
+    driver: local
+  oasis-uploads:
+    driver: local

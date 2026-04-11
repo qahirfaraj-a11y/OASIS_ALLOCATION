@@ -5,7 +5,7 @@ import sys
 # Add project root to path
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 
-from app.api.server import app, DATA_DIR
+from oasis.api.server import app, DATA_DIR
 
 client = TestClient(app)
 

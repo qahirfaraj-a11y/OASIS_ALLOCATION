@@ -5,7 +5,7 @@ import pandas as pd
 # Add project root to path
 sys.path.append(os.getcwd())
 
-from app.logic.order_engine import OrderEngine
+from oasis.logic.order_engine import OrderEngine
 
 def test_consignment_logic():
     engine = OrderEngine(os.getcwd())

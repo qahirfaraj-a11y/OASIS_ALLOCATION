@@ -59,6 +59,10 @@ class StoreSkuState:
     is_fresh: bool = False
     sell_price: float = 0.0
     department: str = ""
+    days_since_delivery: int = 0
+    velocity_ratio: float = 1.0
+    last_search_score: float = 0.0
+    last_search_dist: float = 0.0
 
 
 class NetworkAvailabilityMap:
@@ -76,32 +80,85 @@ class NetworkAvailabilityMap:
             self._index[state.itm_cd] = []
         self._index[state.itm_cd].append(state)
 
-    def find_donors(self, itm_cd: str, exclude_org: str,
-                    min_excess_ratio: float = 2.0) -> List[StoreSkuState]:
+    def find_donors(self, itm_cd: str, recipient_org: str,
+                    min_excess_ratio: float = 2.0,
+                    distance_calc: Optional[Any] = None,
+                    use_dynamic_ratio: bool = True,
+                    warehouse_hubs: Optional[List[str]] = None) -> List[StoreSkuState]:
         """
-        Find stores that have excess stock for this item.
+        Find stores that have excess stock for this item, prioritized by proximity and volume.
+        
+        G8 Fix: Dynamic excess ratio — fast movers (ADS > 5) use 1.5×,
+        slow movers (ADS ≤ 1) use 2.5×, otherwise default ratio.
+        
+        Warehouse-Hub Priority: Stores flagged as warehouse hubs (e.g. Baba Dogo)
+        receive a 3× score boost — they exist as distribution points.
+        
+        Dead-Stock Bonus: Donors where days_since_delivery > 45 and velocity_ratio < 0.05
+        receive a 2× score bonus — clearing dead stock is desirable.
         
         Args:
             itm_cd: Item to search for
-            exclude_org: Don't consider this store as donor (it's the recipient)
-            min_excess_ratio: Donor must have at least this many × safety stock
+            recipient_org: Don't consider this store as donor
+            min_excess_ratio: Base donor excess ratio (overridden by dynamic if enabled)
+            distance_calc: Optional callback(org1, org2) -> km
+            use_dynamic_ratio: If True, adjust ratio based on item velocity
+            warehouse_hubs: List of org_cd values that are warehouse/distribution hubs
         
         Returns:
-            List of potential donors sorted by excess (highest first)
+            List of potential donors sorted by score (Excess / (Distance + 1))
         """
+        if warehouse_hubs is None:
+            warehouse_hubs = []
+
         candidates = self._index.get(itm_cd, [])
         donors = []
         for s in candidates:
-            if s.org_cd == exclude_org:
+            if s.org_cd == recipient_org:
                 continue
-            if s.excess > 0 and s.current_stock >= s.safety_stock * min_excess_ratio:
+            
+            # G8 Fix: Dynamic ratio based on item velocity
+            effective_ratio = min_excess_ratio
+            if use_dynamic_ratio:
+                if s.avg_daily_sales > 5.0:
+                    effective_ratio = 1.5  # Fast movers: lower bar
+                elif s.avg_daily_sales <= 1.0:
+                    effective_ratio = 2.5  # Slow movers: higher bar
+                # else: use default (2.0)
+            
+            if s.excess > 0 and s.current_stock >= s.safety_stock * effective_ratio:
+                # Calculate distance-aware score
+                dist = 50.0  # default large distance if no mapper
+                if distance_calc is not None:
+                    try:
+                        d = distance_calc(s.org_cd, recipient_org)
+                        if d is not None:
+                            dist = float(d)
+                    except Exception:
+                        pass
+                
+                # Ranking Score: High excess and low distance is best
+                score = float(s.excess) / (dist + 0.1)
+                
+                # Warehouse-Hub Priority: 3× boost for distribution hubs
+                if s.org_cd in warehouse_hubs:
+                    score *= 3.0
+                
+                # Dead-Stock Bonus: 2× boost for aged, slow-moving stock
+                if s.days_since_delivery > 45 and s.velocity_ratio < 0.05:
+                    score *= 2.0
+                
+                s.last_search_score = score
+                s.last_search_dist = dist
                 donors.append(s)
-        donors.sort(key=lambda x: -x.excess)
+        
+        # Sort by score descending
+        donors.sort(key=lambda x: -getattr(x, 'last_search_score', 0))
         return donors
 
-    def get_total_network_excess(self, itm_cd: str, exclude_org: str) -> float:
+    def get_total_network_excess(self, itm_cd: str, recipient_org: str, distance_calc: Optional[Any] = None) -> float:
         """Total excess units available across the network."""
-        return sum(d.excess for d in self.find_donors(itm_cd, exclude_org))
+        return sum(d.excess for d in self.find_donors(itm_cd, recipient_org, distance_calc=distance_calc))
 
     def get_store_state(self, org_cd: str, itm_cd: str) -> Optional[StoreSkuState]:
         """Get a specific store's state for an item."""
@@ -116,8 +173,10 @@ class NetworkAvailabilityMap:
 # ---------------------------------------------------------------------------
 
 # Default logistics cost per transfer (KES)
-# Can be overridden with distance-based calculation later
 DEFAULT_TRANSFER_COST_KES = 500.0
+
+# G9 Fix: Distance-based cost rate (KES per km)
+DEFAULT_PER_KM_RATE = 50.0
 
 # Maximum fraction of donor's excess we'll take
 MAX_DONOR_DRAIN = 0.5
@@ -125,6 +184,8 @@ MAX_DONOR_DRAIN = 0.5
 # Transfer is only worthwhile if it saves at least this much vs ordering
 MIN_SAVINGS_RATIO = 0.3
 
+
+import math
 
 class FulfillmentDecider:
     """
@@ -134,11 +195,39 @@ class FulfillmentDecider:
 
     def __init__(self,
                  transfer_cost_kes: float = DEFAULT_TRANSFER_COST_KES,
+                 per_km_rate: float = DEFAULT_PER_KM_RATE,
                  max_donor_drain: float = MAX_DONOR_DRAIN,
-                 fresh_transfer_max_hours: float = 6.0):
+                 fresh_transfer_max_hours: float = 6.0,
+                 distance_map: Optional[Dict[str, Dict[str, float]]] = None,
+                 risk_threshold: float = 0.6,
+                 warehouse_hubs: Optional[List[str]] = None):
         self.transfer_cost_kes = transfer_cost_kes
+        self.per_km_rate = per_km_rate  # G9 Fix
         self.max_donor_drain = max_donor_drain
         self.fresh_transfer_max_hours = fresh_transfer_max_hours
+        self.distance_map = distance_map or {}
+        self.risk_threshold = risk_threshold
+        # Warehouse hub org codes (e.g. ["016"] for Baba Dogo)
+        self.warehouse_hubs = warehouse_hubs or []
+
+    def _calculate_distance_km(self, org1: str, org2: str) -> float:
+        """Calculate approximate distance between stores using coordinates."""
+        if not self.distance_map or org1 not in self.distance_map or org2 not in self.distance_map:
+            return 10.0 # Default fallback distance
+            
+        c1 = self.distance_map[org1]
+        c2 = self.distance_map[org2]
+        
+        # Simple Haversine approximation
+        lat1, lon1 = c1['lat'], c1['lon']
+        lat2, lon2 = c2['lat'], c2['lon']
+        
+        R = 6371.0 # Radius of Earth
+        dlat = math.radians(lat2 - lat1)
+        dlon = math.radians(lon2 - lon1)
+        a = math.sin(dlat / 2)**2 + math.cos(math.radians(lat1)) * math.cos(math.radians(lat2)) * math.sin(dlon / 2)**2
+        c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
+        return R * c
 
     def decide(self,
                itm_cd: str,
@@ -154,7 +243,8 @@ class FulfillmentDecider:
                pending_order_qty: float = 0.0,
                pending_order_eta_days: float = 999.0,
                current_stock: float = 0.0,
-               avg_daily_sales: float = 0.0) -> FulfillmentDecision:
+               avg_daily_sales: float = 0.0,
+               risk_score: float = 0.0) -> FulfillmentDecision:
         """
         Make a fulfillment decision for a single shortfall.
         
@@ -173,6 +263,7 @@ class FulfillmentDecider:
             pending_order_eta_days: Expected days until the pending order arrives
             current_stock: Current stock level at the recipient store
             avg_daily_sales: ADS at the recipient store (for urgency calc)
+            risk_score: GNN risk score for the store (0.0 to 1.0)
         
         Returns:
             FulfillmentDecision
@@ -180,12 +271,22 @@ class FulfillmentDecider:
         if org_names is None:
             org_names = {}
 
-        # Find potential donors
-        donors = network_map.find_donors(itm_cd, exclude_org=recipient_org)
+        # Find potential donors with distance ranking + warehouse hub priority
+        donors = network_map.find_donors(
+            itm_cd, 
+            recipient_org=recipient_org, 
+            distance_calc=self._calculate_distance_km,
+            warehouse_hubs=self.warehouse_hubs,
+        )
 
         # Cost estimates
         order_cost = shortfall_qty * unit_cost if unit_cost > 0 else shortfall_qty * 100
-        transfer_cost = self.transfer_cost_kes  # fixed per transfer
+        
+        # G9 Fix: Distance-based transfer cost
+        donor_distance = 10.0  # default
+        if donors:
+            donor_distance = getattr(donors[0], 'last_search_dist', 10.0)
+        transfer_cost = self.transfer_cost_kes + (donor_distance * self.per_km_rate)
 
         # Base decision object
         decision = FulfillmentDecision(
@@ -200,15 +301,45 @@ class FulfillmentDecider:
             order_eta_days=lead_time_days,
         )
 
-        # ── Implicit Rule: Pending-Order Awareness ──
-        # Calculate urgency: hours until stockout at current rate
-        hours_to_stockout = 999.0
-        if avg_daily_sales > 0 and current_stock >= 0:
-            hours_to_stockout = (current_stock / avg_daily_sales) * 24.0
-
+        # ── GAP-PLUG PHILOSOPHY ──
+        # Transfers are a temporary plug to avoid stockout while waiting for
+        # the next supplier replenishment. They are NOT a replacement for orders.
+        # gap_days = how many days of stockout between stock depletion
+        #            and supplier delivery arrival
+        days_of_stock = 0.0
+        if avg_daily_sales > 0:
+            days_of_stock = current_stock / avg_daily_sales
+        
+        # Effective lead time: use pending order ETA if one is coming sooner
+        effective_lead_days = lead_time_days
         has_pending = pending_order_qty > 0 and pending_order_eta_days < 999.0
-        is_critical_stockout = hours_to_stockout < 4.0  # will stock out before a transfer arrives
+        if has_pending and pending_order_eta_days < effective_lead_days:
+            effective_lead_days = pending_order_eta_days
+        
+        gap_days = effective_lead_days - days_of_stock
+        # gap_qty = units needed to survive the gap between stock depletion
+        # and replenishment arrival
+        gap_qty = max(0.0, gap_days * avg_daily_sales) if gap_days > 0 else 0.0
 
+        # ── Implicit Rule: GNN Risk-Aware override ──
+        is_high_risk = risk_score > self.risk_threshold
+
+        # ── Urgency check ──
+        hours_to_stockout = days_of_stock * 24.0 if avg_daily_sales > 0 else 999.0
+        is_critical_stockout = hours_to_stockout < 4.0
+
+        # ── GAP-PLUG Rule 0: No gap → ORDER only ──
+        # If current stock covers until replenishment arrives, no transfer needed
+        if gap_days <= 0 and not is_high_risk and not is_critical_stockout:
+            decision.decision = "ORDER"
+            decision.order_qty = shortfall_qty
+            decision.reasoning = (
+                f"Stock covers {days_of_stock:.1f}d, replenishment in {effective_lead_days:.1f}d. "
+                f"No stockout gap — standard supplier order only."
+            )
+            return decision
+
+        # ── Pending-Order Awareness ──
         if has_pending and not is_critical_stockout:
             # Rule 1: ORDER_ARRIVING — delivery imminent (≤24h) and covers ≥50%
             if (pending_order_eta_days <= 1.0
@@ -222,24 +353,21 @@ class FulfillmentDecider:
                 )
                 return decision
 
-            # Rule 2: PARTIAL_COVER — delivery within 48h, reduce transfer qty
+            # Rule 2: PARTIAL_COVER — delivery within 48h, reduce gap qty
             if pending_order_eta_days <= 2.0 and pending_order_qty > 0:
-                effective_shortfall = max(0, shortfall_qty - pending_order_qty)
-                if effective_shortfall < 1.0:
+                gap_qty = max(0, gap_qty - pending_order_qty)
+                if gap_qty < 1.0:
                     decision.decision = "ORDER"
                     decision.order_qty = shortfall_qty
                     decision.reasoning = (
                         f"Pending order ({pending_order_qty:.0f} units, "
-                        f"ETA {pending_order_eta_days:.1f}d) covers shortfall. "
+                        f"ETA {pending_order_eta_days:.1f}d) covers the gap. "
                         f"No transfer needed."
                     )
                     return decision
                 else:
-                    # Reduce the shortfall that needs transfer coverage
-                    shortfall_qty = effective_shortfall
-                    decision.shortfall_qty = shortfall_qty
                     decision.reasoning = (
-                        f"[Pending order reduces shortfall by {pending_order_qty:.0f}] "
+                        f"[Pending order reduces gap by {pending_order_qty:.0f}] "
                     )
 
         if is_critical_stockout and has_pending:
@@ -266,9 +394,19 @@ class FulfillmentDecider:
 
         # Best donor
         best = donors[0]
+        
+        # GAP-PLUG: Transfer only what's needed to cover the gap, not full shortfall
+        # When gap_qty is 0 (e.g. ADS=0), no transfer is needed
+        if gap_qty < 1.0 and gap_days > 0:
+            # Gap exists in time but no units needed (ADS=0 or very low)
+            transfer_target = 0.0
+        elif gap_qty > 0:
+            transfer_target = min(gap_qty, shortfall_qty)
+        else:
+            transfer_target = shortfall_qty
         max_transferable = min(
             best.excess * self.max_donor_drain,
-            shortfall_qty
+            transfer_target
         )
 
         # Fresh items: only transfer if donor is nearby (< 6 hours)
@@ -284,16 +422,28 @@ class FulfillmentDecider:
             # Donor doesn't have enough excess
             decision.reasoning += (
                 f"Donor {decision.donor_name} has only {best.excess:.0f} excess "
-                f"(need {shortfall_qty:.0f}). Standard supplier order."
+                f"(need {transfer_target:.0f} to plug gap). Standard supplier order."
             )
             return decision
 
-        # ── Decision Matrix ──
+        # ── Decision Matrix (with High-Risk override) ──
+
+        if is_high_risk and max_transferable >= 1.0:
+            # GNN Risk Trigger: High volatility → Transfer now AND order for safety
+            decision.decision = "BOTH"
+            decision.transfer_qty = float(round(float(max_transferable), 1))
+            decision.order_qty = float(round(float(shortfall_qty), 1))
+            decision.reasoning += (
+                f"[GNN HIGH RISK: Score {risk_score:.2f}] "
+                f"Aggressive replenishment: Transfer {decision.transfer_qty:.0f} from "
+                f"{decision.donor_name} PLUS full supplier order kept."
+            )
+            return decision
 
         if not is_ordering_day:
             # Can't order today → TRANSFER if possible
             decision.decision = "TRANSFER"
-            decision.transfer_qty = round(max_transferable, 1)
+            decision.transfer_qty = float(round(float(max_transferable), 1))
             remaining = shortfall_qty - max_transferable
             if remaining > 0:
                 decision.order_qty = remaining
@@ -310,32 +460,37 @@ class FulfillmentDecider:
                 )
             return decision
 
-        # Both options available → compare economics
-        # Transfer: immediate (4h) but fixed logistics cost
-        # Order: cheaper per unit but takes lead_time_days
-
-        daily_lost_sales = best.avg_daily_sales * best.sell_price if best.sell_price > 0 else 0
-        lost_sales_during_lead = daily_lost_sales * lead_time_days
-
-        if max_transferable >= shortfall_qty and transfer_cost < order_cost * 0.5:
-            # Transfer is much cheaper
-            decision.decision = "TRANSFER"
-            decision.transfer_qty = round(shortfall_qty, 1)
-            decision.order_qty = 0.0
-            decision.reasoning += (
-                f"Transfer from {decision.donor_name}: {decision.transfer_qty:.0f} units. "
-                f"Saves KES {order_cost - transfer_cost:,.0f} vs supplier order."
-            )
-        elif lead_time_days > 2 and max_transferable >= shortfall_qty * 0.5:
-            # Long lead time → transfer now, order for replenishment buffer
-            xfer = round(min(max_transferable, shortfall_qty * 0.7), 1)
+        # ── GAP-PLUG: Transfer to bridge the stockout gap, order for full replenishment ──
+        # Transfer: immediate (4h) to plug the gap
+        # Order: full replenishment for the store's ongoing needs
+        if gap_days > 0 and max_transferable >= 1.0:
+            xfer = float(round(float(max_transferable), 1))
             decision.decision = "BOTH"
             decision.transfer_qty = xfer
-            decision.order_qty = round(shortfall_qty, 1)  # full order for buffer
+            decision.order_qty = float(round(float(shortfall_qty), 1))  # full order for replenishment
+            is_from_hub = best.org_cd in self.warehouse_hubs
+            hub_tag = " [WAREHOUSE HUB]" if is_from_hub else ""
             decision.reasoning += (
-                f"Lead time {lead_time_days:.0f}d. Transfer {xfer:.0f} from "
-                f"{decision.donor_name} (immediate). Full order kept for buffer."
+                f"GAP-PLUG: {gap_days:.1f}d stockout gap before replenishment. "
+                f"Transfer {xfer:.0f} units from {decision.donor_name}{hub_tag} "
+                f"to bridge gap. Full supplier order ({shortfall_qty:.0f}) kept for replenishment."
             )
+        elif max_transferable >= shortfall_qty:            # Cost check: Is transfer significantly cheaper than order?
+            if transfer_cost < order_cost * 0.4:
+                decision.decision = "TRANSFER"
+                decision.transfer_qty = float(round(float(max_transferable), 1))
+                decision.order_qty = 0.0
+                decision.reasoning += (
+                    f"Selected TRANSFER: Cost {transfer_cost} vs Order {order_cost:.0f}. "
+                    f"Moving {decision.transfer_qty:.0f} units from {decision.donor_name}."
+                )
+                return decision
+            else:
+                decision.reasoning += (
+                    f"Standard supplier order. "
+                    f"Donor {decision.donor_name} excess: {best.excess:.0f} "
+                    f"(no stockout gap, transfer not required)."
+                )
         else:
             # Standard order is fine
             decision.reasoning += (
@@ -349,7 +504,8 @@ class FulfillmentDecider:
     def decide_batch(self,
                      shortfalls: List[Dict[str, Any]],
                      network_map: NetworkAvailabilityMap,
-                     org_names: Dict[str, str] = None) -> List[FulfillmentDecision]:
+                     org_names: Dict[str, str] = None,
+                     risk_scores: Dict[str, float] = None) -> List[FulfillmentDecision]:
         """
         Run decisions for multiple shortfalls at once.
         
@@ -361,16 +517,21 @@ class FulfillmentDecider:
                 current_stock, avg_daily_sales
             network_map: Cross-store availability
             org_names: {org_cd: org_name}
+            risk_scores: {org_cd: score} from GNN
         
         Returns:
             List of FulfillmentDecision
         """
+        if risk_scores is None:
+            risk_scores = {}
+            
         decisions = []
         for sf in shortfalls:
+            org_cd = sf['recipient_org']
             d = self.decide(
                 itm_cd=sf['itm_cd'],
                 product_name=sf['product_name'],
-                recipient_org=sf['recipient_org'],
+                recipient_org=org_cd,
                 shortfall_qty=sf['shortfall_qty'],
                 network_map=network_map,
                 is_ordering_day=sf.get('is_ordering_day', True),
@@ -382,6 +543,7 @@ class FulfillmentDecider:
                 pending_order_eta_days=sf.get('pending_order_eta_days', 999.0),
                 current_stock=sf.get('current_stock', 0.0),
                 avg_daily_sales=sf.get('avg_daily_sales', 0.0),
+                risk_score=risk_scores.get(org_cd, 0.0),
             )
             decisions.append(d)
         return decisions

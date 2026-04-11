@@ -1,0 +1,224 @@
+{
+  "016": {
+    "name": "Warehouse Baba Dogo",
+    "lat": -1.2653,
+    "lon": 36.8872,
+    "is_warehouse_hub": true
+  },
+  "001": {
+    "name": "HEAD OFFICE",
+    "lat": -1.2653,
+    "lon": 36.8872,
+    "is_warehouse_hub": true
+  },
+  "027": {
+    "name": "Rhapta Road",
+    "lat": -1.2641,
+    "lon": 36.7865
+  },
+  "002": {
+    "name": "Adlife Plaza",
+    "lat": -1.2936,
+    "lon": 36.7954
+  },
+  "003": {
+    "name": "Mobil Branch",
+    "lat": -1.2536,
+    "lon": 36.8372
+  },
+  "004": {
+    "name": "Highridge Branch",
+    "lat": -1.2625,
+    "lon": 36.8050
+  },
+  "005": {
+    "name": "ABC Branch",
+    "lat": -1.2619,
+    "lon": 36.7772
+  },
+  "006": {
+    "name": "Diani Branch",
+    "lat": -4.3167,
+    "lon": 39.5833
+  },
+  "007": {
+    "name": "Lavington Branch",
+    "lat": -1.2785,
+    "lon": 36.7725
+  },
+  "008": {
+    "name": "Ngara Branch",
+    "lat": -1.2750,
+    "lon": 36.8250
+  },
+  "009": {
+    "name": "Diamond Plaza Branch",
+    "lat": -1.2581,
+    "lon": 36.8228
+  },
+  "011": {
+    "name": "Yaya Branch",
+    "lat": -1.2912,
+    "lon": 36.7991
+  },
+  "013": {
+    "name": "Nanyuki Branch",
+    "lat": 0.0167,
+    "lon": 37.0833
+  },
+  "014": {
+    "name": "Rosslyn Riviera",
+    "lat": -1.2224,
+    "lon": 36.8021
+  },
+  "015": {
+    "name": "Eldoret Branch",
+    "lat": 0.5143,
+    "lon": 35.2698
+  },
+  "017": {
+    "name": "The Well Karen",
+    "lat": -1.3402,
+    "lon": 36.7601
+  },
+  "018": {
+    "name": "Westend Branch",
+    "lat": -1.2700,
+    "lon": 36.7500
+  },
+  "019": {
+    "name": "Nyali Plaza Mombasa",
+    "lat": -4.0435,
+    "lon": 39.6682
+  },
+  "020": {
+    "name": "Ridgeways Mall",
+    "lat": -1.2312,
+    "lon": 36.8455
+  },
+  "021": {
+    "name": "Signature Mall",
+    "lat": -1.4285,
+    "lon": 36.9532
+  },
+  "022": {
+    "name": "Holden Mall Kakamega",
+    "lat": 0.2827,
+    "lon": 34.7519
+  },
+  "025": {
+    "name": "Golden Life Mall Nakuru",
+    "lat": -0.3031,
+    "lon": 36.0800
+  },
+  "026": {
+    "name": "Buffalo Mall Naivasha",
+    "lat": -0.7172,
+    "lon": 36.4310
+  },
+  "028": {
+    "name": "Riverside Square",
+    "lat": -1.2701,
+    "lon": 36.7995
+  },
+  "029": {
+    "name": "Thigiri Branch",
+    "lat": -1.2375,
+    "lon": 36.7892
+  },
+  "030": {
+    "name": "Azalea Square Centre",
+    "lat": -1.2523,
+    "lon": 36.8081
+  },
+  "031": {
+    "name": "Crystal Rivers Mall",
+    "lat": -1.4300,
+    "lon": 36.9600
+  },
+  "032": {
+    "name": "My Town Karen",
+    "lat": -1.3200,
+    "lon": 36.7100
+  },
+  "033": {
+    "name": "Greenwood Village",
+    "lat": -1.2400,
+    "lon": 36.8300
+  },
+  "034": {
+    "name": "Astrol Square",
+    "lat": -1.2300,
+    "lon": 36.8500
+  },
+  "CFP-003": {
+    "name": "Chandarana Yaya Centre",
+    "lat": -1.2912,
+    "lon": 36.7991
+  },
+  "CFP-005": {
+    "name": "Chandarana Lavington Mall",
+    "lat": -1.2785,
+    "lon": 36.7725
+  },
+  "CFP-009": {
+    "name": "Chandarana Diamond Plaza",
+    "lat": -1.2581,
+    "lon": 36.8228
+  },
+  "CFP-006": {
+    "name": "Chandarana ABC Place",
+    "lat": -1.2619,
+    "lon": 36.7772
+  },
+  "CFP-007": {
+    "name": "Chandarana Rhapta Road",
+    "lat": -1.2641,
+    "lon": 36.7865
+  },
+  "CFP-001": {
+    "name": "Chandarana Signature Mall",
+    "lat": -1.4285,
+    "lon": 36.9532
+  },
+  "CFP-004": {
+    "name": "Chandarana Adlife Plaza",
+    "lat": -1.2936,
+    "lon": 36.7954
+  },
+  "CFP-012": {
+    "name": "Chandarana Rosslyn Riviera",
+    "lat": -1.2224,
+    "lon": 36.8021
+  },
+  "CFP-002": {
+    "name": "Chandarana The Well Karen",
+    "lat": -1.3402,
+    "lon": 36.7601
+  },
+  "CFP-008": {
+    "name": "Chandarana Riverside Square",
+    "lat": -1.2701,
+    "lon": 36.7995
+  },
+  "CFP-013": {
+    "name": "Chandarana Ridgeways Mall",
+    "lat": -1.2312,
+    "lon": 36.8455
+  },
+  "CFP-014": {
+    "name": "Chandarana New Muthaiga Thigiri",
+    "lat": -1.2375,
+    "lon": 36.7892
+  },
+  "CFP-011": {
+    "name": "Chandarana Mobil Plaza Muthaiga",
+    "lat": -1.2536,
+    "lon": 36.8372
+  },
+  "CFP-010": {
+    "name": "Chandarana Azalea Square",
+    "lat": -1.2523,
+    "lon": 36.8081
+  }
+}

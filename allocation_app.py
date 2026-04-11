@@ -42,7 +42,7 @@ def get_engine():
 @st.cache_data
 def load_and_run_allocation(budget, target_month="JAN"):
     if not os.path.exists(SCORECARD_FILE):
-        return None
+        return pd.DataFrame(), 0.0, 0.0, {}, {}
     
     # v2.9: Load Seasonal Data (Hybrid Guide)
     from oasis.simulation.data_loader import HistoricalDataLoader
@@ -81,12 +81,10 @@ def load_and_run_allocation(budget, target_month="JAN"):
     
     # Convert back to DataFrame
     results = []
-    total_cash_spend = 0.0
-    total_consignment_val = 0.0
     
     # v2.8: Performance Optimization - Create lookup dictionary once
     # Instead of nested loop (O(n²)), use dictionary lookup (O(n))
-    product_data_map = {}
+    product_data_map: dict[str, dict[str, float | None]] = {}
     for _, row in df.iterrows():
         product_name = row.get('Product')
         if product_name:
@@ -95,45 +93,48 @@ def load_and_run_allocation(budget, target_month="JAN"):
             }
     
     for r in final_recs:
-        qty = r['recommended_quantity']
+        qty: float = float(r.get('recommended_quantity', 0))
         if qty > 0:
-            price = r['selling_price']
+            price: float = float(r.get('selling_price', 0))
             # Re-check logic flag
             is_consignment = r.get('is_consignment', False)
             
             # v2.8: Optimized cost calculation with O(1) dictionary lookup
             # Priority: GRN cost → Margin calculation → 0.75 estimate
-            cost_price = None
+            cost_price = 0.0
             
             # 1. Try GRN database (most accurate - actual purchase prices)
-            if cost_price is None and hasattr(engine, 'grn_db'):
+            if hasattr(engine, 'grn_db'):
                 p_name = r['product_name']
                 p_barcode = str(r.get('barcode', '')).strip()
                 grn_key = p_barcode if p_barcode else engine.normalize_product_name(p_name)
                 grn_stat = engine.grn_db.get(grn_key)
                 if grn_stat and grn_stat.get('avg_cost'):
-                    cost_price = grn_stat['avg_cost']
+                    cost_price = float(grn_stat['avg_cost'])
             
             # 2. Try Margin% from pre-built dictionary (O(1) lookup)
-            if cost_price is None:
+            if cost_price == 0.0:
                 product_info = product_data_map.get(r['product_name'])
                 if product_info:
                     margin_pct = product_info['margin_pct']
-                    if margin_pct is not None and margin_pct >= 0 and margin_pct < 100:
-                        cost_price = price * (1 - margin_pct / 100.0)
+                    if margin_pct is not None:
+                        try:
+                            m = float(margin_pct)
+                            if 0 <= m < 100:
+                                cost_price = price * (1 - m / 100.0)
+                        except (ValueError, TypeError):
+                            pass
             
             # 3. Fallback to 25% margin estimate
-            if cost_price is None or cost_price <= 0:
+            if cost_price <= 0.0:
                 cost_price = price * 0.75
             
-            cost = qty * cost_price
-            revenue = qty * price 
+            cost = float(qty) * float(cost_price)
+            revenue = float(qty) * float(price)
             
             if is_consignment:
-                total_consignment_val += cost
                 funding_source = "CONSIGNMENT"
             else:
-                total_cash_spend += cost
                 funding_source = "CASH"
 
             results.append({
@@ -146,6 +147,10 @@ def load_and_run_allocation(budget, target_month="JAN"):
                 "Type": funding_source,
                 "Avg_Daily_Sales": r.get('avg_daily_sales', 0)
             })
+            
+    # Calculate totals outside the loop to avoid type checker issues with AugAssign
+    total_cash_spend = sum(float(item["Allocated_Cost"]) for item in results if item["Type"] == "CASH")
+    total_consignment_val = sum(float(item["Allocated_Cost"]) for item in results if item["Type"] == "CONSIGNMENT")
             
     return pd.DataFrame(results), total_cash_spend, total_consignment_val, allocation_summary, seasonal_map
 
@@ -161,9 +166,9 @@ budget = st.sidebar.slider("Capital Budget ($)", min_value=50000, max_value=2000
 
 if st.sidebar.button("Run Simulation"):
     with st.spinner("Running Allocation Logic..."):
-        basket_df, cash_spend, consignment_val, alloc_summary = load_and_run_allocation(budget)
+        basket_df, cash_spend, consignment_val, alloc_summary, _ = load_and_run_allocation(budget)
 
-    if basket_df is not None and not basket_df.empty:
+    if not basket_df.empty:
         # Top Metrics
         est_revenue = basket_df["Expected_Revenue"].sum()
         total_value = cash_spend + consignment_val

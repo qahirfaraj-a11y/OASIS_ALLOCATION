@@ -16,7 +16,7 @@ load_dotenv()
 # Import the existing engine
 import sys
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..'))
-from app.logic.order_engine import OrderEngine
+from oasis.logic.order_engine import OrderEngine
 
 # Configure Logging
 logging.basicConfig(level=logging.INFO)

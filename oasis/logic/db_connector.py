@@ -1,18 +1,61 @@
 import logging
+import time
 from typing import List, Dict, Any, Optional
+from functools import wraps
 import pandas as pd
-from sqlalchemy import create_engine, text
+from sqlalchemy import create_engine, text, inspect
 from sqlalchemy.exc import SQLAlchemyError
 
 # Configure Logging
 logger = logging.getLogger("OasisDBConnector")
+
+
+# ---------------------------------------------------------------------------
+# Retry Decorator
+# ---------------------------------------------------------------------------
+
+def with_retry(max_retries: int = 3, base_delay: float = 1.0, backoff_factor: float = 2.0):
+    """
+    Decorator that retries a method on failure with exponential backoff.
+    
+    Args:
+        max_retries:    Maximum number of retry attempts
+        base_delay:     Initial delay in seconds
+        backoff_factor: Multiplier for each subsequent retry
+    """
+    def decorator(func):
+        @wraps(func)
+        def wrapper(*args, **kwargs):
+            last_exception = None
+            for attempt in range(max_retries + 1):
+                try:
+                    return func(*args, **kwargs)
+                except Exception as e:
+                    last_exception = e
+                    if attempt < max_retries:
+                        delay = base_delay * (backoff_factor ** attempt)
+                        logger.warning(
+                            f"[Retry {attempt+1}/{max_retries}] {func.__name__} failed: {e}. "
+                            f"Retrying in {delay:.1f}s..."
+                        )
+                        time.sleep(delay)
+                    else:
+                        logger.error(
+                            f"{func.__name__} failed after {max_retries} retries: {e}"
+                        )
+            if last_exception is not None:
+                raise last_exception
+            raise RuntimeError(f"{func.__name__} failed without an exception")
+        return wrapper
+    return decorator
+
 
 class SchemaMapper:
     """
     Maps external ERP/POS column names to Oasis internal standard format.
     Functions as a translation layer.
     """
-    def __init__(self, mapping_config: Dict[str, str] = None):
+    def __init__(self, mapping_config: Optional[Dict[str, str]] = None):
         # Default Mapping (Fallbacks)
         self.mapping = {
             "sku": "item_code",
@@ -97,24 +140,54 @@ class UniversalConnector:
     """
     Generic Database Adapter using SQLAlchemy.
     Supports: Postgres, MySQL, MSSQL, Oracle, SQLite.
+    
+    Features:
+    - Automatic retry with exponential backoff on transient failures
+    - Health check endpoint for monitoring
+    - Auto-reconnect on connection loss
     """
-    def __init__(self, connection_string: str, schema_mapper: SchemaMapper = None):
+    def __init__(self, connection_string: str, schema_mapper: Optional[SchemaMapper] = None,
+                 max_retries: int = 3, retry_delay: float = 1.0):
         self.connection_string = connection_string
         self.mapper = schema_mapper if schema_mapper else SchemaMapper()
+        self.max_retries = max_retries
+        self.retry_delay = retry_delay
         self.engine = None
         self._connect()
 
     def _connect(self):
         try:
-            # Create connection pool
-            self.engine = create_engine(self.connection_string, pool_pre_ping=True)
+            # Create connection pool with pre-ping for auto-reconnect
+            self.engine = create_engine(
+                self.connection_string, 
+                pool_pre_ping=True,
+                pool_recycle=3600,  # Recycle connections every hour
+            )
             logger.info("Database Engine created successfully.")
         except Exception as e:
             logger.error(f"Failed to create database engine: {e}")
             raise
 
+    def _ensure_connection(self):
+        """Re-establish connection if engine is None or broken."""
+        if self.engine is None:
+            self._connect()
+        
+        if self.engine is not None:
+            try:
+                with self.engine.connect() as conn:
+                    conn.execute(text("SELECT 1"))
+            except Exception:
+                logger.warning("Connection lost, attempting to reconnect...")
+                self._connect()
+        else:
+            logger.error("Engine could not be initialized.")
+
     def test_connection(self) -> bool:
         """Ping the database."""
+        if self.engine is None:
+            logger.error("Connection Test Failed: Engine is None")
+            return False
         try:
             with self.engine.connect() as conn:
                 conn.execute(text("SELECT 1"))
@@ -123,11 +196,64 @@ class UniversalConnector:
             logger.error(f"Connection Test Failed: {e}")
             return False
 
+    def health_check(self) -> Dict[str, Any]:
+        """
+        Comprehensive health check returning connection status, latency, 
+        and table availability.
+        
+        Returns:
+            {
+                "connected": bool,
+                "latency_ms": float,
+                "tables_found": int,
+                "status": "healthy" | "degraded" | "down"
+            }
+        """
+        result = {
+            "connected": False,
+            "latency_ms": 0.0,
+            "tables_found": 0,
+            "status": "down",
+        }
+        
+        try:
+            start = time.time()
+            if self.engine is None:
+                result["status"] = "down"
+                return result
+
+            with self.engine.connect() as conn:
+                conn.execute(text("SELECT 1"))
+            result["latency_ms"] = float(round((time.time() - start) * 1000, 1))
+            result["connected"] = True
+            
+            # Check core tables exist
+            inspector = inspect(self.engine)
+            tables = inspector.get_table_names()
+            result["tables_found"] = len(tables)
+            
+            core_tables = {"ITEM_MST", "STOCK_MASTER", "POS_SALES_DTL", "ORGANIZATION_MST"}
+            missing = core_tables - set(tables)
+            
+            if not missing:
+                result["status"] = "healthy"
+            else:
+                result["status"] = "degraded"
+                logger.warning(f"Missing tables: {missing}")
+                
+        except Exception as e:
+            logger.error(f"Health check failed: {e}")
+            result["status"] = "down"
+        
+        return result
+
+    @with_retry(max_retries=3, base_delay=0.5)
     def fetch_stock_snapshot(self, query: str) -> List[Dict[str, Any]]:
         """
         Executes a query to fetch inventory snapshot.
         Returns a list of mapped dictionaries.
         """
+        self._ensure_connection()
         try:
             with self.engine.connect() as conn:
                 result = conn.execute(text(query))
@@ -140,23 +266,27 @@ class UniversalConnector:
                 return mapped_rows
         except Exception as e:
             logger.error(f"Error fetching stock snapshot: {e}")
-            return []
+            raise
 
+    @with_retry(max_retries=3, base_delay=0.5)
     def fetch_sales_history(self, query: str) -> pd.DataFrame:
         """
         Fetches sales history as a Pandas DataFrame for analysis.
         """
+        self._ensure_connection()
         try:
             df = pd.read_sql(query, self.engine)
             return self.mapper.map_dataframe(df)
         except Exception as e:
             logger.error(f"Error fetching sales history: {e}")
-            return pd.DataFrame()
+            raise
 
+    @with_retry(max_retries=3, base_delay=0.5)
     def push_purchase_order(self, po_data: Dict[str, Any], table_name: str = "integration_purchase_orders"):
         """
         Writes a generated PO back to the ERP integration table.
         """
+        self._ensure_connection()
         try:
             df = pd.DataFrame([po_data])
             # Append to table
@@ -165,4 +295,162 @@ class UniversalConnector:
             return True
         except Exception as e:
             logger.error(f"Error pushing PO: {e}")
-            return False
+            raise
+
+
+# ---------------------------------------------------------------------------
+# System Config Helpers 
+# ---------------------------------------------------------------------------
+
+def load_system_config(db_path: str) -> Dict[str, str]:
+    """Load all system config as a key-value dict."""
+    import sqlite3
+    try:
+        conn = sqlite3.connect(db_path)
+        rows = conn.execute(
+            "SELECT CONFIG_KEY, CONFIG_VALUE FROM OASIS_SYSTEM_CONFIG"
+        ).fetchall()
+        conn.close()
+        return {row[0]: row[1] for row in rows}
+    except Exception as e:
+        logger.error(f"Failed to load system config: {e}")
+        return {}
+
+
+def load_system_config_full(db_path: str) -> List[Dict[str, str]]:
+    """Load all system config with metadata (group, description, etc)."""
+    import sqlite3
+    try:
+        conn = sqlite3.connect(db_path)
+        conn.row_factory = sqlite3.Row
+        rows = conn.execute(
+            "SELECT * FROM OASIS_SYSTEM_CONFIG ORDER BY CONFIG_GROUP, CONFIG_KEY"
+        ).fetchall()
+        conn.close()
+        return [dict(r) for r in rows]
+    except Exception as e:
+        logger.error(f"Failed to load system config: {e}")
+        return []
+
+
+def save_system_config(db_path: str, key: str, value: str, updated_by: str = "system"):
+    """Save a single config key-value pair."""
+    import sqlite3
+    from datetime import datetime
+    try:
+        conn = sqlite3.connect(db_path)
+        conn.execute(
+            """INSERT INTO OASIS_SYSTEM_CONFIG (CONFIG_KEY, CONFIG_VALUE, UPDATED_BY, UPDATED_DT)
+               VALUES (?, ?, ?, ?)
+               ON CONFLICT(CONFIG_KEY) DO UPDATE SET 
+                   CONFIG_VALUE = excluded.CONFIG_VALUE,
+                   UPDATED_BY = excluded.UPDATED_BY,
+                   UPDATED_DT = excluded.UPDATED_DT""",
+            (key, value, updated_by, datetime.now().isoformat())
+        )
+        conn.commit()
+        conn.close()
+        return True
+    except Exception as e:
+        logger.error(f"Failed to save config {key}: {e}")
+        return False
+
+
+def ensure_oasis_tables(db_path: str):
+    """
+    Ensure OASIS-specific tables exist in the database.
+    Called on startup to migrate existing DBs without requiring a full rebuild.
+    """
+    import sqlite3
+    migration_sql = """
+    CREATE TABLE IF NOT EXISTS OASIS_USERS (
+        USER_ID       INTEGER PRIMARY KEY AUTOINCREMENT,
+        USERNAME      TEXT UNIQUE NOT NULL,
+        PASSWORD_HASH TEXT NOT NULL,
+        DISPLAY_NAME  TEXT NOT NULL,
+        ROLE          TEXT NOT NULL CHECK(ROLE IN ('branch_manager','regional_manager','ops_admin')),
+        ASSIGNED_ORG  TEXT,
+        EMAIL         TEXT,
+        ACTIVE_FLAG   TEXT DEFAULT 'Y',
+        CREATED_DT    TEXT,
+        LAST_LOGIN_DT TEXT
+    );
+
+    CREATE TABLE IF NOT EXISTS OASIS_AUDIT_LOG (
+        LOG_ID        INTEGER PRIMARY KEY AUTOINCREMENT,
+        USERNAME      TEXT NOT NULL,
+        ACTION        TEXT NOT NULL,
+        ENTITY_TYPE   TEXT,
+        ENTITY_ID     TEXT,
+        ORG_CD        TEXT,
+        DETAILS       TEXT,
+        CREATED_DT    TEXT NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS OASIS_SYSTEM_CONFIG (
+        CONFIG_KEY    TEXT PRIMARY KEY,
+        CONFIG_VALUE  TEXT NOT NULL,
+        CONFIG_GROUP  TEXT DEFAULT 'general',
+        DESCRIPTION   TEXT,
+        UPDATED_BY    TEXT,
+        UPDATED_DT    TEXT
+    );
+    
+    CREATE TABLE IF NOT EXISTS INTEGRATION_TRANSFER_ORDERS (
+        TRANSFER_ID   INTEGER PRIMARY KEY AUTOINCREMENT,
+        FROM_ORG_CD   TEXT NOT NULL,
+        TO_ORG_CD     TEXT NOT NULL,
+        ITM_CD        TEXT NOT NULL,
+        PRODUCT_NAME  TEXT,
+        QUANTITY      REAL DEFAULT 0,
+        VALUE_KES     REAL DEFAULT 0,
+        STATUS        TEXT DEFAULT 'REQUESTED',
+        URGENCY       TEXT DEFAULT 'NORMAL',
+        REQUESTED_BY  TEXT,
+        CREATED_DT    TEXT,
+        COMPLETED_DT  TEXT
+    );
+    """
+    try:
+        conn = sqlite3.connect(db_path)
+        conn.executescript(migration_sql)
+        conn.commit()
+        
+        # Seed users if empty
+        count = conn.execute("SELECT COUNT(*) FROM OASIS_USERS").fetchone()[0]
+        if count == 0:
+            from oasis.logic.auth_manager import seed_users
+            conn.close()
+            seed_users(db_path)
+        else:
+            conn.close()
+            
+        # Seed config if empty
+        conn = sqlite3.connect(db_path)
+        count = conn.execute("SELECT COUNT(*) FROM OASIS_SYSTEM_CONFIG").fetchone()[0]
+        if count == 0:
+            from datetime import datetime
+            now = datetime.now().isoformat()
+            configs = [
+                ("spike_threshold_pct", "200.0", "alerting", "Velocity spike detection threshold (%)"),
+                ("stockout_warning_hours", "8", "alerting", "Hours-to-stockout warning threshold"),
+                ("safety_stock_days", "14", "ordering", "Default safety stock in days"),
+                ("min_order_value_kes", "5000", "ordering", "Minimum order value (KES)"),
+                ("max_supplier_concentration_pct", "40", "ordering", "Max % of budget from single supplier"),
+                ("max_transfer_cost_kes", "500", "transfers", "Maximum cost per inter-branch transfer (KES)"),
+                ("min_excess_ratio", "2.0", "transfers", "Minimum excess ratio before donating stock"),
+                ("fresh_transfer_max_hours", "6", "transfers", "Max hours for fresh item transfers"),
+                ("auto_approve_po_below_kes", "50000", "ordering", "Auto-approve POs below this value"),
+                ("simulation_seed", "42", "general", "Random seed for simulation reproducibility"),
+            ]
+            conn.executemany(
+                """INSERT OR IGNORE INTO OASIS_SYSTEM_CONFIG
+                   (CONFIG_KEY, CONFIG_VALUE, CONFIG_GROUP, DESCRIPTION, UPDATED_BY, UPDATED_DT)
+                   VALUES (?,?,?,?,?,?)""",
+                [(k, v, g, d, "system", now) for k, v, g, d in configs]
+            )
+            conn.commit()
+        conn.close()
+        logger.info("OASIS tables verified/created successfully")
+    except Exception as e:
+        logger.error(f"Failed to ensure OASIS tables: {e}")

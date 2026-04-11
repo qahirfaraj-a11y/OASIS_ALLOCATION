@@ -21,6 +21,7 @@ from datetime import datetime, timedelta
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional, Tuple
 from collections import defaultdict
+import copy
 
 # --- Bridge Import ---
 from oasis.logic.simulation_bridge import SimulationOrderUtil
@@ -207,53 +208,60 @@ def calculate_demand_cv(monthly_sales: Dict[str, int]) -> float:
     cv = std / mean
     return min(cv, 2.0)
 
-def load_scorecard_data(engine: OrderEngine, budget: float, tier_name: str, demand_scale_factor: float = 1.0) -> List[SKUState]:
+def load_scorecard_data(engine: OrderEngine, budget: float, tier_name: str, demand_scale_factor: float = 1.0, preloaded_data: pd.DataFrame = None, pre_enriched_products: List[dict] = None) -> List[SKUState]:
     """
     Load product data using the REAL OrderEngine Day 1 Logic.
     """
     print(f"Running Day 1 Allocation for {tier_name} (${budget:,.0f})...")
     
     # 1. Load Raw Scorecard Data as input
-    try:
-        raw_df = pd.read_csv(SCORECARD_FILE)
-    except FileNotFoundError:
-        print(f"Error: Scorecard file not found at {SCORECARD_FILE}")
-        sys.exit(1)
+    if pre_enriched_products:
+        # Optimization: Use pre-enriched data if provided
+        enriched = copy.deepcopy(pre_enriched_products)
+    else:
+        if preloaded_data is not None:
+            raw_df = preloaded_data
+        else:
+            try:
+                raw_df = pd.read_csv(SCORECARD_FILE)
+            except FileNotFoundError:
+                print(f"Error: Scorecard file not found at {SCORECARD_FILE}")
+                sys.exit(1)
+            
+        # Convert DF to list of dicts for OrderEngine
+        # Map columns to expected keys
+        products = []
+        for _, row in raw_df.iterrows():
+            products.append({
+                'product_name': str(row.get('Product', 'Unknown')),
+                'supplier_name': str(row.get('Supplier', 'Unknown')),
+                'product_category': str(row.get('Department', 'GENERAL')),
+                'selling_price': float(row.get('Unit_Price', 0) or 0),
+                'margin_pct': float(row.get('Margin_Pct', 25) or 25),
+                'avg_daily_sales': float(row.get('Avg_Daily_Sales', 0) or 0) * demand_scale_factor, # Pre-scale ADS?
+                # Wait, OrderEngine does its own scaling sometimes? No, supply raw ADS. 
+                # Actually, OrderEngine is designed for a single store. If we simulate "Micro", we must feed it "Micro ADS"?
+                # Or does OrderEngine scale internally?
+                # OrderEngine logic uses `avg_daily_sales` from input.
+                # So pass the SCALED ADS here.
+                'current_stocks': 0.0, # Greenfield
+                'pack_size': int(float(row.get('Pack_Size', 1) or 1)), # Read Pack Size
+                'ABC_Class': str(row.get('ABC_Class', 'C')),
+                'reliability_score': 90, # Default, will be enriched
+                'is_consignment': False # Enriched later
+            })
+            
+        # 2. Enrich (This loads DBs if not loaded)
+        # Note: engine.enrich_product_data works in-place
+        # But wait, `enrich_product_data` relies on `self.databases`.
+        # `engine` instance passed in should have DBs loaded.
         
-    # Convert DF to list of dicts for OrderEngine
-    # Map columns to expected keys
-    products = []
-    for _, row in raw_df.iterrows():
-        products.append({
-            'product_name': str(row.get('Product', 'Unknown')),
-            'supplier_name': str(row.get('Supplier', 'Unknown')),
-            'product_category': str(row.get('Department', 'GENERAL')),
-            'selling_price': float(row.get('Unit_Price', 0) or 0),
-            'margin_pct': float(row.get('Margin_Pct', 25) or 25),
-            'avg_daily_sales': float(row.get('Avg_Daily_Sales', 0) or 0) * demand_scale_factor, # Pre-scale ADS?
-            # Wait, OrderEngine does its own scaling sometimes? No, supply raw ADS. 
-            # Actually, OrderEngine is designed for a single store. If we simulate "Micro", we must feed it "Micro ADS"?
-            # Or does OrderEngine scale internally?
-            # OrderEngine logic uses `avg_daily_sales` from input.
-            # So pass the SCALED ADS here.
-            'current_stocks': 0.0, # Greenfield
-            'pack_size': int(float(row.get('Pack_Size', 1) or 1)), # Read Pack Size
-            'ABC_Class': str(row.get('ABC_Class', 'C')),
-            'reliability_score': 90, # Default, will be enriched
-            'is_consignment': False # Enriched later
-        })
+        # We need to ensure `avg_daily_sales` is respected as the scaled version.
+        # `enrich_product_data` might overwrite ADS from intelligence DBs!
+        # Correct. `enrich_product_data` line 488: `p['avg_daily_sales'] = sales_data...`
+        # We must OVERRIDE ADS *after* enrichment if we want to simulate a smaller store than the DB reflects.
         
-    # 2. Enrich (This loads DBs if not loaded)
-    # Note: engine.enrich_product_data works in-place
-    # But wait, `enrich_product_data` relies on `self.databases`.
-    # `engine` instance passed in should have DBs loaded.
-    
-    # We need to ensure `avg_daily_sales` is respected as the scaled version.
-    # `enrich_product_data` might overwrite ADS from intelligence DBs!
-    # Correct. `enrich_product_data` line 488: `p['avg_daily_sales'] = sales_data...`
-    # We must OVERRIDE ADS *after* enrichment if we want to simulate a smaller store than the DB reflects.
-    
-    enriched = engine.enrich_product_data(products)
+        enriched = engine.enrich_product_data(products)
     
     # FORCE PROXY DEMAND SCALING
     # The Intelligence DB has "Mega Store" sales. We are simulating a Micro store.
@@ -315,7 +323,7 @@ def load_scorecard_data(engine: OrderEngine, budget: float, tier_name: str, dema
 class RetailSimulator:
     """Core simulation engine for retail inventory dynamics."""
     
-    def __init__(self, tier_name: str, store_config: dict, seed: int = None, bridge: SimulationOrderUtil = None, initial_skus: List[SKUState] = None, seasonal_demand_map: Dict[str, float] = None):
+    def __init__(self, tier_name: str, store_config: dict, seed: int = None, bridge: SimulationOrderUtil = None, initial_skus: List[SKUState] = None, seasonal_demand_map: Dict[str, float] = None, preloaded_data: pd.DataFrame = None, pre_enriched_products: List[dict] = None):
         self.tier_name = tier_name
         self.config = store_config
         self.seed = seed or random.randint(1, 10000)
@@ -343,7 +351,7 @@ class RetailSimulator:
         else:
              # Default Loader (Standalone Mode)
              budget = store_config["budget"]
-             sku_list = load_scorecard_data(self.bridge.engine, budget, tier_name, demand_scale)
+             sku_list = load_scorecard_data(self.bridge.engine, budget, tier_name, demand_scale, preloaded_data=preloaded_data, pre_enriched_products=pre_enriched_products)
         
         for sku in sku_list:
             self.skus[sku.product_name] = sku
@@ -366,8 +374,7 @@ class RetailSimulator:
         # Reorder tracking
         self.pending_orders: List[Tuple[int, str, float]] = []  # (arrival_day, product, qty)
         
-        # Initialize Logic Bridge with CORRECT path (root scratch dir where JSONs are)
-        self.bridge = SimulationOrderUtil(os.getcwd())
+        # self.bridge = SimulationOrderUtil(os.getcwd())
         
     def simulate_daily_demand(self, sku: SKUState, day_of_week: int = 0) -> float:
         """
