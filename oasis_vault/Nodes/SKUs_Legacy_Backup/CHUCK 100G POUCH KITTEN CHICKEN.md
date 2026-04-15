@@ -1,0 +1,30 @@
+---
+type: SKU
+department: '[[PET CAT FOOD]]'
+supplier: '[[MERIT AFRICA LTD]]'
+price: 190.45488257107544
+margin_pct: 16.0
+revenue: 29138.85
+gross_profit: 4662.22
+sales_rank: 2195
+rhapta_fill_rate: 0
+velocity_ads: 0.8315
+total_quantity: 153.0
+---
+
+# CHUCK 100G POUCH KITTEN CHICKEN
+
+## Relationships
+- **Department**: [[PET CAT FOOD]]
+- **Supplier**: [[MERIT AFRICA LTD]]
+
+## Potential Substitutes
+- [substitution]:: [[FELIX 85G CAT CHICKEN]]
+- [substitution]:: [[FELIX 85G CAT BEEF]]
+- [substitution]:: [[FELIX 85G CAT SALMON]]
+- [substitution]:: [[FELIX 85G CAT TROUT]]
+- [substitution]:: [[FELIX 85G CAT TUNA]]
+
+## Network Insights
+- [upstream_supply]:: [[MERIT AFRICA LTD]]
+- [downstream_demand]:: [[Retail Market]]

@@ -1,0 +1,30 @@
+---
+type: SKU
+department: '[[PASTA]]'
+supplier: '[[TRADE ROOTS LTD]]'
+price: 165.88636363636363
+margin_pct: 16.0
+revenue: 1658.9
+gross_profit: 265.42
+sales_rank: 9156
+rhapta_fill_rate: 0
+velocity_ads: 0.0543
+total_quantity: 10.0
+---
+
+# DE CECCO 500G FETTUCCINE NIDI SEMOLA NO.233
+
+## Relationships
+- **Department**: [[PASTA]]
+- **Supplier**: [[TRADE ROOTS LTD]]
+
+## Potential Substitutes
+- [substitution]:: [[SANTA LUCIA 400G SPAGHETTI]]
+- [substitution]:: [[SANTA LUCIA 1KG 27 SPAGHETTINI]]
+- [substitution]:: [[SANTA MARIA 700G SPAGHETTI]]
+- [substitution]:: [[SANTA MARIA 400G SPAGHETTI GREEN]]
+- [substitution]:: [[SANTA LUCIA 700G SPAGHETTI]]
+
+## Network Insights
+- [upstream_supply]:: [[TRADE ROOTS LTD]]
+- [downstream_demand]:: [[Retail Market]]

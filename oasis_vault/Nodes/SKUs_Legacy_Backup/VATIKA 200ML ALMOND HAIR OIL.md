@@ -1,0 +1,30 @@
+---
+type: SKU
+department: '[[HAIR PRODUCTS]]'
+supplier: '[[KIM FAY EAST AFRICA LTD DABUR]]'
+price: 565.0
+margin_pct: 0.0
+revenue: 0.0
+gross_profit: 0.0
+sales_rank: 15624
+velocity_ads: 0.0055
+total_quantity: 2.0
+rhapta_fill_rate: 0
+---
+
+# VATIKA 200ML ALMOND HAIR OIL
+
+## Relationships
+- **Department**: [[HAIR PRODUCTS]]
+- **Supplier**: [[KIM FAY EAST AFRICA LTD DABUR]]
+
+## Potential Substitutes
+- [substitution]:: [[NEETA 20G HENNA CONE NATURAL NATURAL]]
+- [substitution]:: [[ORS 207ML OLIVE OIL WRAP SET MOUSSE]]
+- [substitution]:: [[ORS 95ML BLACK CASTOR HAIR OIL]]
+- [substitution]:: [[GOT2B 100ML GLUED HAIR SPRAY]]
+- [substitution]:: [[ORS 450ML OLIVE OIL SHEEN SPRAY]]
+
+## Network Insights
+- [upstream_supply]:: [[KIM FAY EAST AFRICA LTD DABUR]]
+- [downstream_demand]:: [[Retail Market]]

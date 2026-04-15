@@ -1,0 +1,84 @@
+{
+    "investors": {
+        "INV_9CDA8AAC": {
+            "name": "Alice",
+            "total_capital": 50000.0,
+            "available_capital": 6245.0,
+            "locked_capital": 43755.0,
+            "yield_generated": 288.9990847461719,
+            "active_positions": [
+                "POS_1D614062",
+                "POS_18F9785F",
+                "POS_DE4D8F0E"
+            ],
+            "kyc_verified": true
+        },
+        "INV_35EE4139": {
+            "name": "Bob",
+            "total_capital": 20000.0,
+            "available_capital": 20000.0,
+            "locked_capital": 0.0,
+            "yield_generated": 0.0,
+            "active_positions": [],
+            "kyc_verified": true
+        }
+    },
+    "active_positions": {
+        "POS_1D614062": {
+            "sku": "FRESH MILK 500ML",
+            "total_qty": 500,
+            "qty_on_hand": 491,
+            "unit_cost": 45.0,
+            "total_cost": 22500.0,
+            "status": "LISTED_ON_SECONDARY",
+            "risk_tranche": "Tier 1: High Yield/High Risk",
+            "wp_score": 0.0122,
+            "yield_target": 0.0724,
+            "gpp_protected": false,
+            "created_at": "2026-04-07T21:42:38.183640",
+            "investor_id": "INV_9CDA8AAC",
+            "funded_at": "2026-04-07T21:42:38.275162",
+            "secondary_listing_price": 21375.0,
+            "secondary_discount": 0.05
+        },
+        "POS_18F9785F": {
+            "sku": "WHITE BREAD 400G",
+            "total_qty": 300,
+            "qty_on_hand": 285,
+            "unit_cost": 55.0,
+            "total_cost": 16500.0,
+            "status": "FUNDED",
+            "risk_tranche": "Tier 1: High Yield/High Risk",
+            "wp_score": 0.0163,
+            "yield_target": 0.0733,
+            "gpp_protected": false,
+            "created_at": "2026-04-07T21:42:38.185266",
+            "investor_id": "INV_9CDA8AAC",
+            "funded_at": "2026-04-07T21:42:38.276230"
+        },
+        "POS_DE4D8F0E": {
+            "sku": "KASUKU 1KG FAT",
+            "total_qty": 50,
+            "qty_on_hand": 41,
+            "unit_cost": 150.0,
+            "total_cost": 7500.0,
+            "status": "FUNDED",
+            "risk_tranche": "Tier 2: Medium Risk/Traffic",
+            "wp_score": 0.0408,
+            "yield_target": 0.0382,
+            "gpp_protected": true,
+            "created_at": "2026-04-07T21:42:38.186445",
+            "investor_id": "INV_9CDA8AAC",
+            "funded_at": "2026-04-07T21:42:38.277293"
+        }
+    },
+    "historical_positions": [],
+    "global_ledger": {
+        "gpp_balance": 16.1333257062181,
+        "spg_balance": 152.44947372904883,
+        "platform_fees": 24.08325706218099,
+        "levy_pct": 0.005,
+        "total_trades": 16,
+        "total_volume": 3226.6651412436204
+    }
+}

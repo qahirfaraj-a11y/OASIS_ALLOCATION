@@ -1,0 +1,30 @@
+---
+type: SKU
+department: '[[MAYONNAISE]]'
+supplier: '[[ON DEMAND DISTRIBUTION HOUSE]]'
+price: 429.0
+margin_pct: 0
+revenue: 0.0
+gross_profit: 0.0
+sales_rank: 22223
+velocity_ads: 0.0054
+total_quantity: 1.0
+rhapta_fill_rate: 0
+---
+
+# HELLMANNS 750ML SQ MAYO REAL
+
+## Relationships
+- **Department**: [[MAYONNAISE]]
+- **Supplier**: [[ON DEMAND DISTRIBUTION HOUSE]]
+
+## Potential Substitutes
+- [substitution]:: [[MC 330G REAL  MAYONNAISE]]
+- [substitution]:: [[MC 330G GARLIC MAYONNAISE]]
+- [substitution]:: [[LYONS 340ML GARLIC MAYONNAISE TOP DOWN]]
+- [substitution]:: [[LYONS 340ML REAL MAYONNAISE TOP DOWN]]
+- [substitution]:: [[LYONS 400ML MAYONNAISE JAR]]
+
+## Network Insights
+- [upstream_supply]:: [[ON DEMAND DISTRIBUTION HOUSE]]
+- [downstream_demand]:: [[Retail Market]]

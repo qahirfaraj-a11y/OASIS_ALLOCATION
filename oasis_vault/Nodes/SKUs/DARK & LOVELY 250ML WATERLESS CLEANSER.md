@@ -1,0 +1,27 @@
+---
+type: SKU
+department: "[[HAIR PRODUCTS]]"
+supplier: "[[LOREAL E A LIMITED HQ]]"
+price: 700.0
+margin_pct: 0
+revenue: 0
+gross_profit: 0
+sales_rank: 9999
+---
+
+# DARK & LOVELY 250ML WATERLESS CLEANSER
+
+## Relationships
+- **Department**: [[HAIR PRODUCTS]]
+- **Supplier**: [[LOREAL E A LIMITED HQ]]
+
+## Potential Substitutes
+- [substitution]:: [[ORS 207ML OLIVE OIL WRAP SET MOUSSE]]
+- [substitution]:: [[PARACHUTE 500ML COCONUT OIL]]
+- [substitution]:: [[GARNIER COLOR NATURALS 3 CH FON DARK BROWN]]
+- [substitution]:: [[MEGA GROWTH 500G BREAKFREE LEAVE IN TREATMENT]]
+- [substitution]:: [[VATIKA 200ML ALMOND HAIR OIL]]
+
+## Network Insights
+- [upstream_supply]:: [[LOREAL E A LIMITED HQ]]
+- [downstream_demand]:: [[Retail Market]]

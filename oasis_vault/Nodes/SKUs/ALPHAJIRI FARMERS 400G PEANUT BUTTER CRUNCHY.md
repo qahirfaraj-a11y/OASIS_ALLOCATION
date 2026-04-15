@@ -1,0 +1,27 @@
+---
+type: SKU
+department: "[[PEANUT BUTTER]]"
+supplier: "[[ALPHAJIRI LIMITED SR]]"
+price: 625.0
+margin_pct: 0
+revenue: 0
+gross_profit: 0
+sales_rank: 9999
+---
+
+# ALPHAJIRI FARMERS 400G PEANUT BUTTER CRUNCHY
+
+## Relationships
+- **Department**: [[PEANUT BUTTER]]
+- **Supplier**: [[ALPHAJIRI LIMITED SR]]
+
+## Potential Substitutes
+- [substitution]:: [[NUTEEZ 800G PEANUT BUTTER SMOOTH]]
+- [substitution]:: [[NUTEEZ 800G PEANUT BUTTER CRUNCHY]]
+- [substitution]:: [[ZESTA 800G SMOOTH PEANUT BUTTER]]
+- [substitution]:: [[BLUE BAND 800G PEANUT BUTTER SMOOTH]]
+- [substitution]:: [[NUTEEZ 800G PEANUT BUTTER SMOOTH SUGAR FREE]]
+
+## Network Insights
+- [upstream_supply]:: [[ALPHAJIRI LIMITED SR]]
+- [downstream_demand]:: [[Retail Market]]

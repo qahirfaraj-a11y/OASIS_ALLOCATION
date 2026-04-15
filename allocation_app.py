@@ -45,8 +45,10 @@ def load_and_run_allocation(budget, target_month="JAN"):
         return pd.DataFrame(), 0.0, 0.0, {}, {}
     
     # v2.9: Load Seasonal Data (Hybrid Guide)
+    # FIX M1: Cash files live in oasis/data/, not the root DATA_DIR (scratch/).
     from oasis.simulation.data_loader import HistoricalDataLoader
-    loader = HistoricalDataLoader(DATA_DIR)
+    oasis_data_dir = os.path.join(DATA_DIR, 'oasis', 'data')
+    loader = HistoricalDataLoader(oasis_data_dir)
     seasonal_map = loader.load_monthly_demand(target_month)
     
     # Load Data
@@ -61,7 +63,7 @@ def load_and_run_allocation(budget, target_month="JAN"):
             'selling_price': float(row.get('Unit_Price', 0) if pd.notnull(row.get('Unit_Price')) else 0),
             'avg_daily_sales': float(row.get('Avg_Daily_Sales', 0) if pd.notnull(row.get('Avg_Daily_Sales')) else 0),
             'product_category': row.get('Department', 'GENERAL'),
-            'pack_size': 1,
+            'pack_size': int(row.get('Pack_Size', 1) if pd.notnull(row.get('Pack_Size', None)) else 1),
             'moq_floor': 0,
             'historical_order_count': 0, # Reset for greenfield simulation
             'is_staple_override': str(row.get('Is_Staple', 'False')).upper() == 'TRUE', # Optional if engine checks file
@@ -74,16 +76,23 @@ def load_and_run_allocation(budget, target_month="JAN"):
         
     engine = get_engine()
     
-    # Run Logic (now returns dict with 'recommendations' and 'summary')
+    # Run Logic
+    # v10.1: Re-enable enrichment but in Greenfield mode (keeps global intelligence, skips store history)
+    engine.enrich_product_data(recommendations, is_greenfield=True)
+    
+    products_map = {r['product_name']: r for r in recommendations}
+    
     result = engine.apply_greenfield_allocation(recommendations, budget, seasonal_demand_map=seasonal_map)
-    final_recs = result['recommendations']
+    raw_recs = result['recommendations']
     allocation_summary = result['summary']
+    
+    # Golden Logic v10.0 Parity
+    from oasis.logic.order_logic_guards import apply_safety_guards
+    final_recs = apply_safety_guards(raw_recs, products_map, allocation_mode="initial_load")
     
     # Convert back to DataFrame
     results = []
     
-    # v2.8: Performance Optimization - Create lookup dictionary once
-    # Instead of nested loop (O(n²)), use dictionary lookup (O(n))
     product_data_map: dict[str, dict[str, float | None]] = {}
     for _, row in df.iterrows():
         product_name = row.get('Product')
@@ -91,43 +100,51 @@ def load_and_run_allocation(budget, target_month="JAN"):
             product_data_map[product_name] = {
                 'margin_pct': row.get('Margin_Pct') if pd.notnull(row.get('Margin_Pct')) else None
             }
-    
+
+    # v2.9: Budget Correction (Pruning) - Ensure we don't exceed budget after guards
+    def get_cost_estimate(r):
+        qty = float(r.get('recommended_quantity', 0))
+        if qty <= 0: return 0.0
+        
+        # Consistent with OrderEngine calculation
+        price = float(r.get('selling_price', 0))
+        cost_price = float(r.get('cost_price', 0.0))
+        
+        if cost_price <= 0.0:
+            # Fallback if enrichment didn't find cost
+            cost_price = price * 0.75
+            
+        return qty * cost_price
+
+    # Pre-calculate costs and sort by priority
+    recs_with_cost = []
     for r in final_recs:
+        r['estimated_cost'] = get_cost_estimate(r) if not r.get('is_consignment', False) else 0.0
+        recs_with_cost.append(r)
+    
+    # Sort: Staples first, then high ADS
+    recs_with_cost.sort(key=lambda x: engine.staple_priority_sort(x))
+    
+    current_total_cash = sum(r['estimated_cost'] for r in recs_with_cost)
+    
+    # v10.2: REMOVED Post-Allocation Budget Pruning
+    # The OrderEngine already strictly manages the budget internally. 
+    # Safety guards (like pack rounding) might push the final cost slightly over budget 
+    # (+1-5%) to avoid breaking packs, which is the correct retail behavior.
+    # Pruning here was indiscriminately killing items and causing massive under-allocation.
+    if current_total_cash > budget:
+        st.info(f"Note: Final optimal basket (KES {current_total_cash:,.0f}) slightly exceeds base budget (KES {budget:,.0f}) due to minimum pack-size rounding requirements.")
+    
+    for r in recs_with_cost:
         qty: float = float(r.get('recommended_quantity', 0))
         if qty > 0:
             price: float = float(r.get('selling_price', 0))
             # Re-check logic flag
             is_consignment = r.get('is_consignment', False)
             
-            # v2.8: Optimized cost calculation with O(1) dictionary lookup
-            # Priority: GRN cost → Margin calculation → 0.75 estimate
-            cost_price = 0.0
-            
-            # 1. Try GRN database (most accurate - actual purchase prices)
-            if hasattr(engine, 'grn_db'):
-                p_name = r['product_name']
-                p_barcode = str(r.get('barcode', '')).strip()
-                grn_key = p_barcode if p_barcode else engine.normalize_product_name(p_name)
-                grn_stat = engine.grn_db.get(grn_key)
-                if grn_stat and grn_stat.get('avg_cost'):
-                    cost_price = float(grn_stat['avg_cost'])
-            
-            # 2. Try Margin% from pre-built dictionary (O(1) lookup)
-            if cost_price == 0.0:
-                product_info = product_data_map.get(r['product_name'])
-                if product_info:
-                    margin_pct = product_info['margin_pct']
-                    if margin_pct is not None:
-                        try:
-                            m = float(margin_pct)
-                            if 0 <= m < 100:
-                                cost_price = price * (1 - m / 100.0)
-                        except (ValueError, TypeError):
-                            pass
-            
-            # 3. Fallback to 25% margin estimate
-            if cost_price <= 0.0:
-                cost_price = price * 0.75
+            # v2.8: Use the engine's exact calculation method to mathematically
+            # guarantee 100% sync between engine budget and UI presentation.
+            cost_price = float(engine._get_actual_cost_price(r, price))
             
             cost = float(qty) * float(cost_price)
             revenue = float(qty) * float(price)
@@ -155,14 +172,18 @@ def load_and_run_allocation(budget, target_month="JAN"):
     return pd.DataFrame(results), total_cash_spend, total_consignment_val, allocation_summary, seasonal_map
 
 # --- Streamlit UI ---
-st.set_page_config(page_title="Inventory Allocation Engine", layout="wide")
+# Guard set_page_config for import safety (A2 fix)
+try:
+    st.set_page_config(page_title="Inventory Allocation Engine", layout="wide")
+except Exception:
+    pass  # Already called by importing app (e.g. integrated_app.py)
 
 st.title("🛒 Dynamic Inventory Allocation Engine (v2.0 Logic)")
 st.markdown("Powered by **OrderEngine 2.0**: Two-Pass Allocation with Efficiency Guards.")
 
 # Sidebar
 st.sidebar.header("Configuration")
-budget = st.sidebar.slider("Capital Budget ($)", min_value=50000, max_value=200000000, value=300000, step=10000)
+budget = st.sidebar.slider("Capital Budget (KES)", min_value=50000, max_value=200000000, value=300000, step=10000)
 
 if st.sidebar.button("Run Simulation"):
     with st.spinner("Running Allocation Logic..."):
@@ -180,10 +201,10 @@ if st.sidebar.button("Run Simulation"):
         avg_turnover = (total_qty / total_sales) if total_sales > 0 else 0
         
         c1, c2, c3, c4, c5, c6, c7 = st.columns(7)
-        c1.metric("Budget Target", f"${budget:,.0f}")
-        c2.metric("Cash Used", f"${cash_spend:,.0f}", delta=f"{cash_spend-budget:,.0f}")
-        c3.metric("Consignment Val", f"${consignment_val:,.0f}", delta="Free Capital")
-        c4.metric("Est. Revenue", f"${est_revenue:,.0f}", delta=f"{roi:.1f}% ROI")
+        c1.metric("Budget Target", f"KES {budget:,.0f}")
+        c2.metric("Cash Used", f"KES {cash_spend:,.0f}", delta=f"{cash_spend-budget:,.0f}")
+        c3.metric("Consignment Val", f"KES {consignment_val:,.0f}", delta="Free Capital")
+        c4.metric("Est. Revenue", f"KES {est_revenue:,.0f}", delta=f"{roi:.1f}% ROI")
         c5.metric("Days to ROI", f"{avg_turnover:.1f} Days", help="Average time to rotate stock and recover capital")
         c6.metric("Total SKUs", len(basket_df))
         
@@ -207,7 +228,7 @@ if st.sidebar.button("Run Simulation"):
         depth = profile['depth_days']
         cap = profile['price_ceiling']
         
-        strategy_desc = f"**{tier_name} Strategy**: Price Cap {cap:,.0f}/=, Depth {depth} Days, Max {profile['max_packs']} Packs."
+        strategy_desc = f"**{tier_name} Strategy**: Price Cap {cap:,.0f} KES, Depth {depth} Days, Max {profile['max_packs']} Packs."
         
         st.info(f"**Engine Active Profile**: {strategy_desc}")
         
@@ -218,12 +239,12 @@ if st.sidebar.button("Run Simulation"):
             st.subheader("Department Spend")
             dept_summ = basket_df.groupby("Department")["Allocated_Cost"].sum().reset_index()
             fig_dept = px.pie(dept_summ, values="Allocated_Cost", names="Department", hole=0.3)
-            st.plotly_chart(fig_dept, width='stretch')
+            st.plotly_chart(fig_dept, use_container_width=True)
             
         with col_right:
             st.subheader("Pack Count Distribution")
             fig_hist = px.histogram(basket_df, x="Qty", title="Distribution of Pack Quantities")
-            st.plotly_chart(fig_hist, width='stretch')
+            st.plotly_chart(fig_hist, use_container_width=True)
 
         # Detailed Table
         st.subheader("Generated Order Basket")

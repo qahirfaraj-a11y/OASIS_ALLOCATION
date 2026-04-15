@@ -1,0 +1,30 @@
+---
+type: SKU
+department: '[[FAN-AIR CONDITIONERS]]'
+supplier: '[[IDEAL APPLIANCES LIMITED SR]]'
+price: 2295.0
+margin_pct: 0.0
+revenue: 0.0
+gross_profit: 0.0
+sales_rank: 7615
+rhapta_fill_rate: 0
+velocity_ads: 0.0164
+total_quantity: 6.0
+---
+
+# MIKA MDIR562 DRY IRON CERAMIC PLATE
+
+## Relationships
+- **Department**: [[FAN-AIR CONDITIONERS]]
+- **Supplier**: [[IDEAL APPLIANCES LIMITED SR]]
+
+## Potential Substitutes
+- [substitution]:: [[MIKA MKT1004B KETTLE 1.7L BLK CORDED]]
+- [substitution]:: [[MIKA MKT1302-W CORDLES KETTLE 1.7L WHT]]
+- [substitution]:: [[MIKA MKT1103-W CORDLES KETTLE 1.7L]]
+- [substitution]:: [[MIKA MKT1005W KETTLE CORDLESS 1.7L WHT]]
+- [substitution]:: [[MIKA MKT1301B CORDLES KETTLE 1.7L BLK]]
+
+## Network Insights
+- [upstream_supply]:: [[IDEAL APPLIANCES LIMITED SR]]
+- [downstream_demand]:: [[Retail Market]]

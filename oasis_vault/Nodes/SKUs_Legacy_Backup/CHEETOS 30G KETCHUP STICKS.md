@@ -1,0 +1,30 @@
+---
+type: SKU
+department: '[[SNACKS]]'
+supplier: '[[TWIRL ENTERPRISES LTD]]'
+price: 35.0
+margin_pct: 16.0
+revenue: 980.0
+gross_profit: 156.8
+sales_rank: 9944
+rhapta_fill_rate: 0
+velocity_ads: 0.1522
+total_quantity: 28.0
+---
+
+# CHEETOS 30G KETCHUP STICKS
+
+## Relationships
+- **Department**: [[SNACKS]]
+- **Supplier**: [[TWIRL ENTERPRISES LTD]]
+
+## Potential Substitutes
+- [substitution]:: [[URBAN STIX 35G BARBEQUE SNACKS]]
+- [substitution]:: [[KRAC KURLS 25G TANGY CHEESE]]
+- [substitution]:: [[KRAC KURLS 25G CHILLI LEMON]]
+- [substitution]:: [[URBAN STIX 35G THAI SWEET CHILLI SNACKS]]
+- [substitution]:: [[URBAN STIX 35G CHUTNEY SNACKS]]
+
+## Network Insights
+- [upstream_supply]:: [[TWIRL ENTERPRISES LTD]]
+- [downstream_demand]:: [[Retail Market]]

@@ -1,0 +1,30 @@
+---
+type: SKU
+department: '[[FROZEN FISH-SEAFOOD]]'
+supplier: '[[EAST AFRICAN SEA FOOD LTD]]'
+price: 1800.0
+margin_pct: 0
+revenue: 0.0
+gross_profit: 0.0
+sales_rank: 23320
+velocity_ads: 0.0056
+total_quantity: 1.02
+rhapta_fill_rate: 0
+---
+
+# SEABREAM FILLETS SKINON PKG PLU85011
+
+## Relationships
+- **Department**: [[FROZEN FISH-SEAFOOD]]
+- **Supplier**: [[EAST AFRICAN SEA FOOD LTD]]
+
+## Potential Substitutes
+- [substitution]:: [[MAREMER 500G PEELED SHRIMPS 41-50 IND]]
+- [substitution]:: [[RAPID TILAPIA FILLET PKG PLU96100]]
+- [substitution]:: [[PREMIUM TILAPIA FILLET 3-9OZ PKG PLU85002]]
+- [substitution]:: [[EXPORT QUALITY NILE PERCH PKG PLU85001]]
+- [substitution]:: [[MEDIUM PRAWN 500G PEELED&DEVEINED]]
+
+## Network Insights
+- [upstream_supply]:: [[EAST AFRICAN SEA FOOD LTD]]
+- [downstream_demand]:: [[Retail Market]]

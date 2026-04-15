@@ -1,0 +1,44 @@
+{
+  "run_id": "20260410_193954",
+  "start_time": "2026-04-10T19:39:54.998107",
+  "steps": [
+    {
+      "step": "DATA_EXTRACTION",
+      "status": "SKIPPED",
+      "timestamp": "2026-04-10T19:39:55.000661",
+      "detail": "Executing from static file dump"
+    },
+    {
+      "step": "DATA_VALIDATION",
+      "status": "OK",
+      "timestamp": "2026-04-10T19:39:55.004737",
+      "detail": "Scorecard: C:\\Users\\iLink\\.gemini\\antigravity\\scratch\\Full_Product_Allocation_Scorecard_v7.csv"
+    },
+    {
+      "step": "AMIT_PREFLIGHT",
+      "status": "WARNING",
+      "timestamp": "2026-04-10T19:39:55.951437",
+      "detail": "AMIT failed: arg must be a list, tuple, 1-d array, or Series. Proceeding without blocks."
+    },
+    {
+      "step": "LATA_PREFLIGHT",
+      "status": "OK",
+      "timestamp": "2026-04-10T19:39:55.982405",
+      "detail": "Supplier risk scores updated"
+    },
+    {
+      "step": "PO_GENERATION",
+      "status": "OK",
+      "timestamp": "2026-04-10T19:39:58.919739",
+      "detail": "SHADOW: 10165 items, KES 12,672,914.54"
+    },
+    {
+      "step": "APPROVAL_QUEUE",
+      "status": "OK",
+      "timestamp": "2026-04-10T19:39:59.249001",
+      "detail": "PO saved to C:\\Users\\iLink\\.gemini\\antigravity\\scratch\\pipeline_logs\\daily_po_20260410_193954.csv"
+    }
+  ],
+  "status": "COMPLETED",
+  "end_time": "2026-04-10T19:39:59.253154"
+}

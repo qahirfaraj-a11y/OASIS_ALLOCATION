@@ -8,7 +8,8 @@ def apply_pack_rounding(
     *,
     is_key_sku: bool = False,
     stockout_risk: str = "medium",   # "low" | "medium" | "high"
-    max_overage_ratio: float = 0.25  # how much extra vs base we tolerate
+    max_overage_ratio: float = 0.25, # fallback
+    abc_rank: str = "B"              # v10.0: Logic based on ABC class
 ) -> Dict[str, Any]:
     """
     Convert a base (non-rounded) order quantity into a pack-size-aligned quantity.
@@ -27,10 +28,17 @@ def apply_pack_rounding(
             "rounded_qty": rounded,
             "rounding_direction": "none",
             "rounding_reason": "No valid pack size provided.",
-            "overage_units": max(0, rounded - base_qty),
-            "shortage_units": max(0, base_qty - rounded),
+            "overage_units": int(max(0.0, float(rounded) - base_qty)),
+            "shortage_units": int(max(0.0, base_qty - float(rounded))),
         }
 
+    # v10.0: Dynamic Overage Ratio by ABC Class
+    # A=40% (Aggressive), B=20% (Standard), C=5% (Conservative)
+    effective_overage = max_overage_ratio
+    if abc_rank == 'A': effective_overage = 0.40
+    elif abc_rank == 'C': effective_overage = 0.05
+    else: effective_overage = 0.20
+    
     # Calculate natural floor/ceil to nearest pack
     packs_exact = base_qty / float(pack_size)
     packs_floor = math.floor(packs_exact)
@@ -42,20 +50,20 @@ def apply_pack_rounding(
     # Edge case: if base is zero or tiny but we want at least one pack for key SKUs / high risk
     if base_qty <= 0:
         # Check stockout_risk == "high" OR is_key_sku
-        if is_key_sku or stockout_risk == "high":
+        if is_key_sku:
             rounded = pack_size
             return {
                 "rounded_qty": rounded,
                 "rounding_direction": "up",
-                "rounding_reason": "Base qty <= 0 but SKU is critical/high risk; order minimum one pack.",
-                "overage_units": max(0, rounded - base_qty),
+                "rounding_reason": "Base qty <= 0 but SKU is critical; order minimum one pack.",
+                "overage_units": int(max(0.0, float(rounded) - base_qty)),
                 "shortage_units": 0,
             }
         else:
             return {
                 "rounded_qty": 0,
                 "rounding_direction": "down",
-                "rounding_reason": "Base qty <= 0 and risk is not high; no order.",
+                "rounding_reason": "Base qty <= 0 and not a key SKU; no order.",
                 "overage_units": 0,
                 "shortage_units": 0,
             }
@@ -90,7 +98,7 @@ def apply_pack_rounding(
     if is_key_sku or stockout_risk == "high":
         # NEW: For small requirements (< 1 pack), always allow rounding up to 1 pack 
         # to prevent perpetual stockouts in low-volume tiers.
-        if (overage_ratio_if_up <= max_overage_ratio) or (base_qty > 0 and base_qty < pack_size):
+        if (overage_ratio_if_up <= effective_overage) or (base_qty > 0 and base_qty < pack_size):
             rounded = qty_up
             decision_reason = "Key/high-risk SKU; prefer rounding up (Minimum 1 Pack Rule)."
             direction = "up"
@@ -126,6 +134,6 @@ def apply_pack_rounding(
         "rounded_qty": int(rounded),
         "rounding_direction": direction,
         "rounding_reason": decision_reason,
-        "overage_units": int(max(0, rounded - base_qty)),
-        "shortage_units": int(max(0, base_qty - rounded)),
+        "overage_units": int(max(0.0, float(rounded) - base_qty)),
+        "shortage_units": int(max(0.0, base_qty - float(rounded))),
     }

@@ -1,0 +1,30 @@
+---
+type: SKU
+department: '[[HOT SAUCE]]'
+supplier: '[[PREMIER FOODS  LIMITED]]'
+price: 130.0
+margin_pct: 0.0
+revenue: 0.0
+gross_profit: 0.0
+sales_rank: 6807
+rhapta_fill_rate: 0
+velocity_ads: 0.274
+total_quantity: 100.0
+---
+
+# PEP 420G HOT&SWEET SAUCE
+
+## Relationships
+- **Department**: [[HOT SAUCE]]
+- **Supplier**: [[PREMIER FOODS  LIMITED]]
+
+## Potential Substitutes
+- [substitution]:: [[PEP 375G CHILLI SAUCE CLASSIC]]
+- [substitution]:: [[PEP 400G SWEET CHILI SAUCE]]
+- [substitution]:: [[ZESTA 400G HOT & SWEET SAUCE]]
+- [substitution]:: [[PEP 375G PILI PILI GARLIC SAUCE]]
+- [substitution]:: [[PEP 375G CHILI GARLIC SAUCE]]
+
+## Network Insights
+- [upstream_supply]:: [[PREMIER FOODS  LIMITED]]
+- [downstream_demand]:: [[Retail Market]]

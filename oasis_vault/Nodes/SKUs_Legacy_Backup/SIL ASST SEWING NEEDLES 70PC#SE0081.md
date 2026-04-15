@@ -1,0 +1,30 @@
+---
+type: SKU
+department: '[[HOUSEHOLD ITEMS]]'
+supplier: '[[Unknown]]'
+price: 465.0
+margin_pct: 0
+revenue: 0.0
+gross_profit: 0.0
+sales_rank: 19629
+velocity_ads: 0.0652
+total_quantity: 12.0
+rhapta_fill_rate: 0
+---
+
+# SIL ASST SEWING NEEDLES 70PC#SE0081
+
+## Relationships
+- **Department**: [[HOUSEHOLD ITEMS]]
+- **Supplier**: [[Unknown]]
+
+## Potential Substitutes
+- [substitution]:: [[VELVEX PREMIUM KITCHEN TOWEL WHITE TWIN PACK 80S]]
+- [substitution]:: [[VELVEX PREMIUM KITCHEN TOWEL PINK TWIN PACK 80S]]
+- [substitution]:: [[LIVELLE KITCHEN TOWEL 2PACK]]
+- [substitution]:: [[TENA 2S PREMIUM KITCHEN TOWEL WHITE]]
+- [substitution]:: [[LIVELLE KITCHEN TOWEL PINK TWINPACK]]
+
+## Network Insights
+- [upstream_supply]:: [[Unknown]]
+- [downstream_demand]:: [[Retail Market]]

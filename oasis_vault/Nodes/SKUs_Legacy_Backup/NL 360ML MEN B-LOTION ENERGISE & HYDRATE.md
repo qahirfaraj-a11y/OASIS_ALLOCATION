@@ -1,0 +1,26 @@
+---
+type: SKU
+department: "[[MENS LOTION]]"
+supplier: "[[Unknown]]"
+price: 375.0
+margin_pct: 0
+revenue: 0
+gross_profit: 0
+sales_rank: 9999
+---
+
+# NL 360ML MEN B/LOTION ENERGISE & HYDRATE
+
+## Relationships
+- **Department**: [[MENS LOTION]]
+- **Supplier**: [[Unknown]]
+
+## Potential Substitutes
+- [substitution]:: [[NIVEA 200ML COOL KICK BODY LOTION]]
+- [substitution]:: [[VASELINE 200ML COOLING+50ML FREE]]
+- [substitution]:: [[NIVEA 100ML MEN COOL KICK BODY LOTION 88153]]
+- [substitution]:: [[NL 360ML MEN B-LOTION FRESH & COOL]]
+
+## Network Insights
+- [upstream_supply]:: [[Unknown]]
+- [downstream_demand]:: [[Retail Market]]

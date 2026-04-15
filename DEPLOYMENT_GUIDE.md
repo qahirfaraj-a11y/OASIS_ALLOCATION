@@ -125,10 +125,9 @@ The scheduler runs background jobs inside the Streamlit process.
 | `STREAMLIT_SERVER_PORT` | `8501` | Dashboard port |
 | `STREAMLIT_SERVER_HEADLESS` | `true` | Run without browser auto-open |
 | `OASIS_DB_TYPE` | `sqlite` | Database type (`sqlite` or `mssql`) |
-| `OASIS_DB_HOST` | — | MSSQL server hostname |
-| `OASIS_DB_NAME` | — | MSSQL database name |
-| `OASIS_DB_USER` | — | MSSQL username |
-| `OASIS_DB_PASS` | — | MSSQL password |
+| `ANTHROPIC_API_KEY` | — | Required for Stage 6 AI Strategic Analysis |
+| `DATABASE_DIR` | `./oasis/data` | Directory for all JSON/CSV intelligence databases |
+| `SHOPIFY_SYNC` | `true` | Enable Phase 1 online demand blending |
 
 ---
 
@@ -175,5 +174,5 @@ taskkill /PID <PID> /F
 ```
 
 ### GNN model not loading
-Ensure `st_gat_v2.pt` and `stores_network.json` are in the project root.
+Ensure `store_gnn_checkpoint.pt` and `stores_network.json` are in the project root or models/ folder.
 These files are intentionally excluded from `.dockerignore` — uncomment the exclusions if you don't need GNN features.

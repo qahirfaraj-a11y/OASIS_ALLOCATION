@@ -1,0 +1,30 @@
+---
+type: SKU
+department: '[[ALL CLEANERS]]'
+supplier: '[[PWANI OIL PRODUCTS LTD.]]'
+price: 850.0
+margin_pct: 0.0
+revenue: 0.0
+gross_profit: 0.0
+sales_rank: 734
+velocity_ads: 0.0219
+total_quantity: 8.0
+rhapta_fill_rate: 0
+---
+
+# USHINDI 5LT MULTI FLOOR CLEANER
+
+## Relationships
+- **Department**: [[ALL CLEANERS]]
+- **Supplier**: [[PWANI OIL PRODUCTS LTD.]]
+
+## Potential Substitutes
+- [substitution]:: [[ASTONISH 1LT JASMIN WBERRY FLOOR CLEANER]]
+- [substitution]:: [[ASTONISH 600G OXY ACTIVE TOUGH STAIN REMOVER]]
+- [substitution]:: [[DETTOL 4IN1 LAVENDER 900ML MA CLEANER]]
+- [substitution]:: [[DETTOL 4IN1 MARINE 900ML MA CLEANER]]
+- [substitution]:: [[CIF 950ML FLOOR CLEANER OCEAN]]
+
+## Network Insights
+- [upstream_supply]:: [[PWANI OIL PRODUCTS LTD.]]
+- [downstream_demand]:: [[Retail Market]]

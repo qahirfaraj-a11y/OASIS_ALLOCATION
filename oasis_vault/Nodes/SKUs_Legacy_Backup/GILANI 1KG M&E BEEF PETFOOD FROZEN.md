@@ -1,0 +1,30 @@
+---
+type: SKU
+department: '[[PET DOG FOOD]]'
+supplier: '[[GILANI GOURMET LTD]]'
+price: 239.0
+margin_pct: 16.0
+revenue: 6214.0
+gross_profit: 994.24
+sales_rank: 6133
+rhapta_fill_rate: 0
+velocity_ads: 0.1413
+total_quantity: 26.0
+---
+
+# GILANI 1KG M&E BEEF PETFOOD FROZEN
+
+## Relationships
+- **Department**: [[PET DOG FOOD]]
+- **Supplier**: [[GILANI GOURMET LTD]]
+
+## Potential Substitutes
+- [substitution]:: [[WANPY 375G DOG FOOD CHICKN&VEG]]
+- [substitution]:: [[WANPY 375G DOG FOOD CHICN&LIVER]]
+- [substitution]:: [[WANPY 375G CANNED DOG FOOD CHICKEN]]
+- [substitution]:: [[GILANI 1KG M&E CHICKEN PETFOOD FROZEN]]
+- [substitution]:: [[WANPY 375G CANNED DOG FOOD LAMB]]
+
+## Network Insights
+- [upstream_supply]:: [[GILANI GOURMET LTD]]
+- [downstream_demand]:: [[Retail Market]]

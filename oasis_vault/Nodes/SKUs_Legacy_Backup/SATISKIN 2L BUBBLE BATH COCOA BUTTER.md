@@ -1,0 +1,30 @@
+---
+type: SKU
+department: '[[WOMEN-UNISEX SHOWER GEL]]'
+supplier: '[[VALENCIA COSMETICS LIMITED]]'
+price: 1099.0
+margin_pct: 0.0
+revenue: 0.0
+gross_profit: 0.0
+sales_rank: 14337
+velocity_ads: 0.0274
+total_quantity: 10.0
+rhapta_fill_rate: 0
+---
+
+# SATISKIN 2L BUBBLE BATH COCOA BUTTER
+
+## Relationships
+- **Department**: [[WOMEN-UNISEX SHOWER GEL]]
+- **Supplier**: [[VALENCIA COSMETICS LIMITED]]
+
+## Potential Substitutes
+- [substitution]:: [[DOVE 500ML BODY WASH GLOWING RITUAL]]
+- [substitution]:: [[DOVE 500ML SG DEEPLY NOURISHING]]
+- [substitution]:: [[DOVE 500ML BODY WASH CUCUMBER & GREEN TEA]]
+- [substitution]:: [[DOVE 500ML BODY WASH RELAXING RITUAL]]
+- [substitution]:: [[DOVE 500ML BODY WASH INVIGORATING RITUAL]]
+
+## Network Insights
+- [upstream_supply]:: [[VALENCIA COSMETICS LIMITED]]
+- [downstream_demand]:: [[Retail Market]]

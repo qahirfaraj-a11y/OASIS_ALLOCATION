@@ -1,0 +1,44 @@
+{
+    "investors": {},
+    "active_positions": {
+        "POS_402CF9C2": {
+            "sku": "COOKING OIL 2LT",
+            "total_qty": 48,
+            "qty_on_hand": 48,
+            "unit_cost": 580.0,
+            "total_cost": 27840.0,
+            "status": "LISTED",
+            "risk_tranche": "Tier 3: Low Yield/Staple",
+            "wp_score": 0.0027,
+            "yield_target": 0.0,
+            "gpp_protected": false,
+            "dynamic_gpp_threshold": 0.005,
+            "created_at": "2026-04-08T11:17:58.434311",
+            "investor_id": null
+        },
+        "POS_A9B3B450": {
+            "sku": "YOGURT FRESA 250ML",
+            "total_qty": 100,
+            "qty_on_hand": 100,
+            "unit_cost": 65.0,
+            "total_cost": 6500.0,
+            "status": "LISTED",
+            "risk_tranche": "Tier 2: Medium Risk/Traffic",
+            "wp_score": 0.011,
+            "yield_target": 0.0,
+            "gpp_protected": false,
+            "dynamic_gpp_threshold": 0.08,
+            "created_at": "2026-04-08T11:17:58.435878",
+            "investor_id": null
+        }
+    },
+    "historical_positions": [],
+    "global_ledger": {
+        "gpp_balance": 0.0,
+        "spg_balance": 0.0,
+        "platform_fees": 0.0,
+        "levy_pct": 0.005,
+        "total_trades": 0,
+        "total_volume": 0.0
+    }
+}

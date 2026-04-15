@@ -1,0 +1,27 @@
+---
+type: SKU
+department: "[[BABY COSMETICS]]"
+supplier: "[[P Z CUSSONS EAST AFRICA  LTD HQ]]"
+price: 270.0
+margin_pct: 0
+revenue: 0
+gross_profit: 0
+sales_rank: 9999
+---
+
+# CUSSONS 100G BABY POWDER S&S
+
+## Relationships
+- **Department**: [[BABY COSMETICS]]
+- **Supplier**: [[P Z CUSSONS EAST AFRICA  LTD HQ]]
+
+## Potential Substitutes
+- [substitution]:: [[CUSSONS 100ML BABY M&G OIL]]
+- [substitution]:: [[CUSSONS 100ML BABY S&S OIL 161014A]]
+- [substitution]:: [[CUSSONS 100G BABY M&G POWDER]]
+- [substitution]:: [[CUSSONS 200ML BABY MG UNPERFUMED JELLY BP 253]]
+- [substitution]:: [[CUSSONS 200ML BABY SS PERFUMED JELLY]]
+
+## Network Insights
+- [upstream_supply]:: [[P Z CUSSONS EAST AFRICA  LTD HQ]]
+- [downstream_demand]:: [[Retail Market]]

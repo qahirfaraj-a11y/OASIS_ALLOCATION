@@ -1,0 +1,30 @@
+---
+type: SKU
+department: '[[OLIVE OIL]]'
+supplier: '[[OZ FOODS AND BEVERAGES LTD]]'
+price: 2575.0
+margin_pct: 0.0
+revenue: 0.0
+gross_profit: 0.0
+sales_rank: 8987
+velocity_ads: 0.0329
+total_quantity: 12.0
+rhapta_fill_rate: 0
+---
+
+# BULLA 1L REGIA OLIVE OIL QUADRO
+
+## Relationships
+- **Department**: [[OLIVE OIL]]
+- **Supplier**: [[OZ FOODS AND BEVERAGES LTD]]
+
+## Potential Substitutes
+- [substitution]:: [[SANTA MARIA 1LT EXTRA VIRGIN OLIVE OIL]]
+- [substitution]:: [[BORGES 750ML EXTRA VIRGIN OIL]]
+- [substitution]:: [[OROLIO 1LT EXTRA VIRGIN OLIVE OIL]]
+- [substitution]:: [[TD ELYSAA 1LT EXT VIRGIN OLIVE OIL]]
+- [substitution]:: [[MARBELLA 1LT EXTRA VIRGIN OLIVE OIL]]
+
+## Network Insights
+- [upstream_supply]:: [[OZ FOODS AND BEVERAGES LTD]]
+- [downstream_demand]:: [[Retail Market]]

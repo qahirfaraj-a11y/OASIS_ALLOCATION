@@ -29,6 +29,7 @@ COPY intraday_sim.py .
 COPY retail_simulator.py .
 COPY network_simulation.py .
 COPY store_network_generator.py .
+COPY generate_showcase_scenario.py .
 
 # Copy models and config
 COPY models/ ./models/

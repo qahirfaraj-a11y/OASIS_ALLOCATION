@@ -67,7 +67,7 @@ STORE_UNIVERSES = {
         "budget": 10_000_000,
         "reorder_budget_pct": 0.25,
         "safety_days": 10,
-        "max_skus": 5000,
+        "max_skus": 10000,
         "reorder_frequency_days": 1,
         "demand_scale_factor": 0.12,
         "description": "Large Supermarket",
@@ -77,7 +77,7 @@ STORE_UNIVERSES = {
         "budget": 100_000_000,
         "reorder_budget_pct": 0.20,
         "safety_days": 10,
-        "max_skus": 15000,
+        "max_skus": 30000,
         "reorder_frequency_days": 1,
         "demand_scale_factor": 1.0, 
         "description": "Hypermarket / Mega Store",
@@ -174,15 +174,22 @@ class SimulationResult:
     roi: float = 0.0
 
 # --- Data Loading ---
+_SUPPLIER_PATTERNS_CACHE = None
+
 def load_supplier_patterns() -> Dict:
-    """Load supplier lead time and reliability data."""
+    """Load supplier lead time and reliability data (cached)."""
+    global _SUPPLIER_PATTERNS_CACHE
+    if _SUPPLIER_PATTERNS_CACHE is not None:
+        return _SUPPLIER_PATTERNS_CACHE
     patterns_file = os.path.join(DATA_DIR, "supplier_patterns_2025 (3).json")
     try:
         with open(patterns_file, "r") as f:
-            return json.load(f)
+            _SUPPLIER_PATTERNS_CACHE = json.load(f)
+            return _SUPPLIER_PATTERNS_CACHE
     except FileNotFoundError:
         print(f"Warning: Supplier patterns file not found at {patterns_file}")
-        return {}
+        _SUPPLIER_PATTERNS_CACHE = {}
+        return _SUPPLIER_PATTERNS_CACHE
 
 def load_sales_forecasting() -> Dict:
     """Load sales forecasting data for demand variability."""
@@ -374,7 +381,74 @@ class RetailSimulator:
         # Reorder tracking
         self.pending_orders: List[Tuple[int, str, float]] = []  # (arrival_day, product, qty)
         
-        # self.bridge = SimulationOrderUtil(os.getcwd())
+        # --- OPTIMIZATION: High-Speed Vector Workspace ---
+        self._active_sku_names = []
+        self._stock_vec = np.array([], dtype=np.float32)
+        self._ads_vec = np.array([], dtype=np.float32)
+        self._cv_vec = np.array([], dtype=np.float32)
+        self._price_vec = np.array([], dtype=np.float32)
+        
+        # Cumulative tracking vectors (reset during refresh)
+        self._sales_vec = np.array([], dtype=np.float32)
+        self._demand_vec = np.array([], dtype=np.float32)
+        self._lost_vec = np.array([], dtype=np.float32)
+        self._stockout_vec = np.array([], dtype=np.float32)
+        
+        self._refresh_active_skus()
+
+    def _refresh_active_skus(self):
+        """Identifies SKUs that need simulation and builds NumPy workspace."""
+        active = []
+        stocks = []
+        ads = []
+        cvs = []
+        prices = []
+        
+        for name, sku in self.skus.items():
+            if sku.avg_daily_sales > 0 or sku.current_stock > 0:
+                active.append(name)
+                stocks.append(sku.current_stock)
+                ads.append(sku.avg_daily_sales)
+                cvs.append(sku.demand_cv * (1.3 if sku.is_fresh else 1.0))
+                prices.append(sku.unit_price)
+        
+        self._active_sku_names = active
+        self._stock_vec = np.array(stocks, dtype=np.float32)
+        self._ads_vec = np.array(ads, dtype=np.float32)
+        self._cv_vec = np.array(cvs, dtype=np.float32)
+        self._price_vec = np.array(prices, dtype=np.float32)
+        
+        # Initialize tracking vectors with zeros
+        count = len(active)
+        self._sales_vec = np.zeros(count, dtype=np.float32)
+        self._demand_vec = np.zeros(count, dtype=np.float32)
+        self._lost_vec = np.zeros(count, dtype=np.float32)
+        self._stockout_vec = np.zeros(count, dtype=np.float32)
+
+    def sync_from_vectorized_state(self):
+        """Push fast NumPy work state back to slow Python SKU objects."""
+        if not self._active_sku_names: return
+        for i, name in enumerate(self._active_sku_names):
+            sku = self.skus[name]
+            sku.current_stock = float(self._stock_vec[i])
+            sku.total_sales += float(self._sales_vec[i])
+            sku.total_demand += float(self._demand_vec[i])
+            sku.lost_sales += float(self._lost_vec[i])
+            sku.stockout_days += int(self._stockout_vec[i])
+        
+        # Reset relative tracking vectors after sync
+        self._sales_vec.fill(0)
+        self._demand_vec.fill(0)
+        self._lost_vec.fill(0)
+        self._stockout_vec.fill(0)
+
+    def sync_to_vectorized_state(self):
+        """Pull latest object states (after arrivals/orders) into NumPy workspace."""
+        if not self._active_sku_names: return
+        for i, name in enumerate(self._active_sku_names):
+            sku = self.skus[name]
+            self._stock_vec[i] = sku.current_stock
+
         
     def simulate_daily_demand(self, sku: SKUState, day_of_week: int = 0) -> float:
         """
@@ -431,6 +505,50 @@ class RetailSimulator:
             demand = round(demand)
 
         return float(demand)
+
+    def simulate_active_day_vectorized(self, day: int) -> float:
+        """
+        Processes demand and sales for all ACTIVE SKUs using Pure NumPy operations.
+        No Python loops in the critical path.
+        Returns daily revenue.
+        """
+        if len(self._active_sku_names) == 0:
+            return 0.0
+        
+        day_of_week = day % 7
+        weekend_mult = 1.3 if day_of_week >= 4 else 1.0
+        
+        # 1. Vectorized Demand Generation
+        # (Normal approx for high-speed massive batching)
+        adj_ads = self._ads_vec * weekend_mult
+        std_devs = np.maximum(0.1, adj_ads * self._cv_vec)
+        
+        # Generate batch demand
+        demands = np.random.normal(adj_ads, std_devs)
+        demands = np.maximum(0.0, np.round(demands))
+        
+        # 2. Vectorized Sales & Stock Depletion
+        sold = np.minimum(demands, self._stock_vec)
+        self._stock_vec -= sold
+        
+        # 3. Vectorized Metrics Tracking
+        self._sales_vec += sold
+        self._demand_vec += demands
+        self._lost_vec += np.maximum(0, demands - sold)
+        self._stockout_vec += (self._stock_vec <= 0).astype(np.float32)
+        
+        # 4. Vectorized Revenue
+        daily_rev = np.sum(sold * self._price_vec)
+        
+        # 5. Selective Statistics Sync (Only when day ends or requested)
+        # Note: We don't sync metrics like 'total_sales' every step for speed.
+        # But we must update the objects for reordering logic to work correctly.
+        # We synchronize only when needed or periodically.
+        if day % 7 == 0:
+            self.sync_from_vectorized_state()
+            self._refresh_active_skus()
+            
+        return float(daily_rev)
     
     def calculate_reorder_point(self, sku: SKUState) -> float:
         """Calculate ROP = (lead_time + safety) * ADS, or use override."""
@@ -529,8 +647,8 @@ class RetailSimulator:
                 'demand_cv': sku.demand_cv  # Pass Volatility
             })
             
-        # 2. Enrich (Oasis Logic)
-        enriched = self.bridge.prepare_sku_data(candidates)
+        # 2. Enrich (Oasis Logic) — SKIP in simulation context (already enriched at init)
+        enriched = self.bridge.prepare_sku_data(candidates, skip_enrichment=True)
         
         # 3. Override ADS & State (Fix Oasis DB mismatches)
         for rec in enriched:

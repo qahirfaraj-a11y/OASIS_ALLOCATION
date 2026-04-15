@@ -35,31 +35,56 @@ class HistoricalDataLoader:
                 continue
                 
             try:
-                # Robust Load: Force convert all to numeric and pick the champion
+                # v10.5 Logic: Select the most likely revenue/volume column
+                # Exclude obvious identifiers (Barcodes, IDs) and favor financial keywords.
                 df = pd.read_excel(fpath)
                 
                 # Drop fully empty cols/rows
                 df.dropna(how='all', inplace=True)
                 
-                max_sum = 0.0
+                BLACKLIST = ['BARCODE', 'ID', 'CODE', 'EAN', 'UPC', 'TIN', 'VAT', 'TEL', 'PHONE']
+                PRIORITY = ['REVENUE', 'AMOUNT', 'TOTAL', 'QTY', 'KES', 'QUANTITY', 'NET']
+                
+                max_score = -1.0
+                winner_vol = 0.0
                 winner_found = False
                 
                 for col in df.columns:
-                    # Force numeric
+                    col_upper = str(col).upper()
+                    
+                    # 1. Skip blacklisted identifiers
+                    if any(k in col_upper for k in BLACKLIST):
+                        continue
+                        
+                    # 2. Force numeric and sum
                     try:
                         s = pd.to_numeric(df[col], errors='coerce').fillna(0)
                         col_sum = s.sum()
-                        if col_sum > max_sum:
-                            max_sum = col_sum
+                        if col_sum <= 0:
+                            continue
+                            
+                        # 3. Barcode Guard: Reject if average value is massive (identifiers)
+                        # Standard retail units/money usually stay below 1M per row on average.
+                        avg_val = s.mean()
+                        if avg_val > 5_000_000: # Barrier for barcodes
+                             continue
+                             
+                        # 4. Scoring: Priority keywords get a massive boost
+                        score = col_sum
+                        if any(k in col_upper for k in PRIORITY):
+                            score *= 10.0 # Force priority items to the top
+                            
+                        if score > max_score:
+                            max_score = score
+                            winner_vol = col_sum
                             winner_found = True
                     except:
                         pass
                 
-                if winner_found and max_sum > 0:
-                    monthly_totals[m.upper()] = max_sum
-                    # logger.info(f"Loaded {m}: Total={max_sum:,.0f}")
+                if winner_found and winner_vol > 0:
+                    monthly_totals[m.upper()] = winner_vol
                 else:
-                    logger.warning(f"No numeric data found in {fname}")
+                    logger.warning(f"No valid volume data found in {fname}")
                     
             except Exception as e:
                 logger.error(f"Failed to read {fname}: {e}")

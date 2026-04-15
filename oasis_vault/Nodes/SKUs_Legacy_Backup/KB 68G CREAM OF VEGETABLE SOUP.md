@@ -1,0 +1,30 @@
+---
+type: SKU
+department: '[[SOUPS]]'
+supplier: '[[SMART GLOBAL LIMITED]]'
+price: 180.0
+margin_pct: 0.0
+revenue: 0.0
+gross_profit: 0.0
+sales_rank: 11532
+rhapta_fill_rate: 0
+velocity_ads: 0.0767
+total_quantity: 28.0
+---
+
+# KB 68G CREAM OF VEGETABLE SOUP
+
+## Relationships
+- **Department**: [[SOUPS]]
+- **Supplier**: [[SMART GLOBAL LIMITED]]
+
+## Potential Substitutes
+- [substitution]:: [[KNORR 41G CHE HOT N SOUR VEG SOUP]]
+- [substitution]:: [[KENT BORINGER 71G CREAM OF CHICKEN SOUP]]
+- [substitution]:: [[BAT 78G 4S CAS OXTAIL]]
+- [substitution]:: [[SUNNY 79G CREAM OF VEGETABLE SOUP]]
+- [substitution]:: [[KENT BORINGER 66G CHICKEN NOODLE SOUP]]
+
+## Network Insights
+- [upstream_supply]:: [[SMART GLOBAL LIMITED]]
+- [downstream_demand]:: [[Retail Market]]

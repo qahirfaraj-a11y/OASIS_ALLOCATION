@@ -12,7 +12,14 @@ sys.path.insert(0, str(Path(__file__).parent))
 
 from oasis.logic.order_engine import OrderEngine
 from oasis.logic.simulation_bridge import SimulationOrderUtil
-from retail_simulator import RetailSimulator, SKUState, STORE_UNIVERSES
+
+# I4: Graceful import fallback for retail_simulator
+try:
+    from retail_simulator import RetailSimulator, SKUState, STORE_UNIVERSES
+    SIMULATOR_AVAILABLE = True
+except ImportError as e:
+    SIMULATOR_AVAILABLE = False
+    _sim_import_error = str(e)
 
 # Try to import supplier analytics
 try:
@@ -69,8 +76,9 @@ def convert_recommendations_to_skustate(recommendations, demand_scale_factor=1.0
                 'avg_daily_sales': rec.get('Avg_Daily_Sales', 0)
             })
             
-    # Enrich Data (Bulk Operation)
-    enriched_items = bridge.engine.enrich_product_data(raw_items)
+    # I3: Enrich on a copy to avoid mutating cached engine state
+    import copy
+    enriched_items = bridge.engine.enrich_product_data(copy.deepcopy(raw_items))
     enriched_map = {item['product_name']: item for item in enriched_items}
     
     for rec in recommendations:
@@ -102,7 +110,11 @@ def convert_recommendations_to_skustate(recommendations, demand_scale_factor=1.0
 
 
 # --- Streamlit UI ---
-st.set_page_config(page_title="Oasis Retail Lifecycle", layout="wide", page_icon="🏝️")
+# I1: Guard set_page_config — allocation_app import may have already called it
+try:
+    st.set_page_config(page_title="Oasis Retail Lifecycle", layout="wide", page_icon="🏝️")
+except Exception:
+    pass
 
 # Custom CSS
 st.markdown("""
@@ -193,10 +205,15 @@ with tab1:
     if st.session_state.basket is not None:
         df = st.session_state.basket
         
-        col_m1, col_m2, col_m3 = st.columns(3)
+        col_m1, col_m2, col_m3, col_m4 = st.columns(4)
         col_m1.metric("Total SKUs", len(df))
-        col_m2.metric("Total Cost", f"KES {df['Allocated_Cost'].sum():,.0f}")
-        col_m3.metric("Expected Revenue", f"KES {df['Expected_Revenue'].sum():,.0f}")
+        # Safely split the costs using the 'Type' column
+        cash_df = df[df['Type'] == 'CASH']
+        consign_df = df[df['Type'] == 'CONSIGNMENT']
+        
+        col_m2.metric("Allocated Cash", f"KES {cash_df['Allocated_Cost'].sum():,.0f}", help="The actual money spent from your budget slider.")
+        col_m3.metric("Consignment Value", f"+ KES {consign_df['Allocated_Cost'].sum():,.0f}", help="Free inventory (vendor-managed) added to shelves.")
+        col_m4.metric("Expected Revenue", f"KES {df['Expected_Revenue'].sum():,.0f}", help="Total projected sales value of all physical goods.")
         
         st.dataframe(df, height=300, use_container_width=True)
         
@@ -229,7 +246,10 @@ with tab1:
 with tab2:
     st.header("The Proving Ground (Simulation)")
     
-    if st.session_state.basket is None:
+    if not SIMULATOR_AVAILABLE:
+        st.error(f"⚠️ Retail Simulator module not available: {_sim_import_error}")
+        st.info("Please ensure `retail_simulator.py` is in the project directory and all dependencies are installed.")
+    elif st.session_state.basket is None:
         st.warning("⚠️ Please generate an Allocation in Step 1 first.")
     else:
         st.markdown(f"Running simulation with **{len(st.session_state.basket)} items** from Day 1.")

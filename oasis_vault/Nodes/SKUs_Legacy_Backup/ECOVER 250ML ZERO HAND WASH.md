@@ -1,0 +1,30 @@
+---
+type: SKU
+department: '[[HAND WASH]]'
+supplier: '[[Unknown]]'
+price: 250.0
+margin_pct: 0
+revenue: 0.0
+gross_profit: 0.0
+sales_rank: 20486
+velocity_ads: 0.0109
+total_quantity: 2.0
+rhapta_fill_rate: 0
+---
+
+# ECOVER 250ML ZERO HAND WASH
+
+## Relationships
+- **Department**: [[HAND WASH]]
+- **Supplier**: [[Unknown]]
+
+## Potential Substitutes
+- [substitution]:: [[DALAN 400ML MULTI CARE PAPAYA PASSION]]
+- [substitution]:: [[DALAN 400ML FRENCH LAVENDER]]
+- [substitution]:: [[FIELDS OCEAN BREEZE 500ML H-WASH]]
+- [substitution]:: [[DALAN 400ML MEDETERRANEAN OLIVE OIL HANDWASH]]
+- [substitution]:: [[DALAN 400ML MULTI CARE GRAPEFRUIT]]
+
+## Network Insights
+- [upstream_supply]:: [[Unknown]]
+- [downstream_demand]:: [[Retail Market]]

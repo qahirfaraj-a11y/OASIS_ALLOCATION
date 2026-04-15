@@ -1,0 +1,203 @@
+{
+    "total_skus": 23511,
+    "total_departments": 258,
+    "total_suppliers": 549,
+    "top_depts": {
+        "HOUSEHOLD ITEMS": {
+            "sku_count": 1008,
+            "avg_substitutes": 4.990079365079365,
+            "gross_profit": 0.0
+        },
+        "WINES": {
+            "sku_count": 915,
+            "avg_substitutes": 4.965027322404372,
+            "gross_profit": 0.0
+        },
+        "SWEETS": {
+            "sku_count": 694,
+            "avg_substitutes": 4.943804034582133,
+            "gross_profit": 62447.365543
+        },
+        "BISCUITS": {
+            "sku_count": 655,
+            "avg_substitutes": 4.96030534351145,
+            "gross_profit": 173868.154295
+        },
+        "CHOCOLATES": {
+            "sku_count": 606,
+            "avg_substitutes": 4.9438943894389435,
+            "gross_profit": 1149643.297119
+        },
+        "SPICES": {
+            "sku_count": 457,
+            "avg_substitutes": 4.923413566739606,
+            "gross_profit": 0.0
+        },
+        "SPIRITS": {
+            "sku_count": 438,
+            "avg_substitutes": 5.0,
+            "gross_profit": 61995.24536
+        },
+        "ICE-CREAM": {
+            "sku_count": 384,
+            "avg_substitutes": 4.9609375,
+            "gross_profit": 84107.028728
+        },
+        "STATIONARIES": {
+            "sku_count": 367,
+            "avg_substitutes": 4.852861035422343,
+            "gross_profit": 23905.960867
+        },
+        "YOGHURT": {
+            "sku_count": 364,
+            "avg_substitutes": 4.945054945054945,
+            "gross_profit": 1023330.770743
+        }
+    },
+    "top_suppliers": {
+        "BROOKSIDE DAIRY LIMITED": {
+            "sku_name": 165,
+            "total_revenue": 37458692.1
+        },
+        "COCA COLA BEVERAGES KENYA LTD": {
+            "sku_name": 87,
+            "total_revenue": 25731499.3
+        },
+        "BIO FOOD PRODUCTS LTD": {
+            "sku_name": 86,
+            "total_revenue": 14051981.0
+        },
+        "KENYA BREWERIES LTD": {
+            "sku_name": 36,
+            "total_revenue": 13751032.76
+        },
+        "AQUAMIST LIMITED": {
+            "sku_name": 40,
+            "total_revenue": 13513766.03
+        },
+        "DPL FESTIVE  LIMITED": {
+            "sku_name": 67,
+            "total_revenue": 12023392.0
+        },
+        "KAPA OIL REFINERIES LTD": {
+            "sku_name": 109,
+            "total_revenue": 11014077.0
+        },
+        "NOBLE OUTLOOK LIMITED": {
+            "sku_name": 15,
+            "total_revenue": 10888218.0
+        },
+        "Unknown": {
+            "sku_name": 4903,
+            "total_revenue": 7882667.78
+        },
+        "FARMERS CHOICE LTD": {
+            "sku_name": 94,
+            "total_revenue": 7547498.52
+        }
+    },
+    "most_interconnected_depts": {
+        "AIR FRESHENERS": {
+            "sku_count": 7,
+            "avg_substitutes": 5.0,
+            "gross_profit": 0.0
+        },
+        "BEER": {
+            "sku_count": 86,
+            "avg_substitutes": 5.0,
+            "gross_profit": 1420788.837147
+        },
+        "SHOE POLISH": {
+            "sku_count": 32,
+            "avg_substitutes": 5.0,
+            "gross_profit": 0.0
+        },
+        "KITCHEN UTENSILS": {
+            "sku_count": 61,
+            "avg_substitutes": 5.0,
+            "gross_profit": 0.0
+        },
+        "NOVELTY ITEMS": {
+            "sku_count": 15,
+            "avg_substitutes": 5.0,
+            "gross_profit": 0.0
+        },
+        "FRESH CREAM": {
+            "sku_count": 38,
+            "avg_substitutes": 5.0,
+            "gross_profit": 94350.278103
+        },
+        "CANNED DRINKS": {
+            "sku_count": 78,
+            "avg_substitutes": 5.0,
+            "gross_profit": 81441.87441
+        },
+        "SANITARY TOWELS": {
+            "sku_count": 103,
+            "avg_substitutes": 5.0,
+            "gross_profit": -15433.620065
+        },
+        "CANNED SODA": {
+            "sku_count": 42,
+            "avg_substitutes": 5.0,
+            "gross_profit": 362136.43452899996
+        },
+        "EXERCISE BOOKS": {
+            "sku_count": 16,
+            "avg_substitutes": 5.0,
+            "gross_profit": 0.0
+        }
+    },
+    "fragile_nodes": [
+        {
+            "sku_name": "AQUAMIST 20LT MINERAL WATER EMPTY BOTTLE",
+            "revenue": 6116141.0,
+            "supplier": "AQUAMIST LIMITED"
+        },
+        {
+            "sku_name": "BLUE BAND 1KG MED FAT SPREAD",
+            "revenue": 996016.43,
+            "supplier": "SUPER SAVERS DISTRIBUTION LTD"
+        },
+        {
+            "sku_name": "BLUE BAND 250G MED FAT SPREAD",
+            "revenue": 223596.16,
+            "supplier": "SUPER SAVERS DISTRIBUTION LTD"
+        },
+        {
+            "sku_name": "BROOKSIDE 1LT NATURAL YOGHURT",
+            "revenue": 395100.0,
+            "supplier": "BROOKSIDE DAIRY LIMITED"
+        },
+        {
+            "sku_name": "BROOKSIDE 250G SALTED BUTTER",
+            "revenue": 758722.0,
+            "supplier": "BROOKSIDE DAIRY LIMITED"
+        },
+        {
+            "sku_name": "BROOKSIDE 500G SALTED BUTTER",
+            "revenue": 1895882.0,
+            "supplier": "BROOKSIDE DAIRY LIMITED"
+        },
+        {
+            "sku_name": "BROWNS 250G GREEK YOGHURT",
+            "revenue": 396704.0,
+            "supplier": "SUNPOWER PRODUCTS LTD"
+        },
+        {
+            "sku_name": "CADBURY 28G BUBBLY CHOCOLATE",
+            "revenue": 136050.0,
+            "supplier": "HASBAH KENYA LTD CADBURY"
+        },
+        {
+            "sku_name": "CFB KAIMATI 70G",
+            "revenue": 58350.0,
+            "supplier": "Unknown"
+        },
+        {
+            "sku_name": "DL 37G FILLED CHOCOLATES MINT CHOC",
+            "revenue": 434742.0,
+            "supplier": "GLACIER PRODUCTS LTD 2ND"
+        }
+    ]
+}

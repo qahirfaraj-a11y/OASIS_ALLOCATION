@@ -1,0 +1,305 @@
+{
+    "beer_pareto": [
+        {
+            "SKU Name": "Unknown",
+            "Supplier": "KENYA BREWERIES LTD",
+            "Price (KES)": 228.39,
+            "Revenue": 3584277.24,
+            "Total Quantity": 19840
+        },
+        {
+            "SKU Name": "Unknown",
+            "Supplier": "KENYA BREWERIES LTD",
+            "Price (KES)": 212.7,
+            "Revenue": 1955542.44,
+            "Total Quantity": 12142
+        },
+        {
+            "SKU Name": "Unknown",
+            "Supplier": "KENYA BREWERIES LTD",
+            "Price (KES)": 209.0,
+            "Revenue": 1451923.0,
+            "Total Quantity": 8849
+        },
+        {
+            "SKU Name": "Unknown",
+            "Supplier": "KENYA BREWERIES LTD",
+            "Price (KES)": 239.0,
+            "Revenue": 1333859.0,
+            "Total Quantity": 7339
+        },
+        {
+            "SKU Name": "Unknown",
+            "Supplier": "KENYA BREWERIES LTD",
+            "Price (KES)": 258.57,
+            "Revenue": 1280445.14,
+            "Total Quantity": 6710
+        },
+        {
+            "SKU Name": "Unknown",
+            "Supplier": "KENYA BREWERIES LTD",
+            "Price (KES)": 228.69,
+            "Revenue": 1054038.24,
+            "Total Quantity": 5705
+        },
+        {
+            "SKU Name": "Unknown",
+            "Supplier": "KENYA BREWERIES LTD",
+            "Price (KES)": 205.54,
+            "Revenue": 1019048.33,
+            "Total Quantity": 6284
+        },
+        {
+            "SKU Name": "Unknown",
+            "Supplier": "KENYA WINE AGENCIES KWAL",
+            "Price (KES)": 284.62,
+            "Revenue": 839066.0,
+            "Total Quantity": 3766
+        },
+        {
+            "SKU Name": "Unknown",
+            "Supplier": "KENYA BREWERIES LTD",
+            "Price (KES)": 262.91,
+            "Revenue": 705658.0,
+            "Total Quantity": 3560
+        },
+        {
+            "SKU Name": "Unknown",
+            "Supplier": "KENYA BREWERIES LTD",
+            "Price (KES)": 209.0,
+            "Revenue": 629717.0,
+            "Total Quantity": 3951
+        }
+    ],
+    "wine_pareto": [
+        {
+            "SKU Name": "Unknown",
+            "Supplier": "WINE AND MORE COMPANY LTD",
+            "Price (KES)": 2324.0,
+            "Revenue": 513604,
+            "Total Quantity": 221
+        },
+        {
+            "SKU Name": "Unknown",
+            "Supplier": "ALIMP GROUP LIMITED SR",
+            "Price (KES)": 3395.0,
+            "Revenue": 346290,
+            "Total Quantity": 102
+        },
+        {
+            "SKU Name": "Unknown",
+            "Supplier": "PERNOD RICARD KENYA",
+            "Price (KES)": 1439.0,
+            "Revenue": 125193,
+            "Total Quantity": 87
+        },
+        {
+            "SKU Name": "Unknown",
+            "Supplier": "ALIMP GROUP LIMITED SR",
+            "Price (KES)": 3395.0,
+            "Revenue": 105245,
+            "Total Quantity": 31
+        },
+        {
+            "SKU Name": "Unknown",
+            "Supplier": "VIVA GLOBAL LIMITED",
+            "Price (KES)": 2179.0,
+            "Revenue": 104592,
+            "Total Quantity": 48
+        },
+        {
+            "SKU Name": "Unknown",
+            "Supplier": "UVA WINES LIMITED SR",
+            "Price (KES)": 2119.5,
+            "Revenue": 97497,
+            "Total Quantity": 46
+        },
+        {
+            "SKU Name": "Unknown",
+            "Supplier": "WINE AND MORE COMPANY LTD",
+            "Price (KES)": 2294.0,
+            "Revenue": 80290,
+            "Total Quantity": 35
+        },
+        {
+            "SKU Name": "Unknown",
+            "Supplier": "PERNOD RICARD KENYA",
+            "Price (KES)": 1439.0,
+            "Revenue": 73389,
+            "Total Quantity": 51
+        },
+        {
+            "SKU Name": "Unknown",
+            "Supplier": "PERNOD RICARD KENYA",
+            "Price (KES)": 2319.0,
+            "Revenue": 71889,
+            "Total Quantity": 31
+        },
+        {
+            "SKU Name": "Unknown",
+            "Supplier": "PERNOD RICARD KENYA",
+            "Price (KES)": 1439.0,
+            "Revenue": 56121,
+            "Total Quantity": 39
+        }
+    ],
+    "spirit_pareto": [
+        {
+            "SKU Name": "Unknown",
+            "Supplier": "UDV KENYA LIMITED",
+            "Price (KES)": 253.45,
+            "Revenue": 401970.0,
+            "Total Quantity": 1854
+        },
+        {
+            "SKU Name": "Unknown",
+            "Supplier": "Unknown",
+            "Price (KES)": 253.45,
+            "Revenue": 50183.1,
+            "Total Quantity": 198
+        },
+        {
+            "SKU Name": "Unknown",
+            "Supplier": "Unknown",
+            "Price (KES)": 253.45,
+            "Revenue": 29907.1,
+            "Total Quantity": 118
+        },
+        {
+            "SKU Name": "Unknown",
+            "Supplier": "BEST BUY COMMODITY LIMITED",
+            "Price (KES)": 253.45,
+            "Revenue": 23063.95,
+            "Total Quantity": 91
+        },
+        {
+            "SKU Name": "Unknown",
+            "Supplier": "KAPA OIL REFINERIES LTD",
+            "Price (KES)": 253.45,
+            "Revenue": 22557.05,
+            "Total Quantity": 89
+        },
+        {
+            "SKU Name": "Unknown",
+            "Supplier": "ALIMP GROUP LIMITED SR",
+            "Price (KES)": 253.45,
+            "Revenue": 22050.15,
+            "Total Quantity": 87
+        },
+        {
+            "SKU Name": "Unknown",
+            "Supplier": "HASBAH KENYA LTD CADBURY",
+            "Price (KES)": 253.45,
+            "Revenue": 14446.65,
+            "Total Quantity": 57
+        },
+        {
+            "SKU Name": "Unknown",
+            "Supplier": "Unknown",
+            "Price (KES)": 253.45,
+            "Revenue": 12925.95,
+            "Total Quantity": 51
+        },
+        {
+            "SKU Name": "Unknown",
+            "Supplier": "ROSHNI DIST LTD  R D",
+            "Price (KES)": 253.45,
+            "Revenue": 9377.65,
+            "Total Quantity": 37
+        },
+        {
+            "SKU Name": "Unknown",
+            "Supplier": "UDV KENYA LIMITED",
+            "Price (KES)": 253.45,
+            "Revenue": 6843.15,
+            "Total Quantity": 27
+        }
+    ],
+    "cider_pareto": [
+        {
+            "SKU Name": "Unknown",
+            "Supplier": "KENYA WINE AGENCIES KWAL",
+            "Price (KES)": 283.34,
+            "Revenue": 549118.0,
+            "Total Quantity": 2556
+        },
+        {
+            "SKU Name": "Unknown",
+            "Supplier": "KENYA BREWERIES LTD",
+            "Price (KES)": 256.29,
+            "Revenue": 372385.27,
+            "Total Quantity": 1841
+        },
+        {
+            "SKU Name": "Unknown",
+            "Supplier": "UDV KENYA LIMITED",
+            "Price (KES)": 202.6,
+            "Revenue": 372172.1,
+            "Total Quantity": 2385
+        },
+        {
+            "SKU Name": "Unknown",
+            "Supplier": "UDV KENYA LIMITED",
+            "Price (KES)": 202.4,
+            "Revenue": 365534.0,
+            "Total Quantity": 2356
+        },
+        {
+            "SKU Name": "Unknown",
+            "Supplier": "KENYA BREWERIES LTD",
+            "Price (KES)": 229.44,
+            "Revenue": 38545.92,
+            "Total Quantity": 168
+        },
+        {
+            "SKU Name": "Unknown",
+            "Supplier": "KENYA BREWERIES LTD",
+            "Price (KES)": 229.44,
+            "Revenue": 16978.56,
+            "Total Quantity": 74
+        },
+        {
+            "SKU Name": "Unknown",
+            "Supplier": "SAVANNAH BRANDS COMPANY LIMITED",
+            "Price (KES)": 229.44,
+            "Revenue": 16519.68,
+            "Total Quantity": 72
+        },
+        {
+            "SKU Name": "Unknown",
+            "Supplier": "C AND C POLAKEN LIMITED",
+            "Price (KES)": 229.44,
+            "Revenue": 8718.72,
+            "Total Quantity": 38
+        },
+        {
+            "SKU Name": "Unknown",
+            "Supplier": "Unknown",
+            "Price (KES)": 229.44,
+            "Revenue": 8489.28,
+            "Total Quantity": 37
+        },
+        {
+            "SKU Name": "Unknown",
+            "Supplier": "SAVANNAH BRANDS COMPANY LIMITED",
+            "Price (KES)": 229.44,
+            "Revenue": 8030.4,
+            "Total Quantity": 35
+        }
+    ],
+    "halo_affinities": {
+        "Unknown": 1
+    },
+    "wine_metrics": {
+        "Department": "WINES",
+        "SKU Count": 1830,
+        "Total Revenue": 2872699.0,
+        "Total Quantity": 8504.0
+    },
+    "beer_metrics": {
+        "Department": "BEER",
+        "SKU Count": 172,
+        "Total Revenue": 15684200.95,
+        "Total Quantity": 92820.0
+    }
+}

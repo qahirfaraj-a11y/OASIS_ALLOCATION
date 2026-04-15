@@ -1,0 +1,30 @@
+---
+type: SKU
+department: '[[BLEACHES]]'
+supplier: '[[TOWFIQ  K  LIMITED HQ]]'
+price: 1629.0
+margin_pct: 0.0
+revenue: 0.0
+gross_profit: 0.0
+sales_rank: 1995
+rhapta_fill_rate: 0
+velocity_ads: 0.137
+total_quantity: 50.0
+---
+
+# JIK 1.5LT COLOURS + REGULAR  SAVE 200
+
+## Relationships
+- **Department**: [[BLEACHES]]
+- **Supplier**: [[TOWFIQ  K  LIMITED HQ]]
+
+## Potential Substitutes
+- [substitution]:: [[JIK 2.25LT COLOURS]]
+- [substitution]:: [[JIK 5LT BLEACH]]
+- [substitution]:: [[TOPEX 5LT REGULAR BLEACH]]
+- [substitution]:: [[OMO 5L BLEACH REGULAR]]
+- [substitution]:: [[CLOROX 5LT REGULAR]]
+
+## Network Insights
+- [upstream_supply]:: [[TOWFIQ  K  LIMITED HQ]]
+- [downstream_demand]:: [[Retail Market]]

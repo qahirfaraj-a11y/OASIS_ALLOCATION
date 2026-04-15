@@ -1,0 +1,30 @@
+---
+type: SKU
+department: '[[HAIR PRODUCTS]]'
+supplier: '[[KIM FAY EAST AFRICA LTD DABUR]]'
+price: 1200.0
+margin_pct: 0.0
+revenue: 0.0
+gross_profit: 0.0
+sales_rank: 6396
+rhapta_fill_rate: 0
+velocity_ads: 0.0274
+total_quantity: 10.0
+---
+
+# ORS 227G SUPER NOURISHING DAILY CURL CREME
+
+## Relationships
+- **Department**: [[HAIR PRODUCTS]]
+- **Supplier**: [[KIM FAY EAST AFRICA LTD DABUR]]
+
+## Potential Substitutes
+- [substitution]:: [[GOODKNIGHT 600ML MIK AEROSOL]]
+- [substitution]:: [[ORS 187ML GLOSSING HAIR SERUM]]
+- [substitution]:: [[CON 7OZ ARGAN OIL FOAM MOUSSE]]
+- [substitution]:: [[REV 41 130ML MEDIUM BROWN]]
+- [substitution]:: [[REVLON COLORSILK MED ASH BROWN 40]]
+
+## Network Insights
+- [upstream_supply]:: [[KIM FAY EAST AFRICA LTD DABUR]]
+- [downstream_demand]:: [[Retail Market]]

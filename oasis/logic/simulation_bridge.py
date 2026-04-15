@@ -52,13 +52,29 @@ class SimulationOrderUtil:
             'min_order_value_kes': 5000,
         }
         
-    def prepare_sku_data(self, sku_list: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    def prepare_sku_data(self, sku_list: List[Dict[str, Any]], skip_enrichment: bool = False) -> List[Dict[str, Any]]:
         """
         Enrich raw SKU data using Oasis Intelligence.
+        
+        Performance: In simulation context (reordering), SKU data is already enriched
+        from initialization. skip_enrichment=True bypasses the heavy 23k-item enrichment
+        pipeline which was the #1 performance bottleneck (~10+ min per reorder cycle).
         """
-        # Oasis expects a specific format, ensure mapping
-        # sku_list should be list of dicts with 'product_name', 'barcode', etc.
+        if skip_enrichment:
+            # SKUs are already enriched — just ensure minimum required fields exist
+            for sku in sku_list:
+                if 'target_coverage_days' not in sku:
+                    sku['target_coverage_days'] = 7 if not sku.get('is_fresh') else 2
+                if 'reorder_point' not in sku:
+                    ads = float(sku.get('avg_daily_sales', 0))
+                    sku['reorder_point'] = ads * sku.get('target_coverage_days', 7)
+                if 'safety_stock' not in sku:
+                    sku['safety_stock'] = float(sku.get('avg_daily_sales', 0)) * 2
+                if 'estimated_delivery_days' not in sku:
+                    sku['estimated_delivery_days'] = 7
+            return sku_list
         return self.engine.enrich_product_data(sku_list)
+
         
     def calculate_order_quantity(self, enriched_skus: List[Dict[str, Any]], 
                                  store_config: Dict[str, Any] = None,

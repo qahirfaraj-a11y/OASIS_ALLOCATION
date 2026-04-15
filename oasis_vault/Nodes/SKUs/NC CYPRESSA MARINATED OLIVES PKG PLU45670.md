@@ -1,0 +1,27 @@
+---
+type: SKU
+department: "[[DELI PRODUCT]]"
+supplier: "[[NUTCRACKER LTD HQ]]"
+price: 4400.0
+margin_pct: 0
+revenue: 0
+gross_profit: 0
+sales_rank: 9999
+---
+
+# NC CYPRESSA MARINATED OLIVES PKG PLU45670
+
+## Relationships
+- **Department**: [[DELI PRODUCT]]
+- **Supplier**: [[NUTCRACKER LTD HQ]]
+
+## Potential Substitutes
+- [substitution]:: [[CH. GOUDA CHEESE PKG PLU20324]]
+- [substitution]:: [[CH.EDAMER GERMAN CHEESE PKG PLU20319]]
+- [substitution]:: [[CH.FRENCH EMENTAL CHEESE PKG PLU20320]]
+- [substitution]:: [[CH. PROVOLONE DOLCE CHEESE PKG PLU20339]]
+- [substitution]:: [[CH.SWISS EMMENTAL CHEESE PKG PLU20351]]
+
+## Network Insights
+- [upstream_supply]:: [[NUTCRACKER LTD HQ]]
+- [downstream_demand]:: [[Retail Market]]

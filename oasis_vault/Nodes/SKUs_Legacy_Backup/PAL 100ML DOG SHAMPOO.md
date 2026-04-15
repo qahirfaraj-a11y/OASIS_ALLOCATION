@@ -1,0 +1,30 @@
+---
+type: SKU
+department: '[[PET ASSESORIES]]'
+supplier: '[[Unknown]]'
+price: 445.0
+margin_pct: 0.0
+revenue: 0.0
+gross_profit: 0.0
+sales_rank: 16320
+rhapta_fill_rate: 0
+velocity_ads: 0.0055
+total_quantity: 2.0
+---
+
+# PAL 100ML DOG SHAMPOO
+
+## Relationships
+- **Department**: [[PET ASSESORIES]]
+- **Supplier**: [[Unknown]]
+
+## Potential Substitutes
+- [substitution]:: [[FLOWER 30S MOSSI CHIPS LAVENDER]]
+- [substitution]:: [[FLOWER 30S MOSSI CHIPS REGULAR]]
+- [substitution]:: [[PEP 1KG MIXED FRUIT JAM PET]]
+- [substitution]:: [[FLOWER 30S MOSSI CHIPS SANDAL]]
+- [substitution]:: [[FLOWER VALUE 500ML DOG SHAMPOO]]
+
+## Network Insights
+- [upstream_supply]:: [[Unknown]]
+- [downstream_demand]:: [[Retail Market]]

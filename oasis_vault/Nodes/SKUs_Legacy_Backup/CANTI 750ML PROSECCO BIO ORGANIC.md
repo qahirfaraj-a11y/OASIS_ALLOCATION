@@ -1,0 +1,30 @@
+---
+type: SKU
+department: '[[WINES]]'
+supplier: '[[VIVA GLOBAL LIMITED]]'
+price: 2179.0
+margin_pct: 16.0
+revenue: 104592.0
+gross_profit: 16734.72
+sales_rank: 607
+rhapta_fill_rate: 0
+velocity_ads: 0.2609
+total_quantity: 48.0
+---
+
+# CANTI 750ML PROSECCO BIO ORGANIC
+
+## Relationships
+- **Department**: [[WINES]]
+- **Supplier**: [[VIVA GLOBAL LIMITED]]
+
+## Potential Substitutes
+- [substitution]:: [[MUCHO MAS 750ML RED WHITE EDITION]]
+- [substitution]:: [[BRANCOTT 750ML ESTA SAUV BLANC]]
+- [substitution]:: [[FRESCHELLO EXTRA DRY SPARKLING WINE 750ML]]
+- [substitution]:: [[CHATEAU GRAND 750ML MERCHAND BORDEAUX]]
+- [substitution]:: [[TERRA LINDA 750ML SYRAH RED]]
+
+## Network Insights
+- [upstream_supply]:: [[VIVA GLOBAL LIMITED]]
+- [downstream_demand]:: [[Retail Market]]

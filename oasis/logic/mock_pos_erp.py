@@ -23,13 +23,11 @@ logger = logging.getLogger("MockPosErp")
 
 # Default paths
 DATA_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'data'))
-DEFAULT_DB_PATH = os.path.join(DATA_DIR, "mock_pos_erp.db")
+DEFAULT_DB_PATH = os.getenv("OASIS_DB_PATH", os.path.join(DATA_DIR, "mock_pos_erp.db"))
 
 # Network JSON (sits at project root, 2 levels above this file)
-NETWORK_JSON = os.path.abspath(
-    os.path.join(os.path.dirname(__file__), '..', '..', 'stores_network.json')
-)
-FAST_MODE_SKU_LIMIT = 5000   # cap for --fast demo runs
+NETWORK_JSON = r"c:\Users\iLink\.gemini\antigravity\scratch\stores_network.json"
+FAST_MODE_SKU_LIMIT = 100000   # cap for --fast demo runs
 
 # ---------------------------------------------------------------------------
 # Schema Definitions (Mirrors RXL POS/ERP SQL Server tables)
@@ -384,7 +382,8 @@ class MockPosErpBuilder:
         """Build the complete mock database. Returns the database path."""
         random.seed(self.seed)
 
-        # Load network JSON once
+        print(f"DEBUG: NETWORK_JSON = {NETWORK_JSON}")
+        print(f"DEBUG: EXISTS = {os.path.exists(NETWORK_JSON)}")
         if os.path.exists(NETWORK_JSON):
             with open(NETWORK_JSON, 'r', encoding='utf-8') as f:
                 self._network = json.load(f)
@@ -410,11 +409,17 @@ class MockPosErpBuilder:
             self._seed_tax_plans()
             self._seed_counters()
             self._seed_customers()
+            print(f"  - Seeding Products ({len(self.product_catalog)} items)...", flush=True)
             self._seed_products()
+            print("  - Seeding Prices...", flush=True)
             self._seed_prices()
+            print("  - Seeding Initial Stock Profile...", flush=True)
             self._seed_stock()
+            print("  - Seeding 90 Days of Sales Transactions (Scaled)...", flush=True)
             self._seed_sales_transactions()
+            print("  - Seeding BI Aggregate Reports...", flush=True)
             self._seed_bi_report()
+            print("  - Seeding User Accounts and Config...", flush=True)
             self._seed_oasis_users()
             self._seed_system_config()
             if self.conn is not None:
@@ -441,25 +446,35 @@ class MockPosErpBuilder:
     def _seed_organizations(self):
         """Seed all 14 stores from stores_network.json as ORG entries."""
         stores = self._network.get('stores', [])
+        if self.fast_mode:
+            stores = stores[:5]
 
         # Map network store_ids to short ORG codes
         orgs = []
         self.store_meta = []
         for i, s in enumerate(stores):
             org_cd   = f"ORG{i+1:03d}"   # ORG001 ... ORG014
+            org_name = s['name']
+
+            # ANONYMIZATION for Showcase/Fast Mode
+            if self.fast_mode:
+                # Use a tier-based generic name
+                tier = "Premium" if i < 3 else "Express" if i < 7 else "Standard"
+                org_name = f"Oasis {tier} Store {i+1}"
+
             short    = s['store_id'].replace('-', '')  # CFP003 etc
             address  = f"{s.get('region','Nairobi')}, Nairobi"
             phone    = f"+254-20-{1000000 + i*111111}"
-            email    = f"{short.lower()}@chandarana.co.ke"
+            email    = f"{short.lower()}@oasis-retail.com"
 
             orgs.append((
-                org_cd, s['name'], short, address, 'Nairobi', 'Nairobi',
+                org_cd, org_name, short, address, 'Nairobi', 'Nairobi',
                 'KE', '00100', phone, email, 'KES', None, 1, None
             ))
             self.store_meta.append({
                 'org_cd':  org_cd,
                 'store_id': s['store_id'],
-                'name':    s['name'],
+                'name':    org_name,
                 'dsf':     s.get('demand_scale_factor', 1.0),
                 'stock_profile': s.get('stock_profile', []),
             })
@@ -483,21 +498,8 @@ class MockPosErpBuilder:
             # Already seeded or customized
             return
 
-        # Tiered store config (Rhapta=1.0, Lavington=1.4, Karen=0.6)
-        # Rhapta is usually the 'Master' store in our patterns
-        if not self.org_codes:
-            orgs = [
-                ('ORG001', 'OASIS Central Support', 'OCS', 'Kiambu Rd, Nairobi', 'Nairobi', 'Nairobi', 'Kenya', '00100', '+25420123456', 'ocs@oasis-retail.com', 'KES', 'KRA123456789', 0, None),
-                ('ORG002', 'Flagship Mall Store', 'FMS', 'Two Rivers, Nairobi', 'Nairobi', 'Nairobi', 'Kenya', '00100', '+25420234567', 'fms@oasis-retail.com', 'KES', 'KRA234567890', 1, 'ORG001'),
-                ('ORG003', 'Suburban Branch Karen', 'SBK', 'Karen, Nairobi', 'Nairobi', 'Nairobi', 'Kenya', '00100', '+25420345678', 'sbk@oasis-retail.com', 'KES', 'KRA345678901', 1, 'ORG001'),
-            ]
 
-            self.store_meta = [
-                {'org_cd':'ORG002','store_id':'FMS-001','name':'Two Rivers','dsf':1.2,'stock_profile':[]},
-                {'org_cd':'ORG003','store_id':'CFP-002','name':'Karen Well','dsf':0.6,'stock_profile':[]},
-            ]
-
-        if not self.org_codes:
+        if not orgs:
             self.store_meta = [
                 {'org_cd':'ORG002','store_id':'FMS-001','name':'Two Rivers','dsf':1.2,'stock_profile':[]},
                 {'org_cd':'ORG003','store_id':'CFP-002','name':'Karen Well','dsf':0.6,'stock_profile':[]},
@@ -783,6 +785,10 @@ class MockPosErpBuilder:
         bill_counter = 0
         items_list = list(self.product_catalog.items())
         
+        # Pre-calculate lists for random.choices (PERFORMANCE FIX for 17k SKUs)
+        sku_list = [itm for itm, _ in items_list]
+        sku_weights = [max(0.1, info['ads']) for _, info in items_list]
+        
         if not items_list:
             return # Extra safety guard
 
@@ -790,6 +796,8 @@ class MockPosErpBuilder:
         dsf_map = {m['org_cd']: m['dsf'] for m in self.store_meta}
 
         for day_offset in range(90, 0, -1):
+            if day_offset % 10 == 0 or day_offset == 90:
+                print(f"    - Processing Day {91 - day_offset}/90...", flush=True)
             bill_date = (today - timedelta(days=day_offset))
             bill_dt_str = bill_date.strftime("%Y-%m-%d")
             day_of_week = bill_date.weekday()
@@ -811,10 +819,9 @@ class MockPosErpBuilder:
                     # Basket: 2-10 items, A-tier items weighted
                     basket_size = max(2, int(random.gauss(5, 2)))
                     basket_items = random.choices(
-                        [itm for itm, _ in items_list],
-                        # Weight by ADS so staples appear more often
-                        weights=[max(0.01, info['ads']) for _, info in items_list],
-                        k=min(basket_size, len(items_list))
+                        sku_list,
+                        weights=sku_weights,
+                        k=min(basket_size, len(sku_list))
                     )
                     # Deduplicate within bill
                     seen = set()
@@ -839,7 +846,7 @@ class MockPosErpBuilder:
 
                         dtl_rows.append((
                             org_cd, bill_no, bill_dt_str, serial_no,
-                            itm_cd, info['name'], qty, sell_price, cost_price,
+                            itm_cd, info['name'], qty, sell_price,
                             net_amt, tax_amt, 0, tax_amt, total_val,
                             'EA', 'Each', 'F', 'N', info['barcode'], None
                         ))

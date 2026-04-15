@@ -1,0 +1,30 @@
+---
+type: SKU
+department: '[[CANNED SODA]]'
+supplier: '[[BEST BUY COMMODITY LIMITED]]'
+price: 96.5503890290302
+margin_pct: 16.0
+revenue: 3668.9
+gross_profit: 587.02
+sales_rank: 7481
+rhapta_fill_rate: 0
+velocity_ads: 0.2065
+total_quantity: 38.0
+---
+
+# PEPSI 150ML CAN
+
+## Relationships
+- **Department**: [[CANNED SODA]]
+- **Supplier**: [[BEST BUY COMMODITY LIMITED]]
+
+## Potential Substitutes
+- [substitution]:: [[COKE ZERO 330ML CAN]]
+- [substitution]:: [[COKE 330ML CAN]]
+- [substitution]:: [[FANTA 330ML ORANGE CAN]]
+- [substitution]:: [[SPRITE 330ML CAN REGULAR]]
+- [substitution]:: [[BARR 330ML LEMONADE CAN]]
+
+## Network Insights
+- [upstream_supply]:: [[BEST BUY COMMODITY LIMITED]]
+- [downstream_demand]:: [[Retail Market]]

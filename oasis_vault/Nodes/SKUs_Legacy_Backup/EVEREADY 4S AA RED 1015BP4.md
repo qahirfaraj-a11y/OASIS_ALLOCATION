@@ -1,0 +1,30 @@
+---
+type: SKU
+department: '[[BATTERIES]]'
+supplier: '[[HASBAH KENYA LTD]]'
+price: 220.0
+margin_pct: 0.0
+revenue: 0.0
+gross_profit: 0.0
+sales_rank: 1351
+rhapta_fill_rate: 0
+velocity_ads: 0.411
+total_quantity: 150.0
+---
+
+# EVEREADY 4S AA RED 1015BP4
+
+## Relationships
+- **Department**: [[BATTERIES]]
+- **Supplier**: [[HASBAH KENYA LTD]]
+
+## Potential Substitutes
+- [substitution]:: [[EVEREADY 4S AAA RED 1012BP4]]
+- [substitution]:: [[EVERREADY BLACK BATTERY 2PK 1250SW2 DS]]
+- [substitution]:: [[EVERREADY C RED BATTERIES 2PK 1035 SW2]]
+- [substitution]:: [[EVEREADY BLACK 9V 1222 BP1]]
+- [substitution]:: [[ENERGIZER A76 2S ALKALINE BATT]]
+
+## Network Insights
+- [upstream_supply]:: [[HASBAH KENYA LTD]]
+- [downstream_demand]:: [[Retail Market]]

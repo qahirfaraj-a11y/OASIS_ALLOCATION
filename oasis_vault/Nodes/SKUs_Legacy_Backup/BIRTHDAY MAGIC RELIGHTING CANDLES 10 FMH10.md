@@ -1,0 +1,30 @@
+---
+type: SKU
+department: '[[TOYS]]'
+supplier: '[[Unknown]]'
+price: 1965.0
+margin_pct: 16.0
+revenue: 92355.0
+gross_profit: 14776.8
+sales_rank: 701
+rhapta_fill_rate: 0
+velocity_ads: 0.2554
+total_quantity: 47.0
+---
+
+# BIRTHDAY MAGIC RELIGHTING CANDLES 10 FMH10
+
+## Relationships
+- **Department**: [[TOYS]]
+- **Supplier**: [[Unknown]]
+
+## Potential Substitutes
+- [substitution]:: [[TOY SPOOKY GLOW AKA6692]]
+- [substitution]:: [[FACE MASK PLASTIC]]
+- [substitution]:: [[TOY GLOW MASK AKA6678]]
+- [substitution]:: [[PMS MINIATURE FARM ANIMALS ASST#PMS549196]]
+- [substitution]:: [[PMS 2Y+ MAGNETIC SHOULDER PETS NO. 453455]]
+
+## Network Insights
+- [upstream_supply]:: [[Unknown]]
+- [downstream_demand]:: [[Retail Market]]

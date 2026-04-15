@@ -1,5 +1,6 @@
 
 import random
+import math
 import logging
 from typing import List, Dict, Any, Tuple
 
@@ -51,7 +52,9 @@ class SalesSimulator:
                                 store_scale_factor: float = 1.0) -> int:
         """
         Generates a stochastic sales number for a single day.
-        Logic: Normal Distribution (Mean=Daily * Factors * Scale, StdDev=Mean*CV).
+        Logic: 
+          - For Low Velocity (Mean < 10): Poisson Distribution (Discrete Reality)
+          - For High Velocity (Mean >= 10): Normal Distribution (Approximation)
         Returns: Integer units sold (>= 0).
         """
         if avg_daily_sales <= 0:
@@ -63,18 +66,26 @@ class SalesSimulator:
         # Base Mean modulated by Calendar, Seasonality, Item Trend AND Store Scale
         adjusted_mean = avg_daily_sales * day_factor * month_factor * trend_multiplier * store_scale_factor
         
-        # 2. Calculate Volatility
-        # If CV is missing/zero, assume a default volatility (e.g. 0.4)
-        if cv <= 0: cv = 0.4
-        std_dev = adjusted_mean * cv
-        
-        # 3. Generate Random Sample (Monte Carlo)
-        daily_units = random.gauss(adjusted_mean, std_dev)
-        
-        # 4. Enforce Physical Reality
-        final_units = max(0, int(round(daily_units)))
-        
-        return final_units
+        # 2. Generate Random Sample
+        if adjusted_mean <= 0:
+            return 0
+            
+        if adjusted_mean < 10.0:
+            # v10.5: Use Poisson for low-velocity items (Physical discrete events)
+            # Knuth's algorithm for Poisson samples
+            L = math.exp(-adjusted_mean)
+            k = 0
+            p = 1.0
+            while p > L:
+                k += 1
+                p *= random.random()
+            return k - 1
+        else:
+            # High velocity: Normal approximation
+            if cv <= 0: cv = 0.4
+            std_dev = adjusted_mean * cv
+            daily_units = random.gauss(adjusted_mean, std_dev)
+            return max(0, int(round(daily_units)))
 
 
 class InventoryTracker:
@@ -107,7 +118,6 @@ class InventoryTracker:
                     'supplier': rec.get('supplier_name', 'UNKNOWN'),
                     'department': rec.get('product_category', 'UNKNOWN'),  # Added for risk analysis
                     'lead_time_days': rec.get('lead_time_days', 2),
-                    'trend_multiplier': rec.get('trend_multiplier', 1.0),
                     'trend_multiplier': rec.get('trend_multiplier', 1.0),
                     'total_sold': 0,
                     'lost_sales_units': 0,
@@ -178,7 +188,6 @@ class InventoryTracker:
                 data['current_stock'] = 0
                 
                 # Create Loss Record
-                data['lost_sales_units'] += lost
                 data['lost_sales_units'] += lost
                 loss_val = lost * data['price']
                 daily_lost_revenue += loss_val
@@ -603,37 +612,6 @@ class ReplenishmentLogic:
     def __init__(self, check_frequency_days: int = 1):
         self.check_frequency = check_frequency_days
         
-    def check_for_reorder(self, inventory: Dict[str, Any], day_index: int, month_factor: float = 1.0) -> List[Dict]:
-        """
-        Scans inventory for items below ROP.
-        ROP = (LeadTime + SafetyDays) * AvgSales * MonthFactor * LOOKAHEAD_FACTOR
-        """
-        orders = []
-        
-        # Only check on periodic days
-        if day_index % self.check_frequency != 0:
-            return []
-            
-        for sku, data in inventory.items():
-            # Skip if already has order incoming? (Simplification: Ignore pending for now)
-            
-            lead_time = data.get('lead_time_days', 2) # Default 2 days
-            safety_stock_days = 3 # Policy
-            
-            avg_daily = data.get('avg_daily_sales', 0)
-            if avg_daily <= 0: continue
-            
-            # v5.5 FIX: Seasonality-Aware ROP
-            # If Jan demand is 3x, we need 3x the ROP trigger.
-            # v7.2 FIX: Weekend-Aware ROP (Lookahead)
-            # Calculate demand for the COVERAGE PERIOD (Lead Time + Safety Stock)
-            # Look ahead from tomorrow (Day + 1)
-            # We need access to the SalesSimulator to know the factors.
-            # Passed via kwargs or assume default if not present?
-            # Let's add simulator arg to `check_for_reorder` signature in next step.
-            # For now, let's assume `sales_simulator` is passed in kwargs or accessible.
-            pass
-            
     def check_for_reorder(self, inventory: Dict[str, Any], day_index: int, 
                          month_factor: float = 1.0, 
                          sales_simulator: Any = None) -> List[Dict]:

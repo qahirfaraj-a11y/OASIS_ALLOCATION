@@ -1,0 +1,27 @@
+---
+type: SKU
+department: "[[CIDERS]]"
+supplier: "[[KENYA WINE AGENCIES KWAL]]"
+price: 229.442473176028
+margin_pct: 0
+revenue: 0
+gross_profit: 0
+sales_rank: 9999
+---
+
+# SAVANNA LIGHT 330ML CIDER
+
+## Relationships
+- **Department**: [[CIDERS]]
+- **Supplier**: [[KENYA WINE AGENCIES KWAL]]
+
+## Potential Substitutes
+- [substitution]:: [[SMIRNOFF ICE BLACK 330ML CAN]]
+- [substitution]:: [[SMIRNOFF ICE WITH GUARANA 330ML CAN]]
+- [substitution]:: [[TUSKER 500ML CIDER CAN]]
+- [substitution]:: [[MANYATTA 330ML P-APPLE& MINT CAN]]
+- [substitution]:: [[58 GIN&TONIC 330ML VERY BERRY]]
+
+## Network Insights
+- [upstream_supply]:: [[KENYA WINE AGENCIES KWAL]]
+- [downstream_demand]:: [[Retail Market]]

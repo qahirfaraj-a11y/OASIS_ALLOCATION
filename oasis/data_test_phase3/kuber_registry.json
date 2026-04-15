@@ -1,0 +1,75 @@
+{
+    "investors": {
+        "INV_F9AD2D6F": {
+            "name": "ALICE",
+            "total_capital": 50000.0,
+            "available_capital": 49320.0,
+            "locked_capital": 1000.0,
+            "yield_generated": 120.0,
+            "active_positions": [
+                "POS_C9470EDB"
+            ],
+            "kyc_verified": true
+        },
+        "INV_F08C8E9E": {
+            "name": "BOB",
+            "total_capital": 50000.0,
+            "available_capital": 49580.0,
+            "locked_capital": 0.0,
+            "yield_generated": 0.0,
+            "active_positions": [
+                "POS_C9470EDB"
+            ],
+            "kyc_verified": true
+        },
+        "INV_E7FDDBBA": {
+            "name": "CHARLIE",
+            "total_capital": 50000.0,
+            "available_capital": 49318.0,
+            "locked_capital": 1000.0,
+            "yield_generated": 120.0,
+            "active_positions": [],
+            "kyc_verified": true
+        }
+    },
+    "active_positions": {
+        "POS_C9470EDB": {
+            "sku": "COOKING OIL 2LT",
+            "total_qty": 20,
+            "qty_on_hand": 20,
+            "unit_cost": 500.0,
+            "total_cost": 10000.0,
+            "status": "FUNDED",
+            "risk_tranche": "Tier 2: Medium Risk/Traffic",
+            "wp_score": 0.0158,
+            "yield_target": 0.15,
+            "gpp_protected": true,
+            "dynamic_gpp_threshold": 0.005,
+            "created_at": "2026-04-08T11:33:44.065172",
+            "investor_id": "INV_F08C8E9E",
+            "shareholders": {
+                "INV_F9AD2D6F": 0.2,
+                "INV_F08C8E9E": 0.0,
+                "INV_E7FDDBBA": 0.2,
+                "KUBER_DAO": 0.6
+            },
+            "shares_funded": 1.0,
+            "pending_settlement_qty": 0,
+            "last_settlement_at": "2026-04-08T11:33:44.073283",
+            "liquidity_requested_at": "2026-04-08T11:33:44.071869",
+            "funded_at": "2026-04-08T11:33:44.069107"
+        }
+    },
+    "historical_positions": [],
+    "global_ledger": {
+        "gpp_balance": 94451.0,
+        "gpp_liquidity_fund": 94420.0,
+        "gpp_insurance_fund": 31.0,
+        "spg_balance": 320.0,
+        "platform_fees": 50.4,
+        "levy_pct": 0.005,
+        "exchange_fee_pct": 0.001,
+        "total_trades": 1,
+        "total_volume": 6000.0
+    }
+}

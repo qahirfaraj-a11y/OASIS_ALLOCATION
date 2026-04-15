@@ -1,0 +1,24 @@
+---
+type: SKU
+department: "[[MIX SAUCE]]"
+supplier: "[[RAZCO LTD 2ND]]"
+price: 259.0
+margin_pct: 0
+revenue: 0
+gross_profit: 0
+sales_rank: 9999
+---
+
+# LYONS 350ML BURGER SAUCE TOP DOWN
+
+## Relationships
+- **Department**: [[MIX SAUCE]]
+- **Supplier**: [[RAZCO LTD 2ND]]
+
+## Potential Substitutes
+- [substitution]:: [[KAPUTEI 400G BBQ SAUCE]]
+- [substitution]:: [[TAYSTEE 400G MILD TAMARIND SAUCE]]
+
+## Network Insights
+- [upstream_supply]:: [[RAZCO LTD 2ND]]
+- [downstream_demand]:: [[Retail Market]]

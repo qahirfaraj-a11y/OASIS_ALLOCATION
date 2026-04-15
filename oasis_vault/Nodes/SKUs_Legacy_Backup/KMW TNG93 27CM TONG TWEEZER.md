@@ -1,0 +1,30 @@
+---
+type: SKU
+department: '[[PASTA]]'
+supplier: '[[KHS PRODUCTS LIMITED SR]]'
+price: 165.88636363636363
+margin_pct: 16.0
+revenue: 165.89
+gross_profit: 26.54
+sales_rank: 11579
+rhapta_fill_rate: 0
+velocity_ads: 0.0054
+total_quantity: 1.0
+---
+
+# KMW TNG93 27CM TONG TWEEZER
+
+## Relationships
+- **Department**: [[PASTA]]
+- **Supplier**: [[KHS PRODUCTS LIMITED SR]]
+
+## Potential Substitutes
+- [substitution]:: [[SANTA LUCIA 400G SPAGHETTI]]
+- [substitution]:: [[SANTA LUCIA 1KG 27 SPAGHETTINI]]
+- [substitution]:: [[SANTA MARIA 700G SPAGHETTI]]
+- [substitution]:: [[SANTA MARIA 400G SPAGHETTI GREEN]]
+- [substitution]:: [[SANTA LUCIA 700G SPAGHETTI]]
+
+## Network Insights
+- [upstream_supply]:: [[KHS PRODUCTS LIMITED SR]]
+- [downstream_demand]:: [[Retail Market]]

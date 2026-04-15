@@ -146,16 +146,18 @@ class MssqlConnector:
             LEFT JOIN Supplier sup  ON i.SupplierCode = sup.SupplierCode
             WHERE 1=1
         """
+        params = []
         if store_id:
-            query += f" AND s.StoreID = {store_id}"
-        return self.fetch_dataframe(query)
+            query += " AND s.StoreID = ?"
+            params.append(store_id)
+        return self.fetch_dataframe(query, params=params)
 
     def fetch_sales(self, days: int = 90, store_id: Optional[int] = None) -> pd.DataFrame:
         """
         Pull POS sales history for the last N days.
         Used for demand forecasting and velocity calculations.
         """
-        query = f"""
+        query = """
             SELECT
                 i.ItemName          AS product_name,
                 i.Barcode           AS barcode,
@@ -164,16 +166,18 @@ class MssqlConnector:
                 SUM(t.Qty * t.SellingPrice) AS total_revenue
             FROM Transactions t
             INNER JOIN Items i ON t.ItemCode = i.ItemCode
-            WHERE t.TransDate >= DATEADD(day, -{days}, GETDATE())
+            WHERE t.TransDate >= DATEADD(day, -?, GETDATE())
         """
+        params = [days]
         if store_id:
-            query += f" AND t.StoreID = {store_id}"
+            query += " AND t.StoreID = ?"
+            params.append(store_id)
         query += " GROUP BY i.ItemName, i.Barcode"
-        return self.fetch_dataframe(query)
+        return self.fetch_dataframe(query, params=params)
 
     def fetch_grn_history(self, days: int = 180) -> pd.DataFrame:
         """Pull GRN (Goods Received Notes) for supplier pattern analysis."""
-        query = f"""
+        query = """
             SELECT
                 g.GRNDate,
                 i.ItemName          AS product_name,
@@ -184,10 +188,11 @@ class MssqlConnector:
             FROM GRNDetail g
             INNER JOIN Items i      ON g.ItemCode = i.ItemCode
             LEFT JOIN Supplier sup  ON g.SupplierCode = sup.SupplierCode
-            WHERE g.GRNDate >= DATEADD(day, -{days}, GETDATE())
+            WHERE g.GRNDate >= DATEADD(day, -?, GETDATE())
             ORDER BY g.GRNDate DESC
         """
-        return self.fetch_dataframe(query)
+        params = [days]
+        return self.fetch_dataframe(query, params=params)
 
     def execute(self, query: str, params: Optional[dict] = None) -> int:
         """Execute a non-SELECT statement (INSERT/UPDATE/DELETE). Returns rowcount."""

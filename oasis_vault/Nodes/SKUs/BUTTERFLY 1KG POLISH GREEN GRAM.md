@@ -1,0 +1,27 @@
+---
+type: SKU
+department: "[[BEANS & LENTILS]]"
+supplier: "[[SPICE WORLD LTD]]"
+price: 229.0
+margin_pct: 0
+revenue: 0
+gross_profit: 0
+sales_rank: 9999
+---
+
+# BUTTERFLY 1KG POLISH GREEN GRAM
+
+## Relationships
+- **Department**: [[BEANS & LENTILS]]
+- **Supplier**: [[SPICE WORLD LTD]]
+
+## Potential Substitutes
+- [substitution]:: [[BUTTERFLY 500G POPCORN KERNELS]]
+- [substitution]:: [[BUTTERFLY 1KG GREEN GRAM MUNG]]
+- [substitution]:: [[NUTRAMEAL 1KG POLISHED GREEN GRAM]]
+- [substitution]:: [[PEARL 500G IMPORTED POPCORN]]
+- [substitution]:: [[PEARL 1KG GREEN GRAMS POLISHED]]
+
+## Network Insights
+- [upstream_supply]:: [[SPICE WORLD LTD]]
+- [downstream_demand]:: [[Retail Market]]

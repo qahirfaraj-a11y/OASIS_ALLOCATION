@@ -1,0 +1,30 @@
+---
+type: SKU
+department: '[[PET ASSESORIES]]'
+supplier: '[[Unknown]]'
+price: 950.0
+margin_pct: 0
+revenue: 0
+gross_profit: 0.0
+sales_rank: 15717
+velocity_ads: 0.06
+total_quantity: 0
+rhapta_fill_rate: 0
+---
+
+# PMS EAZEE 2 CLEAN OCEAN CLEANING CATRIDGE PMS825046
+
+## Relationships
+- **Department**: [[PET ASSESORIES]]
+- **Supplier**: [[Unknown]]
+
+## Potential Substitutes
+- [substitution]:: [[FLOWER VALUE 1LT DOG SHAMPOO]]
+- [substitution]:: [[FERPLAST DOG COLLAR CLB C15-44 - 925 BLUE]]
+- [substitution]:: [[ARLA 200G APETINA ORG WHT CHEESE CUBES IN BRINE]]
+- [substitution]:: [[PROLINE 5LT CLUMPING CAT LITTER ALOEVERA]]
+- [substitution]:: [[SUNNEX 9026 PASTRY BRUSH]]
+
+## Network Insights
+- [upstream_supply]:: [[Unknown]]
+- [downstream_demand]:: [[Retail Market]]

@@ -1,0 +1,30 @@
+---
+type: SKU
+department: '[[PLASTIC WARE]]'
+supplier: '[[KENPOLY MANUFACTURERS]]'
+price: 190.0
+margin_pct: 0.0
+revenue: 0.0
+gross_profit: 0.0
+sales_rank: 10171
+rhapta_fill_rate: 0
+velocity_ads: 0.3397
+total_quantity: 124.0
+---
+
+# KEN SWIVEL HANGERS 3S ASSORTED
+
+## Relationships
+- **Department**: [[PLASTIC WARE]]
+- **Supplier**: [[KENPOLY MANUFACTURERS]]
+
+## Potential Substitutes
+- [substitution]:: [[KEN FOODMATE NO.3 RECTANGLE]]
+- [substitution]:: [[KEN SMILEY BUCKET 20L]]
+- [substitution]:: [[TEEPEE DUST PAN WITH BRUSH SET F1]]
+- [substitution]:: [[PANDA 1LT STAK JAR J03]]
+- [substitution]:: [[ROK CLOTH HANGERS 3PK PREMIUM CH3]]
+
+## Network Insights
+- [upstream_supply]:: [[KENPOLY MANUFACTURERS]]
+- [downstream_demand]:: [[Retail Market]]

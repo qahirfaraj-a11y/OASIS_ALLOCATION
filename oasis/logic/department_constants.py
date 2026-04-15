@@ -23,7 +23,8 @@ ESSENTIAL_DEPARTMENTS = [
     "BREAKFAST CEREALS",
     
     # Gap Analysis Fixes (2026-01-30)
-    "GHEE", "BEANS", "LENTILS", "DAIRY", "PULSES"
+    # FIX M4: Added combined name 'BEANS & LENTILS' to match scorecard department naming
+    "GHEE", "BEANS", "LENTILS", "DAIRY", "PULSES", "BEANS & LENTILS"
 ]
 
 # Fast Five (Duka-specific priority departments)

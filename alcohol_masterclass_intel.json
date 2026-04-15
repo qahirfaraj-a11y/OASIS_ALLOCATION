@@ -1,0 +1,251 @@
+{
+    "summary": {
+        "total_beers": 86,
+        "total_wines": 915,
+        "total_spirits": 438,
+        "wine_dead_stock": 748,
+        "wine_dead_pct": 81.7,
+        "top_beer_revenue": 15684200.95
+    },
+    "beer_pareto": [
+        {
+            "SKU Name": "WHITE CAP 500ML LAGER CANS",
+            "Supplier": "KENYA BREWERIES LTD",
+            "Price (KES)": 228.39,
+            "Margin (%)": 7.59,
+            "Revenue (KES)": 3584277.24,
+            "Total Quantity": 19840,
+            "Velocity (ADS)": 54.3562
+        },
+        {
+            "SKU Name": "TUSKER CAN 500ML BEER",
+            "Supplier": "KENYA BREWERIES LTD",
+            "Price (KES)": 212.7,
+            "Margin (%)": 8.67,
+            "Revenue (KES)": 1955542.44,
+            "Total Quantity": 12142,
+            "Velocity (ADS)": 33.2658
+        },
+        {
+            "SKU Name": "TUSKER 500ML LAGER BEER",
+            "Supplier": "KENYA BREWERIES LTD",
+            "Price (KES)": 209.0,
+            "Margin (%)": 18.65,
+            "Revenue (KES)": 1451923.0,
+            "Total Quantity": 8849,
+            "Velocity (ADS)": 24.2438
+        },
+        {
+            "SKU Name": "WHITE CAP 500ML LAGER BEER",
+            "Supplier": "KENYA BREWERIES LTD",
+            "Price (KES)": 239.0,
+            "Margin (%)": 18.7,
+            "Revenue (KES)": 1333859.0,
+            "Total Quantity": 7339,
+            "Velocity (ADS)": 20.1068
+        },
+        {
+            "SKU Name": "TUSKER LITE 500ML CAN",
+            "Supplier": "KENYA BREWERIES LTD",
+            "Price (KES)": 258.57,
+            "Margin (%)": 8.63,
+            "Revenue (KES)": 1280445.14,
+            "Total Quantity": 6710,
+            "Velocity (ADS)": 18.3836
+        },
+        {
+            "SKU Name": "GUINNESS 500ML CAN",
+            "Supplier": "KENYA BREWERIES LTD",
+            "Price (KES)": 228.69,
+            "Margin (%)": 7.75,
+            "Revenue (KES)": 1054038.24,
+            "Total Quantity": 5705,
+            "Velocity (ADS)": 15.6301
+        },
+        {
+            "SKU Name": "BALOZI 500ML CAN",
+            "Supplier": "KENYA BREWERIES LTD",
+            "Price (KES)": 205.54,
+            "Margin (%)": 5.49,
+            "Revenue (KES)": 1019048.33,
+            "Total Quantity": 6284,
+            "Velocity (ADS)": 17.2164
+        },
+        {
+            "SKU Name": "HEINEKEN 500ML CAN BEER",
+            "Supplier": "KENYA WINE AGENCIES KWAL",
+            "Price (KES)": 284.62,
+            "Margin (%)": 6.28,
+            "Revenue (KES)": 839066.0,
+            "Total Quantity": 3766,
+            "Velocity (ADS)": 10.3178
+        },
+        {
+            "SKU Name": "TUSKER MALT LAGER 500ML CAN",
+            "Supplier": "KENYA BREWERIES LTD",
+            "Price (KES)": 262.91,
+            "Margin (%)": 10.05,
+            "Revenue (KES)": 705658.0,
+            "Total Quantity": 3560,
+            "Velocity (ADS)": 9.7534
+        },
+        {
+            "SKU Name": "PILSNER 500ML LAGER BEER",
+            "Supplier": "KENYA BREWERIES LTD",
+            "Price (KES)": 209.0,
+            "Margin (%)": 15.85,
+            "Revenue (KES)": 629717.0,
+            "Total Quantity": 3951,
+            "Velocity (ADS)": 10.8247
+        }
+    ],
+    "wine_pareto": [
+        {
+            "SKU Name": "Unknown SKU",
+            "Supplier": "WINE AND MORE COMPANY LTD",
+            "Price (KES)": 2324.0,
+            "Margin (%)": 16,
+            "Revenue (KES)": 513604,
+            "Total Quantity": 221,
+            "Velocity (ADS)": 1.2011
+        },
+        {
+            "SKU Name": "Unknown SKU",
+            "Supplier": "ALIMP GROUP LIMITED SR",
+            "Price (KES)": 3395.0,
+            "Margin (%)": 16,
+            "Revenue (KES)": 346290,
+            "Total Quantity": 102,
+            "Velocity (ADS)": 0.5543
+        },
+        {
+            "SKU Name": "Unknown SKU",
+            "Supplier": "PERNOD RICARD KENYA",
+            "Price (KES)": 1439.0,
+            "Margin (%)": 16,
+            "Revenue (KES)": 125193,
+            "Total Quantity": 87,
+            "Velocity (ADS)": 0.4728
+        },
+        {
+            "SKU Name": "Unknown SKU",
+            "Supplier": "ALIMP GROUP LIMITED SR",
+            "Price (KES)": 3395.0,
+            "Margin (%)": 16,
+            "Revenue (KES)": 105245,
+            "Total Quantity": 31,
+            "Velocity (ADS)": 0.1685
+        },
+        {
+            "SKU Name": "Unknown SKU",
+            "Supplier": "VIVA GLOBAL LIMITED",
+            "Price (KES)": 2179.0,
+            "Margin (%)": 16,
+            "Revenue (KES)": 104592,
+            "Total Quantity": 48,
+            "Velocity (ADS)": 0.2609
+        },
+        {
+            "SKU Name": "Unknown SKU",
+            "Supplier": "UVA WINES LIMITED SR",
+            "Price (KES)": 2119.5,
+            "Margin (%)": 16,
+            "Revenue (KES)": 97497,
+            "Total Quantity": 46,
+            "Velocity (ADS)": 0.25
+        },
+        {
+            "SKU Name": "Unknown SKU",
+            "Supplier": "WINE AND MORE COMPANY LTD",
+            "Price (KES)": 2294.0,
+            "Margin (%)": 16,
+            "Revenue (KES)": 80290,
+            "Total Quantity": 35,
+            "Velocity (ADS)": 0.1902
+        },
+        {
+            "SKU Name": "Unknown SKU",
+            "Supplier": "PERNOD RICARD KENYA",
+            "Price (KES)": 1439.0,
+            "Margin (%)": 16,
+            "Revenue (KES)": 73389,
+            "Total Quantity": 51,
+            "Velocity (ADS)": 0.2772
+        },
+        {
+            "SKU Name": "Unknown SKU",
+            "Supplier": "PERNOD RICARD KENYA",
+            "Price (KES)": 2319.0,
+            "Margin (%)": 16,
+            "Revenue (KES)": 71889,
+            "Total Quantity": 31,
+            "Velocity (ADS)": 0.1685
+        },
+        {
+            "SKU Name": "Unknown SKU",
+            "Supplier": "PERNOD RICARD KENYA",
+            "Price (KES)": 1439.0,
+            "Margin (%)": 16,
+            "Revenue (KES)": 56121,
+            "Total Quantity": 39,
+            "Velocity (ADS)": 0.212
+        }
+    ],
+    "halo_partners": {
+        "KENYA BREWERIES LTD": 15,
+        "BEER": 10,
+        "GUINNESS 500ML CAN": 5,
+        "Retail Market": 5,
+        "WHITE CAP 500ML LAGER CANS": 4,
+        "TUSKER CAN 500ML BEER": 4,
+        "WHITE CAP 500ML LAGER BEER": 4,
+        "TUSKER 500ML LAGER BEER": 4
+    },
+    "spirit_insights": [
+        {
+            "SKU Name": "Unknown SKU",
+            "Supplier": "UDV KENYA LIMITED",
+            "Price (KES)": 253.45,
+            "Margin (%)": 17.89,
+            "Revenue (KES)": 401970.0,
+            "Total Quantity": 1854,
+            "Velocity (ADS)": 5.0795
+        },
+        {
+            "SKU Name": "Unknown SKU",
+            "Supplier": "Unknown",
+            "Price (KES)": 253.45,
+            "Margin (%)": 16.0,
+            "Revenue (KES)": 50183.1,
+            "Total Quantity": 198,
+            "Velocity (ADS)": 1.0761
+        },
+        {
+            "SKU Name": "Unknown SKU",
+            "Supplier": "Unknown",
+            "Price (KES)": 253.45,
+            "Margin (%)": 16.0,
+            "Revenue (KES)": 29907.1,
+            "Total Quantity": 118,
+            "Velocity (ADS)": 0.6413
+        },
+        {
+            "SKU Name": "Unknown SKU",
+            "Supplier": "BEST BUY COMMODITY LIMITED",
+            "Price (KES)": 253.45,
+            "Margin (%)": 16.0,
+            "Revenue (KES)": 23063.95,
+            "Total Quantity": 91,
+            "Velocity (ADS)": 0.4946
+        },
+        {
+            "SKU Name": "Unknown SKU",
+            "Supplier": "KAPA OIL REFINERIES LTD",
+            "Price (KES)": 253.45,
+            "Margin (%)": 16.0,
+            "Revenue (KES)": 22557.05,
+            "Total Quantity": 89,
+            "Velocity (ADS)": 0.4837
+        }
+    ]
+}

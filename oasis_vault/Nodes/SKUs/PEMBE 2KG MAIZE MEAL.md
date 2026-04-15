@@ -1,0 +1,27 @@
+---
+type: SKU
+department: "[[FLOUR]]"
+supplier: "[[PEMBE FLOUR MILLS]]"
+price: 147.00492978786974
+margin_pct: -0.13
+revenue: 984051.0
+gross_profit: -1262.503576
+sales_rank: 70
+---
+
+# PEMBE 2KG MAIZE MEAL
+
+## Relationships
+- **Department**: [[FLOUR]]
+- **Supplier**: [[PEMBE FLOUR MILLS]]
+
+## Potential Substitutes
+- [substitution]:: [[SOKO 2KG MAIZE MEAL]]
+- [substitution]:: [[AJAB 2KG HOME BAKING FLOUR]]
+- [substitution]:: [[EXE 2KG ALL PURPOSE FLOUR]]
+- [substitution]:: [[JOGOO 2KG MAIZE MEAL]]
+- [substitution]:: [[AJAB 2KG MAIZE MEAL FLOUR]]
+
+## Network Insights
+- [upstream_supply]:: [[PEMBE FLOUR MILLS]]
+- [downstream_demand]:: [[Retail Market]]

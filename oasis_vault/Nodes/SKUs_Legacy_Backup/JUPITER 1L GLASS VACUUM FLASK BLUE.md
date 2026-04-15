@@ -1,0 +1,30 @@
+---
+type: SKU
+department: '[[HOUSEHOLD ITEMS]]'
+supplier: '[[NABICO ENTERPRISES LTD SR]]'
+price: 2095.0
+margin_pct: 16.0
+revenue: 0.0
+gross_profit: 0.0
+sales_rank: 21841
+rhapta_fill_rate: 0
+velocity_ads: 0.01
+total_quantity: 0
+---
+
+# JUPITER 1L GLASS VACUUM FLASK BLUE
+
+## Relationships
+- **Department**: [[HOUSEHOLD ITEMS]]
+- **Supplier**: [[NABICO ENTERPRISES LTD SR]]
+
+## Potential Substitutes
+- [substitution]:: [[REGAL 1.8L FLASK RAG-18S]]
+- [substitution]:: [[A-KITCHEN 1KG+150G HONEY IN HEXA SHAPE PET JAR]]
+- [substitution]:: [[MEGATEMP MG-148 FLASK 3.2L]]
+- [substitution]:: [[REGAL 2L VACUUM FLASK RS-20GN]]
+- [substitution]:: [[REGAL 1L VACUUM FLASK RGP43-10G]]
+
+## Network Insights
+- [upstream_supply]:: [[NABICO ENTERPRISES LTD SR]]
+- [downstream_demand]:: [[Retail Market]]

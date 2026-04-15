@@ -1,0 +1,30 @@
+---
+type: SKU
+department: '[[SWEETS]]'
+supplier: '[[ROSHNI DIST LTD  R D]]'
+price: 15.725170194217965
+margin_pct: 16.0
+revenue: 2453.88
+gross_profit: 392.62
+sales_rank: 8352
+rhapta_fill_rate: 0
+velocity_ads: 0.8478
+total_quantity: 156.0
+---
+
+# HARIBO 30G GOLDBEARS
+
+## Relationships
+- **Department**: [[SWEETS]]
+- **Supplier**: [[ROSHNI DIST LTD  R D]]
+
+## Potential Substitutes
+- [substitution]:: [[MR.BERRYS KING KUBWA XXL STRAWBERRY LOLLIPOP]]
+- [substitution]:: [[MR.BERRYS KING KUBWA XXL PASSION LOLLIPOP]]
+- [substitution]:: [[MR.BERRYS KING KUBWA XXL TONGUE PAINTER LOLLIPOP]]
+- [substitution]:: [[KSL TROPICAL LOLLIPOP SINGLES]]
+- [substitution]:: [[CHUPA CHUPS ASST LOLLIPOP]]
+
+## Network Insights
+- [upstream_supply]:: [[ROSHNI DIST LTD  R D]]
+- [downstream_demand]:: [[Retail Market]]

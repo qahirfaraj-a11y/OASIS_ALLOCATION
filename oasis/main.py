@@ -1,6 +1,7 @@
 import flet as ft
 import os
 import asyncio
+import time
 from oasis.logic.order_engine import OrderEngine
 from oasis.llm.inference import RuleBasedLLM, LocalLLM
 
@@ -79,6 +80,11 @@ def main(page: ft.Page):
         progress_ring.visible = True
         page.update()
         
+        # Determine Mode (v9.1 Parity)
+        allocation_mode = "replenishment"
+        if "INITIAL LOAD" in str(page.title).upper():
+            allocation_mode = "initial_load"
+
         all_recommendations = []
         total_products = 0
         processed_files = []
@@ -89,29 +95,21 @@ def main(page: ft.Page):
                 status_text.value = f"Processing {file_name}..."
                 page.update()
                 
-                # 1. Parse
-                products = engine.parse_inventory_file(file_path)
-                status_text.value = f"Parsed {len(products)} products from {file_name}. Enriching..."
-                page.update()
-                
-                # 2. Enrich
-                products = engine.enrich_product_data(products)
-                
-                # 3. AI Analysis
-                status_text.value = f"Running AI Analysis for {file_name}..."
-                page.update()
-                
-                recommendations = await llm.analyze(products)
-                all_recommendations.extend(recommendations)
-                total_products += len(products)
-                
-                # 110: Generate Excel for THIS file
-                import time
                 timestamp = int(time.time())
                 base_name, ext = os.path.splitext(file_name)
                 output_filename = f"processed_{base_name}_{timestamp}{ext}"
                 output_path = os.path.join(os.path.dirname(file_path), output_filename)
-                engine.generate_excel_report(file_path, recommendations, output_path)
+
+                # Use the unified Master Workflow which handles sync, parsing, enrichment, and merge
+                recommendations = await engine.run_intelligent_analysis(
+                    file_path=file_path,
+                    output_path=output_path,
+                    allocation_mode=allocation_mode,
+                    total_budget=getattr(engine, 'total_budget', 200000.0)
+                )
+
+                all_recommendations.extend(recommendations)
+                total_products += len(recommendations)
                 processed_files.append(output_filename)
 
             # 4. Update UI with sample of all recommendations

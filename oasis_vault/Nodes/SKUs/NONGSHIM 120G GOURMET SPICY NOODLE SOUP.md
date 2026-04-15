@@ -1,0 +1,27 @@
+---
+type: SKU
+department: "[[NOODLES]]"
+supplier: "[[KEVITA INTERNATIONAL CO LTD]]"
+price: 89.7877009255624
+margin_pct: 0
+revenue: 0
+gross_profit: 0
+sales_rank: 9999
+---
+
+# NONGSHIM 120G GOURMET SPICY NOODLE SOUP
+
+## Relationships
+- **Department**: [[NOODLES]]
+- **Supplier**: [[KEVITA INTERNATIONAL CO LTD]]
+
+## Potential Substitutes
+- [substitution]:: [[INDOMIE 50G VEGETABLE NOODLES]]
+- [substitution]:: [[MAGGI 70G MASALA NOODLES]]
+- [substitution]:: [[INDOMIE 70G CHICKEN NOODLES]]
+- [substitution]:: [[INDOMIE 70G 5IN1 NOODLES BEEF FLAVOUR]]
+- [substitution]:: [[MAGGI 70G SPECIAL MASALA NOODLES]]
+
+## Network Insights
+- [upstream_supply]:: [[KEVITA INTERNATIONAL CO LTD]]
+- [downstream_demand]:: [[Retail Market]]

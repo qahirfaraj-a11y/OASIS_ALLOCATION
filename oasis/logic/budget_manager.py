@@ -48,25 +48,25 @@ class BudgetManager:
                 logger.error(f"Failed to load scaling ratios: {e}")
         else:
             logger.warning(f"Scaling ratios file not found at {ratio_path}")
-
     def is_staple(self, product_name: str, category: str = None, velocity: float = 0.0) -> bool:
         """
         Checks if product is in the Golden File (Staple list).
         v3.11 (APS-2): Added Heuristic Fallback.
         If missing from Golden File, checks:
-        1. Category is Critical (Rice, Sugar, Flour, Oil, Milk, Maize Meal)
-        2. Velocity is High (> 1.0 unit/day) - Implying it's a fast mover in a staple category.
+        1. Category is Critical (Essential Departments from constants)
+        2. Velocity is meaningful (> 0.5 unit/day)
         """
         name_clean = product_name.strip().upper()
         if name_clean in self.staples:
             return True
             
         # Fallback Heuristic
+        # FIX H2: Removed self-referential threshold. Use a fixed 0.5 threshold
+        # for essential departments — any item with meaningful velocity (>0.5/day)
+        # in a critical category qualifies as a staple.
         if category:
             dept = category.strip().upper()
-            # critical_depts = ['RICE', 'SUGAR', 'FLOUR', 'COOKING OIL', 'FRESH MILK', 'MAIZE MEAL']
-            if dept in ESSENTIAL_DEPARTMENTS and velocity >= 1.0:
-                 # High velocity item in a critical department -> Treat as Staple
+            if dept in ESSENTIAL_DEPARTMENTS and velocity >= 0.5:
                  return True
                  
         return False
@@ -82,6 +82,10 @@ class BudgetManager:
         
         # Count departments with zero weight for dynamic minimum calculation
         zero_weight_count = sum(1 for w in self.scaling_ratios.values() if w == 0.0)
+        
+        # Reserve 2.5% for Liquidity / Flex Pool (Pass 2B) [v10.0 Parity]
+        LIQUIDITY_RESERVE_PCT = 0.025
+        liquidity_pool = total_budget * LIQUIDITY_RESERVE_PCT
         
         # Reserve 2% of budget for zero-weight departments (split among them)
         ORPHAN_RESERVE_PCT = 0.02
@@ -103,12 +107,22 @@ class BudgetManager:
                 'remaining': allocated * (1.0 + buffer_pct) # Start with max available including buffer
             }
             
-        # Default bucket for unknown departments (not in scaling ratios at all)
+        # FIX 8: Enlarged GENERAL wallet to serve as a spillover pool for department overflow.
+        # When a department wallet exhausts, procurement_mixin routes spending to GENERAL.
+        # Previously 5%/10% was too small to absorb meaningful spillover.
         wallets['GENERAL'] = {
-            'allocated_budget': total_budget * 0.05, # 5% contingency
-            'max_budget': total_budget * 0.10,
+            'allocated_budget': total_budget * 0.10,
+            'max_budget': total_budget * 0.20,
             'spent': 0.0,
-            'remaining': total_budget * 0.10
+            'remaining': total_budget * 0.20
+        }
+        
+        # Explicit Flex Pool Wallet
+        wallets['FLEX_POOL'] = {
+            'allocated_budget': liquidity_pool,
+            'max_budget': liquidity_pool,
+            'spent': 0.0,
+            'remaining': liquidity_pool
         }
         
         return wallets
@@ -124,10 +138,16 @@ class BudgetManager:
         return wallet['remaining'] >= cost
 
     def spend_from_wallet(self, wallets: Dict[str, Any], department: str, cost: float):
-        """Deducts cost from the specific wallet."""
+        """Deducts cost from the specific wallet. FIX H3: Guards against negative balance."""
         dept = department.upper().strip()
         if dept not in wallets:
             dept = 'GENERAL'
             
-        wallets[dept]['spent'] += cost
-        wallets[dept]['remaining'] -= cost
+        wallet = wallets[dept]
+        wallet['spent'] += cost
+        wallet['remaining'] -= cost
+        
+        # FIX H3: Warn if wallet goes negative (indicates upstream check was skipped)
+        if wallet['remaining'] < 0:
+            logger.debug(f"Wallet '{dept}' overdrawn by {abs(wallet['remaining']):.2f}. Clamping to 0.")
+            wallet['remaining'] = 0.0

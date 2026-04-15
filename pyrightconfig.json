@@ -1,26 +1,23 @@
 {
+  "include": [
+    "oasis",
+    "test_engine_init.py"
+  ],
   "extraPaths": [
     "."
   ],
+  "pythonVersion": "3.10",
+  "reportMissingImports": true,
+  "reportMissingTypeStubs": false,
   "exclude": [
     "**/node_modules",
     "**/__pycache__",
-    "vj_canvas/backend/venv",
-    "dist",
-    "build",
-    "oasis/data",
-    "stores_network.json",
-    "product_department_map.json",
+    "**/.git",
+    "**/.pytest_cache",
     "**/*.csv",
     "**/*.xlsx",
     "**/*.zip",
-    "**/*.db",
-    "**/*.pt",
     "**/*.docx",
-    "**/*.pdf",
-    "**/*.txt",
-    "**/*.json",
-    "**/.git",
-    "**/.pytest_cache"
+    "**/*.pdf"
   ]
 }

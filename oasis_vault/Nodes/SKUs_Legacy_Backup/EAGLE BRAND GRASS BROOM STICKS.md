@@ -1,0 +1,30 @@
+---
+type: SKU
+department: '[[BRUSHES & BROOMS]]'
+supplier: '[[Unknown]]'
+price: 271.0
+margin_pct: 0.0
+revenue: 0.0
+gross_profit: 0.0
+sales_rank: 2242
+rhapta_fill_rate: 0
+velocity_ads: 0.1096
+total_quantity: 40.0
+---
+
+# EAGLE BRAND GRASS BROOM STICKS
+
+## Relationships
+- **Department**: [[BRUSHES & BROOMS]]
+- **Supplier**: [[Unknown]]
+
+## Potential Substitutes
+- [substitution]:: [[HEAVY FLOOR CLOTH 20X22]]
+- [substitution]:: [[PANDA DUSTPAN WITH BRUSH]]
+- [substitution]:: [[TEEPEE TOILET BRUSH & BOWL SET B9]]
+- [substitution]:: [[MIX COTTON CLOTH FLOOR LOOSE]]
+- [substitution]:: [[MONKEY PREMIUM INDIAN BROOMS]]
+
+## Network Insights
+- [upstream_supply]:: [[Unknown]]
+- [downstream_demand]:: [[Retail Market]]

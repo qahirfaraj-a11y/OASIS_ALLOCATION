@@ -30,25 +30,25 @@ print("-" * 70)
 
 order_engine_path = os.path.join(
     os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
-    'oasis', 'logic', 'order_engine.py'
+    'oasis', 'logic', 'procurement_mixin.py'
 )
 
 if os.path.exists(order_engine_path):
     with open(order_engine_path, 'r', encoding='utf-8') as f:
         content = f.read()
     
-    # Check for key markers of the fix
+    # Check for key markers of the v10.0 Golden Parity
     checks = {
-        'Flex Pool Comments': 'FLEX POOL REDISTRIBUTION (v3.0 - Gap-11 Fix)',
-        'Expanded Eligibility': 'EXPANDED ELIGIBILITY: All Priority 1/2 Items with Depth Potential',
-        'ROI Scoring': 'roi_score = velocity * margin',
-        'Depth Potential Calc': 'additional_qty = max(0, ideal_qty - current_qty)',
+        'Flex Pool Comments': 'Pass 2B: Flex Pool Redistribution [Golden v10.0 / Gap-11 Fix]',
+        'Ideal Depth (45d)': 'ideal_days = 45.0',
+        'ROI Scoring': 'roi_score = avg_sales * float(r.get(\'profit_margin\', 0.2))',
+        'Headroom Calc': 'headroom = ideal_qty - current_qty',
         'Flex Pool Transactions': 'flex_pool_transactions',
         'Lowered Threshold': 'true_unused > (total_budget * 0.05)',
-        'Summary Metrics': 'flex_pool_available',
+        'Mop-Up Golden Parity': 'Pass 4: Mop-Up [Golden v10.0 Parity]',
     }
     
-    print("Checking for Gap-11 fix markers...")
+    print(f"Checking {os.path.basename(order_engine_path)} for Golden Parity markers...")
     all_present = True
     for check_name, check_text in checks.items():
         if check_text in content:
@@ -59,9 +59,9 @@ if os.path.exists(order_engine_path):
     
     print()
     if all_present:
-        print("[OK] All Gap-11 fix markers found in order_engine.py")
+        print("[OK] All Golden Parity markers found in procurement_mixin.py")
     else:
-        print("[FAIL] Some Gap-11 fix markers are missing")
+        print("[FAIL] Some Golden Parity markers are missing")
 else:
     print(f"[FAIL] Could not find order_engine.py at {order_engine_path}")
 

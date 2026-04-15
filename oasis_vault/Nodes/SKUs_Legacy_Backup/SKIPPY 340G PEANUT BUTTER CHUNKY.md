@@ -1,0 +1,30 @@
+---
+type: SKU
+department: '[[PEANUT BUTTER]]'
+supplier: '[[DEBENHAM AND FEAR LTD]]'
+price: 845.0
+margin_pct: 0.0
+revenue: 0.0
+gross_profit: 0.0
+sales_rank: 9473
+rhapta_fill_rate: 0
+velocity_ads: 0.0822
+total_quantity: 30.0
+---
+
+# SKIPPY 340G PEANUT BUTTER CHUNKY
+
+## Relationships
+- **Department**: [[PEANUT BUTTER]]
+- **Supplier**: [[DEBENHAM AND FEAR LTD]]
+
+## Potential Substitutes
+- [substitution]:: [[BLUE BAND 800G PEANUT BUTTER SMOOTH]]
+- [substitution]:: [[SKIPPY 340G PEANUT BUTTER CREAMY]]
+- [substitution]:: [[ALPHAJIRI FARMERS 750G PEANUT BUTTER]]
+- [substitution]:: [[NATURALLI 170G SMOOTH ST.ALMOND BUTTER G-JAR]]
+- [substitution]:: [[BLUE BAND 800G PEANUT BUTTER CRUNCHY]]
+
+## Network Insights
+- [upstream_supply]:: [[DEBENHAM AND FEAR LTD]]
+- [downstream_demand]:: [[Retail Market]]

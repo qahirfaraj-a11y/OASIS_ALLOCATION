@@ -1,0 +1,30 @@
+---
+type: SKU
+department: '[[MUESLI-GRANOLA]]'
+supplier: '[[NUTCRACKER LTD LOCAL ITEMS]]'
+price: 625.0
+margin_pct: 0.0
+revenue: 0.0
+gross_profit: 0.0
+sales_rank: 8767
+rhapta_fill_rate: 0
+velocity_ads: 0.0329
+total_quantity: 12.0
+---
+
+# BAKEKING 400G CLASSIC GRANOLA
+
+## Relationships
+- **Department**: [[MUESLI-GRANOLA]]
+- **Supplier**: [[NUTCRACKER LTD LOCAL ITEMS]]
+
+## Potential Substitutes
+- [substitution]:: [[ALPEN 325G ORIGINAL MUESLI]]
+- [substitution]:: [[SANTE 350G FRUIT GRANOLA]]
+- [substitution]:: [[NAARA 500G GRANOLA ORIGINAL]]
+- [substitution]:: [[SANTE 350G GRANOLA NUT]]
+- [substitution]:: [[SANTE 350G CHOCOLATE GRANOLA]]
+
+## Network Insights
+- [upstream_supply]:: [[NUTCRACKER LTD LOCAL ITEMS]]
+- [downstream_demand]:: [[Retail Market]]

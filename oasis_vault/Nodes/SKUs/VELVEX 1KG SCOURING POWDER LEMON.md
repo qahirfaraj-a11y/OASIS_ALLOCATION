@@ -1,0 +1,27 @@
+---
+type: SKU
+department: "[[SCOURING POWDER]]"
+supplier: "[[CHANDARIA INDUSTRIES  LTD]]"
+price: 150.0
+margin_pct: 0
+revenue: 0
+gross_profit: 0
+sales_rank: 9999
+---
+
+# VELVEX 1KG SCOURING POWDER LEMON
+
+## Relationships
+- **Department**: [[SCOURING POWDER]]
+- **Supplier**: [[CHANDARIA INDUSTRIES  LTD]]
+
+## Potential Substitutes
+- [substitution]:: [[SUNLIGHT 1KG LAVENDER SCOURING PWD]]
+- [substitution]:: [[EZEE 1KG CITRUS SPLASH SCOURING POWDER]]
+- [substitution]:: [[SUNLIGHT 1KG LEMON SCOURING PWD]]
+- [substitution]:: [[VELVEX 1KG SCOURING POWDER LAVENDER]]
+- [substitution]:: [[SAFISHA 1KG LEMON SCOURING POWDER]]
+
+## Network Insights
+- [upstream_supply]:: [[CHANDARIA INDUSTRIES  LTD]]
+- [downstream_demand]:: [[Retail Market]]

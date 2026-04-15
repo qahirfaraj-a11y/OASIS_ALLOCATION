@@ -1,0 +1,325 @@
+{
+    "sector_analyses": {
+        "BEER": {
+            "rev_total": 15684200.95,
+            "sku_count": 86,
+            "a_class_count": 6,
+            "c_class_count": 76,
+            "c_class_rev_pct": 11.671787206985512,
+            "velocity_leaders": [
+                {
+                    "SKU Name": "WHITE CAP 500ML LAGER CANS",
+                    "Supplier": "KENYA BREWERIES LTD",
+                    "Price (KES)": 228.39,
+                    "Margin (%)": 7.59,
+                    "Revenue (KES)": 3584277.24,
+                    "Total Quantity": 19840,
+                    "Velocity (ADS)": 54.3562,
+                    "CumRev": 0.2285278830223098
+                },
+                {
+                    "SKU Name": "TUSKER CAN 500ML BEER",
+                    "Supplier": "KENYA BREWERIES LTD",
+                    "Price (KES)": 212.7,
+                    "Margin (%)": 8.67,
+                    "Revenue (KES)": 1955542.44,
+                    "Total Quantity": 12142,
+                    "Velocity (ADS)": 33.2658,
+                    "CumRev": 0.3532101952570303
+                },
+                {
+                    "SKU Name": "TUSKER 500ML LAGER BEER",
+                    "Supplier": "KENYA BREWERIES LTD",
+                    "Price (KES)": 209.0,
+                    "Margin (%)": 18.65,
+                    "Revenue (KES)": 1451923.0,
+                    "Total Quantity": 8849,
+                    "Velocity (ADS)": 24.2438,
+                    "CumRev": 0.4457825235910408
+                },
+                {
+                    "SKU Name": "WHITE CAP 500ML LAGER BEER",
+                    "Supplier": "KENYA BREWERIES LTD",
+                    "Price (KES)": 239.0,
+                    "Margin (%)": 18.7,
+                    "Revenue (KES)": 1333859.0,
+                    "Total Quantity": 7339,
+                    "Velocity (ADS)": 20.1068,
+                    "CumRev": 0.5308272768591377
+                },
+                {
+                    "SKU Name": "TUSKER LITE 500ML CAN",
+                    "Supplier": "KENYA BREWERIES LTD",
+                    "Price (KES)": 258.57,
+                    "Margin (%)": 8.63,
+                    "Revenue (KES)": 1280445.14,
+                    "Total Quantity": 6710,
+                    "Velocity (ADS)": 18.3836,
+                    "CumRev": 0.6124664463700333
+                },
+                {
+                    "SKU Name": "GUINNESS 500ML CAN",
+                    "Supplier": "KENYA BREWERIES LTD",
+                    "Price (KES)": 228.69,
+                    "Margin (%)": 7.75,
+                    "Revenue (KES)": 1054038.24,
+                    "Total Quantity": 5705,
+                    "Velocity (ADS)": 15.6301,
+                    "CumRev": 0.6796702678053868
+                }
+            ]
+        },
+        "WINES": {
+            "rev_total": 2872699,
+            "sku_count": 915,
+            "a_class_count": 24,
+            "c_class_count": 844,
+            "c_class_rev_pct": 10.23622732489551,
+            "velocity_leaders": [
+                {
+                    "SKU Name": "MUCHO MAS 750ML RED WHITE EDITION",
+                    "Supplier": "WINE AND MORE COMPANY LTD",
+                    "Price (KES)": 2324.0,
+                    "Margin (%)": 16,
+                    "Revenue (KES)": 513604,
+                    "Total Quantity": 221,
+                    "Velocity (ADS)": 1.2011,
+                    "CumRev": 0.17878796212203227
+                },
+                {
+                    "SKU Name": "GRANDE FRANCE 750ML ROSE SPARKLING WINE",
+                    "Supplier": "ALIMP GROUP LIMITED SR",
+                    "Price (KES)": 3395.0,
+                    "Margin (%)": 16,
+                    "Revenue (KES)": 346290,
+                    "Total Quantity": 102,
+                    "Velocity (ADS)": 0.5543,
+                    "CumRev": 0.2993331358419382
+                },
+                {
+                    "SKU Name": "JACOBS CREEK CHARDONNAY 750ML",
+                    "Supplier": "PERNOD RICARD KENYA",
+                    "Price (KES)": 1439.0,
+                    "Margin (%)": 16,
+                    "Revenue (KES)": 125193,
+                    "Total Quantity": 87,
+                    "Velocity (ADS)": 0.4728,
+                    "CumRev": 0.34291340652118446
+                },
+                {
+                    "SKU Name": "GRANDE FRANCE 750ML ICE SPARKLING WINE",
+                    "Supplier": "ALIMP GROUP LIMITED SR",
+                    "Price (KES)": 3395.0,
+                    "Margin (%)": 16,
+                    "Revenue (KES)": 105245,
+                    "Total Quantity": 31,
+                    "Velocity (ADS)": 0.1685,
+                    "CumRev": 0.37954968480860685
+                },
+                {
+                    "SKU Name": "CANTI 750ML PROSECCO BIO ORGANIC",
+                    "Supplier": "VIVA GLOBAL LIMITED",
+                    "Price (KES)": 2179.0,
+                    "Margin (%)": 16,
+                    "Revenue (KES)": 104592,
+                    "Total Quantity": 48,
+                    "Velocity (ADS)": 0.2609,
+                    "CumRev": 0.41595865073229044
+                },
+                {
+                    "SKU Name": "PE TINTO 750ML RED WINE",
+                    "Supplier": "UVA WINES LIMITED SR",
+                    "Price (KES)": 2119.5,
+                    "Margin (%)": 16,
+                    "Revenue (KES)": 97497,
+                    "Total Quantity": 46,
+                    "Velocity (ADS)": 0.25,
+                    "CumRev": 0.4498978138677251
+                },
+                {
+                    "SKU Name": "MUCHO MAS 750ML WHITE",
+                    "Supplier": "WINE AND MORE COMPANY LTD",
+                    "Price (KES)": 2294.0,
+                    "Margin (%)": 16,
+                    "Revenue (KES)": 80290,
+                    "Total Quantity": 35,
+                    "Velocity (ADS)": 0.1902,
+                    "CumRev": 0.47784713957153185
+                },
+                {
+                    "SKU Name": "JACOBS CREEK MERLOT 750ML",
+                    "Supplier": "PERNOD RICARD KENYA",
+                    "Price (KES)": 1439.0,
+                    "Margin (%)": 16,
+                    "Revenue (KES)": 73389,
+                    "Total Quantity": 51,
+                    "Velocity (ADS)": 0.2772,
+                    "CumRev": 0.5033941947972969
+                },
+                {
+                    "SKU Name": "CAMPO VIEJO 750ML RESERVA",
+                    "Supplier": "PERNOD RICARD KENYA",
+                    "Price (KES)": 2319.0,
+                    "Margin (%)": 16,
+                    "Revenue (KES)": 71889,
+                    "Total Quantity": 31,
+                    "Velocity (ADS)": 0.1685,
+                    "CumRev": 0.5284190929853771
+                },
+                {
+                    "SKU Name": "JACOBS CREEK 750ML CLASSIC ROSE",
+                    "Supplier": "PERNOD RICARD KENYA",
+                    "Price (KES)": 1439.0,
+                    "Margin (%)": 16,
+                    "Revenue (KES)": 56121,
+                    "Total Quantity": 39,
+                    "Velocity (ADS)": 0.212,
+                    "CumRev": 0.5479550763933151
+                }
+            ]
+        },
+        "SPIRITS": {
+            "rev_total": 663530.4,
+            "sku_count": 438,
+            "a_class_count": 2,
+            "c_class_count": 428,
+            "c_class_rev_pct": 10.580622982760095,
+            "velocity_leaders": [
+                {
+                    "SKU Name": "CHROME 250ML VODKA",
+                    "Supplier": "UDV KENYA LIMITED",
+                    "Price (KES)": 253.45,
+                    "Margin (%)": 17.89,
+                    "Revenue (KES)": 401970.0,
+                    "Total Quantity": 1854,
+                    "Velocity (ADS)": 5.0795,
+                    "CumRev": 0.6058049488011401
+                },
+                {
+                    "SKU Name": "MIBISCO 500G BREAD CRUMBS",
+                    "Supplier": "Unknown",
+                    "Price (KES)": 253.45,
+                    "Margin (%)": 16.0,
+                    "Revenue (KES)": 50183.1,
+                    "Total Quantity": 198,
+                    "Velocity (ADS)": 1.0761,
+                    "CumRev": 0.6814353946706887
+                }
+            ]
+        },
+        "CIDERS": {
+            "rev_total": 1762227.9300000002,
+            "sku_count": 43,
+            "a_class_count": 2,
+            "c_class_count": 40,
+            "c_class_rev_pct": 26.588646793266975,
+            "velocity_leaders": [
+                {
+                    "SKU Name": "SAVANA DRY PREMIUM CIDER 340ML",
+                    "Supplier": "KENYA WINE AGENCIES KWAL",
+                    "Price (KES)": 283.34,
+                    "Margin (%)": 16.4,
+                    "Revenue (KES)": 549118.0,
+                    "Total Quantity": 2556,
+                    "Velocity (ADS)": 7.0027,
+                    "CumRev": 0.3116044131703212
+                },
+                {
+                    "SKU Name": "TUSKER 500ML CIDER CAN",
+                    "Supplier": "KENYA BREWERIES LTD",
+                    "Price (KES)": 256.29,
+                    "Margin (%)": 11.1,
+                    "Revenue (KES)": 372385.27,
+                    "Total Quantity": 1841,
+                    "Velocity (ADS)": 5.0438,
+                    "CumRev": 0.5229194557142219
+                }
+            ]
+        }
+    },
+    "substitution_shield": {
+        "WHITE CAP 500ML LAGER CANS": {
+            "substitutes": [],
+            "halo": [
+                "BEER",
+                "KENYA BREWERIES LTD",
+                "BEER"
+            ]
+        },
+        "TUSKER CAN 500ML BEER": {
+            "substitutes": [],
+            "halo": [
+                "BEER",
+                "KENYA BREWERIES LTD",
+                "BEER"
+            ]
+        },
+        "TUSKER 500ML LAGER BEER": {
+            "substitutes": [],
+            "halo": [
+                "BEER",
+                "KENYA BREWERIES LTD",
+                "BEER"
+            ]
+        },
+        "MUCHO MAS 750ML RED WHITE EDITION": {
+            "substitutes": [],
+            "halo": [
+                "WINES",
+                "WINE AND MORE COMPANY LTD",
+                "WINES"
+            ]
+        },
+        "GRANDE FRANCE 750ML ROSE SPARKLING WINE": {
+            "substitutes": [],
+            "halo": [
+                "WINES",
+                "ALIMP GROUP LIMITED SR",
+                "WINES"
+            ]
+        }
+    },
+    "supplier_audit": {
+        "KENYA BREWERIES LTD": {
+            "Supplier_Reliability": 0.905,
+            "Lead_Time_Days": 4.0,
+            "Total_Revenue": 883748.5862623692
+        },
+        "KENYA WINE AGENCIES KWAL": {
+            "Supplier_Reliability": 0.905,
+            "Lead_Time_Days": 7.0,
+            "Total_Revenue": 423457.9155960184
+        },
+        "Unknown": {
+            "Supplier_Reliability": 0.5,
+            "Lead_Time_Days": 7.0,
+            "Total_Revenue": 363547.8832451723
+        },
+        "VIVA GLOBAL LIMITED": {
+            "Supplier_Reliability": 0.905,
+            "Lead_Time_Days": 7.0,
+            "Total_Revenue": 316143.37695386267
+        },
+        "UDV KENYA LIMITED": {
+            "Supplier_Reliability": 0.9050000000000001,
+            "Lead_Time_Days": 7.0,
+            "Total_Revenue": 230329.3309773007
+        },
+        "SOYS LIMITED": {
+            "Supplier_Reliability": 0.905,
+            "Lead_Time_Days": 7.0,
+            "Total_Revenue": 150900.21412358133
+        },
+        "CRYSTAL FR  AND CHILLED FOODS LTD WINE SR": {
+            "Supplier_Reliability": 0.905,
+            "Lead_Time_Days": 7.0,
+            "Total_Revenue": 126897.2593670698
+        },
+        "PERNOD RICARD KENYA": {
+            "Supplier_Reliability": 0.905,
+            "Lead_Time_Days": 7.0,
+            "Total_Revenue": 125287.99407313998
+        }
+    },
+    "timestamp": "2026-04-02 17:14:56.542121"
+}

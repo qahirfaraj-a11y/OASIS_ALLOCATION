@@ -1,56 +1,71 @@
+# .dockerignore for OASIS Retail Solution
+# ----------------------------------------
+
 # Version control
 .git
 .gitignore
 
-# Python
-__pycache__
-*.pyc
-*.pyo
-.pytest_cache
-.mypy_cache
+# Python garbage
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.mypy_cache/
+.venv/
+.oasis_venv/
 
-# Build artifacts
+# Build and IDE artifacts
 build/
 dist/
 *.spec
-*.zip
+.vscode/
+.idea/
+.devcontainer/
+.gemini/
 
-# Large data files (not needed for deployment)
+# LARGE BINARIES (MUST EXCLUDE)
+*.zip
+*.7z
+*.rar
+OASIS_Offline_App.zip
+
+# Large Data (Redundant)
 *.diff
 *.txt
 !requirements.txt
 recent_changes*
+py_diff.txt
+zip_contents.txt
 
-# IDE and tools
-.vscode
-.idea
-.devcontainer
-.gemini
-
-# Generated reports and temp files
+# Generated simulation/allocation results (Huge)
 simulation_results_*.xlsx
 allocation_gap_analysis_*.xlsx
 orders_*.csv
 simulation_metrics_*.csv
+allocation_scaled_demand_*.xlsx
+powerbi_item_analysis.csv
+Full_Product_Allocation_Scorecard.csv
+Full_Product_Allocation_Scorecard_v[1-6].csv
 
-# Separate projects
+# Separate/Internal Projects
 vj_canvas/
 payslip_generator/
 hayat_analysis/
+mock_dir/
+Import/
 
-# Documents (not needed for deployment)
+# Documentation (Commercial docs kept in brain/)
 *.docx
 *.pdf
 *.md
 !USER_GUIDE.md
 !DEPLOYMENT_GUIDE.md
 
-# Large binary model files (optional, copy manually if GNN is needed)
-# Uncomment these to exclude model files and reduce image size:
-# *.pt
+# Large Network/Model data (Uncomment if not needed in image)
 # stores_network.json
+# st_gat_v2.pt
 
-# Test files
+# Source code exclusions (keep only necessary)
 tests/
 test_*.py
 verify_*.py
@@ -58,12 +73,11 @@ debug_*.py
 analyze_*.py
 inspect_*.py
 check_*.py
-
-# Misc utility scripts
 run_*.bat
 *.bat
 convert_*.py
 generate_*.py
+!generate_showcase_scenario.py
 extract_*.py
 find_*.py
 fix_*.py
@@ -88,9 +102,19 @@ inject_*.py
 ingest_*.py
 indent_*.py
 shrink_*.py
-
-# Scorecard versions (keep only latest)
-# Full_Product_Allocation_Scorecard_v[1-6].csv
-
-# Large network data
-# stores_network.json
+patch_order_engine.py
+rewrite_dashboard.py
+rebuild_lite_db.py
+add_priority_score.py
+Integrated_App.spec
+Integrated_App.zip
+OASIS_Offline.spec
+OASIS_Offline_App.zip
+OASIS_Vault.zip
+OASIS_Vault_App.zip
+OASIS_Vault_Offline.zip
+OASIS_Vault_Offline_App.zip
+OASIS_Vault_Standalone.zip
+OASIS_Vault_Standalone_App.zip
+OASIS_Vault_Standalone_Offline.zip
+OASIS_Vault_Standalone_Offline_App.zip

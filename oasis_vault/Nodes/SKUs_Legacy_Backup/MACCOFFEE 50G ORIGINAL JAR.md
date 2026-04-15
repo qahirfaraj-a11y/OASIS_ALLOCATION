@@ -1,0 +1,30 @@
+---
+type: SKU
+department: '[[COFFEE]]'
+supplier: '[[CHANDARIA INDUSTRIES LTD MACCOFFEE]]'
+price: 9.138167630835463
+margin_pct: 0.0
+revenue: 0.0
+gross_profit: 0.0
+sales_rank: 3878
+rhapta_fill_rate: 0
+velocity_ads: 0.0877
+total_quantity: 32.0
+---
+
+# MACCOFFEE 50G ORIGINAL JAR
+
+## Relationships
+- **Department**: [[COFFEE]]
+- **Supplier**: [[CHANDARIA INDUSTRIES LTD MACCOFFEE]]
+
+## Potential Substitutes
+- [substitution]:: [[NESCAFE 1.5GM CLASSIC SACHET]]
+- [substitution]:: [[MACCOFFEE 1.6G CLASSIC]]
+- [substitution]:: [[NESCAFE 18G 3IN1 CREAMY WHITE]]
+- [substitution]:: [[NESCAFE 1.5G CLASSIC SACHET]]
+- [substitution]:: [[NESCAFE GOLD 18G CAPPUCCINO STICK]]
+
+## Network Insights
+- [upstream_supply]:: [[CHANDARIA INDUSTRIES LTD MACCOFFEE]]
+- [downstream_demand]:: [[Retail Market]]

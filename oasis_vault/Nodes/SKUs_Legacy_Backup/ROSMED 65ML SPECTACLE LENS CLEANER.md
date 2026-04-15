@@ -1,0 +1,30 @@
+---
+type: SKU
+department: '[[MEDICARE]]'
+supplier: '[[NAIROBI ENTERPRISES LTD]]'
+price: 45.0
+margin_pct: 0.0
+revenue: 0.0
+gross_profit: 0.0
+sales_rank: 8349
+velocity_ads: 0.0493
+total_quantity: 18.0
+rhapta_fill_rate: 0
+---
+
+# ROSMED 65ML SPECTACLE LENS CLEANER
+
+## Relationships
+- **Department**: [[MEDICARE]]
+- **Supplier**: [[NAIROBI ENTERPRISES LTD]]
+
+## Potential Substitutes
+- [substitution]:: [[STREPSILS REGULAR 2S]]
+- [substitution]:: [[STREPSILS HONEY & LEMON 2S]]
+- [substitution]:: [[STREPSILS 6S HONEY & LEMON]]
+- [substitution]:: [[ENO LEMON 4S]]
+- [substitution]:: [[PANADOL ADVANCE 20 CAPLETS]]
+
+## Network Insights
+- [upstream_supply]:: [[NAIROBI ENTERPRISES LTD]]
+- [downstream_demand]:: [[Retail Market]]

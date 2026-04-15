@@ -61,6 +61,19 @@ class RuleBasedLLM(BaseLLM):
             xyz = p.get('xyz_rank', 'Z')
             strategy = f"{abc}{xyz}"
             is_sunset = p.get('is_sunset', False)
+            is_discontinued = p.get('is_discontinued', False)
+
+            # --- DISCONTINUED LOGIC (High Priority) ---
+            if is_discontinued:
+                results.append({
+                    "product_name": product_name,
+                    "recommended_quantity": 0,
+                    "reasoning": p.get('discontinued_reason', "Item Discontinued"),
+                    "confidence": "HIGH",
+                    "historical_avg": historical_avg,
+                    "est_cost": 0
+                })
+                continue
 
             # --- SUNSET LOGIC (High Priority) ---
             if is_sunset:
@@ -269,35 +282,40 @@ class RuleBasedLLM(BaseLLM):
                         post_order_coverage_cap = 21
                         slow_mover_reason = f"SLOW MOVER (STEADY): {days_since_delivery}d. Capped at {post_order_coverage_cap}d coverage."
 
-            # --- STANDARD CALCULATION PHASE ---
+            # --- STANDARD CALCULATION PHASE (v9.1 Parity) ---
             
-            # Determine Base Quantity
-            # If we have a historical baseline, start there
+            # Use mixin-calculated target if available, otherwise fallback
+            target_days = float(p.get('target_coverage_days', 0.0))
+            cost_price = float(p.get('cost_price', selling_price * 0.75))
+            
+            # Start with Historical Baseline if available
             if historical_avg > 0:
                 rec_qty = historical_avg
                 base_reason = f"Historical Baseline ({historical_avg})"
                 
-                # Apply Trends
+                # Apply Trends (from database)
                 if trend == 'growing' and trend_pct > 10:
                     rec_qty = int(rec_qty * 1.15)
                     base_reason += " + Trend Boost"
                 elif trend == 'declining':
                     rec_qty = int(rec_qty * 0.9)
                     base_reason += " - Trend Reduction"
+                
+                # Quality Modulation (from database)
+                if expiry_returns > 1000:
+                    rec_qty = int(rec_qty * 0.9)
+                    base_reason += " (Quality Penalty)"
+                elif p.get('supplier_quality_score', 100) > 95:
+                    # rec_qty = int(rec_qty * 1.05) # Optional bonus
+                    pass
 
-            # Otherwise calculate from daily sales
+            # Otherwise calculate from daily sales using Mixin's target_days
             elif avg_daily_sales > 0:
-                d_days = int(p.get('estimated_delivery_days', 1))
-                f_days = int(p.get('supplier_frequency_days', 7))
-                buffer = 3 if d_days >= 4 else 1
-                
-                target_coverage = d_days + f_days + buffer
-                target_stock = avg_daily_sales * target_coverage * 1.5 # Safety factor
-                
+                target_stock = avg_daily_sales * target_days
                 rec_qty = max(0, int(target_stock - current_stock))
                 base_reason = f"Calculated (Daily {avg_daily_sales:.2f})"
             else:
-                 rec_qty = 0 # No history, no sales
+                 rec_qty = 0
                  base_reason = "No data"
 
             # --- APPLY HARMONIZED LIMITS ---

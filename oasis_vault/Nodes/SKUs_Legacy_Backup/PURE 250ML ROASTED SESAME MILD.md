@@ -1,0 +1,30 @@
+---
+type: SKU
+department: '[[SEED OIL]]'
+supplier: '[[PURE NATURE PRODUCTS]]'
+price: 735.0
+margin_pct: 0.0
+revenue: 0.0
+gross_profit: 0.0
+sales_rank: 10990
+rhapta_fill_rate: 0
+velocity_ads: 0.0384
+total_quantity: 14.0
+---
+
+# PURE 250ML ROASTED SESAME MILD
+
+## Relationships
+- **Department**: [[SEED OIL]]
+- **Supplier**: [[PURE NATURE PRODUCTS]]
+
+## Potential Substitutes
+- [substitution]:: [[APPU 1LT GOLD KG MUSTARD OIL]]
+- [substitution]:: [[APPU 1L PEANUT OIL]]
+- [substitution]:: [[NUTTISH LAND 500ML EXTRA VIRGIN MACADAMIA OIL]]
+- [substitution]:: [[PURE 250ML ROASTED SESAME DARK]]
+- [substitution]:: [[OOA 500ML MACADAMIA OIL]]
+
+## Network Insights
+- [upstream_supply]:: [[PURE NATURE PRODUCTS]]
+- [downstream_demand]:: [[Retail Market]]

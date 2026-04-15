@@ -1,0 +1,30 @@
+---
+type: SKU
+department: '[[AIR FRESHNERS]]'
+supplier: '[[CANON CHEMICALS LTD]]'
+price: 165.0
+margin_pct: 0.0
+revenue: 0.0
+gross_profit: 0.0
+sales_rank: 565
+rhapta_fill_rate: 0
+velocity_ads: 0.263
+total_quantity: 96.0
+---
+
+# GODREJ 10G AER POWER POCKET ROSE FRESH
+
+## Relationships
+- **Department**: [[AIR FRESHNERS]]
+- **Supplier**: [[CANON CHEMICALS LTD]]
+
+## Potential Substitutes
+- [substitution]:: [[GODREJ 10G AER POWER POCKET SEA BREEZE]]
+- [substitution]:: [[GODREJ 10G AER POWER POCKET LAVENDER BLOM]]
+- [substitution]:: [[GODREJ 10G AER POWER POCKET BERRY RUSH]]
+- [substitution]:: [[RUBIS 100ML AIR FRESHENER LAVENDER]]
+- [substitution]:: [[TROPIKAL 500ML ANTIBACTERIAL PASSION HAND WASH]]
+
+## Network Insights
+- [upstream_supply]:: [[CANON CHEMICALS LTD]]
+- [downstream_demand]:: [[Retail Market]]

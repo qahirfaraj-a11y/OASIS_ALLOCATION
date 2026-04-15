@@ -1,0 +1,30 @@
+---
+type: SKU
+department: '[[HERBAL TEAS]]'
+supplier: '[[GOLD CROWN BEVERAGES K LTD]]'
+price: 200.0
+margin_pct: 0.0
+revenue: 0.0
+gross_profit: 0.0
+sales_rank: 6597
+velocity_ads: 0.2027
+total_quantity: 74.0
+rhapta_fill_rate: 0
+---
+
+# KERICHO GOLD GREEN TEA MINT 25 TB
+
+## Relationships
+- **Department**: [[HERBAL TEAS]]
+- **Supplier**: [[GOLD CROWN BEVERAGES K LTD]]
+
+## Potential Substitutes
+- [substitution]:: [[KERICHO GOLD GREEN TEA LEMON 25 TB]]
+- [substitution]:: [[MELVINS 25S ENV VARIETY TEAS TB]]
+- [substitution]:: [[JANI 50S ECONOMY GREEN TB]]
+- [substitution]:: [[KERICHO GOLD 50G REFRESHING GREEN TEA 25S]]
+- [substitution]:: [[MELVINS 25S HERBAL GREEN TEA]]
+
+## Network Insights
+- [upstream_supply]:: [[GOLD CROWN BEVERAGES K LTD]]
+- [downstream_demand]:: [[Retail Market]]

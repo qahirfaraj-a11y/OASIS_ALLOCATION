@@ -1,0 +1,30 @@
+---
+type: SKU
+department: '[[OLIVE OIL]]'
+supplier: '[[LAKHANI GENERAL SUPPLIERS LTD]]'
+price: 1600.0
+margin_pct: 0
+revenue: 0.0
+gross_profit: 0.0
+sales_rank: 14517
+velocity_ads: 0.1141
+total_quantity: 21.0
+rhapta_fill_rate: 0
+---
+
+# OROLIO 500ML EXTRA VIRGIN OLIVE OIL
+
+## Relationships
+- **Department**: [[OLIVE OIL]]
+- **Supplier**: [[LAKHANI GENERAL SUPPLIERS LTD]]
+
+## Potential Substitutes
+- [substitution]:: [[SANTA MARIA 500ML EXTRA VIRGIN OLIVE OIL]]
+- [substitution]:: [[BORGES 500ML EXTRA VIRGIN OLIVE OIL]]
+- [substitution]:: [[TD ELYSAA 500ML VIRGIN OLIVE OIL]]
+- [substitution]:: [[TD ELYSAA 750ML VIRGIN OLIVE OIL]]
+- [substitution]:: [[AJ JAZIRA 500ML EXTRA VIRGIN OLIVE OIL]]
+
+## Network Insights
+- [upstream_supply]:: [[LAKHANI GENERAL SUPPLIERS LTD]]
+- [downstream_demand]:: [[Retail Market]]

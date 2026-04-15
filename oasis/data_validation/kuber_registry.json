@@ -1,0 +1,155 @@
+{
+    "investors": {
+        "INV_A2834409": {
+            "name": "Alpha Capital",
+            "total_capital": 500000.0,
+            "available_capital": 491000.0,
+            "locked_capital": 9000.0,
+            "yield_generated": 9000.0,
+            "active_positions": [
+                "POS_1C11D3FA",
+                "POS_030FB9E7"
+            ],
+            "kyc_verified": true
+        },
+        "INV_817E823E": {
+            "name": "Alpha Capital",
+            "total_capital": 500000.0,
+            "available_capital": 396800.0,
+            "locked_capital": 105000.0,
+            "yield_generated": 9000.0,
+            "active_positions": [
+                "POS_1C11D3FA",
+                "POS_030FB9E7",
+                "POS_AD8421B5",
+                "POS_DE12E562"
+            ],
+            "kyc_verified": true
+        },
+        "INV_21B03637": {
+            "name": "Alpha Capital",
+            "total_capital": 500000.0,
+            "available_capital": 346400.0,
+            "locked_capital": 165000.0,
+            "yield_generated": 9000.0,
+            "active_positions": [
+                "POS_030FB9E7",
+                "POS_AD8421B5",
+                "POS_DE12E562",
+                "POS_AF5B9AC5",
+                "POS_741274CC"
+            ],
+            "kyc_verified": true
+        }
+    },
+    "active_positions": {
+        "POS_030FB9E7": {
+            "sku": "SUGAR 1KG",
+            "total_qty": 500,
+            "qty_on_hand": 500,
+            "unit_cost": 120.0,
+            "total_cost": 60000.0,
+            "status": "FUNDED",
+            "risk_tranche": "Tier 3: Low Yield/Staple",
+            "wp_score": 0.0022,
+            "yield_target": 0.035,
+            "gpp_protected": false,
+            "dynamic_gpp_threshold": 0.005,
+            "created_at": "2026-04-08T11:02:36.579892",
+            "investor_id": "INV_21B03637",
+            "funded_at": "2026-04-08T11:07:09.771105"
+        },
+        "POS_DE12E562": {
+            "sku": "SUGAR 1KG",
+            "total_qty": 500,
+            "qty_on_hand": 500,
+            "unit_cost": 120.0,
+            "total_cost": 60000.0,
+            "status": "FUNDED",
+            "risk_tranche": "Tier 3: Low Yield/Staple",
+            "wp_score": 0.0022,
+            "yield_target": 0.035,
+            "gpp_protected": false,
+            "dynamic_gpp_threshold": 0.005,
+            "created_at": "2026-04-08T11:05:46.913192",
+            "investor_id": "INV_21B03637",
+            "funded_at": "2026-04-08T11:07:09.774932"
+        },
+        "POS_AF5B9AC5": {
+            "sku": "FRESH MILK 500ML",
+            "total_qty": 1000,
+            "qty_on_hand": 1000,
+            "unit_cost": 45.0,
+            "total_cost": 45000.0,
+            "status": "FUNDED",
+            "risk_tranche": "Tier 1: High Yield/High Risk",
+            "wp_score": 0.0104,
+            "yield_target": 0.035,
+            "gpp_protected": false,
+            "dynamic_gpp_threshold": 0.08,
+            "created_at": "2026-04-08T11:07:09.764996",
+            "investor_id": "INV_21B03637",
+            "funded_at": "2026-04-08T11:07:09.776261"
+        },
+        "POS_741274CC": {
+            "sku": "SUGAR 1KG",
+            "total_qty": 500,
+            "qty_on_hand": 500,
+            "unit_cost": 120.0,
+            "total_cost": 60000.0,
+            "status": "FUNDED",
+            "risk_tranche": "Tier 3: Low Yield/Staple",
+            "wp_score": 0.0022,
+            "yield_target": 0.035,
+            "gpp_protected": false,
+            "dynamic_gpp_threshold": 0.005,
+            "created_at": "2026-04-08T11:07:09.766858",
+            "investor_id": "INV_21B03637",
+            "funded_at": "2026-04-08T11:07:09.777742"
+        }
+    },
+    "historical_positions": [
+        {
+            "sku": "FRESH MILK 500ML",
+            "total_qty": 1000,
+            "qty_on_hand": 1000,
+            "unit_cost": 45.0,
+            "total_cost": 45000.0,
+            "status": "COMPLETED",
+            "risk_tranche": "Tier 1: High Yield/High Risk",
+            "wp_score": 0.0104,
+            "yield_target": 0.035,
+            "gpp_protected": false,
+            "dynamic_gpp_threshold": 0.08,
+            "created_at": "2026-04-08T11:02:36.577790",
+            "investor_id": "INV_817E823E",
+            "funded_at": "2026-04-08T11:05:46.915695",
+            "terminated_at": "2026-04-08T11:05:46.922582"
+        },
+        {
+            "sku": "FRESH MILK 500ML",
+            "total_qty": 1000,
+            "qty_on_hand": 1000,
+            "unit_cost": 45.0,
+            "total_cost": 45000.0,
+            "status": "COMPLETED",
+            "risk_tranche": "Tier 1: High Yield/High Risk",
+            "wp_score": 0.0104,
+            "yield_target": 0.035,
+            "gpp_protected": false,
+            "dynamic_gpp_threshold": 0.08,
+            "created_at": "2026-04-08T11:05:46.911691",
+            "investor_id": "INV_21B03637",
+            "funded_at": "2026-04-08T11:07:09.773555",
+            "terminated_at": "2026-04-08T11:07:09.781787"
+        }
+    ],
+    "global_ledger": {
+        "gpp_balance": -9135.0,
+        "spg_balance": 14625.0,
+        "platform_fees": 2250.0,
+        "levy_pct": 0.005,
+        "total_trades": 6,
+        "total_volume": 333000.0
+    }
+}

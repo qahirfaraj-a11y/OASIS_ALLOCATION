@@ -1,13 +1,43 @@
 import logging
 import time
+import sqlite3
 from typing import List, Dict, Any, Optional
 from functools import wraps
 import pandas as pd
-from sqlalchemy import create_engine, text, inspect
+from sqlalchemy import create_engine, text, inspect, event
+from sqlalchemy.engine import Engine
 from sqlalchemy.exc import SQLAlchemyError
 
 # Configure Logging
 logger = logging.getLogger("OasisDBConnector")
+
+# ---------------------------------------------------------------------------
+# Centralized SQLite Helpers & Listeners (v10.3 Auth/WAL Hardening)
+# ---------------------------------------------------------------------------
+
+@event.listens_for(Engine, "connect")
+def set_sqlite_pragma(dbapi_connection, connection_record):
+    """Activates high-concurrency WAL mode and optimal PRAGMAS on SQLAlchemy engines."""
+    if type(dbapi_connection).__module__ == "sqlite3":
+        try:
+            cursor = dbapi_connection.cursor()
+            cursor.execute("PRAGMA journal_mode=WAL")
+            cursor.execute("PRAGMA synchronous=NORMAL")
+            cursor.execute("PRAGMA busy_timeout=30000")
+            cursor.close()
+        except Exception as e:
+            logger.debug(f"Could not config SQLite PRAGMAs: {e}")
+
+def get_sqlite_conn(db_path: str, timeout: float = 30.0) -> sqlite3.Connection:
+    """
+    Returns a raw sqlite3 connection inherently configured for high concurrency 
+    WAL (Write-Ahead Logging) to eliminate 'database is locked' errors.
+    """
+    conn = sqlite3.connect(db_path, timeout=timeout)
+    conn.execute("PRAGMA journal_mode=WAL")
+    conn.execute("PRAGMA synchronous=NORMAL")
+    conn.execute("PRAGMA busy_timeout=30000")
+    return conn
 
 
 # ---------------------------------------------------------------------------
@@ -157,15 +187,27 @@ class UniversalConnector:
 
     def _connect(self):
         try:
-            # Create connection pool with pre-ping for auto-reconnect
-            self.engine = create_engine(
-                self.connection_string, 
-                pool_pre_ping=True,
-                pool_recycle=3600,  # Recycle connections every hour
-            )
-            logger.info("Database Engine created successfully.")
+            # Production-grade engine options
+            connect_args = {}
+            engine_kwargs = {
+                "connect_args": connect_args,
+                "pool_pre_ping": True,
+                "pool_recycle": 3600
+            }
+            
+            if self.connection_string.startswith("sqlite"):
+                # Essential for Streamlit/Multi-threaded use of SQLite
+                connect_args["check_same_thread"] = False
+                connect_args["timeout"] = 30
+            else:
+                # Add pooling for remote DBs (Postgres/MySQL)
+                engine_kwargs["pool_size"] = 10
+                engine_kwargs["max_overflow"] = 20
+                
+            self.engine = create_engine(self.connection_string, **engine_kwargs)
+            logger.info(f"Database Engine initialized (Back-end: {'SQLite' if 'sqlite' in self.connection_string else 'Remote'}).")
         except Exception as e:
-            logger.error(f"Failed to create database engine: {e}")
+            logger.error(f"CRITICAL: Failed to initialize database engine: {e}")
             raise
 
     def _ensure_connection(self):
@@ -304,9 +346,8 @@ class UniversalConnector:
 
 def load_system_config(db_path: str) -> Dict[str, str]:
     """Load all system config as a key-value dict."""
-    import sqlite3
     try:
-        conn = sqlite3.connect(db_path)
+        conn = get_sqlite_conn(db_path)
         rows = conn.execute(
             "SELECT CONFIG_KEY, CONFIG_VALUE FROM OASIS_SYSTEM_CONFIG"
         ).fetchall()
@@ -319,9 +360,8 @@ def load_system_config(db_path: str) -> Dict[str, str]:
 
 def load_system_config_full(db_path: str) -> List[Dict[str, str]]:
     """Load all system config with metadata (group, description, etc)."""
-    import sqlite3
     try:
-        conn = sqlite3.connect(db_path)
+        conn = get_sqlite_conn(db_path)
         conn.row_factory = sqlite3.Row
         rows = conn.execute(
             "SELECT * FROM OASIS_SYSTEM_CONFIG ORDER BY CONFIG_GROUP, CONFIG_KEY"
@@ -335,10 +375,9 @@ def load_system_config_full(db_path: str) -> List[Dict[str, str]]:
 
 def save_system_config(db_path: str, key: str, value: str, updated_by: str = "system"):
     """Save a single config key-value pair."""
-    import sqlite3
     from datetime import datetime
     try:
-        conn = sqlite3.connect(db_path)
+        conn = get_sqlite_conn(db_path)
         conn.execute(
             """INSERT INTO OASIS_SYSTEM_CONFIG (CONFIG_KEY, CONFIG_VALUE, UPDATED_BY, UPDATED_DT)
                VALUES (?, ?, ?, ?)
@@ -410,23 +449,36 @@ def ensure_oasis_tables(db_path: str):
         CREATED_DT    TEXT,
         COMPLETED_DT  TEXT
     );
+    CREATE TABLE IF NOT EXISTS OASIS_SESSIONS (
+        SESSION_ID    TEXT PRIMARY KEY,
+        USERNAME      TEXT NOT NULL,
+        CREATED_DT    TEXT NOT NULL,
+        EXPIRES_DT    TEXT NOT NULL,
+        IS_REVOKED    INTEGER DEFAULT 0
+    );
     """
     try:
-        conn = sqlite3.connect(db_path)
+        conn = get_sqlite_conn(db_path)
         conn.executescript(migration_sql)
+        
+        # Schema Migrations (v10.3 Auth Hardening)
+        try:
+            conn.execute("ALTER TABLE OASIS_USERS ADD COLUMN FAILED_ATTEMPTS INTEGER DEFAULT 0")
+        except sqlite3.OperationalError:
+            pass # Column exists
+            
+        try:
+            conn.execute("ALTER TABLE OASIS_USERS ADD COLUMN LOCKOUT_UNTIL TEXT")
+        except sqlite3.OperationalError:
+            pass # Column exists
+            
         conn.commit()
         
-        # Seed users if empty
-        count = conn.execute("SELECT COUNT(*) FROM OASIS_USERS").fetchone()[0]
-        if count == 0:
-            from oasis.logic.auth_manager import seed_users
-            conn.close()
-            seed_users(db_path)
-        else:
-            conn.close()
+        # Always attempt to seed default users (INSERT OR IGNORE handles existing ones)
+        from oasis.logic.auth_manager import seed_users
+        seed_users(db_path)
             
         # Seed config if empty
-        conn = sqlite3.connect(db_path)
         count = conn.execute("SELECT COUNT(*) FROM OASIS_SYSTEM_CONFIG").fetchone()[0]
         if count == 0:
             from datetime import datetime
@@ -442,6 +494,7 @@ def ensure_oasis_tables(db_path: str):
                 ("fresh_transfer_max_hours", "6", "transfers", "Max hours for fresh item transfers"),
                 ("auto_approve_po_below_kes", "50000", "ordering", "Auto-approve POs below this value"),
                 ("simulation_seed", "42", "general", "Random seed for simulation reproducibility"),
+                ("shadow_audit_pulse_time", "19:00", "shadow_mode", "Daily forensic audit time (HH:MM)"),
             ]
             conn.executemany(
                 """INSERT OR IGNORE INTO OASIS_SYSTEM_CONFIG
@@ -451,6 +504,6 @@ def ensure_oasis_tables(db_path: str):
             )
             conn.commit()
         conn.close()
-        logger.info("OASIS tables verified/created successfully")
+        logger.info("OASIS tables/users verified successfully")
     except Exception as e:
         logger.error(f"Failed to ensure OASIS tables: {e}")

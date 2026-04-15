@@ -1,0 +1,30 @@
+---
+type: SKU
+department: '[[GIFT WRAP&RIBBON]]'
+supplier: '[[Unknown]]'
+price: 197.5
+margin_pct: 16.0
+revenue: 1777.5
+gross_profit: 284.4
+sales_rank: 9040
+rhapta_fill_rate: 0
+velocity_ads: 0.0489
+total_quantity: 9.0
+---
+
+# RIBBON AKA5544 WOVEN TAPE
+
+## Relationships
+- **Department**: [[GIFT WRAP&RIBBON]]
+- **Supplier**: [[Unknown]]
+
+## Potential Substitutes
+- [substitution]:: [[GIFT WRAPPING PAPER ASSTD METALLIC SHINNY]]
+- [substitution]:: [[GIFT W-PAPER ASST PAPER DESIGN]]
+- [substitution]:: [[BROWN PAPER BAG TALL WINE ETW2]]
+- [substitution]:: [[BROWN PAPER BAG BAMBURI EB]]
+- [substitution]:: [[BROWN PAPER BAG TALL WINE T ETW 1T]]
+
+## Network Insights
+- [upstream_supply]:: [[Unknown]]
+- [downstream_demand]:: [[Retail Market]]

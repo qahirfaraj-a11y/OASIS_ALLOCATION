@@ -51,7 +51,7 @@ def load_resources():
     stub_feat = sim.get_feature_matrix()
     F_in = stub_feat.shape[1]
     
-    model = StoreGraphNetwork(in_features=F_in, edge_dim=1)
+    model = StoreGraphNetwork(in_features=F_in)
     
     if os.path.exists("st_gat_v2.pt"):
         try:
@@ -64,7 +64,7 @@ def load_resources():
             if key in state_dict:
                 weight = state_dict[key]
                 if weight.shape[1] == 29:
-                    print("⚠️ Patching Checkpoint: Extending input dimension 29 -> 30 (Salary Hit)")
+                    print("[PATCH] Extending input dimension 29 -> 30 (Salary Hit)")
                     # Pad the last dimension with zeros
                     # Shape: [Hidden*4, Input] -> [256, 29]
                     # We need [256, 30]
@@ -73,7 +73,7 @@ def load_resources():
                     state_dict[key] = new_weight
             
             model.load_state_dict(state_dict, strict=False)
-            print("✅ Model weights loaded successfully (with patch).")
+            print("[SUCCESS] Model weights loaded successfully (with patch).")
         except Exception as e:
             st.error(f"Failed to load model weights: {e}")
             st.warning("Proceeding with random initialization.")
@@ -149,7 +149,8 @@ adj = sim.adj
 
 # Run Inference
 with torch.no_grad():
-    outputs = model(x_seq, adj, edge_attr)
+    # Use x_t [N, F] and sim.edge_index [2, E] for the static GCN
+    outputs = model(x_t, sim.edge_index)
 
 stores = sim.stores_data
 
@@ -180,7 +181,12 @@ for _, row in risk_data.iterrows():
 selected_store = st.sidebar.selectbox("Drill Down Store", ["ALL STORES"] + store_ids)
 
 # --- 5. Main Panel: The Live Graph Map ---
-tab_map, tab_intel, tab_cluster = st.tabs(["🗺️ Live Network Map", "🧠 Store Intelligence", "🔗 Cluster Analysis"])
+tab_map, tab_intel, tab_cluster, tab_expansion = st.tabs([
+    "🗺️ Live Network Map", 
+    "🧠 Store Intelligence", 
+    "🔗 Cluster Analysis",
+    "📍 Expansion & Site Selection"
+])
 
 with tab_map:
     col_map, col_details = st.columns([2, 1])
@@ -192,7 +198,7 @@ with tab_map:
         map_data = []
         for i, s in enumerate(stores):
             size = s.get('floor_area_sqft', 10000) / 100
-            demand_factor = outputs['demand_mu'][0, i].mean().item() 
+            demand_factor = outputs['demand'][i].mean().item() 
             
             map_data.append({
                 "name": s['store_id'],
@@ -205,7 +211,8 @@ with tab_map:
             
         # Attention Arcs (Cyan)
         sel_idx = store_ids.index(selected_store) if selected_store != "ALL STORES" else 0
-        attn_matrix = outputs['attention'][0, :, :, 0] 
+        # Mock attention matrix for GCN (which lacks attention heads)
+        attn_matrix = torch.eye(len(stores))
         
         arcs = []
         if selected_store != "ALL STORES":
@@ -281,9 +288,9 @@ with tab_map:
             dept_map = {i: f"Dept {i}" for i in range(20)}
             sel_dept = st.selectbox("Select Department", list(dept_map.keys()), format_func=lambda x: dept_map[x])
             
-            mu = outputs['demand_mu'][0, sel_idx, sel_dept].item()
-            alpha = outputs['demand_alpha'][0, sel_idx, sel_dept].item()
-            pi = outputs['demand_pi'][0, sel_idx, sel_dept].item()
+            mu = outputs['demand'][sel_idx, sel_dept].item()
+            alpha = 1.0 # Constant for GCN
+            pi = 0.05   # Constant for GCN
             
             # Gauge for Pi (Zero Probability)
             fig_gauge = go.Figure(go.Indicator(
@@ -349,6 +356,11 @@ with tab_map:
 with tab_intel:
     st.header(f"🧠 Store Intelligence: {selected_store}")
     
+    # Ensure simulators are hydrated if we need detail
+    if not sim.is_hydrated:
+        with st.spinner("Lazy Hydration: Loading Store SKUs..."):
+            sim.hydrate_simulators()
+            
     # Aggregation Logic
     if selected_store == "ALL STORES":
         all_skus = []
@@ -362,8 +374,9 @@ with tab_intel:
                     "Stockouts": sku.stockout_days
                 })
         df_skus = pd.DataFrame(all_skus)
-        # Group by Product to sum across stores
-        df_skus = df_skus.groupby(["Product", "Category"]).sum().reset_index()
+        if not df_skus.empty:
+            # Group by Product to sum across stores
+            df_skus = df_skus.groupby(["Product", "Category"]).sum().reset_index()
     else:
         sim_instance = sim.simulators[selected_store]
         sku_data = []
@@ -427,6 +440,114 @@ with tab_cluster:
             st.plotly_chart(fig_pca, use_container_width=True)
     except:
         st.error("Install sklearn for clusters.")
+
+# --- TAB 4: Expansion & Site Selection (NEW) ---
+@st.cache_data(show_spinner="Calculating Territory Gap Index...")
+def get_expansion_grid(_engine, internal_can, comp_friction):
+    # Map coordinates for Nairobi and surroundings
+    grid_data = []
+    lats = np.linspace(-1.45, -1.20, 25)
+    lons = np.linspace(36.70, 36.95, 25)
+    
+    for lat in lats:
+        for lon in lons:
+            score = _engine.calculate_gap_index(lat, lon, internal_can, comp_friction)
+            grid_data.append({
+                "lat": lat, "lon": lon, "score": score,
+                "color": [255 * (1-score), 255 * score, 0, 100]
+            })
+    return grid_data
+
+with tab_expansion:
+    st.header("📍 Strategic Expansion Engine")
+    st.markdown("""
+    Use this tool to identify optimum greenfield locations for new stores. 
+    The **Gap Index** factors in regional affluence, competitor density (Naivas/Quickmart/Carrefour), 
+    and internal cannibalization of existing Chandarana outlets.
+    """)
+    
+    col_exp_ctrl, col_exp_map = st.columns([1, 2])
+    
+    with col_exp_ctrl:
+        st.subheader("Expansion Parameters")
+        internal_can = st.slider("Internal Cannibalization Radius (km)", 0.5, 10.0, 3.0, 0.5)
+        comp_friction = st.slider("Competitor Friction Radius (km)", 0.5, 5.0, 2.0, 0.5)
+        
+        st.markdown("---")
+        st.subheader("Site Analysis tool")
+        target_lat = st.number_input("Target Latitude", value=-1.3000, format="%.4f")
+        target_lon = st.number_input("Target Longitude", value=36.8000, format="%.4f")
+        
+        if st.button("🔍 Analyze This Site", type="secondary"):
+            engine = sim.expansion_engine
+            score = engine.calculate_gap_index(target_lat, target_lon, 
+                                             internal_radius_km=internal_can,
+                                             competitor_radius_km=comp_friction)
+            
+            # Affluence lookup (mocked based on nearest cluster or default)
+            affluence = 3.5 # Default Medium-High
+            
+            rec = engine.recommend_store_type(score, affluence)
+            
+            st.metric("Expansion Opportunity Score", f"{score:.2f}")
+            
+            if score > 0.6:
+                st.success(f"**Recommendation:** {rec}")
+            elif score > 0.3:
+                st.warning(f"**Recommendation:** {rec}")
+            else:
+                st.error(f"**Recommendation:** {rec}")
+                
+            st.info("Score factors in proximity to 335+ competitor locations.")
+
+    with col_exp_map:
+        # Generate Heatmap Grid (Optimized with Caching)
+        engine = sim.expansion_engine
+        grid_data = get_expansion_grid(engine, internal_can, comp_friction)
+        
+        # Competitor Data
+        comp_df = engine.competitors
+        comp_map_data = []
+        if not comp_df.empty:
+            comp_map_data = comp_df[["Latitude", "Longitude", "Store_Name", "Chain"]].rename(
+                columns={"Latitude": "lat", "Longitude": "lon", "Store_Name": "name"}
+            ).to_dict('records')
+            for c in comp_map_data:
+                c["color"] = [255, 0, 0, 150] # Red for competitors
+                c["size"] = 50
+
+        # PyDeck Expansion Layers
+        layer_heatmap = pdk.Layer(
+            "HeatmapLayer", grid_data,
+            get_position=["lon", "lat"], get_weight="score",
+            radius_pixels=40, threshold=0.1
+        )
+        
+        layer_grid = pdk.Layer(
+            "ScatterplotLayer", grid_data,
+            get_position=["lon", "lat"], get_color="color", get_radius=200, pickable=True
+        )
+
+        layer_comp = pdk.Layer(
+            "ScatterplotLayer", comp_map_data,
+            get_position=["lon", "lat"], get_color="color", get_radius=100, pickable=True
+        )
+
+        layer_existing = pdk.Layer(
+            "ScatterplotLayer", map_data,
+            get_position=["lon", "lat"], get_color=[0, 0, 255, 200], get_radius=300, pickable=True
+        )
+
+        view_state_exp = pdk.ViewState(latitude=-1.29, longitude=36.82, zoom=10, pitch=45)
+        
+        st.pydeck_chart(pdk.Deck(
+            layers=[layer_heatmap, layer_grid, layer_existing, layer_comp],
+            initial_view_state=view_state_exp,
+            tooltip={"text": "Expansion Score: {score}\nComp: {name}"}
+        ))
+        
+        st.caption("🔵 Existing Stores | 🔴 Competitors (Naivas/Quickmart) | Heatmap: Green = High Opportunity")
+
 
 # --- 7. Transfer Hub (Actionable) ---
 st.sidebar.markdown("---")

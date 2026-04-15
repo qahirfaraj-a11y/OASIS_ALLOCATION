@@ -1,0 +1,30 @@
+---
+type: SKU
+department: '[[PENS-PENCILS-MARKERS]]'
+supplier: '[[KARTASI PRODUCTS LIMITED]]'
+price: 20.40345604808415
+margin_pct: 15.98
+revenue: 306.0
+gross_profit: 48.9
+sales_rank: 11220
+rhapta_fill_rate: 0
+velocity_ads: 0.0815
+total_quantity: 15.0
+---
+
+# PILOT BALL POINT PEN RETRACTABLE 1.0MM RED
+
+## Relationships
+- **Department**: [[PENS-PENCILS-MARKERS]]
+- **Supplier**: [[KARTASI PRODUCTS LIMITED]]
+
+## Potential Substitutes
+- [substitution]:: [[BIC CRYSTAL BALL PEN MED BLUE]]
+- [substitution]:: [[GELX GEL PEN BLUE]]
+- [substitution]:: [[STAEDLER PENCIL 110HB ST110HB]]
+- [substitution]:: [[PENTONIC BLUE  DISPENSER]]
+- [substitution]:: [[BIC ORANGE FINE PEN BLUE]]
+
+## Network Insights
+- [upstream_supply]:: [[KARTASI PRODUCTS LIMITED]]
+- [downstream_demand]:: [[Retail Market]]

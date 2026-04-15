@@ -1,0 +1,30 @@
+---
+type: SKU
+department: '[[WINES]]'
+supplier: '[[Unknown]]'
+price: 1249.0
+margin_pct: 16.0
+revenue: 14988.0
+gross_profit: 2398.08
+sales_rank: 3768
+rhapta_fill_rate: 0
+velocity_ads: 0.0652
+total_quantity: 12.0
+---
+
+# ESPANATURE 750ML TEMP CABERNET SAUV
+
+## Relationships
+- **Department**: [[WINES]]
+- **Supplier**: [[Unknown]]
+
+## Potential Substitutes
+- [substitution]:: [[DROSTDY-HOF 750ML PREM. GRAND CRU]]
+- [substitution]:: [[FRONTERA CHARDONNAY 750ML]]
+- [substitution]:: [[THE WAR HORSE 750ML SHIRAZ]]
+- [substitution]:: [[DROSTDY-HOF CLARET SELECT 750ML]]
+- [substitution]:: [[KWV CHENIN BLANC 750ML]]
+
+## Network Insights
+- [upstream_supply]:: [[Unknown]]
+- [downstream_demand]:: [[Retail Market]]

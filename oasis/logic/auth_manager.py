@@ -15,29 +15,67 @@ import secrets
 import sqlite3
 import json
 import logging
-from datetime import datetime
+import bcrypt
+import uuid
+from datetime import datetime, timedelta
 from typing import Optional, Dict, Any
 
 logger = logging.getLogger("OasisAuth")
+
+def get_auth_db_conn(db_path: str) -> sqlite3.Connection:
+    """Helper to ensure WAL mode concurrency for authentication storage."""
+    conn = sqlite3.connect(db_path, timeout=30.0)
+    conn.execute("PRAGMA journal_mode=WAL")
+    conn.execute("PRAGMA synchronous=NORMAL")
+    conn.execute("PRAGMA busy_timeout=30000")
+    return conn
 
 # ---------------------------------------------------------------------------
 # Password Hashing
 # ---------------------------------------------------------------------------
 
-def hash_password(password: str, salt: str = None) -> str:
-    """Hash a password with SHA-256 + salt. Returns 'salt:hash' string."""
-    if salt is None:
-        salt = secrets.token_hex(16)
-    pw_hash = hashlib.sha256(f"{salt}{password}".encode()).hexdigest()
-    return f"{salt}:{pw_hash}"
+def hash_password(password: str) -> str:
+    """Hash a password using bcrypt."""
+    salt = bcrypt.gensalt(rounds=12)
+    return bcrypt.hashpw(password.encode('utf-8'), salt).decode('utf-8')
 
 
-def verify_password(password: str, stored_hash: str) -> bool:
-    """Verify a password against a stored 'salt:hash' string."""
-    if ":" not in stored_hash:
+def verify_password(password: str, stored_hash: str, username: str = None, db_path: str = None) -> bool:
+    """
+    Verify a password against a stored hash.
+    Gracefully migrates legacy SHA-256 hashes to bcrypt upon successful login.
+    """
+    # Check if this is a legacy SHA-256 hash (format: salt:hash)
+    if not stored_hash.startswith('$2b$'):
+        if ":" not in stored_hash:
+            return False
+            
+        salt, legacy_hash = stored_hash.split(":", 1)
+        test_hash = hashlib.sha256(f"{salt}{password}".encode()).hexdigest()
+        
+        if test_hash == legacy_hash:
+            # Login successful with old hash! Gracefully migrate to bcrypt.
+            if username and db_path:
+                try:
+                    new_hash = hash_password(password)
+                    conn = get_auth_db_conn(db_path)
+                    conn.execute(
+                        "UPDATE OASIS_USERS SET PASSWORD_HASH = ? WHERE USERNAME = ?",
+                        (new_hash, username)
+                    )
+                    conn.commit()
+                    conn.close()
+                    logger.info(f"Successfully migrated password hash to bcrypt for user: {username}")
+                except Exception as e:
+                    logger.error(f"Failed to migrate password hash for {username}: {e}")
+            return True
         return False
-    salt, _ = stored_hash.split(":", 1)
-    return hash_password(password, salt) == stored_hash
+        
+    # Standard bcrypt verification
+    try:
+        return bcrypt.checkpw(password.encode('utf-8'), stored_hash.encode('utf-8'))
+    except ValueError:
+        return False
 
 
 # ---------------------------------------------------------------------------
@@ -123,7 +161,7 @@ def authenticate(username: str, password: str, db_path: str) -> Optional[Dict[st
         None if authentication fails.
     """
     try:
-        conn = sqlite3.connect(db_path)
+        conn = get_auth_db_conn(db_path)
         conn.row_factory = sqlite3.Row
         cursor = conn.execute(
             "SELECT * FROM OASIS_USERS WHERE USERNAME = ? AND ACTIVE_FLAG = 'Y'",
@@ -136,12 +174,28 @@ def authenticate(username: str, password: str, db_path: str) -> Optional[Dict[st
             logger.warning(f"Login failed: user '{username}' not found")
             return None
 
-        if not verify_password(password, row["PASSWORD_HASH"]):
+        row_dict = dict(row)
+
+        # Check rate limits
+        lockout_until = row_dict.get("LOCKOUT_UNTIL")
+        if lockout_until:
+            try:
+                lockout_dt = datetime.fromisoformat(lockout_until)
+                if datetime.now() < lockout_dt:
+                    logger.warning(f"Login failed: user '{username}' is locked out until {lockout_dt}")
+                    return None
+            except Exception:
+                pass
+
+        if not verify_password(password, row_dict["PASSWORD_HASH"], username, db_path):
+            record_failed_login(username, row_dict.get("FAILED_ATTEMPTS", 0), db_path)
             logger.warning(f"Login failed: invalid password for '{username}'")
             return None
 
-        # Update last login
+        # Update last login and clear failures
         record_login(username, db_path)
+        
+        session_token = create_session(username, db_path)
 
         user = {
             "user_id": row["USER_ID"],
@@ -151,6 +205,7 @@ def authenticate(username: str, password: str, db_path: str) -> Optional[Dict[st
             "assigned_org": row["ASSIGNED_ORG"],
             "email": row["EMAIL"],
             "permissions": get_user_permissions(row["ROLE"]),
+            "session_token": session_token
         }
         logger.info(f"Login successful: {username} ({row['ROLE']})")
         return user
@@ -161,11 +216,13 @@ def authenticate(username: str, password: str, db_path: str) -> Optional[Dict[st
 
 
 def record_login(username: str, db_path: str):
-    """Update LAST_LOGIN_DT for a user."""
+    """Update LAST_LOGIN_DT and clear failed attempts."""
     try:
-        conn = sqlite3.connect(db_path)
+        conn = get_auth_db_conn(db_path)
         conn.execute(
-            "UPDATE OASIS_USERS SET LAST_LOGIN_DT = ? WHERE USERNAME = ?",
+            """UPDATE OASIS_USERS 
+               SET LAST_LOGIN_DT = ?, FAILED_ATTEMPTS = 0, LOCKOUT_UNTIL = NULL 
+               WHERE USERNAME = ?""",
             (datetime.now().isoformat(), username)
         )
         conn.commit()
@@ -173,11 +230,90 @@ def record_login(username: str, db_path: str):
     except Exception as e:
         logger.error(f"Failed to record login: {e}")
 
+def record_failed_login(username: str, current_attempts: int, db_path: str):
+    """Log failed attempt and apply lockout if >= 5"""
+    try:
+        new_attempts = (current_attempts or 0) + 1
+        lockout_until = None
+        if new_attempts >= 5:
+            lockout_until = (datetime.now() + timedelta(minutes=5)).isoformat()
+            logger.warning(f"User {username} locked out for 5 minutes due to multiple failed attempts.")
+            
+        conn = get_auth_db_conn(db_path)
+        conn.execute(
+            "UPDATE OASIS_USERS SET FAILED_ATTEMPTS = ?, LOCKOUT_UNTIL = ? WHERE USERNAME = ?",
+            (new_attempts, lockout_until, username)
+        )
+        conn.commit()
+        conn.close()
+    except Exception as e:
+        logger.error(f"Error recording failed login for {username}: {e}")
+
+def create_session(username: str, db_path: str) -> str:
+    """Create a new session token valid for 24 hours."""
+    session_id = str(uuid.uuid4())
+    created = datetime.now()
+    expires = created + timedelta(hours=24)
+    
+    try:
+        conn = get_auth_db_conn(db_path)
+        conn.execute(
+            """INSERT INTO OASIS_SESSIONS (SESSION_ID, USERNAME, CREATED_DT, EXPIRES_DT, IS_REVOKED)
+               VALUES (?, ?, ?, ?, 0)""",
+            (session_id, username, created.isoformat(), expires.isoformat())
+        )
+        conn.commit()
+        conn.close()
+        return session_id
+    except Exception as e:
+        logger.error(f"Error creating session for {username}: {e}")
+        return ""
+        
+def validate_session(session_id: str, db_path: str) -> Optional[Dict[str, Any]]:
+    """Validate a session token and return the associated user profile."""
+    if not session_id:
+        return None
+        
+    try:
+        conn = get_auth_db_conn(db_path)
+        conn.row_factory = sqlite3.Row
+        
+        # Join SESSIONS -> USERS to ensure token valid AND user active
+        cursor = conn.execute(
+            """SELECT u.*, s.EXPIRES_DT 
+               FROM OASIS_SESSIONS s
+               JOIN OASIS_USERS u ON s.USERNAME = u.USERNAME
+               WHERE s.SESSION_ID = ? AND s.IS_REVOKED = 0 AND u.ACTIVE_FLAG = 'Y'""",
+            (session_id,)
+        )
+        row = cursor.fetchone()
+        conn.close()
+        
+        if not row:
+            return None
+            
+        expires = datetime.fromisoformat(row["EXPIRES_DT"])
+        if datetime.now() > expires:
+            return None
+            
+        return {
+            "user_id": row["USER_ID"],
+            "username": row["USERNAME"],
+            "display_name": row["DISPLAY_NAME"],
+            "role": row["ROLE"],
+            "assigned_org": row["ASSIGNED_ORG"],
+            "email": row["EMAIL"],
+            "permissions": get_user_permissions(row["ROLE"])
+        }
+    except Exception as e:
+        logger.error(f"Error validating session {session_id}: {e}")
+        return None
+
 
 def get_all_users(db_path: str) -> list:
     """Get all users (for admin view). Excludes password hashes."""
     try:
-        conn = sqlite3.connect(db_path)
+        conn = get_auth_db_conn(db_path)
         conn.row_factory = sqlite3.Row
         rows = conn.execute(
             """SELECT USER_ID, USERNAME, DISPLAY_NAME, ROLE, ASSIGNED_ORG, 
@@ -241,7 +377,7 @@ DEFAULT_USERS = [
 
 def seed_users(db_path: str):
     """Seed default users into OASIS_USERS table."""
-    conn = sqlite3.connect(db_path)
+    conn = get_auth_db_conn(db_path)
     now = datetime.now().isoformat()
     
     for user in DEFAULT_USERS:

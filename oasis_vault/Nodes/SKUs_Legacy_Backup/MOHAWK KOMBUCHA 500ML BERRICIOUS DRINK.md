@@ -1,0 +1,30 @@
+---
+type: SKU
+department: '[[READY TO DRINK]]'
+supplier: '[[ROYAL BREKKERS LIMITED]]'
+price: 111.55312357698352
+margin_pct: 0.0
+revenue: 0.0
+gross_profit: 0.0
+sales_rank: 10388
+rhapta_fill_rate: 0
+velocity_ads: 0.411
+total_quantity: 150.0
+---
+
+# MOHAWK KOMBUCHA 500ML BERRICIOUS DRINK
+
+## Relationships
+- **Department**: [[READY TO DRINK]]
+- **Supplier**: [[ROYAL BREKKERS LIMITED]]
+
+## Potential Substitutes
+- [substitution]:: [[ACACIA 200ML KIDS BLUE RASPBERRY]]
+- [substitution]:: [[MINUTE MAID 1L PULPY ORANGE]]
+- [substitution]:: [[ACACIA 200ML KIDS APPLE]]
+- [substitution]:: [[ACACIA 200ML KIDS BLACKCURRANT]]
+- [substitution]:: [[MINUTE MAID 400ML MANGO JUICE]]
+
+## Network Insights
+- [upstream_supply]:: [[ROYAL BREKKERS LIMITED]]
+- [downstream_demand]:: [[Retail Market]]

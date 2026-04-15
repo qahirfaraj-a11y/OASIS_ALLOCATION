@@ -1,0 +1,30 @@
+---
+type: SKU
+department: '[[BATTERIES]]'
+supplier: '[[KIM FAY EAST AFRICA LTD]]'
+price: 320.0
+margin_pct: 0.0
+revenue: 0.0
+gross_profit: 0.0
+sales_rank: 1320
+rhapta_fill_rate: 0
+velocity_ads: 0.0548
+total_quantity: 20.0
+---
+
+# DURACELL LITHIUM 2032 2S
+
+## Relationships
+- **Department**: [[BATTERIES]]
+- **Supplier**: [[KIM FAY EAST AFRICA LTD]]
+
+## Potential Substitutes
+- [substitution]:: [[EVEREADY 4S BLACK 1215BP4]]
+- [substitution]:: [[EVEREADY AAA4 BLACK 1212BP4]]
+- [substitution]:: [[ENERGIZER 3V 1632 B5-1]]
+- [substitution]:: [[DURACELL ALKALINE LR44 2S]]
+- [substitution]:: [[GOODMAX SYSTEM 3 BLADE RAZOR+4 CARTRIGES-MA282]]
+
+## Network Insights
+- [upstream_supply]:: [[KIM FAY EAST AFRICA LTD]]
+- [downstream_demand]:: [[Retail Market]]

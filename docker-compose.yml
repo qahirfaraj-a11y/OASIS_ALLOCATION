@@ -17,12 +17,18 @@ services:
       - STREAMLIT_SERVER_PORT=8501
       - STREAMLIT_SERVER_HEADLESS=true
       - STREAMLIT_BROWSER_GATHER_USAGE_STATS=false
+      - OASIS_SHOWCASE_MODE=true
       # For production MSSQL, set these:
       # - OASIS_DB_TYPE=mssql
       # - OASIS_DB_HOST=your-db-server
       # - OASIS_DB_NAME=your-db-name
       # - OASIS_DB_USER=your-user
       # - OASIS_DB_PASS=your-password
+    entrypoint: >
+      sh -c "if [ \"$$OASIS_SHOWCASE_MODE\" = \"true\" ]; then 
+               python generate_showcase_scenario.py; 
+             fi && 
+             streamlit run ops_dashboard.py --server.port=8501 --server.headless=true"
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8501/_stcore/health')"]

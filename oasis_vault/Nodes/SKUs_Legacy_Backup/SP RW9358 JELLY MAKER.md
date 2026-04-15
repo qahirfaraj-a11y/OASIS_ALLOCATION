@@ -1,0 +1,30 @@
+---
+type: SKU
+department: '[[HOUSEHOLD ITEMS]]'
+supplier: '[[KHS PRODUCTS LIMITED SR]]'
+price: 199.0
+margin_pct: 0.0
+revenue: 0.0
+gross_profit: 0.0
+sales_rank: 8012
+rhapta_fill_rate: 0
+velocity_ads: 0.0493
+total_quantity: 18.0
+---
+
+# SP RW9358 JELLY MAKER
+
+## Relationships
+- **Department**: [[HOUSEHOLD ITEMS]]
+- **Supplier**: [[KHS PRODUCTS LIMITED SR]]
+
+## Potential Substitutes
+- [substitution]:: [[FAY KITCHEN TOWEL ECO TWIN PACK]]
+- [substitution]:: [[HANAN SINGLES KITCHEN TOWELS]]
+- [substitution]:: [[LIVELLE KITCHEN TOWEL SINGLE PK]]
+- [substitution]:: [[PANDA 1LT AQUA BOTTLE]]
+- [substitution]:: [[FESTIVE 400G P-CAKE MARBLE SLICED VAN. & STRAWBERRY]]
+
+## Network Insights
+- [upstream_supply]:: [[KHS PRODUCTS LIMITED SR]]
+- [downstream_demand]:: [[Retail Market]]

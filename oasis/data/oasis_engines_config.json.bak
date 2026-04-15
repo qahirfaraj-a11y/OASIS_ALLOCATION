@@ -1,0 +1,26 @@
+{
+    "engines": {
+        "amit": {
+            "enabled": true,
+            "description": "Assortment & Margin Integration Tool — One-In-One-Out GMROI gatekeeper",
+            "cache_file": "amit_enforcement.json"
+        },
+        "lata": {
+            "enabled": true,
+            "description": "Lead-Time & Allocation Shield — Dynamic safety stock from GRN variance",
+            "cache_file": "supplier_patterns_2025.json"
+        },
+        "dharam": {
+            "enabled": true,
+            "description": "Demand, Halo & Revenue Analytics — Ghost Demand correction from neural graph",
+            "cache_file": "dharam_demand_patch.json"
+        },
+        "mande": {
+            "enabled": false,
+            "description": "Market, Network & Distribution Efficiency — Quarterly Supplier Purge Reports",
+            "cache_file": "mande_purge_report.csv"
+        }
+    },
+    "neural_network_path": "neutral_network_export",
+    "notes": "Set enabled=true to activate each engine. Run the pre-flight scripts first to generate caches."
+}

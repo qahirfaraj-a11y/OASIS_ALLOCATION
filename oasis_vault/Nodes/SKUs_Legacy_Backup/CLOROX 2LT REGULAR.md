@@ -1,0 +1,30 @@
+---
+type: SKU
+department: '[[BLEACHES]]'
+supplier: '[[CLOROX SUB SAHARA  AFRICA  LTD]]'
+price: 800.0
+margin_pct: 0.0
+revenue: 0.0
+gross_profit: 0.0
+sales_rank: 1983
+velocity_ads: 0.0384
+total_quantity: 14.0
+rhapta_fill_rate: 0
+---
+
+# CLOROX 2LT REGULAR
+
+## Relationships
+- **Department**: [[BLEACHES]]
+- **Supplier**: [[CLOROX SUB SAHARA  AFRICA  LTD]]
+
+## Potential Substitutes
+- [substitution]:: [[JIK BLEACH 1.5LT REGULAR PERFUMED]]
+- [substitution]:: [[JIK 750ML COLOURS + 750ML REGULAR  SAVE 140]]
+- [substitution]:: [[JIK 750ML COLOURS]]
+- [substitution]:: [[JIK 750ML REGULAR 2+1]]
+- [substitution]:: [[RINZ 5LT BLEACH]]
+
+## Network Insights
+- [upstream_supply]:: [[CLOROX SUB SAHARA  AFRICA  LTD]]
+- [downstream_demand]:: [[Retail Market]]

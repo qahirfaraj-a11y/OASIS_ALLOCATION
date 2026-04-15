@@ -1,0 +1,30 @@
+---
+type: SKU
+department: '[[PAPADUM]]'
+supplier: '[[RAJ KAMAL ENTERPRISE LIMITED]]'
+price: 175.0
+margin_pct: 0.0
+revenue: 0.0
+gross_profit: 0.0
+sales_rank: 9070
+rhapta_fill_rate: 0
+velocity_ads: 0.0274
+total_quantity: 10.0
+---
+
+# KRISHNA 200G PAPAD JEERA
+
+## Relationships
+- **Department**: [[PAPADUM]]
+- **Supplier**: [[RAJ KAMAL ENTERPRISE LIMITED]]
+
+## Potential Substitutes
+- [substitution]:: [[KRISHNA 200G PAPAD JEERA MARIE]]
+- [substitution]:: [[ANNU 250G JEERA MARI PAPAD]]
+- [substitution]:: [[HALDIRAMS 200G PANJABI PAPAD]]
+- [substitution]:: [[KRISHNA 200G PAPAD SINGLE MARIE]]
+- [substitution]:: [[ANNU 250G JEERA PAPAD]]
+
+## Network Insights
+- [upstream_supply]:: [[RAJ KAMAL ENTERPRISE LIMITED]]
+- [downstream_demand]:: [[Retail Market]]

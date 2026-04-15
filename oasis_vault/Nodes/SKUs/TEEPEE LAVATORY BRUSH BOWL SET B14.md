@@ -1,0 +1,27 @@
+---
+type: SKU
+department: "[[BRUSHES & BROOMS]]"
+supplier: "[[BRUSH MANUFACTURERS]]"
+price: 185.0
+margin_pct: 0
+revenue: 0
+gross_profit: 0
+sales_rank: 9999
+---
+
+# TEEPEE LAVATORY BRUSH BOWL SET B14
+
+## Relationships
+- **Department**: [[BRUSHES & BROOMS]]
+- **Supplier**: [[BRUSH MANUFACTURERS]]
+
+## Potential Substitutes
+- [substitution]:: [[SEVI MAKUTI BROOMS LARGE SIZE]]
+- [substitution]:: [[PANDA DUSTPAN WITH BRUSH]]
+- [substitution]:: [[PANDA TOILET BRUSH W HOLDER BAMBOO FINISH]]
+- [substitution]:: [[MIX COTTON CLOTH FLOOR LOOSE]]
+- [substitution]:: [[TEEPEE MOP REFILL L5R]]
+
+## Network Insights
+- [upstream_supply]:: [[BRUSH MANUFACTURERS]]
+- [downstream_demand]:: [[Retail Market]]

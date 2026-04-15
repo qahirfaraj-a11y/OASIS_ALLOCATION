@@ -1091,6 +1091,13 @@ async def analyze_and_recommend_orders(request: OrderAnalysisRequest):
         # Returns all recommendations with enrichment data
         recommendations = await engine.run_intelligent_analysis(temp_input, temp_output, request.allocation_mode)
         
+        # [PARALLEL KUBER HOOK] - Sniff recommendations into the Exchange
+        try:
+            from oasis.exchange.kuber_bridge_hook import push_to_kuber
+            push_to_kuber(DATA_DIR, recommendations)
+        except Exception as kuber_err:
+            logger.warning(f"KUBER-HOOK: Non-breaking error during listing: {kuber_err}")
+        
         if not recommendations:
             raise HTTPException(status_code=422, detail="Analysis produced no recommendations.")
 

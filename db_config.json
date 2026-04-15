@@ -1,0 +1,9 @@
+{
+    "server": "RETAILSRV\\IRETAIL",
+    "database": "iRetailDB",
+    "username": "oasis_shadow_user",
+    "password": "CHANGE_ME",
+    "trusted_connection": true,
+    "store_ids": [101, 105, 110],
+    "export_path": "monitoring/inbound"
+}

@@ -1,0 +1,30 @@
+---
+type: SKU
+department: '[[CHOCOLATES]]'
+supplier: '[[TWIRL ENTERPRISES LTD]]'
+price: 167.07607962213226
+margin_pct: 16.0
+revenue: 1837.88
+gross_profit: 294.06
+sales_rank: 8933
+rhapta_fill_rate: 0
+velocity_ads: 0.0598
+total_quantity: 11.0
+---
+
+# MARS 175G MALTESERS DOY PACK
+
+## Relationships
+- **Department**: [[CHOCOLATES]]
+- **Supplier**: [[TWIRL ENTERPRISES LTD]]
+
+## Potential Substitutes
+- [substitution]:: [[TWIX TWIN BAR 50G]]
+- [substitution]:: [[SNICKERS SINGLE BAR 50G]]
+- [substitution]:: [[NESTLE 41.5G KITKAT 4 FINGER MILK]]
+- [substitution]:: [[MARS SINGLE BARS 51G]]
+- [substitution]:: [[SNICKERS 40G SINGLE CHOCO BAR]]
+
+## Network Insights
+- [upstream_supply]:: [[TWIRL ENTERPRISES LTD]]
+- [downstream_demand]:: [[Retail Market]]

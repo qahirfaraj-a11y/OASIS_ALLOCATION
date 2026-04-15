@@ -1,0 +1,30 @@
+---
+type: SKU
+department: '[[VITAMIN SUPPLEMENTS]]'
+supplier: '[[HEALTHY U TWO THOUSAND LTD]]'
+price: 399.0
+margin_pct: 16.0
+revenue: 1596.0
+gross_profit: 255.36
+sales_rank: 9219
+rhapta_fill_rate: 0
+velocity_ads: 0.0217
+total_quantity: 4.0
+---
+
+# MEGAVIT 20S OSTEOPROTECT EFF
+
+## Relationships
+- **Department**: [[VITAMIN SUPPLEMENTS]]
+- **Supplier**: [[HEALTHY U TWO THOUSAND LTD]]
+
+## Potential Substitutes
+- [substitution]:: [[MEGAVIT 20S CALC ZINC MAGNESIUM  EFF TABS]]
+- [substitution]:: [[MEGAVIT 20S MAGNESIUM (R-BERRY) EFF TABS]]
+- [substitution]:: [[MEGAVIT 20S VITAMIN C  EFF]]
+- [substitution]:: [[MEGAVIT 20S MULTIVITAMINS EFF]]
+- [substitution]:: [[MEGAVIT 20S ZINC (APPLE)  EFF TABS]]
+
+## Network Insights
+- [upstream_supply]:: [[HEALTHY U TWO THOUSAND LTD]]
+- [downstream_demand]:: [[Retail Market]]

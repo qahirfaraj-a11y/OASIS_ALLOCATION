@@ -32,7 +32,9 @@ import pandas as pd
 from typing import List, Dict, Optional
 
 # Setup Path to import oasis
-sys.path.append(os.path.abspath("C:/Users/iLink/.gemini/antigravity/scratch"))
+# v10.5: Using workspace-relative path logic
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+sys.path.append(BASE_DIR)
 
 from oasis.logic.order_engine import OrderEngine
 from oasis.simulation.simulation_engine import SalesSimulator, InventoryTracker, RiskModel, ReplenishmentLogic
@@ -126,21 +128,22 @@ def run_simulation(scenario_name: str = "Baseline",
     benchmark_value = 115_000_000.0
     traffic_scale = budget_override / benchmark_value
     logger.info(f"Demand Calibration: Traffic Scale = {traffic_scale:.5f}")
-    scale_to_use_in_sim = 1.0
+    scale_to_use_in_sim = traffic_scale
 
     for _, row in df.iterrows():
         p_name = str(row.get('Product')).strip().upper()
         trend = trend_map.get(p_name, 1.0)
         
         raw_sales = float(row.get('Avg_Daily_Sales', 0))
-        scaled_sales = raw_sales * traffic_scale
+        # v10.5 FIX: Do not scale ADS here. OrderEngine.apply_greenfield_allocation handles
+        # scaling internally using the total_budget. Scaling here causes 'Double Reduction'.
         
         rec = {
             'product_name': row.get('Product'),
             'item_code': str(row.get('Product')),
             'product_category': row.get('Department'),
             'supplier_name': row.get('Supplier'),
-            'avg_daily_sales': scaled_sales,
+            'avg_daily_sales': raw_sales,
             'selling_price': float(row.get('Unit_Price', 0)),
             'current_stock': float(row.get('Current_Stock', 0)),
             'pack_size': 1,
@@ -211,7 +214,7 @@ def run_simulation(scenario_name: str = "Baseline",
     
     all_draft_orders = []
     daily_metrics = []
-    
+
     for day in range(1, duration_days + 1):
         
         # A. Check for Scheduled Supplier Failure

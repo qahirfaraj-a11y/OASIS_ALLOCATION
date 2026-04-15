@@ -1,0 +1,30 @@
+---
+type: SKU
+department: '[[DIAPERS]]'
+supplier: '[[KIM FAY EAST AFRICA LTD]]'
+price: 1399.0
+margin_pct: 16.0
+revenue: 22384.0
+gross_profit: 3581.44
+sales_rank: 2762
+rhapta_fill_rate: 0
+velocity_ads: 0.087
+total_quantity: 16.0
+---
+
+# HUGGIES DRY COMFORT 34S SIZE4 8-14KG
+
+## Relationships
+- **Department**: [[DIAPERS]]
+- **Supplier**: [[KIM FAY EAST AFRICA LTD]]
+
+## Potential Substitutes
+- [substitution]:: [[PAMPERS PANTS JUNIOR HC S5 24S]]
+- [substitution]:: [[PAMPERS PANTS JUNIOR HC S6 22S]]
+- [substitution]:: [[MOLFIX BABY DIAPER XXLARGE NO.6 48S JUMBO]]
+- [substitution]:: [[TENA SLIP PLUS ADULT DIAPER MEDIUM 73-122CM 713210]]
+- [substitution]:: [[HUGGIES DRY COMFORT PANTS SIZE 6 P24]]
+
+## Network Insights
+- [upstream_supply]:: [[KIM FAY EAST AFRICA LTD]]
+- [downstream_demand]:: [[Retail Market]]

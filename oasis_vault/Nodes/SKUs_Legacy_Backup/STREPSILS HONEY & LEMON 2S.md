@@ -1,0 +1,30 @@
+---
+type: SKU
+department: '[[MEDICARE]]'
+supplier: '[[HARLEYS LTD]]'
+price: 45.0
+margin_pct: 0.0
+revenue: 0.0
+gross_profit: 0.0
+sales_rank: 8365
+rhapta_fill_rate: 0
+velocity_ads: 1.0247
+total_quantity: 374.0
+---
+
+# STREPSILS HONEY & LEMON 2S
+
+## Relationships
+- **Department**: [[MEDICARE]]
+- **Supplier**: [[HARLEYS LTD]]
+
+## Potential Substitutes
+- [substitution]:: [[STREPSILS REGULAR 2S]]
+- [substitution]:: [[STREPSILS 6S HONEY & LEMON]]
+- [substitution]:: [[ENO LEMON 4S]]
+- [substitution]:: [[PANADOL ADVANCE 20 CAPLETS]]
+- [substitution]:: [[STREPSILS 6S REGULAR]]
+
+## Network Insights
+- [upstream_supply]:: [[HARLEYS LTD]]
+- [downstream_demand]:: [[Retail Market]]

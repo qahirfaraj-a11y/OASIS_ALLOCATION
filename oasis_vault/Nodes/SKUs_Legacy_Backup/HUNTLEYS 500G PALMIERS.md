@@ -1,0 +1,30 @@
+---
+type: SKU
+department: '[[BISCUITS]]'
+supplier: '[[HUNTLEYS BISCUITS LTD]]'
+price: 68.7140294223179
+margin_pct: 0.0
+revenue: 0.0
+gross_profit: 0.0
+sales_rank: 1680
+velocity_ads: 0.0274
+total_quantity: 10.0
+rhapta_fill_rate: 0
+---
+
+# HUNTLEYS 500G PALMIERS
+
+## Relationships
+- **Department**: [[BISCUITS]]
+- **Supplier**: [[HUNTLEYS BISCUITS LTD]]
+
+## Potential Substitutes
+- [substitution]:: [[OREO 55.2G ORIGINAL COOKIES]]
+- [substitution]:: [[OREO 31.3G ENROBED]]
+- [substitution]:: [[MANJI 45G MILKSTAR BISCUITS]]
+- [substitution]:: [[FRESKA 17G WAFER CHOCOLATE COATED]]
+- [substitution]:: [[MCVITIES 400G DIGESTIVE BISCUIT]]
+
+## Network Insights
+- [upstream_supply]:: [[HUNTLEYS BISCUITS LTD]]
+- [downstream_demand]:: [[Retail Market]]

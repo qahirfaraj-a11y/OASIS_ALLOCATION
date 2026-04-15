@@ -1,0 +1,30 @@
+---
+type: SKU
+department: '[[COFFEE]]'
+supplier: '[[BEST BUY COMMODITY LIMITED]]'
+price: 9.138167630835463
+margin_pct: 15.97
+revenue: 1051.1
+gross_profit: 167.86
+sales_rank: 9827
+rhapta_fill_rate: 0
+velocity_ads: 0.625
+total_quantity: 115.0
+---
+
+# COFFEE BREAK 18.5G INST CAPUCCINO MOCHA STICK
+
+## Relationships
+- **Department**: [[COFFEE]]
+- **Supplier**: [[BEST BUY COMMODITY LIMITED]]
+
+## Potential Substitutes
+- [substitution]:: [[NESCAFE 1.5GM CLASSIC SACHET]]
+- [substitution]:: [[MACCOFFEE 1.6G CLASSIC]]
+- [substitution]:: [[NESCAFE 18G 3IN1 CREAMY WHITE]]
+- [substitution]:: [[NESCAFE 1.5G CLASSIC SACHET]]
+- [substitution]:: [[NESCAFE GOLD 18G CAPPUCCINO STICK]]
+
+## Network Insights
+- [upstream_supply]:: [[BEST BUY COMMODITY LIMITED]]
+- [downstream_demand]:: [[Retail Market]]

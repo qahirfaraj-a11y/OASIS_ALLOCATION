@@ -115,12 +115,12 @@ def build_adjacency(edge_index: torch.Tensor,
     
     if edge_weights is not None:
         for i in range(edge_index.shape[1]):
-            src, dst = edge_index[0, i].item(), edge_index[1, i].item()
+            src, dst = int(edge_index[0, i].item()), int(edge_index[1, i].item())
             adj[src, dst] = edge_weights[i]
             adj[dst, src] = edge_weights[i]  # Symmetric
     else:
         for i in range(edge_index.shape[1]):
-            src, dst = edge_index[0, i].item(), edge_index[1, i].item()
+            src, dst = int(edge_index[0, i].item()), int(edge_index[1, i].item())
             adj[src, dst] = 1.0
             adj[dst, src] = 1.0
     

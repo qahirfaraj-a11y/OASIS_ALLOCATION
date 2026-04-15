@@ -1,0 +1,27 @@
+---
+type: SKU
+department: "[[SHAMPOOS-CONDITIONER]]"
+supplier: "[[COLOMER EAST AFRICA LTD SR]]"
+price: 1295.0
+margin_pct: 0
+revenue: 0
+gross_profit: 0
+sales_rank: 9999
+---
+
+# CON 8.45OZ STRENGHT&SHINE LEAVE IN COND
+
+## Relationships
+- **Department**: [[SHAMPOOS-CONDITIONER]]
+- **Supplier**: [[COLOMER EAST AFRICA LTD SR]]
+
+## Potential Substitutes
+- [substitution]:: [[H&S 400ML CLASSIC CLEAN SHAMPOO]]
+- [substitution]:: [[DABUR 150G HERBAL TPASTE CLOVE VALUE PACK]]
+- [substitution]:: [[CLEAR DISPLAY BOOK 40POCKETS]]
+- [substitution]:: [[PATANJALI 200ML NATURAL SHAMPOO]]
+- [substitution]:: [[LOREAL PARIS 400ML ELV. HYALURO PURE SHAMPOO]]
+
+## Network Insights
+- [upstream_supply]:: [[COLOMER EAST AFRICA LTD SR]]
+- [downstream_demand]:: [[Retail Market]]

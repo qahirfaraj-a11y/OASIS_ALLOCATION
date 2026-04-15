@@ -1,0 +1,27 @@
+---
+type: SKU
+department: "[[TETRA PACK JUICE]]"
+supplier: "[[KEVIAN KENYA LTD]]"
+price: 70.8131793478261
+margin_pct: 24.09
+revenue: 104237.0
+gross_profit: 21645.631768
+sales_rank: 442
+---
+
+# PICK N PEEL 250ML WHITE GRAPE
+
+## Relationships
+- **Department**: [[TETRA PACK JUICE]]
+- **Supplier**: [[KEVIAN KENYA LTD]]
+
+## Potential Substitutes
+- [substitution]:: [[PICK N PEEL 250ML MANGO]]
+- [substitution]:: [[PICK N PEEL 250ML TROPICAL MIX]]
+- [substitution]:: [[PICK N PEEL 250ML APPLE]]
+- [substitution]:: [[PICK N PEEL 250ML PINEAPPLE JUICE]]
+- [substitution]:: [[PICK N PEEL 250ML RED GRAPE]]
+
+## Network Insights
+- [upstream_supply]:: [[KEVIAN KENYA LTD]]
+- [downstream_demand]:: [[Retail Market]]

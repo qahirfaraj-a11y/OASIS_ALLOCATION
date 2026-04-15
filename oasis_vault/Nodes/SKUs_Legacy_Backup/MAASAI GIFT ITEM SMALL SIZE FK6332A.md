@@ -1,0 +1,30 @@
+---
+type: SKU
+department: '[[GIFTWARE]]'
+supplier: '[[Unknown]]'
+price: 465.0
+margin_pct: 16.0
+revenue: 0.0
+gross_profit: 0.0
+sales_rank: 14087
+rhapta_fill_rate: 0
+velocity_ads: 0.1
+total_quantity: 0
+---
+
+# MAASAI GIFT ITEM SMALL SIZE FK6332A
+
+## Relationships
+- **Department**: [[GIFTWARE]]
+- **Supplier**: [[Unknown]]
+
+## Potential Substitutes
+- [substitution]:: [[GIFT BAG AKA7568 M-S]]
+- [substitution]:: [[GIFT BAG AKA7571 M-S]]
+- [substitution]:: [[CUP AKA891 ASST FOOTBALL GIFT CUP]]
+- [substitution]:: [[CUP AKA889 ASST COFFEE GIFT CUP]]
+- [substitution]:: [[LEVS MSG CANDLE 2S MY SIS N FRIEND #HD03014]]
+
+## Network Insights
+- [upstream_supply]:: [[Unknown]]
+- [downstream_demand]:: [[Retail Market]]

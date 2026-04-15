@@ -1,0 +1,29 @@
+---
+type: SKU
+department: '[[OLIVE OIL]]'
+supplier: '[[ROSHNI DIST LTD  R D]]'
+price: 1190.0
+margin_pct: 0
+revenue: 0.0
+gross_profit: 0.0
+sales_rank: 18783
+velocity_ads: 0.0217
+total_quantity: 4.0
+rhapta_fill_rate: 0
+---
+
+# TD ELYSAA 200G EXT VIRGIN OLIVE SPRAY
+
+## Relationships
+- **Department**: [[OLIVE OIL]]
+- **Supplier**: [[ROSHNI DIST LTD  R D]]
+
+## Potential Substitutes
+- [substitution]:: [[BORGES 250ML EXTRA VIRGIN OLIVE OIL]]
+- [substitution]:: [[TD ELYSAA 500ML VIRGIN OLIVE OIL]]
+- [substitution]:: [[PIETRO CORICELLI 250ML EX VIRGIN OLIVE OIL]]
+- [substitution]:: [[AL JAZIRA 200ML EX VIRGIN SPRAY OIL]]
+
+## Network Insights
+- [upstream_supply]:: [[ROSHNI DIST LTD  R D]]
+- [downstream_demand]:: [[Retail Market]]

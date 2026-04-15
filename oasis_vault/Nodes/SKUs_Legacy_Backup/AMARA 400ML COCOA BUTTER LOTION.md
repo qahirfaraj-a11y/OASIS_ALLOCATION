@@ -1,0 +1,30 @@
+---
+type: SKU
+department: '[[WOMEN-UNISEX LOTION]]'
+supplier: '[[HACO INDUSTRIES KENYA  LTD]]'
+price: 260.0
+margin_pct: 0.0
+revenue: 0.0
+gross_profit: 0.0
+sales_rank: 14101
+rhapta_fill_rate: 0
+velocity_ads: 0.1699
+total_quantity: 62.0
+---
+
+# AMARA 400ML COCOA BUTTER LOTION
+
+## Relationships
+- **Department**: [[WOMEN-UNISEX LOTION]]
+- **Supplier**: [[HACO INDUSTRIES KENYA  LTD]]
+
+## Potential Substitutes
+- [substitution]:: [[IDEAL PURE GLYCERINE 200ML]]
+- [substitution]:: [[NL 400ML COCOA BUTTER]]
+- [substitution]:: [[VALON 400ML COCOA BUTTER BODY LOTION]]
+- [substitution]:: [[NL 360ML LEMON BODY LOTION]]
+- [substitution]:: [[VALON 400ML GLYCERINE BODY LOTION]]
+
+## Network Insights
+- [upstream_supply]:: [[HACO INDUSTRIES KENYA  LTD]]
+- [downstream_demand]:: [[Retail Market]]
