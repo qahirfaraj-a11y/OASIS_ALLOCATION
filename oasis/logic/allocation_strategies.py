@@ -1,32 +1,45 @@
 """
-Allocation Strategies (v1.0)
+Allocation Strategies (v2.0)
 
 Provides a clean, extensible interface for the Greenfield Allocation pipeline.
 
-The existing `apply_greenfield_allocation()` in OrderEngine contains 1,170 lines of
-battle-tested logic refined through 30+ iterations. Rather than risk breaking this
-proven code by decomposing it, this module provides:
+The former 1,156-line `apply_greenfield_allocation()` monolith has been
+decomposed into per-pass ``_gf_*`` methods on the engine (ProcurementMixin).
+This module is now the single orchestrator for that pass sequence:
 
-1. A Strategy Pattern facade for FUTURE allocation extensions
-2. Utility functions extracted from the monolithic method for reuse
-3. Named constants and configuration that can be overridden per-store
+1. ``GreenfieldPipeline`` — the live, composable orchestrator. The engine's
+   ``apply_greenfield_allocation()`` delegates here, and callers can skip,
+   replace, or insert passes without touching the engine.
+2. ``AllocationPipeline`` — legacy facade kept for backward compatibility.
+3. Utility functions and ``AllocationConfig`` shared with the engine.
 
 Architecture:
-    AllocationPipeline
-        ├── SupplierConsolidation (Pass 0)
-        ├── WidthAllocation     (Pass 1 + 1.5)
-        ├── DepthAllocation     (Pass 2 + 2B)
-        ├── AnchorAnchoring     (Pass 3 + 3B)
-        └── MopUp               (Pass 4)
+    GreenfieldPipeline
+        ├── preprocess              (Pass 0: blending, profile, wallets, consolidation)
+        ├── pass1_width             (Pass 1)
+        ├── pass1_5_liquidity_prune (Pass 1.5)
+        ├── pass2_depth             (Pass 2)
+        ├── premium_trim            (Injections 5-7)
+        ├── pass2b_flex_pool        (Pass 2B)
+        ├── pass3_anchor_mov        (Pass 3)
+        ├── pass4_mop_up            (Pass 4)
+        └── final audit             (always runs last)
 
 Usage:
-    pipeline = AllocationPipeline.from_engine(engine)
+    result = GreenfieldPipeline(engine).execute(recommendations, budget=300000)
+
+    # Composition: drop the mop-up pass and add a custom stage
+    pipeline = GreenfieldPipeline(engine).skip("pass4_mop_up")
+    pipeline.insert_after("pass2_depth", "my_stage", my_stage_fn)  # fn(ctx)
     result = pipeline.execute(recommendations, budget=300000)
+
+Behavior of the default sequence is locked by tests/test_allocation_snapshot.py.
 """
 
 import logging
 from abc import ABC, abstractmethod
-from typing import List, Dict, Any, Optional
+from types import SimpleNamespace
+from typing import Callable, List, Dict, Any, Optional, Union
 from dataclasses import dataclass, field
 
 logger = logging.getLogger("AllocationStrategies")
@@ -290,6 +303,94 @@ class AllocationPipeline:
         
         raise ValueError("AllocationPipeline has no engine reference and no strategies. "
                         "Use AllocationPipeline.from_engine() or add_strategy().")
+
+
+# ── GREENFIELD PIPELINE (live orchestrator) ──────────────────────────────
+
+# Default pass sequence: (stage_name, engine_method_name). The final audit
+# is not part of the sequence — it always runs last and returns the result.
+GREENFIELD_PASS_SEQUENCE = (
+    ("preprocess", "_gf_preprocess"),
+    ("pass1_width", "_gf_pass1_width"),
+    ("pass1_5_liquidity_prune", "_gf_pass1_5_liquidity_prune"),
+    ("pass2_depth", "_gf_pass2_depth"),
+    ("premium_trim", "_gf_premium_trim"),
+    ("pass2b_flex_pool", "_gf_pass2b_flex_pool"),
+    ("pass3_anchor_mov", "_gf_pass3_anchor_mov"),
+    ("pass4_mop_up", "_gf_pass4_mop_up"),
+)
+
+# A stage is either the name of a method on the engine, or a callable
+# taking the shared allocation context: fn(ctx) -> None.
+Stage = Union[str, Callable[[Any], None]]
+
+
+class GreenfieldPipeline:
+    """
+    Composable orchestrator for the greenfield allocation pass sequence.
+
+    The default sequence reproduces ``OrderEngine.apply_greenfield_allocation()``
+    exactly (which delegates here). Passes communicate through a shared
+    context namespace (``ctx``); ``preprocess`` populates it, so it must
+    remain the first stage. Custom stages receive that same ctx.
+    """
+
+    def __init__(self, engine, passes: Optional[List[tuple]] = None):
+        self._engine = engine
+        self._passes: List[tuple] = list(passes if passes is not None
+                                         else GREENFIELD_PASS_SEQUENCE)
+
+    @property
+    def pass_names(self) -> List[str]:
+        return [name for name, _ in self._passes]
+
+    def _index_of(self, name: str) -> int:
+        for i, (n, _) in enumerate(self._passes):
+            if n == name:
+                return i
+        raise KeyError(f"Unknown pass {name!r}. Available: {self.pass_names}")
+
+    def skip(self, name: str) -> 'GreenfieldPipeline':
+        """Remove a pass from the sequence. Returns self for chaining."""
+        if name == "preprocess":
+            raise ValueError("preprocess populates the shared context and cannot be skipped")
+        self._passes.pop(self._index_of(name))
+        return self
+
+    def replace(self, name: str, stage: Stage) -> 'GreenfieldPipeline':
+        """Swap a pass's implementation, keeping its position and name."""
+        self._passes[self._index_of(name)] = (name, stage)
+        return self
+
+    def insert_after(self, name: str, new_name: str, stage: Stage) -> 'GreenfieldPipeline':
+        """Insert a new stage immediately after an existing pass."""
+        self._passes.insert(self._index_of(name) + 1, (new_name, stage))
+        return self
+
+    def insert_before(self, name: str, new_name: str, stage: Stage) -> 'GreenfieldPipeline':
+        """Insert a new stage immediately before an existing pass."""
+        self._passes.insert(self._index_of(name), (new_name, stage))
+        return self
+
+    def _resolve(self, stage: Stage) -> Callable[[Any], None]:
+        return getattr(self._engine, stage) if isinstance(stage, str) else stage
+
+    def execute(
+        self,
+        recommendations: List[dict],
+        budget: float = 300000.0,
+        seasonal_demand_map: Optional[Dict[str, float]] = None,
+    ) -> Dict[str, Any]:
+        """Run the pass sequence and return {'recommendations', 'summary'}."""
+        ctx = SimpleNamespace(
+            recommendations=recommendations,
+            total_budget=budget,
+            seasonal_demand_map=seasonal_demand_map,
+        )
+        for name, stage in self._passes:
+            logger.debug("GreenfieldPipeline: running stage %s", name)
+            self._resolve(stage)(ctx)
+        return self._engine._gf_final_audit(ctx)
 
 
 # ── UTILITY FUNCTIONS ─────────────────────────────────────────────────────

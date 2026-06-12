@@ -1,9 +1,8 @@
 from .department_constants import ESSENTIAL_DEPARTMENTS, FRESH_DEPARTMENTS, FAST_FIVE_DEPARTMENTS
-from .allocation_strategies import AllocationConfig
+from .allocation_strategies import AllocationConfig, GreenfieldPipeline
 import logging
 import math
 from typing import List, Dict, Optional, Any
-from types import SimpleNamespace
 # Pass 1 Golden Pack Rounding (No external apply_pack_rounding)
 
 logger = logging.getLogger("OrderEngine.Procurement")
@@ -37,25 +36,17 @@ class ProcurementMixin:
         Phase 1 & 2: Initial Stock Allocation (The "Greenfield" Scenario).
         Now supports Hybrid Seasonal "Guiding".
 
-        Orchestrates the multi-pass pipeline. Each pass lives in its own
-        ``_gf_*`` method and communicates through a shared allocation
-        context. Behavior is locked by tests/test_allocation_snapshot.py —
-        regenerate that baseline only for deliberate logic changes.
+        Delegates to GreenfieldPipeline, which runs the ``_gf_*`` pass
+        methods in their proven order. Each pass communicates through a
+        shared allocation context. Behavior is locked by
+        tests/test_allocation_snapshot.py — regenerate that baseline only
+        for deliberate logic changes.
         """
-        ctx = SimpleNamespace(
-            recommendations=recommendations,
-            total_budget=total_budget,
+        return GreenfieldPipeline(self).execute(
+            recommendations,
+            budget=total_budget,
             seasonal_demand_map=seasonal_demand_map,
         )
-        self._gf_preprocess(ctx)
-        self._gf_pass1_width(ctx)
-        self._gf_pass1_5_liquidity_prune(ctx)
-        self._gf_pass2_depth(ctx)
-        self._gf_premium_trim(ctx)
-        self._gf_pass2b_flex_pool(ctx)
-        self._gf_pass3_anchor_mov(ctx)
-        self._gf_pass4_mop_up(ctx)
-        return self._gf_final_audit(ctx)
 
     def _gf_preprocess(self, ctx) -> None:
         """Pass 0 pre-processing: seasonal blending, tier profile, wallets, priority sorting, and supplier consolidation."""
