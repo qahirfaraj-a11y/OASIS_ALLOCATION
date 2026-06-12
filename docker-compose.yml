@@ -1,44 +1,259 @@
-version: "3.8"
+# ============================================================
+# O.A.S.I.S. Docker Compose — Service Orchestration
+# ============================================================
+# Services:
+#   oasis-engine    — Core scheduler + file watcher + heartbeat
+#   oasis-api       — Mobile API (FastAPI, port 8550)
+#   oasis-bridge    — Manager Bridge API (FastAPI, port 8600)
+#   oasis-ops       — Ops Dashboard (Streamlit)
+#   oasis-shadow    — Shadow Dashboard (Streamlit)
+#   oasis-approval  — Approval Dashboard (Streamlit)
+#   oasis-stgat     — ST-GAT Network Dashboard (Streamlit)
+#
+# Optional PostgreSQL backend (instead of the SQLite volume):
+#   docker compose --profile postgres up
+#   Set OASIS_DB_URL=postgresql://oasis:${POSTGRES_PASSWORD}@postgres:5432/oasis
+#   The oasis-migrate one-shot service applies Alembic migrations first.
+#
+# Secrets (OASIS_API_KEY, OASIS_SEED_PASSWORD, ...) are interpolated
+# from the .env file next to this compose file — never hardcode them here.
+# ============================================================
 
 services:
-  oasis-app:
+  # ── Core Engine (Scheduler + FileWatcher + Heartbeat) ──────
+  oasis-engine:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: oasis-command-center
-    ports:
-      - "8501:8501"
+    container_name: oasis-engine
+    command: ["--mode", "engine"]
     volumes:
-      # Persist the SQLite database between container restarts
-      - oasis-data:/app/oasis/data
-      # Mount uploads directory
-      - oasis-uploads:/app/oasis/uploads
+      - oasis-data:/data
+      - oasis-logs:/app/logs
+      - ./oasis_client_config.json:/data/oasis_client_config.json:ro
     environment:
-      - STREAMLIT_SERVER_PORT=8501
-      - STREAMLIT_SERVER_HEADLESS=true
-      - STREAMLIT_BROWSER_GATHER_USAGE_STATS=false
-      - OASIS_SHOWCASE_MODE=true
-      # For production MSSQL, set these:
-      # - OASIS_DB_TYPE=mssql
-      # - OASIS_DB_HOST=your-db-server
-      # - OASIS_DB_NAME=your-db-name
-      # - OASIS_DB_USER=your-user
-      # - OASIS_DB_PASS=your-password
-    entrypoint: >
-      sh -c "if [ \"$$OASIS_SHOWCASE_MODE\" = \"true\" ]; then 
-               python generate_showcase_scenario.py; 
-             fi && 
-             streamlit run ops_dashboard.py --server.port=8501 --server.headless=true"
+      - OASIS_CLIENT_CONFIG=/data/oasis_client_config.json
+      - PYTHONUNBUFFERED=1
+      - PYTHONUTF8=1
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8501/_stcore/health')"]
-      interval: 30s
+      test: ["CMD", "python", "-c", "from oasis.logic.data_gateway import DataGateway; gw=DataGateway(); h=gw.health_check(); assert h['db_exists']"]
+      interval: 120s
       timeout: 10s
       retries: 3
-      start_period: 30s
+
+  # ── Mobile API (FastAPI) ───────────────────────────────────
+  oasis-api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: oasis-api
+    command: ["--mode", "api", "--port", "8550"]
+    ports:
+      - "${API_PORT:-8550}:8550"
+    volumes:
+      - oasis-data:/data
+      - oasis-logs:/app/logs
+    environment:
+      - PYTHONUNBUFFERED=1
+      - OASIS_API_KEY=${OASIS_API_KEY:-}
+      - OASIS_ALLOWED_ORIGINS=${OASIS_ALLOWED_ORIGINS:-}
+      - OASIS_DB_URL=${OASIS_DB_URL:-}
+      - OASIS_LOG_LEVEL=${OASIS_LOG_LEVEL:-INFO}
+      - OASIS_LOG_FORMAT=${OASIS_LOG_FORMAT:-json}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+    depends_on:
+      oasis-engine:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8550/health"]
+      interval: 60s
+      timeout: 10s
+      retries: 3
+
+  # ── Manager Bridge API (FastAPI) ───────────────────────────
+  oasis-bridge:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: oasis-bridge
+    command: ["--mode", "bridge", "--port", "8600"]
+    ports:
+      - "${BRIDGE_PORT:-8600}:8600"
+    volumes:
+      - oasis-data:/data
+      - oasis-logs:/app/logs
+    environment:
+      - PYTHONUNBUFFERED=1
+      - OASIS_API_KEY=${OASIS_API_KEY:-}
+      - OASIS_ALLOWED_ORIGINS=${OASIS_ALLOWED_ORIGINS:-}
+      - OASIS_DB_URL=${OASIS_DB_URL:-}
+      - OASIS_LOG_LEVEL=${OASIS_LOG_LEVEL:-INFO}
+      - OASIS_LOG_FORMAT=${OASIS_LOG_FORMAT:-json}
+    depends_on:
+      oasis-engine:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8600/health"]
+      interval: 60s
+      timeout: 10s
+      retries: 3
+
+  # ── Ops Dashboard ──────────────────────────────────────────
+  oasis-ops:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: oasis-ops
+    command: ["--mode", "dashboard", "--dashboard", "ops"]
+    ports:
+      - "${OPS_PORT:-8501}:8501"
+    volumes:
+      - oasis-data:/data
+      - oasis-logs:/app/logs
+    environment:
+      - OASIS_CLIENT_CONFIG=/data/oasis_client_config.json
+    depends_on:
+      oasis-engine:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # ── Shadow Dashboard ───────────────────────────────────────
+  oasis-shadow:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: oasis-shadow
+    command: ["--mode", "dashboard", "--dashboard", "shadow"]
+    ports:
+      - "${SHADOW_PORT:-8502}:8501"
+    volumes:
+      - oasis-data:/data
+      - oasis-logs:/app/logs
+    environment:
+      - OASIS_CLIENT_CONFIG=/data/oasis_client_config.json
+    depends_on:
+      oasis-engine:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # ── Approval Dashboard ─────────────────────────────────────
+  oasis-approval:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: oasis-approval
+    command: ["--mode", "dashboard", "--dashboard", "approval"]
+    ports:
+      - "${APPROVAL_PORT:-8503}:8501"
+    volumes:
+      - oasis-data:/data
+      - oasis-logs:/app/logs
+    environment:
+      - OASIS_CLIENT_CONFIG=/data/oasis_client_config.json
+    depends_on:
+      oasis-engine:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # ── ST-GAT Network Dashboard ───────────────────────────────
+  oasis-stgat:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: oasis-stgat
+    command: ["--mode", "dashboard", "--dashboard", "stgat"]
+    ports:
+      - "${STGAT_PORT:-8505}:8501"
+    volumes:
+      - oasis-data:/data
+      - oasis-logs:/app/logs
+    environment:
+      - OASIS_CLIENT_CONFIG=/data/oasis_client_config.json
+    depends_on:
+      oasis-engine:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # ── Allocation Engine Dashboard ────────────────────────────
+  oasis-allocation:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: oasis-allocation
+    command: ["--mode", "dashboard", "--dashboard", "allocation"]
+    ports:
+      - "${ALLOCATION_PORT:-8506}:8501"
+    volumes:
+      - oasis-data:/data
+      - oasis-logs:/app/logs
+    environment:
+      - OASIS_CLIENT_CONFIG=/data/oasis_client_config.json
+    depends_on:
+      oasis-engine:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # ── Integrated Lifecycle App ───────────────────────────────
+  oasis-integrated:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: oasis-integrated
+    command: ["--mode", "dashboard", "--dashboard", "integrated"]
+    ports:
+      - "${INTEGRATED_PORT:-8507}:8501"
+    volumes:
+      - oasis-data:/data
+      - oasis-logs:/app/logs
+    environment:
+      - OASIS_CLIENT_CONFIG=/data/oasis_client_config.json
+    depends_on:
+      oasis-engine:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # ── PostgreSQL Backend (opt-in: --profile postgres) ────────
+  postgres:
+    image: postgres:16-alpine
+    container_name: oasis-postgres
+    profiles: ["postgres"]
+    environment:
+      - POSTGRES_DB=oasis
+      - POSTGRES_USER=oasis
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env to use the postgres profile}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - oasis-pgdata:/var/lib/postgresql/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U oasis -d oasis"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+
+  # ── One-shot Alembic migration (opt-in: --profile postgres) ─
+  oasis-migrate:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: oasis-migrate
+    profiles: ["postgres"]
+    command: ["--mode", "migrate"]
+    environment:
+      - OASIS_DB_URL=${OASIS_DB_URL:-postgresql://oasis:${POSTGRES_PASSWORD:-}@postgres:5432/oasis}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: "no"
 
 volumes:
   oasis-data:
     driver: local
-  oasis-uploads:
+  oasis-logs:
+    driver: local
+  oasis-pgdata:
     driver: local

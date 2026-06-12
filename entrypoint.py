@@ -7,11 +7,16 @@ Modes:
     --mode full      : Engine + all dashboards (single-container deployment)
     --mode engine    : Scheduler + FileWatcher + Heartbeat only
     --mode dashboard : Single Streamlit dashboard (--dashboard ops|shadow|approval|stgat)
+    --mode api       : Mobile API (FastAPI/uvicorn, default port 8550)
+    --mode bridge    : Manager Bridge API (FastAPI/uvicorn, default port 8600)
+    --mode migrate   : Run Alembic migrations (alembic upgrade head) and exit
     --mode bootstrap : Run Day-0 initialization and exit
 
 Usage:
     python entrypoint.py --mode full
     python entrypoint.py --mode dashboard --dashboard ops
+    python entrypoint.py --mode api --port 8550
+    python entrypoint.py --mode migrate
     python entrypoint.py --mode bootstrap
 """
 
@@ -23,7 +28,6 @@ import subprocess
 import sys
 import time
 import threading
-from typing import Optional
 
 LOG_DIR = os.environ.get("OASIS_LOG_DIR", os.path.join(os.path.dirname(__file__), "logs"))
 os.makedirs(LOG_DIR, exist_ok=True)
@@ -166,6 +170,51 @@ def run_dashboard(name: str, port: int = 8501):
     proc.terminate()
     proc.wait(timeout=10)
     logger.info(f"Dashboard {name} stopped.")
+
+
+# ── Mode: API / Bridge (FastAPI via uvicorn) ─────────────────────────
+
+def run_api(port: int = 8550):
+    """Start the Mobile API (oasis.api.server) under uvicorn."""
+    logger.info(f"Starting O.A.S.I.S. Mobile API on port {port}...")
+    cmd = [
+        sys.executable, "-m", "uvicorn", "oasis.api.server:app",
+        "--host", "0.0.0.0", "--port", str(port),
+    ]
+    proc = subprocess.Popen(cmd)
+    _shutdown.wait()
+    proc.terminate()
+    proc.wait(timeout=10)
+    logger.info("Mobile API stopped.")
+
+
+def run_bridge(port: int = 8600):
+    """Start the Manager Bridge API (oasis.api.bridge) under uvicorn."""
+    logger.info(f"Starting O.A.S.I.S. Manager Bridge on port {port}...")
+    cmd = [
+        sys.executable, "-m", "uvicorn", "oasis.api.bridge:app",
+        "--host", "0.0.0.0", "--port", str(port),
+    ]
+    proc = subprocess.Popen(cmd)
+    _shutdown.wait()
+    proc.terminate()
+    proc.wait(timeout=10)
+    logger.info("Manager Bridge stopped.")
+
+
+# ── Mode: Migrate (Alembic) ──────────────────────────────────────────
+
+def run_migrate():
+    """Apply Alembic migrations (upgrade head) against OASIS_DB_URL and exit."""
+    logger.info("Running Alembic migrations (upgrade head)...")
+    result = subprocess.run(
+        [sys.executable, "-m", "alembic", "upgrade", "head"],
+        cwd=os.path.dirname(os.path.abspath(__file__)),
+    )
+    if result.returncode != 0:
+        logger.error("Migration failed.")
+        sys.exit(result.returncode)
+    logger.info("Migrations applied successfully.")
 
 
 # ── Mode: Full ────────────────────────────────────────────────────────
@@ -329,7 +378,8 @@ def main():
     parser = argparse.ArgumentParser(description="O.A.S.I.S. Unified Entrypoint")
     parser.add_argument("--mode",
                         choices=["full", "engine", "dashboard", "showcase",
-                                 "shadow", "simulation", "desktop", "bootstrap"],
+                                 "shadow", "simulation", "desktop", "bootstrap",
+                                 "api", "bridge", "migrate"],
                         default="full", help="Run mode")
     parser.add_argument("--dashboard", choices=list(DASHBOARD_MAP.keys()),
                         default="ops", help="Dashboard to launch (dashboard mode)")
@@ -383,6 +433,12 @@ def main():
         run_desktop()
     elif args.mode == "bootstrap":
         run_bootstrap()
+    elif args.mode == "api":
+        run_api(args.port if args.port else 8550)
+    elif args.mode == "bridge":
+        run_bridge(args.port if args.port else 8600)
+    elif args.mode == "migrate":
+        run_migrate()
 
 
 if __name__ == "__main__":

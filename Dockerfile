@@ -1,66 +1,107 @@
-# ─── Stage 1: Build dependencies ───
-FROM python:3.10-slim AS builder
+# ============================================================
+# O.A.S.I.S. — Multi-stage Docker Build
+# ============================================================
+# Stage 1: Build dependencies (cached layer)
+# Stage 2: Production runtime (minimal footprint)
+# ============================================================
 
-WORKDIR /app
+# ── Stage 1: Builder ─────────────────────────────────────────
+FROM python:3.11-slim AS builder
 
-# System deps for building Python packages
+WORKDIR /build
+
+# System dependencies for pyodbc, scipy, torch
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    gcc g++ && \
-    rm -rf /var/lib/apt/lists/*
+    gcc g++ \
+    unixodbc-dev \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
 
+# Install MSSQL ODBC Driver 18 (for Pathway 1: SQL clients)
+RUN curl -fsSL https://packages.microsoft.com/keys/microsoft.asc | gpg --dearmor -o /usr/share/keyrings/microsoft-prod.gpg \
+    && echo "deb [signed-by=/usr/share/keyrings/microsoft-prod.gpg] https://packages.microsoft.com/debian/12/prod bookworm main" > /etc/apt/sources.list.d/mssql-release.list \
+    && apt-get update \
+    && ACCEPT_EULA=Y apt-get install -y msodbcsql18 \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy requirements first for Docker layer caching
 COPY requirements.txt .
 RUN pip install --no-cache-dir --prefix=/install -r requirements.txt
 
-# ─── Stage 2: Runtime ───
-FROM python:3.10-slim
+# ── Stage 2: Production Runtime ──────────────────────────────
+FROM python:3.11-slim AS runtime
+
+LABEL maintainer="iLink Technologies"
+LABEL description="O.A.S.I.S. — Autonomous Supply Intelligence System"
+LABEL version="2.1.0"
 
 WORKDIR /app
 
-# Copy installed packages from builder
+# Runtime system dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    unixodbc \
+    libgomp1 \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy ODBC driver from builder
+COPY --from=builder /opt/microsoft /opt/microsoft
+COPY --from=builder /etc/odbcinst.ini /etc/odbcinst.ini
+
+# Copy Python packages from builder
 COPY --from=builder /install /usr/local
 
 # Copy application code
-COPY oasis/ ./oasis/
-COPY ops_dashboard.py .
-COPY allocation_app.py .
-COPY integrated_app.py .
-COPY st_gat_dashboard.py .
-COPY intraday_sim.py .
-COPY retail_simulator.py .
-COPY network_simulation.py .
-COPY store_network_generator.py .
-COPY generate_showcase_scenario.py .
+COPY oasis/ /app/oasis/
+COPY models/ /app/models/
+COPY neutral_network_export/ /app/neutral_network_export/
+COPY oasis_engines_config.json /app/
+COPY requirements.txt /app/
 
-# Copy models and config
-COPY models/ ./models/
-COPY store_coords.json .
-COPY staple_products.json .
-COPY barcode_department_map.json .
-COPY product_department_map.json .
+# Copy database migrations (entrypoint --mode migrate)
+COPY alembic.ini /app/
+COPY alembic/ /app/alembic/
 
-# Copy scorecards (latest version)
-COPY Full_Product_Allocation_Scorecard_v*.csv ./
+# Copy dashboard files
+COPY ops_dashboard.py /app/dashboards/
+COPY approval_dashboard.py /app/dashboards/
+COPY shadow_dashboard.py /app/dashboards/
+COPY kuber_terminal.py /app/dashboards/
+COPY st_gat_dashboard.py /app/dashboards/
+COPY command_center.py /app/dashboards/
+COPY allocation_app.py /app/dashboards/
 
-# Copy supplier calendar
-COPY Supplier_Order_Calendar_2026.xlsx .
+# Copy Flet app
+COPY integrated_app.py /app/flet_app/
 
-# Create data directory for persistent DB
-RUN mkdir -p oasis/data
+# Copy helper modules that dashboards import
+COPY ui_components.py /app/dashboards/
+COPY shadow_monitor.py /app/dashboards/
 
-# Expose Streamlit port
-EXPOSE 8501
+# Copy entrypoint
+COPY entrypoint.py /app/
+
+# Create required directories
+RUN mkdir -p /data/inbound_drops/bootstrap \
+             /data/inbound_drops/archive \
+             /app/logs \
+             /app/oasis/data/pipeline_logs \
+             /app/oasis/data/approved_pos \
+             /app/shadow_logs
+
+# Set environment
+ENV PYTHONUNBUFFERED=1
+ENV PYTHONUTF8=1
+ENV PYTHONPATH=/app
+ENV OASIS_CLIENT_CONFIG=/data/oasis_client_config.json
+
+# Expose dashboard + API ports
+EXPOSE 8501 8502 8503 8504 8505 8550 8600
 
 # Health check
-HEALTHCHECK --interval=30s --timeout=10s --retries=3 \
-    CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8501/_stcore/health')" || exit 1
+HEALTHCHECK --interval=60s --timeout=10s --retries=3 \
+    CMD python -c "from oasis.logic.data_gateway import DataGateway; gw = DataGateway(); print(gw.health_check())" || exit 1
 
-# Streamlit configuration
-ENV STREAMLIT_SERVER_PORT=8501
-ENV STREAMLIT_SERVER_HEADLESS=true
-ENV STREAMLIT_BROWSER_GATHER_USAGE_STATS=false
-ENV STREAMLIT_SERVER_FILE_WATCHER_TYPE=none
-
-ENTRYPOINT ["streamlit", "run", "ops_dashboard.py", \
-            "--server.port=8501", \
-            "--server.headless=true", \
-            "--browser.gatherUsageStats=false"]
+# Default entrypoint
+ENTRYPOINT ["python", "/app/entrypoint.py"]
+CMD ["--mode", "full"]
