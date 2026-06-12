@@ -1348,12 +1348,27 @@ if "transfer_intelligence" in tab_map:
                     """, unsafe_allow_html=True)
             if st.button("🚀 Execute Live Sim Transfers", key="exec_sim_xfer"):
                 adapter = get_adapter()
-                items_to_push = [{"item_code": t.itm_cd, "product_name": t.product_name, "transfer_qty": t.transfer_qty, "transfer_value": t.value_kes, "urgency": t.urgency} for t in sim_transfers]
-                if adapter.push_transfer_request(sim_transfers[0].from_org, selected_org, items_to_push):
-                    log_action(DB_PATH, current_user["username"], "TRANSFER_EXECUTED", ENTITY_TRANSFER, f"TX_BATCH_{int(time.time())}", selected_org, {"items": len(items_to_push)})
-                    st.success(f"Dispatched {len(sim_transfers)} inter-branch transfers!")
+                # Group by donor store — a batch can span multiple donors, and each
+                # transfer request must be attributed to the store actually shipping.
+                from collections import defaultdict as _dd
+                _by_donor = _dd(list)
+                for t in sim_transfers:
+                    _by_donor[t.from_org].append({
+                        "item_code": t.itm_cd, "product_name": t.product_name,
+                        "transfer_qty": t.transfer_qty, "transfer_value": t.value_kes,
+                        "urgency": t.urgency,
+                    })
+                _pushed_total = 0
+                for _donor_org, _donor_items in _by_donor.items():
+                    if adapter.push_transfer_request(_donor_org, selected_org, _donor_items):
+                        _pushed_total += len(_donor_items)
+                if _pushed_total:
+                    log_action(DB_PATH, current_user["username"], "TRANSFER_EXECUTED", ENTITY_TRANSFER, f"TX_BATCH_{int(time.time())}", selected_org, {"items": _pushed_total, "donors": len(_by_donor)})
+                    st.success(f"Dispatched {_pushed_total} inter-branch transfers from {len(_by_donor)} donor store(s)!")
                     time.sleep(1)
                     st.rerun()
+                else:
+                    st.error("No transfers could be dispatched — adapter rejected all donor requests.")
         else:
             st.success("✅ No urgent inter-branch transfers required for the current hour.")
         st.markdown("---")
@@ -1402,12 +1417,14 @@ if "transfer_intelligence" in tab_map:
                 score = transfer_mat[si, dj].item()
                 fric = traffic_sq[si, dj].item()
                 if score > 0.25:  # Lowered from 0.45 — 5-store network scores cluster below 0.45
+                    # Dimensionless ranking signal (GNN score minus traffic
+                    # friction) — NOT currency. Do not present it as KES.
                     profit_pulse = score * 1000
                     friction_pen = fric * 400
                     net_gain = profit_pulse - friction_pen
                     gnn_recs.append({
                         "From": src['store_id'], "To": dst['store_id'],
-                        "Score": f"{score:.2f}", "Net Gain": f"KES {net_gain:,.0f}",
+                        "Score": f"{score:.2f}", "Priority Index": f"{net_gain:,.0f}",
                         "_net_gain": net_gain
                     })
         if gnn_recs:
@@ -1493,319 +1510,107 @@ if "transfer_intelligence" in tab_map:
     with st.spinner("🔄 Running cross-store transfer intelligence scan..."):
         try:
             from oasis.logic.consolidated_transfer_service import ConsolidatedTransferService
-            from oasis.logic.fulfillment_decider import NetworkAvailabilityMap, StoreSkuState
-            import json as _json
+            from oasis.logic.moq_failure_store import load_moq_failures
 
             _all_orgs = [o["ORG_CD"] for o in orgs]
             _org_name_map = {o["ORG_CD"]: o.get("ORG_NAME", o["ORG_CD"]) for o in orgs}
             _risk_map = get_all_store_risks(sim_hour)
 
-            # Load enriched products for all stores (real ADS & real stock quantities)
+            # Enriched products for all stores (real ADS & real stock quantities)
             _net_stock = load_network_stock(tuple(_all_orgs))
 
-            # Load barcode map for multi-key indexing
-            _bcode_map = {}
-            try:
-                with open(os.path.join(DATA_DIR, "product_barcode_map.json"), "r", encoding="utf-8") as _f:
-                    _bcode_map = _json.load(_f)
-            except Exception:
-                pass
-                
-            # Gap 5: Load MOQ failures to feed into Transfer deficit list
+            # Gap 5: MOQ failures become pull triggers (timestamped store, auto-expiring)
             _moq_failures = {}
             try:
-                _moq_path = os.path.join(DATA_DIR, "moq_failures.json")
-                if os.path.exists(_moq_path):
-                    with open(_moq_path, "r", encoding="utf-8") as _f:
-                        for item in _json.load(_f):
-                            if item["org_cd"] not in _moq_failures:
-                                _moq_failures[item["org_cd"]] = set()
-                            _moq_failures[item["org_cd"]].add(item["itm_cd"])
+                _moq_failures = load_moq_failures(os.path.join(DATA_DIR, "moq_failures.json"))
             except Exception:
                 pass
 
-            # Build NetworkAvailabilityMap directly so we can show overstock/understock
-            _nmap = NetworkAvailabilityMap()
-            _store_excess_count = {}
-            _store_deficit_items = {}
+            # Pending transfers (REQUESTED / IN_TRANSIT) count as committed
+            # supply: donors lose that stock, recipients gain it. This stops
+            # the scan from regenerating transfers that are already queued.
+            _pending_records = []
+            try:
+                _pending_df = get_adapter().fetch_transfers(None)
+                if not _pending_df.empty:
+                    _pending_records = _pending_df.to_dict("records")
+            except Exception as _pend_err:
+                logger.warning(f"Pending transfer lookup failed: {_pend_err}")
 
-            for _org_cd, _prods in _net_stock.items():
-                _excess_n = 0
-                _deficits = []
-                for _p in _prods:
-                    _ads   = float(_p.get("avg_daily_sales", 0) or 0)
-                    _curr  = float(_p.get("current_stocks", 0) or 0)
-                    _days_cover = (_curr / _ads) if _ads > 0 else 999.0
-                    _dept  = str(_p.get("department", _p.get("category", "GENERAL"))).upper()
-                    _fresh = bool(_p.get("is_fresh", False)) or any(
-                        k in _dept for k in ["MILK","DAIRY","FRESH","MEAT","BREAD","BAKERY"]
-                    )
-                    
-                    _safe  = _ads * 14.0
-                    _excs  = 0.0
-                    _overstock_threshold = 14.0 if _fresh else 30.0
-                    if _ads > 0 and _days_cover > _overstock_threshold and (_curr - _safe) > (_ads * 7.0):
-                        _excs = _curr - _safe
-                    elif _ads == 0 and _curr > 0:
-                        _excs = _curr
-                    _pname = str(_p.get("product_name", ""))
-                    _bcode = _bcode_map.get(_pname, "")
-                    _nmap.add(StoreSkuState(
-                        org_cd=_org_cd,
-                        org_name=_org_name_map.get(_org_cd, _org_cd),
-                        itm_cd=str(_p.get("item_code", "")),
-                        product_name=_pname,
-                        current_stock=_curr,
-                        avg_daily_sales=_ads,
-                        safety_stock=_safe,
-                        excess=_excs,
-                        is_fresh=_fresh,
-                        sell_price=float(_p.get("selling_price", 0) or 0),
-                        department=_dept,
-                        days_since_delivery=int(_p.get("last_days_since_last_delivery", 0) or 0),
-                        velocity_ratio=float(_ads / max(1.0, _curr)) if _curr > 0 else 0.0,
-                    ), _bcode)
-                    if _excs > 0:
-                        _excess_n += 1
-
-                    # ── DEFICIT DETECTION (PULL triggers) ──────────────────
-                    # days_cover for ADS=0 items: treat as 999 (no demand signal)
-                    _days_cover = (_curr / _ads) if _ads > 0 else 999.0
-
-                    # FIX: Align Transfer Intelligence with Smart Ordering dynamic ROP
-                    # This ensures items that trigger reorder (but fail MOQ) are caught by Transfer Intelligence.
-                    _dynamic_rop = float(_p.get("reorder_point", 0) or 0)
-                    _pull_trigger = (
-                        (_ads > 0 and (_days_cover < 7.0 or _curr <= _dynamic_rop)) or
-                        (_ads == 0 and _curr < 1.0) or          # Weight items: stock < 1 unit
-                        (str(_p.get("item_code", "")) in _moq_failures.get(_org_cd, set())) # Gap 5: MOQ failures
-                    )
-                    if _pull_trigger:
-                        _deficits.append({
-                            "itm_cd": str(_p.get("item_code", "")),
-                            "product_name": _pname,
-                            "current_stock": _curr,
-                            "avg_daily_sales": _ads,
-                            "days_cover": round(_days_cover, 1),
-                            "sell_price": float(_p.get("selling_price", 0) or 0),
-                            "department": _dept,
-                            "supplier": str(_p.get("supplier_name", "") or ""),
-                            "uom": str(_p.get("uom", "EA")).upper(),
-                            "trigger": "PULL",
-                            "is_fresh": _fresh,
-                        })
-                _store_excess_count[_org_cd] = _excess_n
-                _store_deficit_items[_org_cd] = _deficits
-
-            # ── BUILD PUSH REGISTRY ─────────────────────────────────────
-            # FIX: BUG 3 — The system was PULL-only. 23,499 overstocked items
-            # had no deficit counterpart so generated ZERO transfers.
-            # Push logic: for every item where a store has days_cover > cold_node_days,
-            # find a store with days_cover < hot_node_days for the SAME item and push to it.
-            _cold_days = st.session_state.get('cold_node_days', 60)
-            _hot_days  = st.session_state.get('hot_node_days', 14)
-
-            # Build per-item coverage lookup: {itm_cd: {org_cd: days_cover}}
-            _item_coverage = {}
-            for _oc2, _prods2 in _net_stock.items():
-                for _p2 in _prods2:
-                    _ic2  = str(_p2.get("item_code", ""))
-                    _a2   = float(_p2.get("avg_daily_sales", 0) or 0)
-                    _c2   = float(_p2.get("current_stocks", 0) or 0)
-                    _dc2  = (_c2 / _a2) if _a2 > 0 else (0.0 if _c2 < 1.0 else 999.0)
-                    _fresh2 = bool(_p2.get("is_fresh", False)) or any(
-                        k in str(_p2.get("department", _p2.get("category", "GENERAL"))).upper() for k in ["MILK","DAIRY","FRESH","MEAT","BREAD","BAKERY", "SEAFOOD", "FISH", "POULTRY", "PRODUCE", "FRUITS", "VEGETABLES"]
-                    )
-                    if _ic2 not in _item_coverage:
-                        _item_coverage[_ic2] = {}
-                    _item_coverage[_ic2][_oc2] = {
-                        "days_cover": _dc2,
-                        "current_stock": _c2,
-                        "avg_daily_sales": _a2,
-                        "product_name": str(_p2.get("product_name", "")),
-                        "sell_price": float(_p2.get("selling_price", 0) or 0),
-                        "department": str(_p2.get("department", _p2.get("category", "GENERAL"))).upper(),
-                        "supplier": str(_p2.get("supplier_name", "") or ""),
-                        "uom": str(_p2.get("uom", "EA")).upper(),
-                        "safety_stock": float(_p2.get("avg_daily_sales", 0) or 0) * 2.0,
-                        "excess": _c2 - float(_p2.get("avg_daily_sales", 0) or 0) * 2.0,
-                        "is_fresh": _fresh2,
-                    }
-
-            # Find PUSH opportunities: cold_store (days > cold_days) → hot_store (days < hot_days)
-            _push_items = []
-            for _ic2, _cov_map in _item_coverage.items():
-                _cold_stores = [(oc, d) for oc, d in _cov_map.items() if d["days_cover"] > _cold_days and d["excess"] > 0]
-                _hot_stores  = [(oc, d) for oc, d in _cov_map.items() if d["days_cover"] < _hot_days]
-                for _donor_oc, _donor_d in _cold_stores:
-                    for _recip_oc, _recip_d in _hot_stores:
-                        if _donor_oc == _recip_oc:
-                            continue
-                        _xfer_qty = min(_donor_d["excess"] * 0.4,
-                                        max(1.0, (_hot_days - _recip_d["days_cover"]) * max(_recip_d["avg_daily_sales"], 0.5)))
-                        # FIX: Round EA items to whole units
-                        _push_uom = str(_donor_d.get("uom", "EA")).upper()
-                        if _push_uom != "KG":
-                            _xfer_qty = math.ceil(_xfer_qty)
-                        else:
-                            _xfer_qty = round(_xfer_qty, 1)
-                        if _xfer_qty < 1:
-                            continue
-                        _push_items.append({
-                            "itm_cd":      _ic2,
-                            "product_name": _donor_d["product_name"],
-                            "from_org":    _donor_oc,
-                            "to_org":      _recip_oc,
-                            "transfer_qty": round(_xfer_qty, 1),
-                            "donor_days":  round(_donor_d["days_cover"], 1),
-                            "recip_days":  round(_recip_d["days_cover"], 1),
-                            "donor_excess": round(_donor_d["excess"], 1),
-                            "sell_price":  _donor_d["sell_price"],
-                            "department":  _donor_d["department"],
-                            "supplier":    _donor_d["supplier"],
-                            "uom":         str(_donor_d.get("uom", "EA")).upper(),
-                            "trigger":     "PUSH",
-                            "is_fresh":    _donor_d["is_fresh"],
-                        })
-
-            _push_items.sort(key=lambda x: -(x["transfer_qty"] * x["sell_price"]))
+            # Single scan implementation — shared with Smart Ordering's CTS.
+            _cts_scan = ConsolidatedTransferService(
+                org_names=_org_name_map,
+                stock_data=_net_stock,
+                registry_path=REGISTRY_PATH,
+                distance_map=get_distance_map(),
+                cold_node_days=st.session_state.get('cold_node_days', 60),
+                hot_node_days=st.session_state.get('hot_node_days', 14),
+            )
+            _scan = _cts_scan.scan_network_opportunities(
+                moq_failures=_moq_failures,
+                pending_transfers=_pending_records,
+            )
 
             # Summary metrics row
-            _total_excess_skus  = sum(_store_excess_count.values())
-            _total_deficit_skus = sum(len(v) for v in _store_deficit_items.values())
+            _total_excess_skus = sum(s.get("overstock", 0) for s in _scan.store_stats.values())
+            _total_deficit_skus = sum(s.get("deficits", 0) for s in _scan.store_stats.values())
+            _n_push = sum(1 for o in _scan.opportunities if o.type == "PUSH")
             _mc1, _mc2, _mc3, _mc4 = st.columns(4)
             _mc1.metric("🏪 Stores Scanned", len(_all_orgs))
             _mc2.metric("📦 Overstock SKUs (network)", f"{_total_excess_skus:,}")
             _mc3.metric("⚠️ Deficit SKUs (pull triggers)", f"{_total_deficit_skus:,}")
-            _mc4.metric("🔃 Push Opportunities (cold→hot)", f"{len(_push_items):,}")
+            _mc4.metric("🔃 Push Opportunities (cold→hot)", f"{_n_push:,}")
+            if _scan.pending_outbound_units > 0:
+                st.caption(
+                    f"🚚 {_scan.pending_outbound_units:,.0f} units already committed in "
+                    f"REQUESTED/IN_TRANSIT transfers are excluded from donor stock."
+                )
 
             # Per-store overstock / deficit breakdown
             st.markdown("##### 📊 Store-Level Inventory Health")
             _health_rows = []
             for _oc in _all_orgs:
-                _prods_list = _net_stock.get(_oc, [])
-                _n_total = len(_prods_list)
-                _n_exc   = _store_excess_count.get(_oc, 0)
-                _n_def   = len(_store_deficit_items.get(_oc, []))
-                _risk    = _risk_map.get(_oc, _risk_map.get(f"CFP-{_oc.replace('ORG','')}", 0.0))
-                # Count push opportunities where this org is the cold (donor) node
-                _n_push_from = sum(1 for pi in _push_items if pi["from_org"] == _oc)
+                _stats = _scan.store_stats.get(_oc, {})
+                _risk = _risk_map.get(_oc, _risk_map.get(f"CFP-{_oc.replace('ORG','')}", 0.0))
                 _health_rows.append({
                     "Store": _org_name_map.get(_oc, _oc),
                     "Org": _oc,
-                    "Total SKUs": _n_total,
-                    "Overstock (excess>0)": _n_exc,
-                    "Pull Deficits (<7d)": _n_def,
-                    "Push Opps (cold→hot)": _n_push_from,
+                    "Total SKUs": _stats.get("total_skus", 0),
+                    "Overstock (excess>0)": _stats.get("overstock", 0),
+                    "Pull Deficits (<7d)": _stats.get("deficits", 0),
+                    "Push Opps (cold→hot)": _stats.get("push_from", 0),
                     "Risk Score": round(_risk, 3),
                     "Status": "🔴 High Risk" if _risk > 0.5 else ("🟠 Moderate" if _risk > 0.25 else "🟢 Stable"),
                 })
             _health_df = pd.DataFrame(_health_rows).sort_values("Pull Deficits (<7d)", ascending=False)
             st.dataframe(_health_df, use_container_width=True, hide_index=True)
 
-            # ── PULL: Find donors for deficit items ────────────────────
+            # ── Recommended transfers (display rows from the unified scan) ──
             st.markdown("##### 🔄 Recommended Item-Level Transfers")
-
-            from oasis.logic.fulfillment_decider import FulfillmentDecider
-            _decider = FulfillmentDecider(
-                transfer_cost_kes=500.0,
-                distance_map=get_distance_map(),
-                warehouse_hubs=[],
-            )
-
             _xfer_opps = []
-            # PULL: for each store with deficit items, find donors in the network
-            for _rec_org, _deficits in _store_deficit_items.items():
-                _rec_name   = _org_name_map.get(_rec_org, _rec_org)
-                _risk_score = _risk_map.get(_rec_org, 0.0)
-                for _item in _deficits[:50]:  # raised cap to 50 per store
-                    _itm_cd   = _item["itm_cd"]
-                    _pname    = _item["product_name"]
-                    _ads      = _item["avg_daily_sales"]
-                    _curr     = _item["current_stock"]
-                    _days_cov = _item["days_cover"]
-                    _price    = _item["sell_price"]
-
-                    # shortfall = 7-day target minus current stock
-                    _target_qty = max(_ads * 7.0, 1.0) if _ads > 0 else 2.0
-                    _shortfall  = max(0.0, _target_qty - _curr)
-                    if _shortfall < 0.1:
-                        continue
-
-                    _donors = _nmap.find_donors(
-                        _itm_cd, _rec_org,
-                        product_name=_pname,
-                        distance_calc=_decider._calculate_distance_km,
-                    )
-                    if not _donors:
-                        continue
-
-                    _best = _donors[0]
-                    _xfer_qty = min(_best.excess * 0.5, _shortfall)
-                    # FIX: Round EA items to whole units
-                    _uom = _item.get("uom", "EA")
-                    if _uom != "KG":
-                        _xfer_qty = math.ceil(_xfer_qty)
-                    else:
-                        _xfer_qty = round(_xfer_qty, 1)
-                    if _xfer_qty < 1:
-                        continue
-
-                    _value_kes = _xfer_qty * _price
-                    _is_fresh = _item.get("is_fresh", False)
-                    _type_str = "🔴 PULL" if not _is_fresh else "🔴 PULL (🖐️ MANUAL ONLY)"
-                    _xfer_opps.append({
-                        "Type":           _type_str,
-                        "Product":        _pname[:45],
-                        "From":           _org_name_map.get(_best.org_cd, _best.org_cd),
-                        "From Org":       _best.org_cd,
-                        "To":             _rec_name,
-                        "To Org":         _rec_org,
-                        "Transfer Qty":   round(_xfer_qty, 1),
-                        "Donor Days Cover": round(_best.current_stock / max(_best.avg_daily_sales, 0.001), 1),
-                        "Rcpt Days Cover": _days_cov,
-                        "Donor Excess":   round(_best.excess, 1),
-                        "Value (KES)":    round(_value_kes, 0),
-                        "Department":     _item["department"],
-                        "Supplier":       _item.get("supplier", ""),
-                        "_itm_cd":        _itm_cd,
-                        "_rec_org":       _rec_org,
-                        "_don_org":       _best.org_cd,
-                        "_is_fresh":      _is_fresh,
-                    })
-
-            # PUSH: add cold-node push opportunities (overstocked → understocked)
-            _seen_push = set()
-            for _pi in _push_items[:200]:  # top 200 push opps by value
-                _pk = (_pi["itm_cd"], _pi["from_org"], _pi["to_org"])
-                if _pk in _seen_push:
-                    continue
-                _seen_push.add(_pk)
-                _value_kes = _pi["transfer_qty"] * _pi["sell_price"]
-                _is_fresh = _pi.get("is_fresh", False)
-                _type_str = "🔵 PUSH" if not _is_fresh else "🔵 PUSH (🖐️ MANUAL ONLY)"
+            for _o in _scan.opportunities:
+                _icon = "🔴 PULL" if _o.type == "PULL" else "🔵 PUSH"
+                if _o.manual_only:
+                    _icon += " (🖐️ MANUAL ONLY)"
                 _xfer_opps.append({
-                    "Type":           _type_str,
-                    "Product":        _pi["product_name"][:45],
-                    "From":           _org_name_map.get(_pi["from_org"], _pi["from_org"]),
-                    "From Org":       _pi["from_org"],
-                    "To":             _org_name_map.get(_pi["to_org"], _pi["to_org"]),
-                    "To Org":         _pi["to_org"],
-                    "Transfer Qty":   _pi["transfer_qty"],
-                    "Donor Days Cover": _pi["donor_days"],
-                    "Rcpt Days Cover": _pi["recip_days"],
-                    "Donor Excess":   _pi["donor_excess"],
-                    "Value (KES)":    round(_value_kes, 0),
-                    "Department":     _pi["department"],
-                    "Supplier":       _pi["supplier"],
-                    "_itm_cd":        _pi["itm_cd"],
-                    "_rec_org":       _pi["to_org"],
-                    "_don_org":       _pi["from_org"],
-                    "_is_fresh":      _is_fresh,
+                    "Type":             _icon,
+                    "Product":          _o.product_name[:45],
+                    "From":             _org_name_map.get(_o.from_org, _o.from_org),
+                    "From Org":         _o.from_org,
+                    "To":               _org_name_map.get(_o.to_org, _o.to_org),
+                    "To Org":           _o.to_org,
+                    "Transfer Qty":     _o.transfer_qty,
+                    "Donor Days Cover": _o.donor_days_cover,
+                    "Rcpt Days Cover":  _o.recipient_days_cover,
+                    "Donor Excess":     _o.donor_excess,
+                    "Value (KES)":      _o.value_kes,
+                    "Department":       _o.department,
+                    "Supplier":         _o.supplier,
+                    "_itm_cd":          _o.itm_cd,
+                    "_rec_org":         _o.to_org,
+                    "_don_org":         _o.from_org,
+                    "_is_fresh":        _o.manual_only,
                 })
-
-            # Sort all opportunities by value descending
-            _xfer_opps.sort(key=lambda x: -x["Value (KES)"])
 
             if _xfer_opps:
                 st.success(f"✅ **{len(_xfer_opps)} transfer opportunities identified** across the network.")
@@ -2081,25 +1886,16 @@ if "smart_ordering" in tab_map:
                 po_recs = mot_result['po_recs']
                 dropped_recs = mot_result['transfer_recs'] # Items that failed MOQ after network adjustment
                 
-                # Gap 5: Feed MOQ-failed items directly to Transfer deficit list
-                if dropped_recs:
-                    try:
-                        import json
-                        _moq_path = os.path.join(DATA_DIR, "moq_failures.json")
-                        _existing = []
-                        if os.path.exists(_moq_path):
-                            with open(_moq_path, "r", encoding="utf-8") as f:
-                                _existing = json.load(f)
-                        _new_fails = [
-                            {"org_cd": selected_org, "itm_cd": str(d.get("item_code", d.get("itm_cd", ""))), "qty": d.get("recommended_quantity", 0)}
-                            for d in dropped_recs
-                        ]
-                        # Append and write back
-                        _existing.extend(_new_fails)
-                        with open(_moq_path, "w", encoding="utf-8") as f:
-                            json.dump(_existing, f)
-                    except Exception:
-                        pass
+                # Gap 5: Feed MOQ-failed items directly to Transfer deficit list.
+                # Replace-per-org semantics with timestamps + 7-day expiry — the
+                # latest run is the complete truth for this store (no more
+                # unbounded append growth / stale triggers).
+                try:
+                    from oasis.logic.moq_failure_store import record_moq_failures
+                    _moq_path = os.path.join(DATA_DIR, "moq_failures.json")
+                    record_moq_failures(_moq_path, selected_org, dropped_recs or [])
+                except Exception as _moq_err:
+                    logger.warning(f"MOQ failure store update failed: {_moq_err}")
                 supplier_summary = mot_result['supplier_summary']
                 
             # ── Network Intelligence Results ──
@@ -2112,12 +1908,20 @@ if "smart_ordering" in tab_map:
                 
                 if store_transfers:
                     st.success(f"✅ {len(store_transfers)} items will be fulfilled via network transfers instead of supplier orders!")
+                    # Value transfers at each item's real selling price from the
+                    # network stock data (was a flat KES 500/unit placeholder).
+                    _price_by_itm = {}
+                    for _ps in enriched_network_stock.values():
+                        for _pp in _ps:
+                            _pk = str(_pp.get('item_code', _pp.get('itm_cd', '')) or '')
+                            if _pk and _pk not in _price_by_itm:
+                                _price_by_itm[_pk] = float(_pp.get('selling_price', 0) or 0)
                     tf_data = [{
                         "Product": t.product_name,
                         "From": org_name_map.get(t.from_org, t.from_org),
                         "Qty": t.qty,
                         "Urgency": t.urgency,
-                        "Est. Value (KES)": f"{(t.qty * 500):,.0f}" # Placeholder valuation
+                        "Est. Value (KES)": f"{(t.qty * _price_by_itm.get(str(t.itm_cd), 0)):,.0f}"
                     } for t in store_transfers]
                     st.dataframe(pd.DataFrame(tf_data), use_container_width=True, hide_index=True)
                     
