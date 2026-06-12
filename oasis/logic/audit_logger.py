@@ -12,7 +12,7 @@ import sqlite3
 import logging
 import pandas as pd
 from datetime import datetime
-from typing import Optional, Dict, Any, List
+from typing import Dict, Any, List
 
 logger = logging.getLogger("OasisAudit")
 
@@ -41,9 +41,9 @@ ENTITY_SESSION = "SESSION"
 # ---------------------------------------------------------------------------
 
 def log_action(
-    db_path: str,
-    username: str,
-    action: str,
+    db_path: str = None,
+    username: str = "",
+    action: str = "",
     entity_type: str = None,
     entity_id: str = None,
     org_cd: str = None,
@@ -53,7 +53,7 @@ def log_action(
     Insert an audit log entry.
 
     Args:
-        db_path:     Path to the SQLite database
+        db_path:     Path to the database (None = use OASIS_DB_URL)
         username:    Who performed the action
         action:      Action constant (e.g. PO_GENERATED)
         entity_type: Category (PO, TRANSFER, FILE, CONFIG, SESSION)
@@ -62,7 +62,11 @@ def log_action(
         details:     Dict with additional context (serialized to JSON)
     """
     try:
-        conn = sqlite3.connect(db_path)
+        if db_path:
+            conn = sqlite3.connect(db_path)
+        else:
+            from . import db as oasis_db
+            conn = oasis_db.get_raw_connection()
         details_json = json.dumps(details) if details else None
         conn.execute(
             """INSERT INTO OASIS_AUDIT_LOG 
@@ -83,7 +87,7 @@ def log_action(
 # ---------------------------------------------------------------------------
 
 def get_recent_logs(
-    db_path: str,
+    db_path: str = None,
     limit: int = 50,
     org_cd: str = None,
     username: str = None,
@@ -93,14 +97,18 @@ def get_recent_logs(
     Retrieve recent audit log entries as a DataFrame.
 
     Args:
-        db_path:  Path to the SQLite database
+        db_path:  Path to the database (None = use OASIS_DB_URL)
         limit:    Max rows to return
         org_cd:   Filter by store (optional)
         username: Filter by user (optional)
         action:   Filter by action type (optional)
     """
     try:
-        conn = sqlite3.connect(db_path)
+        if db_path:
+            conn = sqlite3.connect(db_path)
+        else:
+            from . import db as oasis_db
+            conn = oasis_db.get_raw_connection()
         query = "SELECT * FROM OASIS_AUDIT_LOG WHERE 1=1"
         params: List[Any] = []
 
@@ -125,10 +133,14 @@ def get_recent_logs(
         return pd.DataFrame()
 
 
-def get_action_summary(db_path: str, days: int = 7) -> Dict[str, int]:
+def get_action_summary(db_path: str = None, days: int = 7) -> Dict[str, int]:
     """Get a count of actions by type for the last N days."""
     try:
-        conn = sqlite3.connect(db_path)
+        if db_path:
+            conn = sqlite3.connect(db_path)
+        else:
+            from . import db as oasis_db
+            conn = oasis_db.get_raw_connection()
         cursor = conn.execute(
             """SELECT ACTION, COUNT(*) as cnt 
                FROM OASIS_AUDIT_LOG 

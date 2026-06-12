@@ -13,18 +13,19 @@ from ..logic.alert_monitor import AlertMonitor
 from ..logic.online_sales import OnlineSalesIngestor
 from .schemas import (
     DatabaseConnectionRequest,
-    SalesTransaction,
     OrderRecommendation,
-    Alert,
     OnlineSalesStats
 )
 from .security import require_auth, allowed_origins
+from .observability import attach_observability
 
-# Setup Logger
-logging.basicConfig(level=logging.INFO)
+# Setup Logger (centralized — honors OASIS_LOG_LEVEL/FORMAT/FILE)
+from ..logging_config import configure_logging
+configure_logging()
 logger = logging.getLogger("OasisBridge")
 
 app = FastAPI(title="Oasis Manager Bridge", version="2.0")
+attach_observability(app, service_name="oasis-manager-bridge")
 
 app.add_middleware(
     CORSMiddleware,

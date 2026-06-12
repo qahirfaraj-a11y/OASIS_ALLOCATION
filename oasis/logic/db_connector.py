@@ -28,16 +28,22 @@ def set_sqlite_pragma(dbapi_connection, connection_record):
         except Exception as e:
             logger.debug(f"Could not config SQLite PRAGMAs: {e}")
 
-def get_sqlite_conn(db_path: str, timeout: float = 30.0) -> sqlite3.Connection:
+def get_sqlite_conn(db_path: str = None, timeout: float = 30.0) -> sqlite3.Connection:
     """
-    Returns a raw sqlite3 connection inherently configured for high concurrency 
-    WAL (Write-Ahead Logging) to eliminate 'database is locked' errors.
+    Returns a raw database connection configured for high concurrency.
+
+    If db_path is given, opens that SQLite file directly.
+    If db_path is None, delegates to the centralized oasis.logic.db module
+    which reads OASIS_DB_URL (supports both SQLite and PostgreSQL).
     """
-    conn = sqlite3.connect(db_path, timeout=timeout)
-    conn.execute("PRAGMA journal_mode=WAL")
-    conn.execute("PRAGMA synchronous=NORMAL")
-    conn.execute("PRAGMA busy_timeout=30000")
-    return conn
+    if db_path:
+        conn = sqlite3.connect(db_path, timeout=timeout)
+        conn.execute("PRAGMA journal_mode=WAL")
+        conn.execute("PRAGMA synchronous=NORMAL")
+        conn.execute("PRAGMA busy_timeout=30000")
+        return conn
+    from . import db as oasis_db
+    return oasis_db.get_raw_connection()
 
 
 # ---------------------------------------------------------------------------
@@ -403,6 +409,7 @@ def ensure_oasis_tables(db_path: str):
     import sqlite3
     migration_sql = """
     CREATE TABLE IF NOT EXISTS OASIS_USERS (
+    TENANT_ID TEXT DEFAULT 'default_tenant',
         USER_ID       INTEGER PRIMARY KEY AUTOINCREMENT,
         USERNAME      TEXT UNIQUE NOT NULL,
         PASSWORD_HASH TEXT NOT NULL,
@@ -416,6 +423,7 @@ def ensure_oasis_tables(db_path: str):
     );
 
     CREATE TABLE IF NOT EXISTS OASIS_AUDIT_LOG (
+    TENANT_ID TEXT DEFAULT 'default_tenant',
         LOG_ID        INTEGER PRIMARY KEY AUTOINCREMENT,
         USERNAME      TEXT NOT NULL,
         ACTION        TEXT NOT NULL,
@@ -427,6 +435,7 @@ def ensure_oasis_tables(db_path: str):
     );
 
     CREATE TABLE IF NOT EXISTS OASIS_SYSTEM_CONFIG (
+    TENANT_ID TEXT DEFAULT 'default_tenant',
         CONFIG_KEY    TEXT PRIMARY KEY,
         CONFIG_VALUE  TEXT NOT NULL,
         CONFIG_GROUP  TEXT DEFAULT 'general',
@@ -436,6 +445,7 @@ def ensure_oasis_tables(db_path: str):
     );
     
     CREATE TABLE IF NOT EXISTS INTEGRATION_TRANSFER_ORDERS (
+    TENANT_ID TEXT DEFAULT 'default_tenant',
         TRANSFER_ID   INTEGER PRIMARY KEY AUTOINCREMENT,
         FROM_ORG_CD   TEXT NOT NULL,
         TO_ORG_CD     TEXT NOT NULL,
@@ -450,6 +460,7 @@ def ensure_oasis_tables(db_path: str):
         COMPLETED_DT  TEXT
     );
     CREATE TABLE IF NOT EXISTS OASIS_SESSIONS (
+    TENANT_ID TEXT DEFAULT 'default_tenant',
         SESSION_ID    TEXT PRIMARY KEY,
         USERNAME      TEXT NOT NULL,
         CREATED_DT    TEXT NOT NULL,
@@ -475,34 +486,33 @@ def ensure_oasis_tables(db_path: str):
         conn.commit()
         
         # Always attempt to seed default users (INSERT OR IGNORE handles existing ones)
-        from oasis.logic.auth_manager import seed_users
+        from .auth_manager import seed_users
         seed_users(db_path)
             
-        # Seed config if empty
-        count = conn.execute("SELECT COUNT(*) FROM OASIS_SYSTEM_CONFIG").fetchone()[0]
-        if count == 0:
-            from datetime import datetime
-            now = datetime.now().isoformat()
-            configs = [
-                ("spike_threshold_pct", "200.0", "alerting", "Velocity spike detection threshold (%)"),
-                ("stockout_warning_hours", "8", "alerting", "Hours-to-stockout warning threshold"),
-                ("safety_stock_days", "14", "ordering", "Default safety stock in days"),
-                ("min_order_value_kes", "5000", "ordering", "Minimum order value (KES)"),
-                ("max_supplier_concentration_pct", "40", "ordering", "Max % of budget from single supplier"),
-                ("max_transfer_cost_kes", "500", "transfers", "Maximum cost per inter-branch transfer (KES)"),
-                ("min_excess_ratio", "2.0", "transfers", "Minimum excess ratio before donating stock"),
-                ("fresh_transfer_max_hours", "6", "transfers", "Max hours for fresh item transfers"),
-                ("auto_approve_po_below_kes", "50000", "ordering", "Auto-approve POs below this value"),
-                ("simulation_seed", "42", "general", "Random seed for simulation reproducibility"),
-                ("shadow_audit_pulse_time", "19:00", "shadow_mode", "Daily forensic audit time (HH:MM)"),
-            ]
-            conn.executemany(
-                """INSERT OR IGNORE INTO OASIS_SYSTEM_CONFIG
-                   (CONFIG_KEY, CONFIG_VALUE, CONFIG_GROUP, DESCRIPTION, UPDATED_BY, UPDATED_DT)
-                   VALUES (?,?,?,?,?,?)""",
-                [(k, v, g, d, "system", now) for k, v, g, d in configs]
-            )
-            conn.commit()
+        # Seed config if empty or missing new keys
+        from datetime import datetime
+        now = datetime.now().isoformat()
+        configs = [
+            ("spike_threshold_pct", "200.0", "alerting", "Velocity spike detection threshold (%)"),
+            ("stockout_warning_hours", "8", "alerting", "Hours-to-stockout warning threshold"),
+            ("safety_stock_days", "14", "ordering", "Default safety stock in days"),
+            ("min_order_value_kes", "5000", "ordering", "Minimum order value (KES)"),
+            ("max_supplier_concentration_pct", "40", "ordering", "Max % of budget from single supplier"),
+            ("max_transfer_cost_kes", "500", "transfers", "Maximum cost per inter-branch transfer (KES)"),
+            ("min_excess_ratio", "2.0", "transfers", "Minimum excess ratio before donating stock"),
+            ("fresh_transfer_max_hours", "6", "transfers", "Max hours for fresh item transfers"),
+            ("gnn_risk_blend_ratio", "0.5", "transfers", "Blend ratio for GNN risk vs Deterministic inventory risk (0.0 to 1.0)"),
+            ("auto_approve_po_below_kes", "50000", "ordering", "Auto-approve POs below this value"),
+            ("simulation_seed", "42", "general", "Random seed for simulation reproducibility"),
+            ("shadow_audit_pulse_time", "19:00", "shadow_mode", "Daily forensic audit time (HH:MM)"),
+        ]
+        conn.executemany(
+            """INSERT OR IGNORE INTO OASIS_SYSTEM_CONFIG
+               (CONFIG_KEY, CONFIG_VALUE, CONFIG_GROUP, DESCRIPTION, UPDATED_BY, UPDATED_DT)
+               VALUES (?,?,?,?,?,?)""",
+            [(k, v, g, d, "system", now) for k, v, g, d in configs]
+        )
+        conn.commit()
         conn.close()
         logger.info("OASIS tables/users verified successfully")
     except Exception as e:

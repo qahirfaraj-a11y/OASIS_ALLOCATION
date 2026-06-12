@@ -1,0 +1,47 @@
+{
+  "micro_150k": {
+    "quantities": {
+      "BREAD 400G": 4,
+      "COOKING OIL 1L": 6,
+      "DEAD STOCK ITEM": 0,
+      "DETERGENT 1KG": 540,
+      "FRESH MILK 500ML": 5,
+      "MAIZE FLOUR 2KG": 12,
+      "PREMIUM WHISKY 750ML": 6,
+      "SUGAR 2KG": 7,
+      "TOY CAR": 36,
+      "YOGURT 150ML": 2
+    },
+    "summary": {
+      "skip_reasons": {
+        "other": 3,
+        "price_ceiling": 1
+      },
+      "total_cash_used": 149995.6,
+      "total_consignment": 0.0,
+      "total_skipped": 4
+    }
+  },
+  "mid_1m": {
+    "quantities": {
+      "BREAD 400G": 24,
+      "COOKING OIL 1L": 165,
+      "DEAD STOCK ITEM": 110,
+      "DETERGENT 1KG": 151,
+      "FRESH MILK 500ML": 128,
+      "MAIZE FLOUR 2KG": 217,
+      "PREMIUM WHISKY 750ML": 139,
+      "SUGAR 2KG": 195,
+      "TOY CAR": 110,
+      "YOGURT 150ML": 112
+    },
+    "summary": {
+      "skip_reasons": {
+        "price_ceiling": 1
+      },
+      "total_cash_used": 999980.0,
+      "total_consignment": 0.0,
+      "total_skipped": 1
+    }
+  }
+}

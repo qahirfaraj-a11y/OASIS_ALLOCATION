@@ -13,7 +13,6 @@ Roles:
 import hashlib
 import secrets
 import sqlite3
-import json
 import logging
 import bcrypt
 import uuid
@@ -22,13 +21,16 @@ from typing import Optional, Dict, Any
 
 logger = logging.getLogger("OasisAuth")
 
-def get_auth_db_conn(db_path: str) -> sqlite3.Connection:
-    """Helper to ensure WAL mode concurrency for authentication storage."""
-    conn = sqlite3.connect(db_path, timeout=30.0)
-    conn.execute("PRAGMA journal_mode=WAL")
-    conn.execute("PRAGMA synchronous=NORMAL")
-    conn.execute("PRAGMA busy_timeout=30000")
-    return conn
+def get_auth_db_conn(db_path: str = None) -> sqlite3.Connection:
+    """Return a database connection for authentication storage."""
+    if db_path:
+        conn = sqlite3.connect(db_path, timeout=30.0)
+        conn.execute("PRAGMA journal_mode=WAL")
+        conn.execute("PRAGMA synchronous=NORMAL")
+        conn.execute("PRAGMA busy_timeout=30000")
+        return conn
+    from . import db as oasis_db
+    return oasis_db.get_raw_connection()
 
 # ---------------------------------------------------------------------------
 # Password Hashing

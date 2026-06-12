@@ -4,11 +4,9 @@ import logging
 import threading
 from fastapi import FastAPI, UploadFile, File, HTTPException, BackgroundTasks, Depends
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse, FileResponse
+from fastapi.responses import FileResponse
 from pydantic import BaseModel
-from typing import List, Optional
 import asyncio
-import json
 from dotenv import load_dotenv
 
 # Load env vars from .env file
@@ -19,12 +17,15 @@ import sys
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..'))
 from oasis.logic.order_engine import OrderEngine
 from oasis.api.security import require_auth, allowed_origins
+from oasis.api.observability import attach_observability
 
-# Configure Logging
-logging.basicConfig(level=logging.INFO)
+# Configure Logging (centralized — honors OASIS_LOG_LEVEL/FORMAT/FILE)
+from oasis.logging_config import configure_logging
+configure_logging()
 logger = logging.getLogger("OASIS-API")
 
 app = FastAPI(title="OASIS Mobile API", version="1.0")
+attach_observability(app, service_name="oasis-mobile-api")
 
 from fastapi.staticfiles import StaticFiles
 
