@@ -26,7 +26,8 @@ DATA_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'data')
 DEFAULT_DB_PATH = os.getenv("OASIS_DB_PATH", os.path.join(DATA_DIR, "mock_pos_erp.db"))
 
 # Network JSON (sits at project root, 2 levels above this file)
-NETWORK_JSON = r"c:\Users\iLink\.gemini\antigravity\scratch\stores_network.json"
+_PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
+NETWORK_JSON = os.getenv("OASIS_NETWORK_JSON", os.path.join(_PROJECT_ROOT, "stores_network.json"))
 FAST_MODE_SKU_LIMIT = 100000   # cap for --fast demo runs
 
 # ---------------------------------------------------------------------------
@@ -36,6 +37,7 @@ FAST_MODE_SKU_LIMIT = 100000   # cap for --fast demo runs
 SCHEMA_SQL = """
 -- Organization / Store hierarchy
 CREATE TABLE IF NOT EXISTS ORGANIZATION_MST (
+    TENANT_ID TEXT DEFAULT 'default_tenant',
     ORG_CD          TEXT PRIMARY KEY,
     ORG_NAME        TEXT NOT NULL,
     ORG_SHORT_NAME  TEXT,
@@ -55,6 +57,7 @@ CREATE TABLE IF NOT EXISTS ORGANIZATION_MST (
 
 -- Item / Product Master
 CREATE TABLE IF NOT EXISTS ITEM_MST (
+    TENANT_ID TEXT DEFAULT 'default_tenant',
     ITM_CD          TEXT PRIMARY KEY,
     ITM_LONG_NAME   TEXT NOT NULL,
     ITM_SHORT_NAME  TEXT,
@@ -76,6 +79,7 @@ CREATE TABLE IF NOT EXISTS ITEM_MST (
 
 -- Stock levels per org/item/location
 CREATE TABLE IF NOT EXISTS STOCK_MASTER (
+    TENANT_ID TEXT DEFAULT 'default_tenant',
     SM_ORG_CD       TEXT NOT NULL,
     SM_ITM_CD       TEXT NOT NULL,
     SM_LOC_CD       TEXT DEFAULT 'MAIN',
@@ -83,34 +87,37 @@ CREATE TABLE IF NOT EXISTS STOCK_MASTER (
     SM_WAC           REAL DEFAULT 0,   -- Weighted Average Cost
     SM_LAST_RECV_DT TEXT,
     SM_LAST_ISSUE_DT TEXT,
-    PRIMARY KEY (SM_ORG_CD, SM_ITM_CD, SM_LOC_CD),
+    PRIMARY KEY (TENANT_ID, SM_ORG_CD, SM_ITM_CD, SM_LOC_CD),
     FOREIGN KEY (SM_ORG_CD) REFERENCES ORGANIZATION_MST(ORG_CD),
     FOREIGN KEY (SM_ITM_CD) REFERENCES ITEM_MST(ITM_CD)
 );
 
 -- Selling Price Master
 CREATE TABLE IF NOT EXISTS BASIC_SP_MST (
+    TENANT_ID TEXT DEFAULT 'default_tenant',
     BSP_ORG_CD      TEXT NOT NULL,
     BSP_ITEM_CD     TEXT NOT NULL,
     BSP_SP           REAL DEFAULT 0,
     BSP_MRP          REAL DEFAULT 0,
     BSP_EFF_DATE    TEXT,
-    PRIMARY KEY (BSP_ORG_CD, BSP_ITEM_CD),
+    PRIMARY KEY (TENANT_ID, BSP_ORG_CD, BSP_ITEM_CD),
     FOREIGN KEY (BSP_ITEM_CD) REFERENCES ITEM_MST(ITM_CD)
 );
 
 -- Cost Price Master
 CREATE TABLE IF NOT EXISTS BASIC_CP_MST (
+    TENANT_ID TEXT DEFAULT 'default_tenant',
     BCP_ORG_CD      TEXT NOT NULL,
     BCP_ITEM_CD     TEXT NOT NULL,
     BCP_CP           REAL DEFAULT 0,
     BCP_EFF_DATE    TEXT,
-    PRIMARY KEY (BCP_ORG_CD, BCP_ITEM_CD),
+    PRIMARY KEY (TENANT_ID, BCP_ORG_CD, BCP_ITEM_CD),
     FOREIGN KEY (BCP_ITEM_CD) REFERENCES ITEM_MST(ITM_CD)
 );
 
 -- Customer Master
 CREATE TABLE IF NOT EXISTS CUSTOMER_MST (
+    TENANT_ID TEXT DEFAULT 'default_tenant',
     CUST_CD         TEXT PRIMARY KEY,
     CUST_NAME       TEXT,
     CUST_SALUTATION TEXT,
@@ -122,6 +129,7 @@ CREATE TABLE IF NOT EXISTS CUSTOMER_MST (
 
 -- POS Sales Header
 CREATE TABLE IF NOT EXISTS POS_SALES_HDR (
+    TENANT_ID TEXT DEFAULT 'default_tenant',
     ORG_CD          TEXT NOT NULL,
     BILL_NO         TEXT NOT NULL,
     BILL_DT         TEXT NOT NULL,
@@ -137,12 +145,13 @@ CREATE TABLE IF NOT EXISTS POS_SALES_HDR (
     VOID_FLAG       TEXT DEFAULT 'F',
     CUS_REF_CODE    TEXT,
     CUS_REF_REMARKS TEXT,
-    PRIMARY KEY (ORG_CD, BILL_NO, BILL_DT),
+    PRIMARY KEY (TENANT_ID, ORG_CD, BILL_NO, BILL_DT),
     FOREIGN KEY (ORG_CD) REFERENCES ORGANIZATION_MST(ORG_CD)
 );
 
 -- POS Sales Detail
 CREATE TABLE IF NOT EXISTS POS_SALES_DTL (
+    TENANT_ID TEXT DEFAULT 'default_tenant',
     ORG_CD          TEXT NOT NULL,
     BILL_NO         TEXT NOT NULL,
     BILL_DT         TEXT NOT NULL,
@@ -162,13 +171,14 @@ CREATE TABLE IF NOT EXISTS POS_SALES_DTL (
     PROMO_ITEM_FLAG TEXT DEFAULT 'N',
     SCAN_ITM_CD     TEXT,
     TAX_PLAN_CD     TEXT,
-    PRIMARY KEY (ORG_CD, BILL_NO, BILL_DT, SERIAL_NO),
+    PRIMARY KEY (TENANT_ID, ORG_CD, BILL_NO, BILL_DT, SERIAL_NO),
     FOREIGN KEY (ORG_CD) REFERENCES ORGANIZATION_MST(ORG_CD),
     FOREIGN KEY (ITM_CD) REFERENCES ITEM_MST(ITM_CD)
 );
 
 -- BI Sales Report (Pre-aggregated -- mirrors iAnalytics)
 CREATE TABLE IF NOT EXISTS BI_SALES_REPORT (
+    TENANT_ID TEXT DEFAULT 'default_tenant',
     ORG_CD          TEXT NOT NULL,
     ITM_CD          TEXT NOT NULL,
     REPORT_MONTH    TEXT NOT NULL,      -- YYYY-MM
@@ -178,11 +188,12 @@ CREATE TABLE IF NOT EXISTS BI_SALES_REPORT (
     TOTAL_TAX       REAL DEFAULT 0,
     COST            REAL DEFAULT 0,
     TRANSACTION_COUNT INTEGER DEFAULT 0,
-    PRIMARY KEY (ORG_CD, ITM_CD, REPORT_MONTH)
+    PRIMARY KEY (TENANT_ID, ORG_CD, ITM_CD, REPORT_MONTH)
 );
 
 -- Counter / Till Master
 CREATE TABLE IF NOT EXISTS COUNTER_MST (
+    TENANT_ID TEXT DEFAULT 'default_tenant',
     COUNTER_CD      TEXT PRIMARY KEY,
     COUNTER_NAME    TEXT,
     ORG_CD          TEXT,
@@ -194,6 +205,7 @@ CREATE TABLE IF NOT EXISTS COUNTER_MST (
 
 -- System Preferences (Key-Value config)
 CREATE TABLE IF NOT EXISTS BASE_SYSTEM_PREFERENCES (
+    TENANT_ID TEXT DEFAULT 'default_tenant',
     BSP_PREF_ID     INTEGER PRIMARY KEY AUTOINCREMENT,
     BSP_PREF_DESC   TEXT NOT NULL UNIQUE,
     BSP_PREF_VALUE  TEXT,
@@ -202,6 +214,7 @@ CREATE TABLE IF NOT EXISTS BASE_SYSTEM_PREFERENCES (
 
 -- Tax Plan Header
 CREATE TABLE IF NOT EXISTS TAX_PLAN_HDR (
+    TENANT_ID TEXT DEFAULT 'default_tenant',
     TAX_PLAN_CD     TEXT PRIMARY KEY,
     TAX_PLAN_NAME   TEXT,
     TAX_PLAN_TYPE   TEXT DEFAULT 'GST',
@@ -210,6 +223,7 @@ CREATE TABLE IF NOT EXISTS TAX_PLAN_HDR (
 
 -- Tax Master
 CREATE TABLE IF NOT EXISTS TAX_MST (
+    TENANT_ID TEXT DEFAULT 'default_tenant',
     TAX_CD          TEXT PRIMARY KEY,
     TAX_NAME        TEXT,
     TAX_PERC        REAL DEFAULT 0,
@@ -220,6 +234,7 @@ CREATE TABLE IF NOT EXISTS TAX_MST (
 
 -- Supplier Master (extension for POS/ERP)
 CREATE TABLE IF NOT EXISTS SUPPLIER_MST (
+    TENANT_ID TEXT DEFAULT 'default_tenant',
     SUPPLIER_CD     TEXT PRIMARY KEY,
     SUPPLIER_NAME   TEXT NOT NULL,
     CONTACT_PERSON  TEXT,
@@ -235,16 +250,18 @@ CREATE TABLE IF NOT EXISTS SUPPLIER_MST (
 
 -- GRN (Goods Received Note) Header -- for supplier tracking
 CREATE TABLE IF NOT EXISTS GRN_HDR (
+    TENANT_ID TEXT DEFAULT 'default_tenant',
     GRN_NO          TEXT NOT NULL,
     ORG_CD          TEXT NOT NULL,
     SUPPLIER_CD     TEXT,
     GRN_DT          TEXT NOT NULL,
     TOTAL_AMT       REAL DEFAULT 0,
-    PRIMARY KEY (GRN_NO, ORG_CD)
+    PRIMARY KEY (TENANT_ID, GRN_NO, ORG_CD)
 );
 
 -- Integration Purchase Orders (write-back from OASIS)
 CREATE TABLE IF NOT EXISTS INTEGRATION_PURCHASE_ORDERS (
+    TENANT_ID TEXT DEFAULT 'default_tenant',
     PO_ID           INTEGER PRIMARY KEY AUTOINCREMENT,
     ORG_CD          TEXT,
     ITM_CD          TEXT,
@@ -263,6 +280,7 @@ CREATE TABLE IF NOT EXISTS INTEGRATION_PURCHASE_ORDERS (
 
 -- OASIS User Management
 CREATE TABLE IF NOT EXISTS OASIS_USERS (
+    TENANT_ID TEXT DEFAULT 'default_tenant',
     USER_ID       INTEGER PRIMARY KEY AUTOINCREMENT,
     USERNAME      TEXT UNIQUE NOT NULL,
     PASSWORD_HASH TEXT NOT NULL,
@@ -278,6 +296,7 @@ CREATE TABLE IF NOT EXISTS OASIS_USERS (
 
 -- Audit Trail
 CREATE TABLE IF NOT EXISTS OASIS_AUDIT_LOG (
+    TENANT_ID TEXT DEFAULT 'default_tenant',
     LOG_ID        INTEGER PRIMARY KEY AUTOINCREMENT,
     USERNAME      TEXT NOT NULL,
     ACTION        TEXT NOT NULL,
@@ -290,6 +309,7 @@ CREATE TABLE IF NOT EXISTS OASIS_AUDIT_LOG (
 
 -- System Configuration (editable thresholds)
 CREATE TABLE IF NOT EXISTS OASIS_SYSTEM_CONFIG (
+    TENANT_ID TEXT DEFAULT 'default_tenant',
     CONFIG_KEY    TEXT PRIMARY KEY,
     CONFIG_VALUE  TEXT NOT NULL,
     CONFIG_GROUP  TEXT DEFAULT 'general',
@@ -300,6 +320,7 @@ CREATE TABLE IF NOT EXISTS OASIS_SYSTEM_CONFIG (
 
 -- Integration Transfer Orders
 CREATE TABLE IF NOT EXISTS INTEGRATION_TRANSFER_ORDERS (
+    TENANT_ID TEXT DEFAULT 'default_tenant',
     TRANSFER_ID   INTEGER PRIMARY KEY AUTOINCREMENT,
     FROM_ORG_CD   TEXT NOT NULL,
     TO_ORG_CD     TEXT NOT NULL,
@@ -525,9 +546,19 @@ class MockPosErpBuilder:
         conn = self.conn
         names = ["Unilever Kenya", "Kapa Oil", "Bidco Africa", "Brookside Dairy", 
                  "Farmer's Choice", "Coca-Cola NEAB", "P&G East Africa", "Nestle Kenya"]
+                 
+        # Try to load product_supplier_map.json to get more realistic supplier names
+        prod_supp_map = _load_json("product_supplier_map.json")
+        if prod_supp_map:
+            extra_names = set(str(v).strip().upper() for v in prod_supp_map.values() if str(v).strip())
+            names.extend(list(extra_names))
+            
+        # Ensure uniqueness
+        names = list(set(n.upper() for n in names))
+        
         rows = []
         for i, name in enumerate(names):
-            supp_cd = f"SUPP{i+1:03d}"
+            supp_cd = f"SUPP{i+1:05d}"
             lead = random.randint(1, 7)
             rel  = float(round(float(random.uniform(0.7, 0.99)), 2))
             freq = random.choice(["W", "D", "B"])
@@ -593,13 +624,36 @@ class MockPosErpBuilder:
             logger.error("No products found in stores_network.json or intelligence fallback. Aborting product seeding.")
             return
 
+        prod_supp_map = _load_json("product_supplier_map.json") or {}
+        prod_barcode_map = _load_json("product_barcode_map.json") or {}
+        prod_dept_map = _load_json("product_department_map.json") or {}
+
         rows = []
         for idx, sku_entry in enumerate(ref_profile_sorted):
             itm_cd  = _generate_item_code(idx + 1)
             name    = sku_entry.get('sku', f'Item {idx+1}')
-            barcode = sku_entry.get('barcode', _generate_barcode(idx + 1))
-            dept    = sku_entry.get('department', 'GROCERY').strip().upper()
-            supp_name = sku_entry.get('supplier', 'UNKNOWN SUPPLIER').strip().upper()
+            
+            # Lookup barcode from ecosystem map
+            mapped_barcode = prod_barcode_map.get(name)
+            if mapped_barcode:
+                barcode = str(mapped_barcode).strip()
+            else:
+                barcode = sku_entry.get('barcode', _generate_barcode(idx + 1))
+                
+            # Lookup department from ecosystem map
+            mapped_dept = prod_dept_map.get(name)
+            if mapped_dept:
+                dept = str(mapped_dept).strip().upper()
+            else:
+                dept = sku_entry.get('department', 'GROCERY').strip().upper()
+            
+            # Lookup supplier from product_supplier_map.json
+            mapped_supp = prod_supp_map.get(name)
+            if mapped_supp:
+                supp_name = mapped_supp.strip().upper()
+            else:
+                supp_name = sku_entry.get('supplier', 'UNKNOWN SUPPLIER').strip().upper()
+                
             sell_price = float(sku_entry.get('price', 100.0))
             cost_price = float(sku_entry.get('cost', 75.0))
             ads        = float(sku_entry.get('ads_scaled', 1.0))
@@ -610,7 +664,12 @@ class MockPosErpBuilder:
                 'MILK', 'DAIRY', 'FRESH', 'MEAT', 'CHICKEN', 'FISH', 'BREAD',
                 'BAKERY', 'FLOWERS', 'VEGETABLE', 'FRUIT', 'BUTCH'
             ])
-            uom = 'KG' if 'KG' in name.upper() else 'EA'
+            
+            # UOM logic
+            if any(k in dept for k in ['ELECTRONICS', 'FRYERS', 'DISPENSER', 'APPLIANCE', 'HOUSEHOLD']):
+                uom = 'EA'
+            else:
+                uom = 'KG' if 'KG' in name.upper() and not any(x in name.upper() for x in ['PKG', 'PKG.']) else 'EA'
 
             # Category
             category = dept
@@ -622,8 +681,18 @@ class MockPosErpBuilder:
                 supp_cd = str(supp_info.get('cd', ''))
             
             if not supp_cd and self.supplier_catalog:
-                first_supp = list(self.supplier_catalog.values())[idx % len(self.supplier_catalog)]
-                supp_cd = str(first_supp.get('cd', ''))
+                # Use a deterministic fallback for electronics/misc to generic suppliers if possible
+                if any(k in dept for k in ['ELECTRONICS', 'FRYERS', 'DISPENSER']):
+                    generic_name = "GENERIC ELECTRONICS LTD"
+                else:
+                    generic_name = "GENERIC FMCG SUPPLIER"
+                    
+                if generic_name not in self.supplier_catalog:
+                    supp_cd = f"SUPP_GEN_{idx:04d}"
+                    self.supplier_catalog[generic_name] = {"cd": supp_cd, "lead": 3, "rel": 0.9, "freq": "W"}
+                
+                supp_name = generic_name
+                supp_cd = self.supplier_catalog[generic_name]["cd"]
 
             margin_pct = float(round(float((sell_price - cost_price) / sell_price * 100.0), 1)) if sell_price > 0 else 20.0
 
@@ -745,6 +814,11 @@ class MockPosErpBuilder:
                 if is_fresh and ads > 0:
                     max_fresh = ads * dsf * 3
                     stock_qty = min(stock_qty, max_fresh)
+
+                # FIX: Ensure EA items are integers
+                uom = info.get('uom_cd', 'EA')
+                if uom == 'EA' or info.get('weight_flag') == 'N':
+                    stock_qty = float(int(round(stock_qty)))
 
                 stock_qty = max(0.0, stock_qty)
 
@@ -1043,20 +1117,21 @@ class MockPosErpBuilder:
         """Seed default OASIS users for authentication."""
         try:
             # Try absolute import first for Pyre/static analysis
-            from oasis.logic.auth_manager import hash_password, DEFAULT_USERS
+            from oasis.logic.auth_manager import hash_password, DEFAULT_USERS, _resolve_seed_password
         except Exception:
             try:
                 # Try relative if running from within logic/
-                from .auth_manager import hash_password, DEFAULT_USERS
+                from .auth_manager import hash_password, DEFAULT_USERS, _resolve_seed_password
             except Exception:
                 # Last resort fallback
                 def hash_password(p): return p
+                def _resolve_seed_password(u): return ""
                 DEFAULT_USERS = []
-        
+
         now = datetime.now().isoformat()
         rows = []
         for user in DEFAULT_USERS:
-            pw_hash = hash_password(user["password"])
+            pw_hash = hash_password(_resolve_seed_password(user["username"]))
             rows.append((
                 user["username"], pw_hash, user["display_name"],
                 user["role"], user["assigned_org"], user["email"], now

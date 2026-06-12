@@ -2,6 +2,7 @@
 __pycache__/
 *.py[cod]
 *$py.class
+.pytest_cache/
 
 # Virtual Environment
 venv/
@@ -9,9 +10,45 @@ env/
 .venv/
 .oasis_venv/
 
-# Environment Variables
+# Environment Variables & Secrets
 .env
 .env.local
+db_config.json
+*.secret
+oasis_license.key
+
+# Runtime Files
+.oasis_lock
+shadow_logs/
+logs/
+pipeline_logs/
+simulation_reports/
+monitoring/inbound/
+%RUNTIME_DIR%/
+
+# Databases (SQLite + WAL sidecars) — regenerate via mock_pos_erp builder
+*.db
+*.db-wal
+*.db-shm
+
+# Bulk data files — distribute out-of-band, not via git
+*.xlsx
+*.xlsm
+*.csv
+*.gguf
+*.pt
+
+# Generated intelligence vault (ObsidianMixin output, ~48k files)
+oasis_vault/Nodes/
+oasis_vault/Runs/
+
+# Duplicate/backup trees — superseded by git history
+oasis_checkpoint_before_refactor/
+Allocation_Engine_Release/
+test_oasis/
+sandbox/
+dist_release/
+oasis_backup_*/
 
 # IDEs
 .vscode/
@@ -21,15 +58,9 @@ env/
 dist/
 build/
 *.egg-info/
-
-# Large Data Files
-OASIS_Offline_App.zip
+*.pyd
 *.log
-*.gguf
-*.pt
-*.csv
+OASIS_Offline_App.zip
 
-# Maintain crítico data (do not exclude for git)
-mock_pos_erp.db
-# stores_network.json
-# Full_Product_Allocation_Scorecard*.csv
+# Exceptions — small config/reference files that must ship with the repo
+!stores_network.json

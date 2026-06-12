@@ -1,7 +1,8 @@
 import os
 import shutil
 import logging
-from fastapi import FastAPI, UploadFile, File, HTTPException, BackgroundTasks
+import threading
+from fastapi import FastAPI, UploadFile, File, HTTPException, BackgroundTasks, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, FileResponse
 from pydantic import BaseModel
@@ -17,6 +18,7 @@ load_dotenv()
 import sys
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..'))
 from oasis.logic.order_engine import OrderEngine
+from oasis.api.security import require_auth, allowed_origins
 
 # Configure Logging
 logging.basicConfig(level=logging.INFO)
@@ -26,10 +28,9 @@ app = FastAPI(title="OASIS Mobile API", version="1.0")
 
 from fastapi.staticfiles import StaticFiles
 
-# CORS - Allow all for local dev (User's phone on wifi)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=allowed_origins(),
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -55,17 +56,27 @@ class AnalysisStatus(BaseModel):
 
 current_status = AnalysisStatus(state="idle", message="Ready", progress=0)
 last_results = []
+# Guards current_status / last_results — mutated from background tasks while
+# request handlers read them concurrently.
+_state_lock = threading.Lock()
+
+
+def _set_status(status: AnalysisStatus):
+    global current_status
+    with _state_lock:
+        current_status = status
+
 
 def run_analysis_task(file_path: str, original_filename: str):
     global current_status, last_results
     try:
-        current_status = AnalysisStatus(state="processing", message="Initializing Engine...", progress=10)
+        _set_status(AnalysisStatus(state="processing", message="Initializing Engine...", progress=10))
         
         # AUTH CHECK
         if not os.environ.get("ANTHROPIC_API_KEY"):
             error_msg = "Missing API Key. Please set ANTHROPIC_API_KEY environment variable."
             logger.error(error_msg)
-            current_status = AnalysisStatus(state="error", message=error_msg, progress=0)
+            _set_status(AnalysisStatus(state="error", message=error_msg, progress=0))
             return
 
         # Initialize Engine
@@ -78,69 +89,74 @@ def run_analysis_task(file_path: str, original_filename: str):
         
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
-        
-        current_status.message = "Loading Intelligence..."
-        current_status.progress = 20
-        
+
+        _set_status(AnalysisStatus(state="processing", message="Loading Intelligence...", progress=20))
+
         # Output file path
         output_filename = f"Analyzed_{original_filename}"
         output_path = os.path.join(OUTPUT_DIR, output_filename)
-        
+
         # Run Analysis
-        current_status.message = "AI Analyzing Inventory..."
-        current_status.progress = 40
-        
+        _set_status(AnalysisStatus(state="processing", message="AI Analyzing Inventory...", progress=40))
+
         # Execute the engine
         recommendations = loop.run_until_complete(engine.run_intelligent_analysis(file_path, output_path))
-        
-        last_results = recommendations
-        current_status = AnalysisStatus(state="completed", message="Analysis Complete", progress=100)
+
+        with _state_lock:
+            last_results = recommendations
+            current_status = AnalysisStatus(state="completed", message="Analysis Complete", progress=100)
         logger.info(f"Analysis complete. {len(recommendations)} items recommended.")
-        
+
         loop.close()
 
     except Exception as e:
         logger.error(f"Analysis Failed: {e}")
-        current_status = AnalysisStatus(state="error", message=str(e), progress=0)
+        _set_status(AnalysisStatus(state="error", message=str(e), progress=0))
 
 @app.get("/")
 def read_root():
     return {"status": "OASIS Mobile backend is running"}
 
 @app.get("/status")
-def get_status():
-    return current_status
+def get_status(identity: dict = Depends(require_auth)):
+    with _state_lock:
+        return current_status
 
 @app.post("/upload")
-async def upload_file(file: UploadFile = File(...), background_tasks: BackgroundTasks = None):
+async def upload_file(file: UploadFile = File(...), background_tasks: BackgroundTasks = None,
+                      identity: dict = Depends(require_auth)):
     global current_status
-    
-    if current_status.state == 'processing':
-        raise HTTPException(status_code=400, detail="Analysis already in progress")
+
+    with _state_lock:
+        if current_status.state == 'processing':
+            raise HTTPException(status_code=400, detail="Analysis already in progress")
 
     try:
-        file_location = os.path.join(UPLOAD_DIR, file.filename)
+        # Strip any client-supplied directory components before writing to disk
+        safe_name = os.path.basename(file.filename or "upload.xlsx")
+        file_location = os.path.join(UPLOAD_DIR, safe_name)
         with open(file_location, "wb+") as file_object:
             shutil.copyfileobj(file.file, file_object)
-            
+
         # Start Analysis in Background
-        current_status = AnalysisStatus(state="uploading", message="File uploaded. Starting analysis...", progress=5)
-        background_tasks.add_task(run_analysis_task, file_location, file.filename)
-        
-        return {"filename": file.filename, "message": "File uploaded successfully, analysis started."}
-        
+        _set_status(AnalysisStatus(state="uploading", message="File uploaded. Starting analysis...", progress=5))
+        background_tasks.add_task(run_analysis_task, file_location, safe_name)
+
+        return {"filename": safe_name, "message": "File uploaded successfully, analysis started."}
+
     except Exception as e:
         logger.error(f"Upload failed: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/results")
-def get_results():
-    if not last_results:
-        return {"results": []}
-    return {"results": last_results}
+def get_results(identity: dict = Depends(require_auth)):
+    with _state_lock:
+        if not last_results:
+            return {"results": []}
+        return {"results": last_results}
 
 @app.get("/download")
-def download_results():
+def download_results(identity: dict = Depends(require_auth)):
     # Find latest file in output dir
     try:
         files = os.listdir(OUTPUT_DIR)

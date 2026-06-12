@@ -58,6 +58,28 @@ def get_scorecard_data():
     return None
 
 
+def handle_handoff(store_id, store_name, lat, lon):
+    """Call the Mosaic API to register this expansion site for full reliance."""
+    import requests
+    try:
+        # Mosaic API base is configurable; defaults to local dev instance
+        mosaic_base = os.getenv("MOSAIC_API_BASE", "http://127.0.0.1:8000")
+        api_url = f"{mosaic_base}/api/v1/operations/register"
+        payload = {
+            "id": store_id,
+            "name": store_name,
+            "lat": float(lat),
+            "lon": float(lon)
+        }
+        response = requests.post(api_url, json=payload, timeout=5)
+        if response.status_code == 200:
+            st.success(f"🚀 **HANDOFF SUCCESS**: Site '{store_id}' promoted to Resilience Hub (Track 2).")
+            st.balloons()
+        else:
+            st.error(f"Handoff Failed: {response.text}")
+    except Exception as e:
+        st.error(f"API Connection Error: {e}")
+
 def convert_recommendations_to_skustate(recommendations, demand_scale_factor=1.0):
     """
     Bridge Function: Converts Allocation App "Basket" (Dicts) -> Retail Simulator "SKUState" objects.
@@ -113,7 +135,7 @@ def convert_recommendations_to_skustate(recommendations, demand_scale_factor=1.0
 # I1: Guard set_page_config — allocation_app import may have already called it
 try:
     st.set_page_config(page_title="Oasis Retail Lifecycle", layout="wide", page_icon="🏝️")
-except Exception:
+except st.errors.StreamlitAPIException:
     pass
 
 # Custom CSS
@@ -349,9 +371,44 @@ with tab2:
                     # Run Sim
                     seasonal_map = st.session_state.get('seasonal_map', None)
                     sim = RetailSimulator("Custom Scenario", config, seed=42, bridge=get_bridge(), initial_skus=initial_skus, seasonal_demand_map=seasonal_map)
+                    
+                    # --- APPLY SHOCKS ---
+                    if shock:
+                        # Map UI controls to simulator shocks
+                        magnitude = 0.5 # Default Medium Severity
+                        target = selected_supplier if event_type == "Supplier Failure" else (selected_category if event_type == "Demand Surge" else None)
+                        
+                        sim.add_shock(
+                            start_day=failure_day, 
+                            end_day=failure_day + failure_duration, 
+                            shock_type=event_type, 
+                            target=target, 
+                            magnitude=magnitude
+                        )
+                        st.warning(f"⚠️ **SHOCK ARMED**: {event_type} scheduled.")
+
                     result = sim.run(days)
                     
                     st.session_state.sim_result = result
+                    st.success("Simulation Complete!")
+                    
+                    # --- TRACK 1 -> TRACK 2 HANDOFF ---
+                    st.markdown("---")
+                    st.subheader("🏁 Expansion Handoff (Track 1 -> Track 2)")
+                    st.info("Ready to transition from **Investment** to **Full Reliance**? This will register the site in the Operational Portfolio.")
+                    
+                    col_h1, col_h2 = st.columns([2, 1])
+                    with col_h1:
+                        new_id = st.text_input("Final Operational ID", value="CFP-EXP-01")
+                    with col_h2:
+                        new_name = st.text_input("Operational Display Name", value="New Expansion Site")
+                        
+                    if st.button("🚀 Promote Site to Operational resilience Hub", use_container_width=True):
+                         # For hackathon/proto, we use a default lat/lon if not in session, 
+                         # or pull from the simulation config if it were there.
+                         # Here we'll use a placeholder near Nairobi CBD if not specific.
+                         handle_handoff(new_id, new_name, -1.2921, 36.8219)
+                    
                     st.session_state.sim_config = {
                         'tier': tier_key,
                         'days': days,

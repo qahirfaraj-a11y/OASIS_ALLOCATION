@@ -10,7 +10,10 @@ import logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger("MergeTool")
 
-DATA_DIR = r"C:\Users\iLink\.gemini\antigravity\scratch\oasis\data"
+DATA_DIR = os.getenv(
+    "OASIS_DATA_DIR",
+    os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'data'))
+)
 SALES_INTEL_PATH = os.path.join(DATA_DIR, "sales_profitability_intelligence_2025_updated.json")
 GRN_FREQ_PATH = os.path.join(DATA_DIR, "sku_grn_frequency.json")
 

@@ -1,12 +1,17 @@
+import os
+import logging
+
+# Pin the API key before the security module reads it at import time.
+os.environ.setdefault("OASIS_API_KEY", "test-api-key")
+
 from fastapi.testclient import TestClient
 from oasis.api.bridge import app
-import logging
 
 # Configure Logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("API_TEST")
 
-client = TestClient(app)
+client = TestClient(app, headers={"X-API-Key": os.environ["OASIS_API_KEY"]})
 
 def test_health():
     response = client.get("/")

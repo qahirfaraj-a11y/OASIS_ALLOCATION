@@ -21,12 +21,17 @@ docker compose up -d
 
 ### 2. Sign In
 
-| Account | Username | Password | Access Level |
-|---------|----------|----------|-------------|
-| Full Access | `ops_admin` | `oasis2026` | All tabs + Settings |
-| Regional | `regional_mgr` | `oasis2026` | Multi-store + Approvals |
-| Branch | `branch_mgr` | `oasis2026` | Single-store view |
-| Demo | `demo_user` | `demo` | Single-store view |
+| Account | Username | Access Level |
+|---------|----------|-------------|
+| Full Access | `ops_admin` | All tabs + Settings |
+| Regional | `regional_mgr` | Multi-store + Approvals |
+| Branch | `branch_mgr` | Single-store view |
+| Demo | `demo_user` | Single-store view |
+
+Passwords are set by the `OASIS_SEED_PASSWORD` environment variable when the
+database is first seeded (see `.env.example`). If it was not set, a one-time
+password per account is printed to the application log on first seed — sign in
+with it and rotate immediately. Contact your administrator for credentials.
 
 ---
 

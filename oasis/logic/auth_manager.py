@@ -198,16 +198,17 @@ def authenticate(username: str, password: str, db_path: str) -> Optional[Dict[st
         session_token = create_session(username, db_path)
 
         user = {
-            "user_id": row["USER_ID"],
-            "username": row["USERNAME"],
-            "display_name": row["DISPLAY_NAME"],
-            "role": row["ROLE"],
-            "assigned_org": row["ASSIGNED_ORG"],
-            "email": row["EMAIL"],
-            "permissions": get_user_permissions(row["ROLE"]),
-            "session_token": session_token
+            "user_id": row_dict["USER_ID"],
+            "username": row_dict["USERNAME"],
+            "display_name": row_dict["DISPLAY_NAME"],
+            "role": row_dict["ROLE"],
+            "assigned_org": row_dict["ASSIGNED_ORG"],
+            "email": row_dict["EMAIL"],
+            "permissions": get_user_permissions(row_dict["ROLE"]),
+            "session_token": session_token,
+            "tenant_id": row_dict.get("TENANT_ID") or "default_tenant",
         }
-        logger.info(f"Login successful: {username} ({row['ROLE']})")
+        logger.info(f"Login successful: {username} ({row_dict['ROLE']})")
         return user
 
     except Exception as e:
@@ -291,19 +292,22 @@ def validate_session(session_id: str, db_path: str) -> Optional[Dict[str, Any]]:
         
         if not row:
             return None
-            
-        expires = datetime.fromisoformat(row["EXPIRES_DT"])
+
+        row_dict = dict(row)
+
+        expires = datetime.fromisoformat(row_dict["EXPIRES_DT"])
         if datetime.now() > expires:
             return None
-            
+
         return {
-            "user_id": row["USER_ID"],
-            "username": row["USERNAME"],
-            "display_name": row["DISPLAY_NAME"],
-            "role": row["ROLE"],
-            "assigned_org": row["ASSIGNED_ORG"],
-            "email": row["EMAIL"],
-            "permissions": get_user_permissions(row["ROLE"])
+            "user_id": row_dict["USER_ID"],
+            "username": row_dict["USERNAME"],
+            "display_name": row_dict["DISPLAY_NAME"],
+            "role": row_dict["ROLE"],
+            "assigned_org": row_dict["ASSIGNED_ORG"],
+            "email": row_dict["EMAIL"],
+            "permissions": get_user_permissions(row_dict["ROLE"]),
+            "tenant_id": row_dict.get("TENANT_ID") or "default_tenant",
         }
     except Exception as e:
         logger.error(f"Error validating session {session_id}: {e}")
@@ -330,11 +334,15 @@ def get_all_users(db_path: str) -> list:
 # ---------------------------------------------------------------------------
 # Default Users (for seeding)
 # ---------------------------------------------------------------------------
+# Passwords are NOT stored in source. Seed passwords come from the
+# OASIS_SEED_PASSWORD env var (single password for all seeded accounts) or
+# per-user overrides like OASIS_SEED_PASSWORD_OPS_ADMIN. If neither is set,
+# a random password is generated per run and printed once to the log —
+# operators must then reset passwords through the admin UI.
 
 DEFAULT_USERS = [
     {
         "username": "ops_admin",
-        "password": "oasis2026",
         "display_name": "Operations Admin",
         "role": "ops_admin",
         "assigned_org": None,
@@ -342,7 +350,6 @@ DEFAULT_USERS = [
     },
     {
         "username": "regional_mgr",
-        "password": "oasis2026",
         "display_name": "Regional Manager",
         "role": "regional_manager",
         "assigned_org": None,
@@ -350,7 +357,6 @@ DEFAULT_USERS = [
     },
     {
         "username": "branch_mgr",
-        "password": "oasis2026",
         "display_name": "Rhapta Road Manager",
         "role": "branch_manager",
         "assigned_org": "ORG001",
@@ -358,7 +364,6 @@ DEFAULT_USERS = [
     },
     {
         "username": "branch_mgr2",
-        "password": "oasis2026",
         "display_name": "Lavington Manager",
         "role": "branch_manager",
         "assigned_org": "ORG002",
@@ -366,7 +371,6 @@ DEFAULT_USERS = [
     },
     {
         "username": "demo_user",
-        "password": "demo",
         "display_name": "Demo User",
         "role": "branch_manager",
         "assigned_org": "ORG001",
@@ -375,13 +379,31 @@ DEFAULT_USERS = [
 ]
 
 
+def _resolve_seed_password(username: str) -> str:
+    """Resolve the seed password for a user from the environment."""
+    import os
+    per_user = os.getenv(f"OASIS_SEED_PASSWORD_{username.upper()}")
+    if per_user:
+        return per_user
+    shared = os.getenv("OASIS_SEED_PASSWORD")
+    if shared:
+        return shared
+    generated = secrets.token_urlsafe(12)
+    # Printed once so the operator can log in and rotate it; never persisted.
+    logger.warning(
+        f"OASIS_SEED_PASSWORD not set — generated one-time password for "
+        f"'{username}': {generated}  (set OASIS_SEED_PASSWORD to control seeding)"
+    )
+    return generated
+
+
 def seed_users(db_path: str):
     """Seed default users into OASIS_USERS table."""
     conn = get_auth_db_conn(db_path)
     now = datetime.now().isoformat()
-    
+
     for user in DEFAULT_USERS:
-        pw_hash = hash_password(user["password"])
+        pw_hash = hash_password(_resolve_seed_password(user["username"]))
         try:
             conn.execute(
                 """INSERT OR IGNORE INTO OASIS_USERS 

@@ -1,8 +1,10 @@
-from fastapi import FastAPI, HTTPException, Body
+from fastapi import FastAPI, HTTPException, Body, Depends
+from fastapi.middleware.cors import CORSMiddleware
 from typing import List
 import logging
 import os
 import json
+import threading
 from datetime import datetime
 
 # Import Logic
@@ -10,12 +12,13 @@ from ..logic.db_connector import UniversalConnector
 from ..logic.alert_monitor import AlertMonitor
 from ..logic.online_sales import OnlineSalesIngestor
 from .schemas import (
-    DatabaseConnectionRequest, 
-    SalesTransaction, 
-    OrderRecommendation, 
-    Alert, 
+    DatabaseConnectionRequest,
+    SalesTransaction,
+    OrderRecommendation,
+    Alert,
     OnlineSalesStats
 )
+from .security import require_auth, allowed_origins
 
 # Setup Logger
 logging.basicConfig(level=logging.INFO)
@@ -23,10 +26,21 @@ logger = logging.getLogger("OasisBridge")
 
 app = FastAPI(title="Oasis Manager Bridge", version="2.0")
 
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=allowed_origins(),
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 # --- DATA DIRECTORY ---
 DATA_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'data'))
 
 # --- GLOBAL STATE ---
+# _state_lock guards active_connector / in_memory_alerts / pending_orders,
+# which are mutated by handlers running on different worker threads.
+_state_lock = threading.Lock()
 active_connector = None
 alert_monitor = AlertMonitor(spike_threshold_pct=300.0)
 online_ingestor = OnlineSalesIngestor()
@@ -89,7 +103,7 @@ def health_check():
 # --- 1. ERP CONNECTIVITY ---
 
 @app.post("/connect", response_model=dict)
-def connect_database(creds: DatabaseConnectionRequest):
+def connect_database(creds: DatabaseConnectionRequest, identity: dict = Depends(require_auth)):
     """
     Attempts to connect to an external ERP/POS Database.
     """
@@ -98,69 +112,78 @@ def connect_database(creds: DatabaseConnectionRequest):
         uri = f"{creds.driver}://{creds.username}:{creds.password}@{creds.host}:{creds.port}/{creds.database}"
         connector = UniversalConnector(uri)
         if connector.test_connection():
-            active_connector = connector
+            with _state_lock:
+                active_connector = connector
             return {"status": "success", "message": f"Connected to {creds.database}"}
         else:
             raise HTTPException(status_code=400, detail="Connection Failed")
+    except HTTPException:
+        raise
     except Exception as e:
-        logger.error(f"Connect Logic Failed: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        # Never echo the exception here — it can contain the connection URI with credentials.
+        logger.error(f"Connect Logic Failed: {type(e).__name__}")
+        raise HTTPException(status_code=500, detail="Connection error. Check server logs.")
 
 # --- 2. MANAGER WORKFLOW (Orders) ---
 
 @app.get("/orders/review", response_model=List[OrderRecommendation])
-def get_orders_for_review():
+def get_orders_for_review(identity: dict = Depends(require_auth)):
     """
     Returns list of orders waiting for Manager approval.
     v2.0: Now populated from actual engine output instead of hardcoded mock data.
     """
-    return pending_orders
+    with _state_lock:
+        return list(pending_orders)
 
 @app.post("/orders/approve/{sku}")
-def approve_order(sku: str):
+def approve_order(sku: str, identity: dict = Depends(require_auth)):
     """
     Simulates approval. In real life, writes to ERP.
     """
     global pending_orders
-    order = next((o for o in pending_orders if o['sku'] == sku), None)
-    if order:
-        pending_orders = [o for o in pending_orders if o['sku'] != sku]
-        # TODO: active_connector.push_purchase_order(order)
-        return {"status": "approved", "sku": sku}
+    with _state_lock:
+        order = next((o for o in pending_orders if o['sku'] == sku), None)
+        if order:
+            pending_orders = [o for o in pending_orders if o['sku'] != sku]
+            # TODO: active_connector.push_purchase_order(order)
+            return {"status": "approved", "sku": sku}
     raise HTTPException(status_code=404, detail="Order not found")
 
 # --- 3. ALERTS & MONITORING ---
 
 @app.post("/ingest/sales")
-def ingest_sales_stream(batch: List[dict]):
+def ingest_sales_stream(batch: List[dict], identity: dict = Depends(require_auth)):
     """
     Receives real-time sales transactions from POS.
     Checks for Velocity Spikes using real historical intelligence.
     v2.0: Uses loaded sales_intelligence_2025.json instead of hardcoded mock.
     """
     global in_memory_alerts
-    
+
     new_alerts = alert_monitor.check_velocity_spikes(batch, historical_stats)
-    in_memory_alerts.extend(new_alerts)
-    
+    with _state_lock:
+        in_memory_alerts.extend(new_alerts)
+
     return {"status": "processed", "alerts_generated": len(new_alerts), "history_size": len(historical_stats)}
 
 @app.get("/alerts", response_model=List[dict])
-def get_active_alerts():
-    return in_memory_alerts
+def get_active_alerts(identity: dict = Depends(require_auth)):
+    with _state_lock:
+        return list(in_memory_alerts)
 
 @app.delete("/alerts")
-def clear_alerts():
+def clear_alerts(identity: dict = Depends(require_auth)):
     """Clear all resolved alerts."""
     global in_memory_alerts
-    count = len(in_memory_alerts)
-    in_memory_alerts = []
+    with _state_lock:
+        count = len(in_memory_alerts)
+        in_memory_alerts = []
     return {"status": "cleared", "cleared_count": count}
 
 # --- 4. ONLINE SALES ---
 
 @app.get("/analysis/online-mix", response_model=OnlineSalesStats)
-def get_channel_mix():
+def get_channel_mix(identity: dict = Depends(require_auth)):
     """
     Returns comparison of Online vs In-Store performance.
     """
@@ -174,18 +197,20 @@ def get_channel_mix():
 # --- 5. POS/ERP INTEGRATION ---
 
 @app.post("/erp/sync/{org_cd}")
-def sync_from_erp(org_cd: str):
+def sync_from_erp(org_cd: str, identity: dict = Depends(require_auth)):
     """
     Pull latest data from POS/ERP database and load into OrderEngine.
     Works with both SQLite mock and live SQL Server.
     """
-    if not active_connector:
+    with _state_lock:
+        connector = active_connector
+    if not connector:
         raise HTTPException(status_code=400, detail="No active database connection. Call /connect first.")
-    
+
     try:
         from ..logic.order_engine import OrderEngine
         engine = OrderEngine(DATA_DIR)
-        engine.load_from_erp(active_connector, org_cd)
+        engine.load_from_erp(connector, org_cd)
         products = engine.load_erp_products(org_cd)
         
         return {
@@ -199,14 +224,16 @@ def sync_from_erp(org_cd: str):
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/erp/stock/{org_cd}")
-def erp_stock_check(org_cd: str):
+def erp_stock_check(org_cd: str, identity: dict = Depends(require_auth)):
     """Real-time stock levels from POS/ERP."""
-    if not active_connector:
+    with _state_lock:
+        connector = active_connector
+    if not connector:
         raise HTTPException(status_code=400, detail="No active database connection.")
-    
+
     try:
         from ..logic.pos_erp_adapter import PosErpAdapter
-        adapter = PosErpAdapter(active_connector)
+        adapter = PosErpAdapter(connector)
         snapshot = adapter.fetch_stock_snapshot(org_cd)
         
         # Add summary stats
@@ -225,14 +252,16 @@ def erp_stock_check(org_cd: str):
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/erp/sales/{org_cd}")
-def erp_sales_history(org_cd: str, days: int = 30):
+def erp_sales_history(org_cd: str, days: int = 30, identity: dict = Depends(require_auth)):
     """Sales history from POS/ERP for the last N days."""
-    if not active_connector:
+    with _state_lock:
+        connector = active_connector
+    if not connector:
         raise HTTPException(status_code=400, detail="No active database connection.")
-    
+
     try:
         from ..logic.pos_erp_adapter import PosErpAdapter
-        adapter = PosErpAdapter(active_connector)
+        adapter = PosErpAdapter(connector)
         df = adapter.fetch_sales_history(org_cd, days=days)
         
         # Summary instead of raw dump
@@ -259,14 +288,17 @@ def erp_sales_history(org_cd: str, days: int = 30):
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/erp/push-po/{org_cd}")
-def push_purchase_order_to_erp(org_cd: str, recommendations: List[dict] = Body(...)):
+def push_purchase_order_to_erp(org_cd: str, recommendations: List[dict] = Body(...),
+                               identity: dict = Depends(require_auth)):
     """Push OASIS-generated purchase orders back to the POS/ERP."""
-    if not active_connector:
+    with _state_lock:
+        connector = active_connector
+    if not connector:
         raise HTTPException(status_code=400, detail="No active database connection.")
-    
+
     try:
         from ..logic.pos_erp_adapter import PosErpAdapter
-        adapter = PosErpAdapter(active_connector)
+        adapter = PosErpAdapter(connector)
         lines_written = adapter.push_purchase_order(org_cd, recommendations)
         
         return {
@@ -279,14 +311,16 @@ def push_purchase_order_to_erp(org_cd: str, recommendations: List[dict] = Body(.
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/erp/orgs")
-def list_erp_organizations():
+def list_erp_organizations(identity: dict = Depends(require_auth)):
     """List all organizations in the POS/ERP system."""
-    if not active_connector:
+    with _state_lock:
+        connector = active_connector
+    if not connector:
         raise HTTPException(status_code=400, detail="No active database connection.")
-    
+
     try:
         from ..logic.pos_erp_adapter import PosErpAdapter
-        adapter = PosErpAdapter(active_connector)
+        adapter = PosErpAdapter(connector)
         orgs = adapter.fetch_all_organizations()
         return {"organizations": orgs, "count": len(orgs)}
     except Exception as e:

@@ -31,12 +31,19 @@ from oasis.logic.db_connector import (
 # Shared test DB path
 TEST_DB_PATH = os.path.join(os.path.dirname(__file__), "test_phase1.db")
 
+# Seed password injected via env — credentials are no longer hardcoded in source.
+TEST_SEED_PASSWORD = "test-seed-password"
+os.environ.setdefault("OASIS_SEED_PASSWORD", TEST_SEED_PASSWORD)
+
 
 @pytest.fixture(scope="module")
 def phase1_db():
     """Create mock DB with OASIS tables for all Phase 1 tests."""
     builder = MockPosErpBuilder(db_path=TEST_DB_PATH, seed=42, fast_mode=True)
     builder.build(reset=True)
+    # Apply the same startup migration production runs (sessions table,
+    # lockout columns) — the raw builder schema predates v10.3 auth hardening.
+    ensure_oasis_tables(TEST_DB_PATH)
     yield TEST_DB_PATH
     try:
         if os.path.exists(TEST_DB_PATH):
@@ -71,7 +78,8 @@ class TestNewSchema:
 
     def test_seed_config_count(self, phase1_db):
         summary = summarize_mock_db(phase1_db)
-        assert summary["OASIS_SYSTEM_CONFIG"] == 10, f"Expected 10 configs, got {summary['OASIS_SYSTEM_CONFIG']}"
+        # 10 seeded by the builder + 2 added by the ensure_oasis_tables migration
+        assert summary["OASIS_SYSTEM_CONFIG"] == 12, f"Expected 12 configs, got {summary['OASIS_SYSTEM_CONFIG']}"
 
 
 # =====================================================================
@@ -89,11 +97,16 @@ class TestPasswordHashing:
 
     def test_hash_format(self):
         hashed = hash_password("test")
-        assert ":" in hashed, "Hash should be 'salt:hash' format"
-        parts = hashed.split(":")
-        assert len(parts) == 2
-        assert len(parts[0]) == 32  # 16 bytes hex = 32 chars
-        assert len(parts[1]) == 64  # SHA-256 = 64 chars
+        assert hashed.startswith("$2b$"), "Hash should be bcrypt format"
+        assert len(hashed) == 60  # standard bcrypt hash length
+
+    def test_legacy_sha256_still_verifies(self):
+        # Legacy 'salt:hash' entries must keep working (transparent migration path)
+        import hashlib
+        salt = "a" * 32
+        legacy = f"{salt}:{hashlib.sha256(f'{salt}test'.encode()).hexdigest()}"
+        assert verify_password("test", legacy)
+        assert not verify_password("wrong", legacy)
 
 
 # =====================================================================
@@ -101,14 +114,14 @@ class TestPasswordHashing:
 # =====================================================================
 class TestAuthentication:
     def test_authenticate_valid_admin(self, phase1_db):
-        user = authenticate("ops_admin", "oasis2026", phase1_db)
+        user = authenticate("ops_admin", TEST_SEED_PASSWORD, phase1_db)
         assert user is not None
         assert user["username"] == "ops_admin"
         assert user["role"] == "ops_admin"
         assert user["display_name"] == "Operations Admin"
 
     def test_authenticate_valid_branch(self, phase1_db):
-        user = authenticate("branch_mgr", "oasis2026", phase1_db)
+        user = authenticate("branch_mgr", TEST_SEED_PASSWORD, phase1_db)
         assert user is not None
         assert user["role"] == "branch_manager"
         assert user["assigned_org"] == "ORG001"
@@ -118,11 +131,11 @@ class TestAuthentication:
         assert user is None
 
     def test_authenticate_nonexistent_user(self, phase1_db):
-        user = authenticate("nobody", "oasis2026", phase1_db)
+        user = authenticate("nobody", TEST_SEED_PASSWORD, phase1_db)
         assert user is None
 
     def test_authenticate_demo_user(self, phase1_db):
-        user = authenticate("demo_user", "demo", phase1_db)
+        user = authenticate("demo_user", TEST_SEED_PASSWORD, phase1_db)
         assert user is not None
         assert user["role"] == "branch_manager"
 
@@ -191,7 +204,8 @@ class TestSystemConfig:
 
     def test_load_full_config(self, phase1_db):
         configs = load_system_config_full(phase1_db)
-        assert len(configs) == 10
+        # 10 seeded by the builder + 2 added by the ensure_oasis_tables migration
+        assert len(configs) == 12
         # Check structure
         first = configs[0]
         assert "CONFIG_KEY" in first

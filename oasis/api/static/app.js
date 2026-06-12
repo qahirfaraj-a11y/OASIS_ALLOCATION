@@ -2,6 +2,29 @@
 
 const API_BASE = ""; // Relative path since served from same origin
 
+// API key — required by the backend on all data endpoints.
+function getApiKey() {
+    let key = localStorage.getItem('oasis_api_key');
+    if (!key) {
+        key = prompt("Enter OASIS API key (value of OASIS_API_KEY on the server):") || "";
+        if (key) localStorage.setItem('oasis_api_key', key);
+    }
+    return key;
+}
+
+function authHeaders() {
+    return { 'X-API-Key': getApiKey() };
+}
+
+function clearApiKeyAndRetry(res) {
+    if (res.status === 401) {
+        localStorage.removeItem('oasis_api_key');
+        alert("Invalid or missing API key. Reload and enter it again.");
+        return true;
+    }
+    return false;
+}
+
 // State
 let files = null;
 let pollInterval = null;
@@ -45,9 +68,11 @@ async function handleUpload(file) {
     try {
         const res = await fetch(`${API_BASE}/upload`, {
             method: 'POST',
+            headers: authHeaders(),
             body: formData
         });
-        
+
+        if (clearApiKeyAndRetry(res)) { switchView('upload'); return; }
         if (!res.ok) throw new Error("Upload failed");
         
         const data = await res.json();
@@ -65,7 +90,8 @@ async function handleUpload(file) {
 function startPolling() {
     pollInterval = setInterval(async () => {
         try {
-            const res = await fetch(`${API_BASE}/status`);
+            const res = await fetch(`${API_BASE}/status`, { headers: authHeaders() });
+            if (clearApiKeyAndRetry(res)) { clearInterval(pollInterval); switchView('upload'); return; }
             const status = await res.json();
             
             // Update UI
@@ -90,7 +116,8 @@ function startPolling() {
 async function loadResults() {
     updateStatus("Loading Results...");
     try {
-        const res = await fetch(`${API_BASE}/results`);
+        const res = await fetch(`${API_BASE}/results`, { headers: authHeaders() });
+        if (clearApiKeyAndRetry(res)) { switchView('upload'); return; }
         const data = await res.json();
         renderResults(data.results);
         switchView('results');
@@ -126,8 +153,24 @@ function renderResults(items) {
     });
 }
 
-function downloadReport() {
-    window.location.href = `${API_BASE}/download`;
+async function downloadReport() {
+    // Header-based auth means we can't use a plain redirect — fetch as blob.
+    try {
+        const res = await fetch(`${API_BASE}/download`, { headers: authHeaders() });
+        if (clearApiKeyAndRetry(res)) return;
+        if (!res.ok) throw new Error("Download failed");
+        const blob = await res.blob();
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = "OASIS_Analysis.xlsx";
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(url);
+    } catch (err) {
+        alert("Error: " + err.message);
+    }
 }
 
 function resetApp() {
