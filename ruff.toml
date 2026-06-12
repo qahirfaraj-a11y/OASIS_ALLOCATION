@@ -1,0 +1,32 @@
+# Ruff linter config for OASIS
+# Docs: https://docs.astral.sh/ruff/configuration/
+
+target-version = "py310"
+line-length = 120
+
+[lint]
+# Start with Pyflakes (F) + pycodestyle errors (E) — the most impactful.
+# Extend over time with I (isort), B (bugbear), S (bandit/security), etc.
+select = ["F", "E"]
+
+# Suppress rules that produce noise in this codebase without real risk:
+# E501: line too long — already at 120, many data lines are wider
+# E701: multiple statements on one line (colon) — used heavily in except: pass patterns
+# E722: bare except — pervasive in data-parsing code, will fix incrementally
+# E741: ambiguous variable name (l, O, I) — common in data/math code
+ignore = ["E501", "E701", "E722", "E741", "F841"]
+
+# Auto-fix safe fixes only (unused imports, f-string placeholders, etc.)
+fixable = ["F401", "F541", "F811", "E401"]
+unfixable = []
+
+[lint.per-file-ignores]
+# Tests often import without using, and use bare asserts
+"tests/*" = ["F401", "E402", "F841"]
+# Entrypoint has sys.path manipulation
+"entrypoint.py" = ["E402"]
+# server.py needs sys.path before imports
+"oasis/api/server.py" = ["E402"]
+# Feature-detection imports (try: import X; available = True)
+"oasis/main.py" = ["F401"]
+"oasis/main_online.py" = ["E402"]

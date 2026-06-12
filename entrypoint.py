@@ -1,0 +1,389 @@
+"""
+O.A.S.I.S. Container Entrypoint
+=================================
+Orchestrates which services run inside the Docker container.
+
+Modes:
+    --mode full      : Engine + all dashboards (single-container deployment)
+    --mode engine    : Scheduler + FileWatcher + Heartbeat only
+    --mode dashboard : Single Streamlit dashboard (--dashboard ops|shadow|approval|stgat)
+    --mode bootstrap : Run Day-0 initialization and exit
+
+Usage:
+    python entrypoint.py --mode full
+    python entrypoint.py --mode dashboard --dashboard ops
+    python entrypoint.py --mode bootstrap
+"""
+
+import argparse
+import logging
+import os
+import signal
+import subprocess
+import sys
+import time
+import threading
+from typing import Optional
+
+LOG_DIR = os.environ.get("OASIS_LOG_DIR", os.path.join(os.path.dirname(__file__), "logs"))
+os.makedirs(LOG_DIR, exist_ok=True)
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(name)s] %(levelname)s: %(message)s",
+    handlers=[
+        logging.StreamHandler(sys.stdout),
+        logging.FileHandler(os.path.join(LOG_DIR, "entrypoint.log"),
+                            encoding="utf-8"),
+    ]
+)
+logger = logging.getLogger("OASIS.Entrypoint")
+
+# ── Dashboard Map ─────────────────────────────────────────────────────
+DASHBOARD_MAP = {
+    "ops":        "ops_dashboard.py",
+    "shadow":     "shadow_dashboard.py",
+    "approval":   "approval_dashboard.py",
+    "stgat":      "st_gat_dashboard.py",
+    "command":    "ops_dashboard.py",
+    "allocation": "allocation_app.py",
+    "integrated": "integrated_app.py",
+    "pitch":      "pitch_app_v2.py",
+}
+
+DEFAULT_PORTS = {
+    "ops": 8501, "command": 8501, "allocation": 8502, "stgat": 8502,
+    "integrated": 8503, "pitch": 8504, "shadow": 8506, "approval": 8507,
+}
+
+# ── Graceful Shutdown ─────────────────────────────────────────────────
+_shutdown = threading.Event()
+
+
+def _handle_signal(signum, frame):
+    logger.info(f"Received signal {signum}. Shutting down gracefully...")
+    _shutdown.set()
+
+
+signal.signal(signal.SIGTERM, _handle_signal)
+signal.signal(signal.SIGINT, _handle_signal)
+
+
+# ── Mode: Engine ──────────────────────────────────────────────────────
+
+def run_engine():
+    """Start the core engine: Scheduler + FileWatcher + Heartbeat."""
+    logger.info("Starting O.A.S.I.S. Engine...")
+
+    from oasis.logic.data_gateway import load_client_config
+    config = load_client_config()
+
+    # 1. Ensure DB is initialized
+    db_path = config.get("paths", {}).get("db_path", "/data/oasis.db")
+    try:
+        from oasis.logic.db_connector import UniversalConnector
+        connector = UniversalConnector(db_path)
+        connector.ensure_oasis_tables()
+        logger.info(f"Database initialized: {db_path}")
+    except Exception as e:
+        logger.error(f"DB initialization failed: {e}")
+
+    # 2. Start Scheduler with cycle preset
+    scheduler = None
+    try:
+        from oasis.logic.scheduler_service import OasisScheduler
+        scheduler = OasisScheduler(db_path)
+
+        cycle = config.get("scheduler", {}).get("cycle", "24_HOUR")
+        scheduler.apply_cycle(cycle)
+        scheduler.start()
+        logger.info(f"Scheduler started with cycle: {cycle}")
+    except Exception as e:
+        logger.error(f"Scheduler start failed: {e}")
+
+    # 3. Start FileWatcher (for file-dump clients)
+    watcher_thread = None
+    pathway = config.get("data_pathway", "file")
+    if pathway in ("file", "hybrid"):
+        try:
+            from oasis.logic.file_watcher import start_watcher
+            data_dir = config.get("paths", {}).get("data_dir", "/app/oasis/data")
+            watcher_thread = threading.Thread(
+                target=start_watcher, args=(data_dir,), daemon=True
+            )
+            watcher_thread.start()
+            logger.info("FileWatcher started.")
+        except Exception as e:
+            logger.error(f"FileWatcher start failed: {e}")
+
+    # 4. Start Heartbeat
+    heartbeat = None
+    try:
+        from oasis.logic.heartbeat import HeartbeatService
+        heartbeat = HeartbeatService(config)
+        heartbeat.start()
+    except Exception as e:
+        logger.error(f"Heartbeat start failed: {e}")
+
+    # 5. Hold the process alive until shutdown signal
+    logger.info("O.A.S.I.S. Engine running. Waiting for shutdown signal...")
+    _shutdown.wait()
+
+    # Cleanup
+    logger.info("Shutting down engine services...")
+    if scheduler:
+        scheduler.stop()
+    if heartbeat:
+        heartbeat.stop()
+    logger.info("Engine shutdown complete.")
+
+
+# ── Mode: Dashboard ───────────────────────────────────────────────────
+
+def run_dashboard(name: str, port: int = 8501):
+    """Launch a single Streamlit dashboard."""
+    script = DASHBOARD_MAP.get(name)
+    if not script:
+        logger.error(f"Unknown dashboard: {name}. Valid: {list(DASHBOARD_MAP.keys())}")
+        sys.exit(1)
+
+    if not os.path.exists(script):
+        logger.error(f"Dashboard script not found: {script}")
+        sys.exit(1)
+
+    logger.info(f"Starting dashboard: {name} on port {port}")
+
+    cmd = [
+        sys.executable, "-m", "streamlit", "run", script,
+        "--server.port", str(port),
+        "--server.address", "0.0.0.0",
+        "--server.headless", "true",
+        "--browser.gatherUsageStats", "false",
+    ]
+
+    proc = subprocess.Popen(cmd)
+    _shutdown.wait()
+    proc.terminate()
+    proc.wait(timeout=10)
+    logger.info(f"Dashboard {name} stopped.")
+
+
+# ── Mode: Full ────────────────────────────────────────────────────────
+
+def run_full():
+    """Start engine + all dashboards in one container."""
+    logger.info("Starting O.A.S.I.S. Full Stack...")
+
+    # Start engine in background thread
+    engine_thread = threading.Thread(target=run_engine, daemon=True)
+    engine_thread.start()
+
+    # Give engine 5 seconds to initialize DB
+    time.sleep(5)
+
+    # Start dashboards as subprocesses
+    from oasis.logic.data_gateway import load_client_config
+    config = load_client_config()
+    ui_cfg = config.get("ui", {})
+
+    dashboard_procs = []
+    for name, script in DASHBOARD_MAP.items():
+        if not os.path.exists(script):
+            continue
+        port_key = f"{name}_dashboard_port" if name != "command" else "command_center_port"
+        port = ui_cfg.get(port_key, 8501 + len(dashboard_procs))
+
+        cmd = [
+            sys.executable, "-m", "streamlit", "run", script,
+            "--server.port", str(port),
+            "--server.address", "0.0.0.0",
+            "--server.headless", "true",
+            "--browser.gatherUsageStats", "false",
+        ]
+        proc = subprocess.Popen(cmd)
+        dashboard_procs.append((name, proc))
+        logger.info(f"Dashboard {name} started on port {port}")
+
+    # Hold until shutdown
+    _shutdown.wait()
+
+    # Cleanup dashboards
+    for name, proc in dashboard_procs:
+        proc.terminate()
+        try:
+            proc.wait(timeout=10)
+        except subprocess.TimeoutExpired:
+            proc.kill()
+        logger.info(f"Dashboard {name} stopped.")
+
+
+# ── Mode: Showcase ────────────────────────────────────────────────────
+
+def run_showcase(port: int = 8505):
+    """Reset the narrative DB then launch the command center in showcase mode."""
+    logger.info("Starting O.A.S.I.S. Showcase Mode...")
+    os.environ["OASIS_SHOWCASE_MODE"] = "true"
+    showcase_db = os.path.join("oasis", "data", "mock_pos_erp_showcase.db")
+    os.environ.setdefault("OASIS_DB_PATH", showcase_db)
+
+    # Regenerate demo data
+    gen_script = os.path.join(os.path.dirname(__file__), "generate_showcase_scenario.py")
+    if os.path.exists(gen_script):
+        logger.info("Resetting showcase narrative...")
+        subprocess.run([sys.executable, gen_script], check=False)
+
+    run_dashboard("command", port)
+
+
+# ── Mode: Shadow (with background daemon) ────────────────────────────
+
+def run_shadow_full(port: int = 8506, pathway: str = "file"):
+    """Launch the shadow daemon in background + dashboard in foreground."""
+    logger.info("Starting O.A.S.I.S. Shadow Auditor...")
+
+    # Ensure directories
+    for d in ("monitoring/inbound", "monitoring/reports", "monitoring/archive", "shadow_logs"):
+        os.makedirs(d, exist_ok=True)
+
+    # Background daemon
+    daemon_log = os.path.join("shadow_logs", "shadow_daemon_console.log")
+    daemon_cmd = [sys.executable, "shadow_monitor.py", "--mode", pathway, "--root", "."]
+    with open(daemon_log, "a") as f:
+        daemon = subprocess.Popen(daemon_cmd, stdout=f, stderr=subprocess.STDOUT)
+    logger.info(f"Shadow daemon PID {daemon.pid}")
+
+    try:
+        run_dashboard("shadow", port)
+    finally:
+        daemon.terminate()
+        daemon.wait(timeout=10)
+        logger.info("Shadow daemon stopped.")
+
+
+# ── Mode: Simulation ─────────────────────────────────────────────────
+
+def run_simulation(scenario: str = "Baseline", days: int = 30,
+                   budget: int = 300000, month: str = "NOV"):
+    """Run a simulation scenario via the CLI runner."""
+    logger.info(f"Starting simulation: {scenario} ({days}d, {budget} KES, {month})")
+    script = os.path.join(os.path.dirname(__file__), "run_simulation_scenario.py")
+    if not os.path.exists(script):
+        logger.error(f"Simulation runner not found: {script}")
+        sys.exit(1)
+
+    cmd = [sys.executable, script,
+           "--scenario", scenario, "--days", str(days),
+           "--budget", str(budget), "--month", month]
+    result = subprocess.run(cmd)
+    sys.exit(result.returncode)
+
+
+# ── Mode: Desktop (Flet native) ──────────────────────────────────────
+
+def run_desktop():
+    """Launch the Flet native desktop app."""
+    logger.info("Starting O.A.S.I.S. Desktop App...")
+    cmd = [sys.executable, "-m", "oasis.main"]
+    result = subprocess.run(cmd)
+    sys.exit(result.returncode)
+
+
+# ── Mode: Bootstrap ───────────────────────────────────────────────────
+
+def run_bootstrap():
+    """Execute Day-0 initialization and exit."""
+    logger.info("Running Day-0 Bootstrap...")
+    from oasis.logic.data_gateway import DataGateway
+    gw = DataGateway()
+    report = gw.bootstrap_retail_universe()
+
+    # Print summary
+    steps = report.get("steps", {})
+    ok_count = sum(1 for v in steps.values() if isinstance(v, dict) and v.get("status") == "OK")
+    fail_count = sum(1 for v in steps.values() if isinstance(v, dict) and v.get("status") == "FAILED")
+
+    logger.info(f"Bootstrap complete: {ok_count} OK, {fail_count} FAILED")
+    logger.info(f"Total products ingested: {steps.get('total_products', 0)}")
+
+    if fail_count > 0:
+        logger.warning("Some steps failed. Check bootstrap_report.json for details.")
+        sys.exit(1)
+    sys.exit(0)
+
+
+# ── Main ──────────────────────────────────────────────────────────────
+
+def _find_open_port(start: int) -> int:
+    """Find the first open TCP port starting from `start`."""
+    import socket
+    port = start
+    while port < start + 100:
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+            if s.connect_ex(("127.0.0.1", port)) != 0:
+                return port
+        port += 1
+    return start
+
+
+def main():
+    parser = argparse.ArgumentParser(description="O.A.S.I.S. Unified Entrypoint")
+    parser.add_argument("--mode",
+                        choices=["full", "engine", "dashboard", "showcase",
+                                 "shadow", "simulation", "desktop", "bootstrap"],
+                        default="full", help="Run mode")
+    parser.add_argument("--dashboard", choices=list(DASHBOARD_MAP.keys()),
+                        default="ops", help="Dashboard to launch (dashboard mode)")
+    parser.add_argument("--port", type=int, default=0,
+                        help="Port (0 = auto-detect from default + port-hunt)")
+    # Simulation options
+    parser.add_argument("--scenario", default="Baseline")
+    parser.add_argument("--days", type=int, default=30)
+    parser.add_argument("--budget", type=int, default=300000)
+    parser.add_argument("--month", default="NOV")
+    # Shadow option
+    parser.add_argument("--pathway", choices=["file", "sql"], default="file",
+                        help="Data pathway for shadow mode")
+    # Pre-flight diagnostics toggle
+    parser.add_argument("--skip-diag", action="store_true",
+                        help="Skip production_diagnostic.py preflight")
+    args = parser.parse_args()
+
+    logger.info(f"O.A.S.I.S. v2.2.0 — Mode: {args.mode}")
+
+    # Resolve port
+    if args.port == 0:
+        default = DEFAULT_PORTS.get(args.dashboard, 8501)
+        port = _find_open_port(default)
+    else:
+        port = args.port
+
+    # Optional pre-flight diagnostics
+    if args.mode in ("dashboard", "showcase", "shadow") and not args.skip_diag:
+        diag = os.path.join(os.path.dirname(__file__), "production_diagnostic.py")
+        if os.path.exists(diag):
+            logger.info("Running pre-flight diagnostics...")
+            result = subprocess.run([sys.executable, diag])
+            if result.returncode != 0:
+                logger.error("Diagnostics failed — start aborted. Use --skip-diag to override.")
+                sys.exit(1)
+
+    if args.mode == "full":
+        run_full()
+    elif args.mode == "engine":
+        run_engine()
+    elif args.mode == "dashboard":
+        run_dashboard(args.dashboard, port)
+    elif args.mode == "showcase":
+        run_showcase(port)
+    elif args.mode == "shadow":
+        run_shadow_full(port, args.pathway)
+    elif args.mode == "simulation":
+        run_simulation(args.scenario, args.days, args.budget, args.month)
+    elif args.mode == "desktop":
+        run_desktop()
+    elif args.mode == "bootstrap":
+        run_bootstrap()
+
+
+if __name__ == "__main__":
+    main()
