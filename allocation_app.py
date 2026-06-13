@@ -64,6 +64,18 @@ try:
 except Exception:
     pass  # Already called by importing app (e.g. integrated_app.py)
 
+# ── Unified auth gate (U2) ──────────────────────────────────────────────
+# Gate only when run as a standalone app. When imported by a host app
+# (e.g. integrated_app.py), the host owns the auth gate — re-gating here
+# would render a login mid-page.
+if __name__ == "__main__":
+    from oasis.ui.auth import require_login
+    _AUTH_DB = os.getenv(
+        "OASIS_DB_PATH",
+        os.path.join(str(DATA_DIR), "oasis", "data", "mock_pos_erp.db"),
+    )
+    require_login(st, _AUTH_DB, app_title="Allocation Engine")
+
 st.title("🛒 Dynamic Inventory Allocation Engine (v2.0 Logic)")
 st.markdown("Powered by **OrderEngine 2.0**: Two-Pass Allocation with Efficiency Guards.")
 
