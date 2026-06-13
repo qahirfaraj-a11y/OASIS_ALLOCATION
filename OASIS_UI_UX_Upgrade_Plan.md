@@ -97,9 +97,12 @@ run_market_intelligence_tool  run_showcase  run_simulation_menu
   page reloads.
 
 ### G5 — Visual design & accessibility  *(severity: medium)*
-- Low-contrast secondary text (`#888` on `#0b0e14`) fails WCAG body-text contrast.
-- Status encoded by **color/emoji only** (🔴/🟠/🟢) — inaccessible to
-  color-blind and screen-reader users.
+- **Status encoded by colour/emoji only** (🔴/🟠/🟢) — inaccessible to
+  color-blind and screen-reader users. (The fix: icon + label + colour, now
+  the standard in `oasis/ui`.)
+- Per-app **divergent inline CSS** and neon-on-dark glare; no shared tokens.
+  (Secondary-text contrast on the dark bg is actually acceptable; the real
+  issues are inconsistency and colour-only meaning.)
 - Custom HTML cards bypass Streamlit's built-in a11y.
 
 ### G6 — Mobile & field use  *(severity: medium)*

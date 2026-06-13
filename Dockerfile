@@ -74,8 +74,9 @@ COPY allocation_app.py /app/dashboards/
 # Copy Flet app
 COPY integrated_app.py /app/flet_app/
 
-# Copy helper modules that dashboards import
-COPY ui_components.py /app/dashboards/
+# Copy helper modules that dashboards import.
+# (Shared UI components now live in oasis/ui/, already copied via `COPY oasis/`.
+#  The old root-level ui_components.py no longer exists — removed to unbreak the build.)
 COPY shadow_monitor.py /app/dashboards/
 
 # Copy entrypoint
