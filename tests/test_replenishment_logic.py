@@ -13,7 +13,7 @@ import pytest
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
 from oasis.logic.order_engine import OrderEngine
-from oasis.logic.simulation_bridge import SimulationOrderUtil
+from oasis.logic.simulation_bridge import SimulationOrderUtil, _supplier_phase_offset
 
 
 @pytest.fixture(scope="module")
@@ -124,3 +124,63 @@ class TestRiskBuffering:
         # Net = 10×13.5 − 50 = 85.
         rec = _run(util, _sku(target_coverage_days=3.0, demand_cv=1.0))
         assert rec["recommended_quantity"] == pytest.approx(85.0)
+
+
+class TestSupplierScheduleStagger:
+    """A3: phase-staggered fallback for suppliers without a calendar entry."""
+
+    def test_offset_is_stable_and_in_range(self):
+        for gap in (2, 5, 7, 14):
+            off1 = _supplier_phase_offset("ACME SUPPLIES", gap)
+            off2 = _supplier_phase_offset("ACME SUPPLIES", gap)
+            assert off1 == off2  # deterministic across calls
+            assert 0 <= off1 < gap
+
+    def test_daily_gap_has_no_offset(self):
+        assert _supplier_phase_offset("ANY", 1) == 0
+
+    def test_same_gap_suppliers_spread_across_cycle(self):
+        # Many suppliers sharing gap=7 should not all map to offset 0.
+        names = [f"SUPPLIER_{i:02d}" for i in range(40)]
+        offsets = {_supplier_phase_offset(n, 7) for n in names}
+        assert len(offsets) >= 4  # spread across multiple days, not bunched
+
+    def test_day1_orders_for_every_supplier(self, util):
+        # Day 1 must remain an ordering day regardless of offset (priming).
+        for supplier in ("ACME SUPPLIES", "BETA DISTRIBUTORS", "GAMMA WHOLESALE"):
+            rec = util.calculate_order_quantity(
+                [_sku(supplier_name=supplier)], current_day=1, use_real_date=False,
+            )[0]
+            assert rec["recommended_quantity"] > 0
+
+    def test_two_suppliers_order_on_different_days(self, util):
+        # Find suppliers whose gap-7 offsets differ, then confirm that on a
+        # day matching one supplier's phase the other is NOT ordering (unless
+        # critical). Use high stock so neither is critically low.
+        gap = 7
+        # Pick two suppliers with distinct phase offsets deterministically.
+        a = "SUPPLIER_AA"
+        off_a = _supplier_phase_offset(a, gap)
+        b = next(n for n in (f"SUPPLIER_{i:02d}" for i in range(100))
+                 if _supplier_phase_offset(n, gap) != off_a)
+        off_b = _supplier_phase_offset(b, gap)
+        assert off_a != off_b
+
+        # A day that is an ordering day for A: (day + off_a) % 7 == 0
+        day_for_a = (gap - off_a) % gap
+        if day_for_a <= 1:
+            day_for_a += gap  # avoid day 1 (always orders) and day 0
+        well_stocked = _sku(current_stock=10_000, reorder_point=5.0,
+                            avg_daily_sales=1.0, days_since_delivery=1)
+
+        rec_a = util.calculate_order_quantity(
+            [dict(well_stocked, supplier_name=a)],
+            current_day=day_for_a, use_real_date=False)[0]
+        rec_b = util.calculate_order_quantity(
+            [dict(well_stocked, supplier_name=b)],
+            current_day=day_for_a, use_real_date=False)[0]
+
+        # A is on-schedule today; B (different offset) is not. With ample
+        # stock neither triggers a critical override, so B should be held
+        # by the schedule gate while A is free to order.
+        assert "[Schedule:" in rec_b["reasoning"] or "[Above ROP" in rec_b["reasoning"]

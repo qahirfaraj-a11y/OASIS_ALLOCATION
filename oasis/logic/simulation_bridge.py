@@ -1,5 +1,6 @@
 import sys
 import os
+import hashlib
 from datetime import datetime
 from typing import List, Dict, Any
 
@@ -8,6 +9,22 @@ sys.path.append(os.getcwd())
 
 from oasis.logic.order_engine import OrderEngine, apply_safety_guards
 from oasis.data.supplier_calendar import SupplierCalendar
+
+
+def _supplier_phase_offset(supplier: str, gap_days: int) -> int:
+    """Deterministic per-supplier phase offset in [0, gap_days).
+
+    A3 fix: the old fallback `current_day % gap_days == 0` landed every
+    supplier sharing a gap on the same days, producing synchronized order
+    spikes (and a year-end discontinuity). Hashing the supplier name spreads
+    suppliers evenly across the cycle while keeping each supplier's days
+    stable run-to-run. md5 (not Python's salted hash()) guarantees the
+    offset is identical across processes.
+    """
+    if gap_days <= 1:
+        return 0
+    digest = hashlib.md5(str(supplier).encode("utf-8")).hexdigest()
+    return int(digest, 16) % gap_days
 
 
 def _find_calendar_path(data_dir: str) -> str:
@@ -29,11 +46,14 @@ class SimulationOrderUtil:
     Replaces LLM calls with deterministic Python logic derived from the AI prompts.
     """
     
-    def __init__(self, data_dir: str, thresholds: Dict[str, Any] = None):
+    def __init__(self, data_dir: str, thresholds: Dict[str, Any] = None, engine: OrderEngine = None):
         self.data_dir = data_dir
-        self.engine = OrderEngine(data_dir)
-        # Synchronous load for simulation speed
-        self.engine.load_local_databases()
+        if engine is not None:
+            self.engine = engine
+        else:
+            self.engine = OrderEngine(data_dir)
+            # Synchronous load for simulation speed
+            self.engine.load_local_databases()
         
         # Calendar Integration (G2 Fix: relative path discovery)
         cal_path = _find_calendar_path(data_dir)
@@ -99,6 +119,15 @@ class SimulationOrderUtil:
         if use_real_date:
             current_day = datetime.today().timetuple().tm_yday  # Day-of-year (1-366)
         
+        # Load Chapter 11 Engine Caches for daily replenishment enforcement
+        amit_enabled = self.engine.is_engine_enabled('amit')
+        amit_blacklist = self.engine.databases.get('amit_enforcement', set()) if amit_enabled else set()
+        
+        mande_enabled = self.engine.is_engine_enabled('mande')
+        mande_purge = self.engine.databases.get('mande_purge_list', set()) if mande_enabled else set()
+        
+        halo_list = self.engine.databases.get('halo_protection_list', set())
+        
         recommendations = []
         
         for p in enriched_skus:
@@ -107,6 +136,38 @@ class SimulationOrderUtil:
             rec['recommended_quantity'] = 0
             rec['reasoning'] = ""
             
+            # --- CHAPTER 11 ENFORCEMENT ---
+            p_name = p.get('product_name', 'Unknown')
+            p_name_norm = self.engine.normalize_product_name(p_name)
+            
+            # HALO Affinity Protection Check
+            is_halo_protected = False
+            if p_name_norm in halo_list:
+                is_halo_protected = True
+                p['is_key_sku'] = True
+                p['is_top_sku'] = True
+                rec['is_key_sku'] = True
+                rec['is_top_sku'] = True
+                rec['reasoning'] += " [HALO Protected]"
+
+            # AMIT Blacklist Check (Low GMROI delisting)
+            if amit_enabled and p_name_norm in amit_blacklist:
+                rec['recommended_quantity'] = 0
+                rec['reasoning'] = "Blocked: AMIT Blacklist (Low GMROI / Stranded Capital)"
+                recommendations.append(rec)
+                continue
+                
+            # MANDE Supplier Purge Check (Delisted Supplier Capital Trap)
+            supplier_upper = str(p.get('supplier_name', '')).upper().strip()
+            is_staple = p.get('is_staple', False) or p.get('is_top_sku', False) or (p.get('sales_rank', 999) < 500)
+            is_essential = p.get('is_fresh', False) or any(x in p_name_norm for x in ['SUGAR', 'SALT', 'FLOUR', 'RICE', 'COOKING OIL', 'FRESH MILK', 'BREAD', 'EGGS'])
+            
+            if mande_enabled and supplier_upper in mande_purge and not (is_staple or is_essential):
+                rec['recommended_quantity'] = 0
+                rec['reasoning'] = "Blocked: MANDE Supplier Purge (Delisted Capital Trap)"
+                recommendations.append(rec)
+                continue
+
             # 1. DETERMINE IF WE CAN ORDER TODAY
             supplier = p.get('supplier_name', 'Unknown')
             gap_days = int(p.get('median_gap_days', 7))
@@ -125,11 +186,15 @@ class SimulationOrderUtil:
             elif isinstance(schedule, set):
                 is_ordering_day = current_day in schedule
             else:
-                # Fallback to heuristic
-                is_ordering_day = (current_day % gap_days == 0) or (current_day == 1)
+                # A3: phase-staggered fallback. Each supplier gets a stable
+                # offset so same-gap suppliers spread across the cycle instead
+                # of all firing on the same day. Day 1 stays an ordering day
+                # for every supplier (greenfield / first-run priming).
+                offset = _supplier_phase_offset(supplier, gap_days)
+                is_ordering_day = ((current_day + offset) % gap_days == 0) or (current_day == 1)
             
             # Check Critical Status (for Override)
-            current_stock = p.get('current_stock', 0)
+            current_stock = p.get('current_stock', p.get('current_stocks', 0))
             avg_daily_sales = p.get('avg_daily_sales', 0)
             days_coverage = current_stock / avg_daily_sales if avg_daily_sales > 0 else 999
             
@@ -182,7 +247,7 @@ class SimulationOrderUtil:
             
             # Fresh Stale Logic
             if is_fresh and days_since_delivery > fresh_stale_days:
-                if sales_90d == 0:
+                if sales_90d == 0 and not is_halo_protected:
                     rec['reasoning'] = f"Blocked: Stale Fresh (>{fresh_stale_days}d, No Sales)"
                     recommendations.append(rec)
                     continue 
@@ -190,7 +255,7 @@ class SimulationOrderUtil:
             
             # Dry Dead Stock Logic
             if not is_fresh and days_since_delivery > dry_dead_days:
-                if sales_90d < dry_dead_min_sales:
+                if sales_90d < dry_dead_min_sales and not is_halo_protected:
                     if sales_90d == 0:
                         rec['reasoning'] = f"Blocked: Dead Stock (>{dry_dead_days}d, No Sales)"
                         recommendations.append(rec)
@@ -211,7 +276,7 @@ class SimulationOrderUtil:
                 reorder_point = fallback_rop
                 rec['reasoning'] += " [ROP Fallback: intelligence data missing]"
             
-            current_stock = p.get('current_stock', 0)
+            current_stock = p.get('current_stock', p.get('current_stocks', 0))
             on_order = p.get('on_order_qty', 0)
             
             # Check reorder trigger
@@ -219,13 +284,21 @@ class SimulationOrderUtil:
                 # Calculate Target Stock
                 target_coverage_days = p.get('target_coverage_days', 7)
                 
-                # --- CYCLE STOCK CORRECTION ---
-                gap_days = int(p.get('median_gap_days', 7))
-                if gap_days < 1: gap_days = 1
-                lead_time = int(p.get('lead_time_days', 1) or 1)
-                
-                min_cycle_coverage = gap_days + lead_time + safety_buffer
-                target_coverage_days = max(target_coverage_days, min_cycle_coverage)
+                # --- CYCLE STOCK CORRECTION & DOUBLE-STACKING FIX ---
+                # For fresh items, we trust the highly optimized DDoS precision target computed during enrichment.
+                # Daily fresh items (weekly schedule/rhythm <= 1.5d) should be strictly limited to 1.2 days coverage.
+                if is_fresh:
+                    if target_coverage_days <= 0:
+                        target_coverage_days = 1.2
+                    rec['reasoning'] += f" [Fresh DDoS Target: {target_coverage_days:.2f}d]"
+                else:
+                    gap_days = int(p.get('median_gap_days', 7))
+                    if gap_days < 1: gap_days = 1
+                    lead_time = int(p.get('lead_time_days', 1) or 1)
+                    
+                    min_cycle_coverage = gap_days + lead_time + safety_buffer
+                    target_coverage_days = max(target_coverage_days, min_cycle_coverage)
+                    rec['reasoning'] += f" [DDoS Target: {target_coverage_days:.2f}d]"
 
                 target_stock = avg_daily_sales * target_coverage_days
                 
@@ -260,42 +333,91 @@ class SimulationOrderUtil:
 
     def apply_minimum_order_gate(self, finalized_recs: List[Dict[str, Any]]) -> Dict[str, List[Dict[str, Any]]]:
         """
-        Phase C: Minimum Order Threshold (MOT) gate.
+        Two-stage Minimum Order Gate.
         
-        Groups finalized PO lines by supplier and checks whether the
-        supplier's total picking list meets the minimum threshold.
-        Items below MOT are tagged TRANSFER_FIRST so the dashboard
-        can route them to inter-store transfers instead of micro-orders.
-        
+        Stage 1: SKU-level MOQ/MOP screening.
+                 Filters out individual items that do not meet the minimum SKU-level
+                 order quantity or price. Routes them to transfers (TRANSFER_FIRST).
+                 
+        Stage 2: Supplier-level MOT screening.
+                 Groups remaining items by supplier and verifies if the entire PO meets
+                 the supplier-level unit or value threshold. Below-threshold suppliers
+                 are routed to transfers (TRANSFER_FIRST).
+                 
         Returns:
             {
-                'po_recs': [items above MOT — keep as supplier PO],
-                'transfer_recs': [items below MOT — route to transfers],
-                'supplier_summary': {supplier: {units, value, status}}
+                'po_recs': [items passing both stages — keep on PO],
+                'transfer_recs': [items routed to transfers — Stage 1 or 2],
+                'no_order': [items with quantity <= 0],
+                'supplier_summary': {supplier: {units, value, status, item_count}}
             }
         """
         min_units = self.thresholds.get('min_order_units', 10)
         min_value = self.thresholds.get('min_order_value_kes', 5000)
         
-        # Group by supplier
-        supplier_groups: Dict[str, List[Dict[str, Any]]] = {}
+        po_candidate_recs = []
+        transfer_recs = []
+        
+        # --- STAGE 1: SKU-level MOQ/MOP gate ---
         for rec in finalized_recs:
             qty = rec.get('recommended_quantity', 0)
             if qty <= 0:
-                continue  # Skip non-order items
+                continue
+                
+            is_fresh = rec.get('is_fresh', False)
+            pack_size = max(1, int(rec.get('pack_size', 1)))
+            cost_price = float(rec.get('cost_price', rec.get('sell_price', rec.get('selling_price', 0))))
+            
+            # Determine Item MOQ (Minimum Order Quantity)
+            # Default fallback MOQ: pack_size for fresh, max(pack_size, 5) for dry
+            db_moq = rec.get('moq_floor', 0)
+            if db_moq > 0:
+                item_moq = max(pack_size, db_moq)
+            else:
+                item_moq = pack_size if is_fresh else max(pack_size, 2)
+                
+            # Determine Item MOP (Minimum Order Price / Order Value)
+            # Default fallback MOP: KES 200 for fresh, KES 100 for dry
+            item_mop = 200.0 if is_fresh else 100.0
+            
+            # Evaluate individual item eligibility
+            order_val = qty * cost_price
+            meets_moq = qty >= item_moq
+            meets_mop = order_val >= item_mop
+            
+            if not meets_moq or not meets_mop:
+                # Routed to transfers at Stage 1 (SKU Gate)
+                rec['fulfillment'] = 'TRANSFER_FIRST'
+                fail_reason = []
+                if not meets_moq:
+                    fail_reason.append(f"{qty:.0f} units < MOQ {item_moq}")
+                if not meets_mop:
+                    fail_reason.append(f"value KES {order_val:,.0f} < MOP KES {item_mop:.0f}")
+                
+                rec['reasoning'] = (
+                    rec.get('reasoning', '') +
+                    f" [Item MOQ/MOP Gate: {', '.join(fail_reason)} — routed to transfer]"
+                )
+                transfer_recs.append(rec)
+            else:
+                # Eligible for PO grouping
+                po_candidate_recs.append(rec)
+                
+        # --- STAGE 2: Supplier-level MOT gate ---
+        supplier_groups: Dict[str, List[Dict[str, Any]]] = {}
+        for rec in po_candidate_recs:
             supplier = rec.get('supplier_name', rec.get('supplier', 'UNKNOWN'))
             if supplier not in supplier_groups:
                 supplier_groups[supplier] = []
             supplier_groups[supplier].append(rec)
-        
+            
         po_recs = []
-        transfer_recs = []
         supplier_summary = {}
         
         for supplier, recs in supplier_groups.items():
             total_units = sum(r.get('recommended_quantity', 0) for r in recs)
             total_value = sum(
-                r.get('recommended_quantity', 0) * r.get('selling_price', r.get('sell_price', r.get('cost_price', 0)))
+                r.get('recommended_quantity', 0) * r.get('cost_price', r.get('sell_price', r.get('selling_price', 0)))
                 for r in recs
             )
             
@@ -303,7 +425,7 @@ class SimulationOrderUtil:
             meets_value = total_value >= min_value
             
             if meets_units or meets_value:
-                # Above MOT — keep as supplier PO
+                # Meets supplier MOT — remains on PO
                 for r in recs:
                     r['fulfillment'] = 'SUPPLIER_PO'
                 po_recs.extend(recs)
@@ -312,7 +434,7 @@ class SimulationOrderUtil:
                     'status': 'PO', 'item_count': len(recs)
                 }
             else:
-                # Below MOT — route to transfer
+                # Fails supplier MOT — routed to transfer at Stage 2
                 for r in recs:
                     r['fulfillment'] = 'TRANSFER_FIRST'
                     r['reasoning'] = (
@@ -326,7 +448,7 @@ class SimulationOrderUtil:
                     'units': total_units, 'value': total_value,
                     'status': 'TRANSFER', 'item_count': len(recs)
                 }
-        
+                
         # Items with 0 quantity (no order needed) pass through unchanged
         no_order = [r for r in finalized_recs if r.get('recommended_quantity', 0) <= 0]
         
