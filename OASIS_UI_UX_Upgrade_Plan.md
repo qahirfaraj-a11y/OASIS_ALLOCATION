@@ -153,12 +153,39 @@ later if a hosted or field-mobile need appears (Phase U6, deferred).
 
 Each phase is independently shippable. Effort is rough dev-days for one engineer.
 
+> **Journey alignment (see `OASIS_Customer_Journey.md`, decisions confirmed
+> 2026-06-13):** the IA and roles below are driven by the customer journey.
+> Role model: `ilink_operator`, `executive`, `finance`, `approval_manager`,
+> `branch_manager`. The pitch/diagnosis is an **operator-only `DIAGNOSE` mode**
+> of this same shell (prospect receives outputs, never logs in). Mode/Phase
+> advancement is **human-confirmed** (metrics prompt, human approves). Mobile is
+> **deferred** (U6). Theme tokens come from the **SYS v2.9 Visual System Guide**
+> (teal-turquoise / deep slate / platform white; Montserrat + Space Mono).
+
+### U0 — Journey Spine  *(≈2–3 d · low risk — do with U1)*
+The smallest slice that makes the trust ladder visible; everything else hangs off it.
+- A persistent **Mode + Phase + value-recovered badge** in the shell header
+  (`SHADOW/ACTIVE/AUTONOMOUS · Phase N · KES X recovered`).
+- A **Home / Journey** screen: current stage, the next decision gate, cumulative
+  value, and (for operator/exec) the human-confirmed "advance" action.
+- Journey component primitives that live in the U1 library:
+  `mode_phase_badge()`, `value_recovered_meter()`, `decision_gate_card()`,
+  `journey_rail()` (the 7-stage ladder).
+**Why first:** it is the product's emotional spine and the orienting chrome for
+every persona; cheap, high-impact, and depended-on by the shell (U3).
+**Test:** badge renders current mode/phase from state; gate card requires explicit
+confirm and writes an audit event.
+
 ### U1 — Shared component + theme library  *(≈3–5 d · low risk)*
 **Build** `oasis/ui/`:
-- `theme.py` — one token set (color/spacing/type); WCAG-AA contrast; status =
-  **icon + label + color** (not color alone); single injected stylesheet.
+- `theme.py` — **SYS v2.9 tokens** (teal-turquoise accent, deep-slate bg,
+  platform-white surfaces; Montserrat display/UI, Space Mono for data/money);
+  WCAG-AA contrast; status = **icon + label + color** (not color alone); single
+  injected stylesheet (replaces the per-app glassmorphism blocks).
 - `components.py` — `metric_card`, `alert_card`, `transfer_card`, `kpi_row`,
-  `data_table`, `confirm_button`, `error_panel`, `empty_state`.
+  `data_table`, `confirm_button`, `error_panel`, `empty_state`, plus the U0
+  journey primitives and `supplier_status_chip()` (Green/Yellow/Red as
+  icon+label+colour).
 - Fix the broken `Dockerfile` reference (point at `oasis/ui/` or restore the
   copied path).
 **Why first:** unblocks every later phase; converts "restyle = N edits" into

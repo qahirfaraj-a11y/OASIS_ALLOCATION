@@ -276,16 +276,43 @@ and everything else hangs off it.
 
 ---
 
-## 8. Open questions (to confirm before building the shell)
+## 8. Resolved decisions (confirmed 2026-06-13)
 
-1. **Is the prospect-facing pitch/diagnosis the same product as the client platform,
-   or a separate sales tool?** The journey argues they should be one continuum
-   (diagnosis becomes the client's first screen); today they're separate apps.
-2. **Who operates each phase — iLink staff or the client?** Determines how much of
-   ONBOARD/DIAGNOSE/SETTINGS is client-facing vs internal-operator-only.
-3. **Does Finance get its own login/role** (Capital + Analytics only), or is that
-   folded into Executive?
-4. **Mode/Phase advancement** — manual (operator flips it at each gate) or
-   gate-metric-driven (system proposes advancement when targets are met)?
-5. **Branch-manager mobile** — is the field/mobile need real at Phase 6 (transfers,
-   stockout response), which would activate the dormant mobile API seam?
+These were open questions; now settled and binding on the build.
+
+1. **Pitch/diagnosis = internal iLink-operator tool, one codebase.** The
+   prospect-facing pitch is **operated by the internal iLink team only**; the
+   prospect is *handed the outputs* (Executive Diagnostic `.docx`, Forensic Audit
+   `.xlsx`, the live 45-min presentation) and **never logs into the pitch UI**.
+   It is the same codebase as the client platform, exposed as an **operator-only
+   `DIAGNOSE` mode** (runs on an iLink machine against prospect data, pre-contract).
+   Post-contract, the diagnosis is preserved as a **read-only Stage 1 "here's what
+   we found"** view inside the client shell, carrying the bleed→recovery value
+   thread forward. → `pitch_app_v2.py` collapses into the shell's operator-gated
+   DIAGNOSE page, not a standalone client app.
+
+2. **Operation is a handoff across two operator tiers.** An `ilink_operator`
+   superuser role (ingestion, engine thresholds, mode/phase advancement, all
+   stores) dominates Phases 0–3 and is **retained permanently** for support /
+   monitoring. Client roles grow into ownership across Phases 4–7.
+   **ONBOARD / DIAGNOSE / SETTINGS are operator-gated — engine config is not
+   client-facing.**
+
+3. **Finance gets its own role.** Scoped to **CAPITAL + ANALYTICS (read-mostly)**:
+   capital-recovery tracker, AMIT Negative-List value, write-off/liquidation
+   reporting, read-only analytics. No ordering, transfers, or settings. (Phase 3
+   names the client finance team explicitly.)
+
+4. **Mode/Phase advancement is hybrid, human-confirmed.** The system computes
+   gate-readiness from metrics and surfaces a `decision_gate_card()` prompt
+   ("targets met — advance to X?"), but advancement is **always an explicit
+   operator/exec approval, logged to audit. Never auto-advance** — this preserves
+   the trust-by-consent model the Playbook's decision gates encode.
+
+5. **Branch-manager mobile is deferred (UI plan U6).** No imminent multi-branch
+   field-staff client. The mobile API (`oasis/api/server.py`, 8550) stays a
+   dormant seam; the web shell is made tablet-responsive as cheap insurance.
+   Revisit only when a Phase-6 client with real floor-staff demand appears.
+
+**Resulting role model:** `ilink_operator`, `executive`, `finance`,
+`approval_manager` (buyer), `branch_manager`.
