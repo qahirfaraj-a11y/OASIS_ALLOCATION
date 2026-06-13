@@ -1281,6 +1281,55 @@ class ProcurementMixin:
                     elif "MOP-UP" in reasoning or "RE-ENTRY" in reasoning: mop_final = round(mop_final + item_total, 2)
                     else: pass2_final = round(pass2_final + item_total, 2)
 
+        # A1: AUTHORITATIVE SKIP ACCOUNTING
+        # The live counter in _gf_pass1_width only sees Pass-1 rejections.
+        # Items zeroed later — liquidity prune, premium-cap, anchor-MOV, or
+        # post-hoc by apply_safety_guards — were never counted. Recompute the
+        # true skip count from the final list and attribute each to the stage
+        # that zeroed it (read from the reasoning tags those stages already set).
+        pass1_skipped = int(summary.get('total_skipped', 0))
+        final_skipped = 0
+        skipped_by_stage: Dict[str, int] = {}
+        skip_reasons_final: Dict[str, int] = {}
+        for r in recommendations:
+            if float(r.get('recommended_quantity', 0)) > 0:
+                continue
+            final_skipped += 1
+            reasoning = str(r.get('reasoning', ''))
+
+            if "[PRUNED: LIQUIDITY RECOVERY]" in reasoning:
+                stage = "liquidity_prune"
+            elif "PREMIUM CAP ZEROED" in reasoning:
+                stage = "premium_trim"
+            elif "ANCHOR PRUNE" in reasoning:
+                stage = "anchor_mov"
+            elif "PASS 1" in reasoning or "SCALED DROP" in reasoning:
+                stage = "pass1"
+            else:
+                # Zeroed entirely outside the engine (safety guards) or untagged
+                stage = "safety_guards"
+            skipped_by_stage[stage] = skipped_by_stage.get(stage, 0) + 1
+
+            if "PRICE >" in reasoning:
+                cat = "price_ceiling"
+            elif "DEAD STOCK" in reasoning:
+                cat = "dead_stock"
+            elif "SCALED DROP" in reasoning:
+                cat = "low_demand"
+            elif "SUPPLIER CONSOLIDATION" in reasoning:
+                cat = "supplier_consolidation"
+            elif "LIQUIDITY RECOVERY" in reasoning:
+                cat = "liquidity_recovery"
+            elif "PREMIUM CAP" in reasoning:
+                cat = "premium_cap"
+            elif "ANCHOR PRUNE" in reasoning:
+                cat = "anchor_mov"
+            elif "BUDGET EXHAUSTED" in reasoning:
+                cat = "budget_exhausted"
+            else:
+                cat = "other"
+            skip_reasons_final[cat] = skip_reasons_final.get(cat, 0) + 1
+
         # Final Summary Pack
         dept_util = {d: round(w['spent'] / w['allocated_budget'] * 100, 1) if w['allocated_budget'] > 0 else 0 for d, w in wallets.items() if d != 'GENERAL'}
 
@@ -1294,7 +1343,12 @@ class ProcurementMixin:
             "budget_target": total_budget,
             "utilization_pct": round((total_cash_invested / total_budget) * 100, 4) if total_budget > 0 else 0,
             "total_items": len([r for r in recommendations if r.get('recommended_quantity', 0) > 0]),
-            "dept_utilization": dept_util
+            "dept_utilization": dept_util,
+            # A1: authoritative skip metrics
+            "total_skipped": final_skipped,
+            "skip_reasons": skip_reasons_final,
+            "skipped_by_stage": skipped_by_stage,
+            "pass1_skipped": pass1_skipped,
         })
         
         logger.info(f"Greenfield Allocation Audit Complete. Realized Spend: ${total_cash_invested:,.2f} / ${total_budget:,.2f}")

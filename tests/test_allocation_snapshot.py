@@ -165,3 +165,37 @@ def test_allocation_is_deterministic(tmp_path):
     first = _capture_snapshot(tmp_path)
     second = _capture_snapshot(tmp_path)
     assert first == second
+
+
+def test_skip_count_is_authoritative(tmp_path):
+    """A1: summary.total_skipped must equal the number of SKUs that actually
+    ended at quantity 0 — counting every stage that zeroed an item, and not
+    counting Pass-1 rejections that were later rescued by mop-up re-entry."""
+    for budget in BUDGET_TIERS.values():
+        engine = _fresh_engine(tmp_path)
+        products = json.loads(json.dumps(FIXTURE_PRODUCTS))
+        result = engine.apply_greenfield_allocation(products, total_budget=budget)
+        recs = result["recommendations"]
+        summary = result["summary"]
+
+        actual_zero = sum(1 for r in recs
+                          if float(r.get("recommended_quantity", 0)) == 0)
+        assert summary["total_skipped"] == actual_zero, (
+            f"total_skipped={summary['total_skipped']} but {actual_zero} "
+            f"SKUs ended at qty 0 (budget {budget})"
+        )
+        # Stage breakdown present and consistent with the headline count
+        assert "skipped_by_stage" in summary
+        assert sum(summary["skipped_by_stage"].values()) == actual_zero
+        assert sum(summary["skip_reasons"].values()) == actual_zero
+
+
+def test_skip_count_excludes_rescued_items(tmp_path):
+    """An item Pass 1 rejected but mop-up re-entered must NOT be counted as
+    skipped — and must carry a positive quantity."""
+    engine = _fresh_engine(tmp_path)
+    products = json.loads(json.dumps(FIXTURE_PRODUCTS))
+    result = engine.apply_greenfield_allocation(products, total_budget=1_000_000.0)
+    for r in result["recommendations"]:
+        if "RE-ENTRY" in str(r.get("reasoning", "")):
+            assert float(r["recommended_quantity"]) > 0
