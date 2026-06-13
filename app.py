@@ -1,0 +1,63 @@
+"""
+O.A.S.I.S. — unified shell (U3).
+
+The single front door. One login, the SYS v2.9 theme, and journey-driven,
+role-gated navigation to every function. Replaces the sprawl of standalone
+dashboards + 19 launchers.
+
+Run:  streamlit run app.py      (or: python entrypoint.py --mode shell)
+"""
+
+import os
+import sys
+
+import streamlit as st
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
+from oasis.ui import theme
+from oasis.ui.auth import require_login, logout
+from oasis.ui import shell
+
+PROJECT_ROOT = os.path.dirname(os.path.abspath(__file__))
+DB_PATH = os.getenv(
+    "OASIS_DB_PATH",
+    os.path.join(PROJECT_ROOT, "oasis", "data", "mock_pos_erp.db"),
+)
+
+st.set_page_config(page_title="O.A.S.I.S.", page_icon="◎", layout="wide",
+                   initial_sidebar_state="expanded")
+theme.inject_theme(st)
+
+# One gate for the whole platform.
+user = require_login(st, DB_PATH, app_title="Retail Intelligence Platform")
+role = user.get("role")
+
+# Page registry, filtered to the signed-in role.
+pages = shell.visible_pages(shell.build_registry(), role)
+labels = {f"{p.icon}  {p.label}": p for p in pages}
+
+with st.sidebar:
+    st.markdown(
+        f'<div class="oasis-badge">OASIS · '
+        f'<span style="color:var(--oasis-teal);">{role}</span></div>',
+        unsafe_allow_html=True,
+    )
+    st.caption(f"Signed in as {user.get('display_name', user['username'])}")
+    choice = st.radio("Navigate", list(labels.keys()), label_visibility="collapsed")
+    st.divider()
+    if st.button("Log out", use_container_width=True):
+        logout(st, DB_PATH)
+        st.rerun()
+
+ctx = {
+    "st": st,
+    "user": user,
+    "role": role,
+    "username": user.get("username"),
+    "db_path": DB_PATH,
+    "project_root": PROJECT_ROOT,
+}
+
+selected = labels[choice]
+selected.render(ctx)

@@ -217,6 +217,26 @@ def run_migrate():
     logger.info("Migrations applied successfully.")
 
 
+# ── Mode: Shell (unified single front door, U3) ──────────────────────
+
+def run_shell(port: int = 8500):
+    """Launch the unified OASIS shell (app.py) — one login, all functions."""
+    logger.info(f"Starting O.A.S.I.S. unified shell on port {port}...")
+    script = os.path.join(os.path.dirname(os.path.abspath(__file__)), "app.py")
+    cmd = [
+        sys.executable, "-m", "streamlit", "run", script,
+        "--server.port", str(port),
+        "--server.address", "0.0.0.0",
+        "--server.headless", "true",
+        "--browser.gatherUsageStats", "false",
+    ]
+    proc = subprocess.Popen(cmd)
+    _shutdown.wait()
+    proc.terminate()
+    proc.wait(timeout=10)
+    logger.info("OASIS shell stopped.")
+
+
 # ── Mode: Full ────────────────────────────────────────────────────────
 
 def run_full():
@@ -379,7 +399,7 @@ def main():
     parser.add_argument("--mode",
                         choices=["full", "engine", "dashboard", "showcase",
                                  "shadow", "simulation", "desktop", "bootstrap",
-                                 "api", "bridge", "migrate"],
+                                 "api", "bridge", "migrate", "shell"],
                         default="full", help="Run mode")
     parser.add_argument("--dashboard", choices=list(DASHBOARD_MAP.keys()),
                         default="ops", help="Dashboard to launch (dashboard mode)")
@@ -439,6 +459,8 @@ def main():
         run_bridge(args.port if args.port else 8600)
     elif args.mode == "migrate":
         run_migrate()
+    elif args.mode == "shell":
+        run_shell(args.port if args.port else 8500)
 
 
 if __name__ == "__main__":
