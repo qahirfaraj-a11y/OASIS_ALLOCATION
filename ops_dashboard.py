@@ -202,8 +202,16 @@ REGISTRY_PATH = os.path.join(DATA_DIR, "transfers_registry.json")
 
 @st.cache_resource
 def get_connector():
-    """Create a cached UniversalConnector to mock DB."""
-    uri = f"sqlite:///{DB_PATH}"
+    """Create a cached UniversalConnector via the central DB factory.
+
+    Honors OASIS_DB_URL (PostgreSQL or SQLite); falls back to the local
+    SQLite DB_PATH when no URL is configured.
+    """
+    from oasis.logic import db as oasis_db
+    if os.getenv("OASIS_DB_URL"):
+        uri = oasis_db.get_sqlalchemy_url()
+    else:
+        uri = f"sqlite:///{DB_PATH}"
     mapper = SchemaMapper.for_pos_erp()
     return UniversalConnector(uri, mapper)
 
@@ -268,8 +276,16 @@ def _cached_ads_map(org_cd: str):
         logger.warning(f"_cached_ads_map failed for {org_cd}: {e}")
         return {}
 
+@st.cache_data(ttl=120)
 def get_all_store_risks(sim_hour: int):
-    """Run GNN to get risk scores for all stores."""
+    """Run GNN to get risk scores for all stores.
+
+    Cached (2 min TTL): multiple tabs call this per render and the torch
+    inference + network-wide stock load is the most expensive computation
+    in the app. The sidebar advances the simulator to the selected hour
+    before any tab renders, so skipping the internal advance on a cache
+    hit does not change simulator state.
+    """
     gnn_model, gnn_sim = get_gnn_resources()
     if gnn_model is None or gnn_sim is None:
         return {}
@@ -1811,21 +1827,110 @@ if "smart_ordering" in tab_map:
                 load_products.clear()
                 load_network_stock.clear()
                 load_all_stocks.clear()
+                for _k in [k for k in st.session_state.keys()
+                           if str(k).startswith("so_pipeline_")]:
+                    st.session_state.pop(_k, None)
                 st.rerun()
         
         products = load_products(selected_org)
         if products:
             from oasis.logic.simulation_bridge import SimulationOrderUtil
-            
-            # G4 Fix: Load ordering thresholds from session state (editable via Settings)
-            ordering_thresholds = st.session_state.get('ordering_thresholds', None)
-            
-            risk_scores_map = get_all_store_risks(sim_hour)
-            store_risk = risk_scores_map.get(selected_org, 0.0)
-            sim_util = SimulationOrderUtil(DATA_DIR, thresholds=ordering_thresholds, engine=engine)
-            enriched = sim_util.prepare_sku_data(products)
-            raw_recs = sim_util.calculate_order_quantity(enriched, gnn_risk_score=store_risk, use_real_date=True)
-            final_recs = sim_util.finalize_orders(raw_recs)
+            from oasis.logic.consolidated_transfer_service import ConsolidatedTransferService
+
+            # The full pipeline (enrich → order calc → network optimization →
+            # MOQ gate) runs once per store and is cached in session_state.
+            # Widget interactions no longer re-run network optimization or
+            # rewrite the MOQ failure store as a side effect of rendering.
+            _so_key = f"so_pipeline_{selected_org}"
+            _gen_col1, _gen_col2 = st.columns([3, 1])
+            with _gen_col2:
+                if st.button("⚙️ Regenerate Orders", key="btn_regen_orders",
+                             help="Re-run the ordering pipeline with current stock and settings"):
+                    st.session_state.pop(_so_key, None)
+            with _gen_col1:
+                if _so_key in st.session_state:
+                    st.caption(
+                        f"Showing recommendations generated at "
+                        f"{st.session_state[_so_key].get('generated_at', '?')} — "
+                        f"use Regenerate Orders to refresh."
+                    )
+
+            if _so_key not in st.session_state:
+                with st.spinner("🧮 Running ordering pipeline (engine → network → MOQ gate)..."):
+                    # G4 Fix: Load ordering thresholds from session state (editable via Settings)
+                    ordering_thresholds = st.session_state.get('ordering_thresholds', None)
+
+                    risk_scores_map = get_all_store_risks(sim_hour)
+                    store_risk = risk_scores_map.get(selected_org, 0.0)
+                    sim_util = SimulationOrderUtil(DATA_DIR, thresholds=ordering_thresholds, engine=engine)
+                    enriched = sim_util.prepare_sku_data(products)
+                    raw_recs = sim_util.calculate_order_quantity(enriched, gnn_risk_score=store_risk, use_real_date=True)
+                    finalized_recs = sim_util.finalize_orders(raw_recs)
+
+                    # ── UNIFIED NETWORK TRANSFER OPTIMIZATION ──
+                    all_org_cds = [o["ORG_CD"] for o in orgs]
+                    org_name_map = {o["ORG_CD"]: o.get("ORG_NAME", o["ORG_CD"]) for o in orgs}
+
+                    # Use enriched products (carry real avg_daily_sales) so the network map
+                    # can compute meaningful excess and safety stock per donor.
+                    # Raw fetch_stock_snapshot has 0 ADS — making every store look like a donor.
+                    enriched_network_stock = load_network_stock(tuple(all_org_cds))
+
+                    cts = ConsolidatedTransferService(
+                        org_names=org_name_map,
+                        stock_data=enriched_network_stock,
+                        registry_path=REGISTRY_PATH,
+                        distance_map=get_distance_map(),
+                        cold_node_days=st.session_state.get('cold_node_days', 60),
+                        hot_node_days=st.session_state.get('hot_node_days', 14)
+                    )
+
+                    # Pass the raw recommendations into the network layer first
+                    network_plan = cts.optimize_network(
+                        {selected_org: finalized_recs},
+                        risk_scores=risk_scores_map
+                    )
+
+                    # Adjusted orders (original minus transfer fulfillments),
+                    # then the Minimum Order Threshold gate
+                    network_adjusted_recs = network_plan.adjusted_orders.get(selected_org, [])
+                    mot_result = sim_util.apply_minimum_order_gate(network_adjusted_recs)
+
+                    # Gap 5: Feed MOQ-failed items directly to Transfer deficit list.
+                    # Replace-per-org semantics with timestamps + 7-day expiry — the
+                    # latest run is the complete truth for this store (no more
+                    # unbounded append growth / stale triggers).
+                    try:
+                        from oasis.logic.moq_failure_store import record_moq_failures
+                        _moq_path = os.path.join(DATA_DIR, "moq_failures.json")
+                        record_moq_failures(_moq_path, selected_org, mot_result['transfer_recs'] or [])
+                    except Exception as _moq_err:
+                        logger.warning(f"MOQ failure store update failed: {_moq_err}")
+
+                    st.session_state[_so_key] = {
+                        'generated_at': datetime.now().strftime("%H:%M:%S"),
+                        'sim_util': sim_util,
+                        'enriched': enriched,
+                        'store_risk': store_risk,
+                        'org_name_map': org_name_map,
+                        'enriched_network_stock': enriched_network_stock,
+                        'network_plan': network_plan,
+                        'po_recs': mot_result['po_recs'],
+                        'dropped_recs': mot_result['transfer_recs'],
+                        'supplier_summary': mot_result['supplier_summary'],
+                    }
+
+            _so = st.session_state[_so_key]
+            sim_util = _so['sim_util']
+            enriched = _so['enriched']
+            store_risk = _so['store_risk']
+            org_name_map = _so['org_name_map']
+            enriched_network_stock = _so['enriched_network_stock']
+            network_plan = _so['network_plan']
+            po_recs = _so['po_recs']
+            dropped_recs = _so['dropped_recs']
+            supplier_summary = _so['supplier_summary']
+            final_recs = po_recs
 
             # ── G17 Fix: PO Dedup Check ──
             from datetime import date as _date
@@ -1850,53 +1955,6 @@ if "smart_ordering" in tab_map:
                     <div style="font-weight: 600; color: var(--neon-emerald);">📦 On-Order Intelligence Active</div>
                     <span style="font-size: 0.85em; color: #888;">Adjusting quantities for <strong>{on_order_count} SKUs</strong> currently in transit.</span>
                 </div>""", unsafe_allow_html=True)
-
-            # ── UNIFIED NETWORK TRANSFER OPTIMIZATION ──
-            from oasis.logic.consolidated_transfer_service import ConsolidatedTransferService
-            
-            with st.spinner("🌐 Synchronizing with Network Transfer Intelligence..."):
-                all_org_cds = [o["ORG_CD"] for o in orgs]
-                org_name_map = {o["ORG_CD"]: o.get("ORG_NAME", o["ORG_CD"]) for o in orgs}
-
-                # Use enriched products (carry real avg_daily_sales) so the network map
-                # can compute meaningful excess and safety stock per donor.
-                # Raw fetch_stock_snapshot has 0 ADS — making every store look like a donor.
-                enriched_network_stock = load_network_stock(tuple(all_org_cds))
-
-                cts = ConsolidatedTransferService(
-                    org_names=org_name_map,
-                    stock_data=enriched_network_stock,
-                    registry_path=REGISTRY_PATH,
-                    distance_map=get_distance_map(),
-                    cold_node_days=st.session_state.get('cold_node_days', 60),
-                    hot_node_days=st.session_state.get('hot_node_days', 14)
-                )
-                
-                # Pass the raw recommendations into the network layer first
-                network_plan = cts.optimize_network(
-                    {selected_org: final_recs},
-                    risk_scores=risk_scores_map
-                )
-                
-                # Get the adjusted orders (original minus what was fulfilled by transfers)
-                network_adjusted_recs = network_plan.adjusted_orders.get(selected_org, [])
-                
-                # Now apply Minimum Order Threshold gate to the remaining quantities
-                mot_result = sim_util.apply_minimum_order_gate(network_adjusted_recs)
-                po_recs = mot_result['po_recs']
-                dropped_recs = mot_result['transfer_recs'] # Items that failed MOQ after network adjustment
-                
-                # Gap 5: Feed MOQ-failed items directly to Transfer deficit list.
-                # Replace-per-org semantics with timestamps + 7-day expiry — the
-                # latest run is the complete truth for this store (no more
-                # unbounded append growth / stale triggers).
-                try:
-                    from oasis.logic.moq_failure_store import record_moq_failures
-                    _moq_path = os.path.join(DATA_DIR, "moq_failures.json")
-                    record_moq_failures(_moq_path, selected_org, dropped_recs or [])
-                except Exception as _moq_err:
-                    logger.warning(f"MOQ failure store update failed: {_moq_err}")
-                supplier_summary = mot_result['supplier_summary']
                 
             # ── Network Intelligence Results ──
             store_transfers = [t for t in network_plan.transfers if t.to_org == selected_org]
@@ -2172,10 +2230,11 @@ if "smart_ordering" in tab_map:
                     # FETCH BARCODES AND SUPPLIERS FROM DB FOR ACCURATE EXPORT
                     export_data = []
                     try:
-                        import sqlite3
-                        import os
-                        _db_path = os.path.join("oasis", "data", "mock_pos_erp.db")
-                        _conn = sqlite3.connect(_db_path)
+                        # Central DB factory — honors OASIS_DB_URL/OASIS_DB_PATH
+                        # (was a hardcoded relative SQLite path that broke when
+                        # the app ran from a different working directory).
+                        from oasis.logic import db as oasis_db
+                        _conn = oasis_db.get_raw_connection()
                         for r in pos_recs:
                             _itm = r.get('itm_cd', r.get('item_code', ''))
                             _res = _conn.execute(
@@ -2399,19 +2458,10 @@ if "allocation_engine" in tab_map:
     st.markdown(f"### 🧮 Allocation Engine — Budget-Constrained Order Generation")
     st.caption("Two-Pass allocation with efficiency guards. Powered by OrderEngine 2.0.")
 
-    # --- Scorecard Discovery ---
-    from pathlib import Path as _AllocPath
-    _alloc_data_dir = _AllocPath(DATA_DIR).parent.resolve() if not _AllocPath(DATA_DIR).joinpath('Full_Product_Allocation_Scorecard_v3.csv').exists() else _AllocPath(DATA_DIR).resolve()
-    # Search from the project root (same level as ops_dashboard.py)
-    _alloc_search_dir = _AllocPath(os.path.dirname(os.path.abspath(__file__))).resolve()
-    _sc_candidates = list(_alloc_search_dir.glob("Full_Product_Allocation_Scorecard_v*.csv"))
-    if _sc_candidates:
-        def _get_sc_version(p):
-            try: return int(p.stem.split('_v')[-1])
-            except: return 0
-        _alloc_scorecard = str(max(_sc_candidates, key=_get_sc_version))
-    else:
-        _alloc_scorecard = None
+    # --- Scorecard Discovery (shared runner) ---
+    from oasis.logic.greenfield_runner import find_latest_scorecard as _find_sc
+    _alloc_search_dir = os.path.dirname(os.path.abspath(__file__))
+    _alloc_scorecard = _find_sc(_alloc_search_dir)
 
     if _alloc_scorecard is None or not os.path.exists(_alloc_scorecard):
         st.warning("⚠️ No `Full_Product_Allocation_Scorecard_v*.csv` found. Upload a scorecard or place one in the project directory.")
@@ -2435,81 +2485,28 @@ if "allocation_engine" in tab_map:
             with st.spinner("Running Two-Pass Allocation Logic..."):
                 try:
                     from oasis.simulation.data_loader import HistoricalDataLoader
+                    from oasis.logic.greenfield_runner import (
+                        load_scorecard_recommendations, run_greenfield_allocation,
+                    )
                     _alloc_loader = HistoricalDataLoader(os.path.dirname(os.path.abspath(__file__)))
                     _alloc_seasonal = _alloc_loader.load_monthly_demand(alloc_month)
 
-                    _alloc_df = pd.read_csv(_alloc_scorecard)
-                    _alloc_recs = []
-                    for _, _row in _alloc_df.iterrows():
-                        _alloc_recs.append({
-                            'product_name': _row.get('Product'),
-                            'selling_price': float(_row.get('Unit_Price', 0) if pd.notnull(_row.get('Unit_Price')) else 0),
-                            'avg_daily_sales': float(_row.get('Avg_Daily_Sales', 0) if pd.notnull(_row.get('Avg_Daily_Sales')) else 0),
-                            'product_category': _row.get('Department', 'GENERAL'),
-                            'pack_size': 1,
-                            'moq_floor': 0,
-                            'historical_order_count': 0,
-                            'is_staple_override': str(_row.get('Is_Staple', 'False')).upper() == 'TRUE',
-                            'margin_pct': float(_row.get('Margin_Pct')) if pd.notnull(_row.get('Margin_Pct')) else None,
-                            'recommended_quantity': 0,
-                            'reasoning': ''
-                        })
-
+                    # Same shared pipeline as allocation_app.py — enrichment
+                    # and safety guards now applied here too (previously skipped).
                     _alloc_engine = get_order_engine()
-                    _alloc_result = _alloc_engine.apply_greenfield_allocation(_alloc_recs, alloc_budget, seasonal_demand_map=_alloc_seasonal)
-                    _alloc_final = _alloc_result['recommendations']
-                    _alloc_summary = _alloc_result['summary']
+                    _alloc_recs = load_scorecard_recommendations(_alloc_scorecard)
+                    _gf = run_greenfield_allocation(
+                        _alloc_engine, _alloc_recs, alloc_budget,
+                        seasonal_demand_map=_alloc_seasonal,
+                    )
 
-                    # Build product data map for cost calculation
-                    _product_data_map = {}
-                    for _, _row in _alloc_df.iterrows():
-                        _pn = _row.get('Product')
-                        if _pn:
-                            _product_data_map[_pn] = {'margin_pct': _row.get('Margin_Pct') if pd.notnull(_row.get('Margin_Pct')) else None}
-
-                    _alloc_rows = []
-                    _cash_spend = 0.0
-                    _consignment_val = 0.0
-                    for _r in _alloc_final:
-                        _qty = _r['recommended_quantity']
-                        if _qty > 0:
-                            _price = _r['selling_price']
-                            _is_consign = _r.get('is_consignment', False)
-                            _cost_price = None
-                            if _cost_price is None and hasattr(_alloc_engine, 'grn_db'):
-                                _grn_key = _alloc_engine.normalize_product_name(_r['product_name'])
-                                _grn_stat = _alloc_engine.grn_db.get(_grn_key)
-                                if _grn_stat and _grn_stat.get('avg_cost'):
-                                    _cost_price = _grn_stat['avg_cost']
-                            if _cost_price is None:
-                                _pi = _product_data_map.get(_r['product_name'])
-                                if _pi and _pi['margin_pct'] is not None and 0 <= _pi['margin_pct'] < 100:
-                                    _cost_price = _price * (1 - _pi['margin_pct'] / 100.0)
-                            if _cost_price is None or _cost_price <= 0:
-                                _cost_price = _price * 0.75
-                            _cost = _qty * _cost_price
-                            _revenue = _qty * _price
-                            if _is_consign:
-                                _consignment_val += _cost
-                                _funding = "CONSIGNMENT"
-                            else:
-                                _cash_spend += _cost
-                                _funding = "CASH"
-                            _alloc_rows.append({
-                                "Product": _r['product_name'], "Department": _r['product_category'],
-                                "Qty": _qty, "Allocated_Cost": _cost, "Expected_Revenue": _revenue,
-                                "Reasoning": _r['reasoning'], "Type": _funding,
-                                "Avg_Daily_Sales": _r.get('avg_daily_sales', 0)
-                            })
-
-                    if _alloc_rows:
-                        _basket_df = pd.DataFrame(_alloc_rows)
-                        st.session_state['alloc_basket'] = _basket_df
-                        st.session_state['alloc_cash'] = _cash_spend
-                        st.session_state['alloc_consign'] = _consignment_val
-                        st.session_state['alloc_summary'] = _alloc_summary
+                    if not _gf.is_empty:
+                        st.session_state['alloc_basket'] = _gf.basket
+                        st.session_state['alloc_cash'] = _gf.cash_spend
+                        st.session_state['alloc_consign'] = _gf.consignment_value
+                        st.session_state['alloc_summary'] = _gf.summary
                         st.session_state['alloc_budget'] = alloc_budget
-                        st.success(f"✅ Allocation complete! {len(_basket_df)} SKUs in basket.")
+                        st.success(f"✅ Allocation complete! {len(_gf.basket)} SKUs in basket.")
                     else:
                         st.warning("No items were allocated. Try increasing the budget.")
                 except Exception as _alloc_ex:

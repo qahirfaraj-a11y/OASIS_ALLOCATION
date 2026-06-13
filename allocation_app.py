@@ -7,31 +7,21 @@ import os
 # Ensure app path is in sys.path
 sys.path.append(os.getcwd())
 
-from oasis.logic.order_engine import OrderEngine
-
-# Configuration
 from pathlib import Path
+
+from oasis.logic.order_engine import OrderEngine
+from oasis.logic.greenfield_runner import (
+    find_latest_scorecard as _find_latest_scorecard,
+    load_scorecard_recommendations,
+    run_greenfield_allocation,
+)
 
 # Use directory of this script for data
 DATA_DIR = Path(__file__).parent.resolve()
 
-def find_latest_scorecard():
-    # Search for latest scorecard in base dir
-    candidates = list(Path(DATA_DIR).glob("Full_Product_Allocation_Scorecard_v*.csv"))
-    if not candidates:
-        return os.path.join(DATA_DIR, "Full_Product_Allocation_Scorecard_v3.csv")
-    
-    # Sort by version number
-    def get_version(p):
-        try:
-            return int(p.stem.split('_v')[-1])
-        except:
-            return 0
-            
-    latest = max(candidates, key=get_version)
-    return str(latest)
-
-SCORECARD_FILE = find_latest_scorecard()
+SCORECARD_FILE = _find_latest_scorecard(str(DATA_DIR)) or os.path.join(
+    DATA_DIR, "Full_Product_Allocation_Scorecard_v3.csv"
+)
 
 # --- Helper Logic ---
 @st.cache_resource
@@ -51,101 +41,21 @@ def load_and_run_allocation(budget, target_month="JAN", _scorecard_mtime=0.0):
     oasis_data_dir = os.path.join(DATA_DIR, 'oasis', 'data')
     loader = HistoricalDataLoader(oasis_data_dir)
     seasonal_map = loader.load_monthly_demand(target_month)
-    
-    # Load Data
-    df = pd.read_csv(SCORECARD_FILE)
-    
-    # Convert to Recs
-    recommendations = []
-    for _, row in df.iterrows():
-        rec = {
-            'product_name': row.get('Product'),
-            # Map Unit_Price to selling_price for engine
-            'selling_price': float(row.get('Unit_Price', 0) if pd.notnull(row.get('Unit_Price')) else 0),
-            'avg_daily_sales': float(row.get('Avg_Daily_Sales', 0) if pd.notnull(row.get('Avg_Daily_Sales')) else 0),
-            'product_category': row.get('Department', 'GENERAL'),
-            'pack_size': int(row.get('Pack_Size', 1) if pd.notnull(row.get('Pack_Size', None)) else 1),
-            'moq_floor': 0,
-            'historical_order_count': 0, # Reset for greenfield simulation
-            'is_staple_override': str(row.get('Is_Staple', 'False')).upper() == 'TRUE', # Optional if engine checks file
-            # v2.9: Pass margin_pct so engine can calculate actual costs
-            'margin_pct': float(row.get('Margin_Pct')) if pd.notnull(row.get('Margin_Pct')) else None,
-            'supplier_name': row.get('Supplier'),
-            'recommended_quantity': 0,
-            'reasoning': ''
-        }
-        recommendations.append(rec)
-        
+
+    # Shared greenfield pipeline (enrich → allocate → safety guards → costs).
     engine = get_engine()
-    
-    # Run Logic
-    # v10.1: Re-enable enrichment but in Greenfield mode (keeps global intelligence, skips store history)
-    engine.enrich_product_data(recommendations, is_greenfield=True)
-    
-    products_map = {r['product_name']: r for r in recommendations}
-    
-    result = engine.apply_greenfield_allocation(recommendations, budget, seasonal_demand_map=seasonal_map)
-    raw_recs = result['recommendations']
-    allocation_summary = result['summary']
-    
-    # Golden Logic v10.0 Parity
-    from oasis.logic.order_logic_guards import apply_safety_guards
-    final_recs = apply_safety_guards(raw_recs, products_map, allocation_mode="initial_load")
-    
-    # v10.9: PERFECT SYNC - Cost Consolidation
-    def get_stratified_cost_price(r, engine):
-        if r.get('cost_price') is not None:
-            return float(r['cost_price'])
-        return float(engine._get_actual_cost_price(r, float(r.get('selling_price', 0))))
+    recommendations = load_scorecard_recommendations(SCORECARD_FILE)
+    result = run_greenfield_allocation(engine, recommendations, budget,
+                                       seasonal_demand_map=seasonal_map)
 
-    # 1. Enrich all records with stratified cost prices
-    for r in final_recs:
-        r['cost_price'] = get_stratified_cost_price(r, engine)
-        r['estimated_cost'] = round(float(r.get('recommended_quantity', 0)) * r['cost_price'], 2) if not r.get('is_consignment', False) else 0.0
+    if result.cash_spend > budget:
+        st.info(f"Note: Final optimal basket (KES {result.cash_spend:,.0f}) slightly exceeds base budget (KES {budget:,.0f}) due to minimum pack-size rounding requirements.")
 
-    # 2. Sort authorized list
-    recs_with_cost = sorted(final_recs, key=lambda x: engine.staple_priority_sort(x))
-    
-    current_total_cash = sum(r['estimated_cost'] for r in recs_with_cost)
-    
-    if current_total_cash > budget:
-        st.info(f"Note: Final optimal basket (KES {current_total_cash:,.0f}) slightly exceeds base budget (KES {budget:,.0f}) due to minimum pack-size rounding requirements.")
-    
-    # 3. Build Results and Final Summary
-    results = []
-    total_cash_spend = 0.0
-    total_consignment_val = 0.0
+    # Authorized list sorted by staple priority (used by the mop-up button)
+    recs_with_cost = sorted(result.recommendations, key=lambda x: engine.staple_priority_sort(x))
 
-    for r in recs_with_cost:
-        qty = float(r.get('recommended_quantity', 0))
-        if qty <= 0: continue
-        
-        cost = round(qty * r['cost_price'], 2)
-        price = float(r.get('selling_price', 0))
-        is_cons = r.get('is_consignment', False)
-        
-        if is_cons:
-            total_consignment_val = round(total_consignment_val + cost, 2)
-        else:
-            total_cash_spend = round(total_cash_spend + cost, 2)
-
-        results.append({
-            "Product": r['product_name'],
-            "Department": r['product_category'],
-            "Qty": qty,
-            "Allocated_Cost": cost,
-            "Expected_Revenue": qty * price,
-            "Reasoning": r['reasoning'],
-            "Type": "CONSIGNMENT" if is_cons else "CASH",
-            "Avg_Daily_Sales": r.get('avg_daily_sales', 0)
-        })
-            
-    # Update allocation_summary for metadata parity
-    allocation_summary['total_cash_used'] = total_cash_spend
-    allocation_summary['total_consignment_value'] = total_consignment_val
-    allocation_summary['utilization_pct'] = round((total_cash_spend / budget) * 100, 2) if budget > 0 else 0
-    
-    return pd.DataFrame(results), total_cash_spend, total_consignment_val, allocation_summary, seasonal_map, recs_with_cost
+    return (result.basket, result.cash_spend, result.consignment_value,
+            result.summary, seasonal_map, recs_with_cost)
 
 # --- Streamlit UI ---
 # Guard set_page_config for import safety (A2 fix)
