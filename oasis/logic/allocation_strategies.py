@@ -76,6 +76,11 @@ class AllocationConfig:
     # Pass 4: Mop-Up
     mop_up_ceiling_pct: float = 0.05      # Only runs if <5% remains
     mop_up_depth_cap_days: int = 60
+    # A2: stop forcing 100% utilization. Residual cash that can only be
+    # placed into low/zero-velocity SKUs is reported as honest unused budget
+    # instead of dumped onto the cheapest item to hit a vanity 100%.
+    max_utilization_pct: float = 0.98     # stop deploying past this fraction
+    min_velocity_for_mopup: float = 0.05  # ADS floor for mop-up eligibility
     
     # Supplier Consolidation
     supplier_cap_micro: int = 3

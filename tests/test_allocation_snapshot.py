@@ -199,3 +199,34 @@ def test_skip_count_excludes_rescued_items(tmp_path):
     for r in result["recommendations"]:
         if "RE-ENTRY" in str(r.get("reasoning", "")):
             assert float(r["recommended_quantity"]) > 0
+
+
+def test_a2_zero_sales_not_overallocated(tmp_path):
+    """A2: a zero-ADS item must never receive mop-up depth. Its quantity may
+    be at most its Pass-1 shelf-fill MDQ — not a budget-dumping pile-on."""
+    for budget in (1_000_000.0, 5_000_000.0):
+        engine = _fresh_engine(tmp_path)
+        products = json.loads(json.dumps(FIXTURE_PRODUCTS))
+        result = engine.apply_greenfield_allocation(products, total_budget=budget)
+        dead = next(r for r in result["recommendations"]
+                    if r["product_name"] == "DEAD STOCK ITEM")
+        assert float(dead["avg_daily_sales"]) == 0.0  # fixture precondition
+        # Comfortably below the old 110-unit pile-on; a few units of shelf
+        # presence from Pass 1 is acceptable, mop-up depth is not.
+        assert float(dead["recommended_quantity"]) <= 10, (
+            f"zero-ADS item got {dead['recommended_quantity']} units at "
+            f"budget {budget} — mop-up pile-on regression"
+        )
+
+
+def test_a2_utilization_capped(tmp_path):
+    """A2: realized utilization must never exceed max_utilization_pct."""
+    from oasis.logic.allocation_strategies import AllocationConfig
+    cap = AllocationConfig().max_utilization_pct * 100
+    for budget in BUDGET_TIERS.values():
+        engine = _fresh_engine(tmp_path)
+        products = json.loads(json.dumps(FIXTURE_PRODUCTS))
+        result = engine.apply_greenfield_allocation(products, total_budget=budget)
+        util = float(result["summary"]["utilization_pct"])
+        # Small tolerance for Pass-1/2 spend that lands before the cap gate
+        assert util <= cap + 1.0, f"utilization {util}% exceeds cap {cap}%"

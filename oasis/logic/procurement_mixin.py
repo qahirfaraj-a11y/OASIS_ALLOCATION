@@ -1014,28 +1014,38 @@ class ProcurementMixin:
         ctx.pass2_cost = pass2_cost
 
     def _gf_pass4_mop_up(self, ctx) -> None:
-        """Pass 4 (Mop-Up): zero-idle capital — universal re-entry, depth absorption, then zero-cent exhaustion."""
+        """Pass 4 (Mop-Up): deploy idle capital into high-velocity headroom.
+
+        A2: no longer forces 100% utilization. Deployment is capped at
+        AllocationConfig.max_utilization_pct and gated by a per-item velocity
+        floor (min_velocity_for_mopup) so residual cash is never dumped onto
+        dead stock just to hit a vanity 100% — it is reported as honest
+        unused budget by the final audit instead.
+        """
         recommendations = ctx.recommendations
         total_budget = ctx.total_budget
         profile = ctx.profile
+        alloc_cfg = getattr(ctx, 'alloc_cfg', None) or getattr(self, 'allocation_config', None) or AllocationConfig()
+        max_util = float(getattr(alloc_cfg, 'max_utilization_pct', 0.98))
+        min_vel = float(getattr(alloc_cfg, 'min_velocity_for_mopup', 0.05))
 
-
-        # Pass 4: Mop-Up [FIX 3 + FIX 11: Zero-Idle Capital]
-        # Guide: "Every cent should be deployed." No percentage gate.
         mop_up_cost = 0.0
         mop_up_consignment_val = 0.0
-        
-        # v10.9: PERFECT SYNC - Recalculate 'final_unused' from the ACTUAL product list 
+
+        # v10.9: PERFECT SYNC - Recalculate spend from the ACTUAL product list
         # instead of drifting accumulators. This prevents counter-leakage.
         current_spent = 0.0
         for r in recommendations:
             q = r.get('recommended_quantity', 0)
             if q > 0 and not r.get('is_consignment', False):
                 current_spent += round(q * self._get_actual_cost_price(r, float(r.get('selling_price', 0))), 2)
-        
-        final_unused = round(total_budget - current_spent, 2)
-        
-        if final_unused > 100:  # Any meaningful capital remaining
+
+        # A2: deploy only up to the utilization cap; the remainder stays as
+        # reported unused budget. final_unused is the *deployable* headroom.
+        deployable = round(total_budget * max_util, 2)
+        final_unused = round(deployable - current_spent, 2)
+
+        if final_unused > 100:  # Any meaningful deployable capital remaining
             logger.info(f"Pass 4 (Mop-Up): ${final_unused:,.2f} remaining. Deploying to high-ROI items.")
             
             # --- PHASE 4A: UNIVERSAL RE-ENTRY (Initial Load Assurance) ---
@@ -1049,8 +1059,10 @@ class ProcurementMixin:
                         reasoning = r.get('reasoning', '')
                         avg_sales = float(r.get('avg_daily_sales', 0.0))
                         
-                        # Eligible for re-entry if not blacklisted/purged
-                        if avg_sales > 0 and "[BLOCKED]" not in reasoning and "[PURGE]" not in reasoning:
+                        # Eligible for re-entry if it sells fast enough to
+                        # justify shelf space (A2: velocity floor) and is not
+                        # blacklisted/purged.
+                        if avg_sales >= min_vel and "[BLOCKED]" not in reasoning and "[PURGE]" not in reasoning:
                             # 1. Price Ceiling blocks: Only re-enter if surplus is high (>0.5%)
                             is_price_blocked = "PRICE >" in reasoning
                             if is_price_blocked and final_unused <= (total_budget * 0.005):
@@ -1090,13 +1102,14 @@ class ProcurementMixin:
             # --- PHASE 4B: DEPTH ABSORPTION ---
             mop_candidates = []
             for r in recommendations:
-                # FIX 11: Broadened from 0.5 to 0.1 ADS
                 is_fresh_mop = r.get('is_fresh', False)
                 avg_sales = float(r.get('avg_daily_sales', 0.0))
-                
-                # FIX 11: Broadened from 0.1 to 0.01 ADS (Retail Tail Inclusion)
-                thresh = 1.0 if is_fresh_mop else 0.01
-                
+
+                # A2: velocity floor for mop-up eligibility (fresh keeps its
+                # higher 1.0 ADS bar). Prevents depth absorption from piling
+                # onto near-zero-velocity SKUs.
+                thresh = 1.0 if is_fresh_mop else min_vel
+
                 if r['recommended_quantity'] > 0 and avg_sales >= thresh:
                     is_staple = self.budget_manager.is_staple(r['product_name'], r.get('product_category'), avg_sales)
                     
@@ -1214,24 +1227,35 @@ class ProcurementMixin:
                         if final_unused <= 0: break
                     
                     if not added_in_round:
-                        # v10.9: UNIVERSAL SWEEP - Final attempt to find ANY item that fits
+                        # A2: Velocity-floored sweep. Previously this dumped
+                        # residual onto ANY qty>0 item (the cheapest absorbed
+                        # everything — that is how dead stock reached 100+
+                        # units). Now it only tops up items that sell fast
+                        # enough (>= min_vel) and respects their depth ceiling.
+                        # Whatever can't be placed stays as honest unused cash.
                         for r in recommendations:
                             if final_unused <= 0: break
-                            # v10.9: EXHAUSTIVE UNIVERSAL SWEEP (BREAK BULK)
-                            # Per instruction: Allow 1-unit increments in Greenfield to hit 100%
                             if r.get('recommended_quantity', 0) > 0 and not r.get('is_consignment'):
+                                avg_s = float(r.get('avg_daily_sales', 0) or 0)
+                                if avg_s < min_vel:
+                                    continue  # never sweep onto dead/near-dead stock
+                                is_f = r.get('is_fresh', False)
+                                is_u = any(x in r.get('product_name', '').upper() for x in ['UHT', 'LONG LIFE', 'ESL'])
+                                limit_days = (7.0 if is_u else 3.0) if is_f else 120.0
+                                if (float(r['recommended_quantity']) + 1) > (avg_s * limit_days):
+                                    continue  # respect depth ceiling
                                 c_p = r.get('cost_price')
                                 if c_p is None:
                                     c_p = self._get_actual_cost_price(r, float(r.get('selling_price', 0)))
-                                
+
                                 if 0 < c_p <= final_unused:
                                     r['recommended_quantity'] += 1
                                     r['cost_price'] = c_p
                                     final_unused = round(final_unused - c_p, 2)
                                     mop_up_cost = round(mop_up_cost + c_p, 2)
                                     added_in_round = True
-                        
-                        if not added_in_round: break # Truly no items fit
+
+                        if not added_in_round: break # No qualifying headroom — leave the rest unused
                     safety_limit += 1
             
             logger.info(f"Pass 4 Complete. Final Cash Invested: ${mop_up_cost:,.2f}")
