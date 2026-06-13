@@ -138,6 +138,15 @@ try:
 except st.errors.StreamlitAPIException:
     pass
 
+# ── Unified auth gate (U2) ──────────────────────────────────────────────
+from oasis.ui.auth import require_login as _oasis_require_login  # noqa: E402
+_AUTH_DB = os.getenv(
+    "OASIS_DB_PATH",
+    os.path.join(os.path.dirname(os.path.abspath(__file__)), "oasis", "data", "mock_pos_erp.db"),
+)
+_oasis_require_login(st, _AUTH_DB, app_title="Retail Lifecycle",
+                     allowed_roles=["ops_admin", "regional_manager"])
+
 # Custom CSS
 st.markdown("""
 <style>

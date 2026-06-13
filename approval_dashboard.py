@@ -10,19 +10,38 @@ import os
 import sys
 import json
 import io
-from datetime import datetime
+from datetime import datetime, timedelta
 from oasis.logic.shadow_mode import ShadowModeEngine
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 st.set_page_config(page_title="O.A.S.I.S. PO Approval Center", layout="wide", initial_sidebar_state="expanded")
 
+# ── Unified auth gate (U2) ──────────────────────────────────────────────
+# This dashboard authorizes purchase-order spend; it must never be open.
+# Restricted to roles that carry can_approve_po (ops_admin, regional_manager).
+from oasis.ui.auth import require_login, logout as _oasis_logout  # noqa: E402
+_AUTH_DB = os.getenv(
+    "OASIS_DB_PATH",
+    os.path.join(os.path.dirname(os.path.abspath(__file__)), "oasis", "data", "mock_pos_erp.db"),
+)
+_oasis_user = require_login(
+    st, _AUTH_DB, app_title="PO Approval Center",
+    allowed_roles=["ops_admin", "regional_manager"],
+)
+with st.sidebar:
+    st.caption(f"Signed in as {_oasis_user.get('display_name', _oasis_user['username'])} · {_oasis_user['role']}")
+    if st.button("Log out", key="oasis_logout_btn"):
+        _oasis_logout(st, _AUTH_DB)
+        st.rerun()
+
 st.title("O.A.S.I.S. Purchase Order Approval Center")
 st.markdown("**Daily Procurement Workflow** - Review, modify, and approve auto-generated purchase orders.")
 
 base_dir = os.path.dirname(os.path.abspath(__file__))
-pipeline_dir = os.path.join(base_dir, 'pipeline_logs')
-governance_dir = os.path.join(base_dir, 'amit_governance')
+# Redirect pipeline_logs and governance tracking directly into the central oasis/data pipeline
+pipeline_dir = os.path.join(base_dir, 'oasis', 'data', 'pipeline_logs')
+governance_dir = os.path.join(base_dir, 'oasis', 'data', 'amit_governance')
 stores_path = os.path.join(base_dir, 'store_coords.json')
 
 # AP5: Ensure required directories exist
@@ -53,13 +72,13 @@ _approval_sc_candidates = list(_ApprovalPath(base_dir).glob("Full_Product_Alloca
 if _approval_sc_candidates:
     def _get_sc_ver(p):
         try: return int(p.stem.split('_v')[-1])
-        except: return 0
+        except (ValueError, IndexError): return 0
     _approval_scorecard_path = str(max(_approval_sc_candidates, key=_get_sc_ver))
 else:
     _approval_scorecard_path = os.path.join(base_dir, 'Full_Product_Allocation_Scorecard_v7.csv')
 
 config = {
-    'data_dir': base_dir,
+    'data_dir': os.path.join(base_dir, 'oasis', 'data'),
     'scorecard_path': _approval_scorecard_path,
     'amit_enabled': True,
     'lata_enabled': True,
@@ -89,7 +108,7 @@ config['shadow_mode'] = st.sidebar.toggle("Shadow Mode", value=True,
 st.sidebar.divider()
 st.sidebar.header("3. Pipeline Control")
 config['store_id'] = selected_store_id
-run_pipeline = st.sidebar.button("Run Daily Pipeline Now", use_container_width=True)
+run_pipeline = st.sidebar.button("Run Daily Pipeline Now", width='stretch')
 
 if run_pipeline:
     from oasis.logic.daily_pipeline import DailyPipeline
@@ -105,8 +124,22 @@ if run_pipeline:
 
     # Display step log
     for step in result.get('steps', []):
-        icon = "OK" if step['status'] == 'OK' else ("WARN" if step['status'] == 'WARNING' else "FAIL")
+        icon = "OK" if step['status'] == 'OK' else ("WARN" if step['status'] == 'WARNING' else ("SKIP" if step['status'] == 'SKIPPED' else "FAIL"))
         st.sidebar.text(f"[{icon}] {step['step']}: {step['detail'][:50]}")
+
+st.sidebar.divider()
+st.sidebar.header("4. Inventory Reconstructor")
+target_extrap_date = st.sidebar.date_input("Target Stock Date", value=datetime(2026, 1, 25))
+if st.sidebar.button("Reconstruct Stock for Date", width='stretch', help="Extrapolate SOH using GRNs and Sales Burn Rates"):
+    from oasis.logic.extrapolate_stock import run_extrapolation
+    with st.spinner(f"Reconstructing stock for {target_extrap_date}..."):
+        try:
+            date_str = target_extrap_date.strftime("%Y-%m-%d")
+            out_file = run_extrapolation(date_str)
+            st.sidebar.success(f"Scorecard Generated: {os.path.basename(out_file)}")
+            st.sidebar.info("You can now select this file as 'Active Scorecard' if you rerun the app.")
+        except Exception as e:
+            st.sidebar.error(f"Extrapolation Failed: {e}")
 
 # Main Content: Load and display latest PO
 st.divider()
@@ -145,7 +178,7 @@ if po_files:
 
     st.divider()
 
-    tab1, tab2, tab3, tab4 = st.tabs(["By Supplier", "Full PO Detail", "Divergence Analysis", "AMIT Blocked Items"])
+    tab1, tab2, tab3, tab4, tab5 = st.tabs(["By Supplier", "Full PO Detail", "Divergence Analysis", "AMIT Blocked Items", "🧪 Simulation Lab"])
 
     with tab1:
         st.subheader("Order Grouped by Supplier")
@@ -155,12 +188,12 @@ if po_files:
                 Total_Qty=('Shadow_Order_Qty', 'sum'),
                 Total_Value=('Shadow_Order_Value', 'sum')
             ).sort_values('Total_Value', ascending=False).reset_index()
-            st.dataframe(supp_summary, use_container_width=True, height=400)
+            st.dataframe(supp_summary, width='stretch', height=400)
 
             fig = px.bar(supp_summary.head(15), x='Supplier', y='Total_Value',
                          color_discrete_sequence=['#2ecc71'])
             fig.update_layout(xaxis_tickangle=-45)
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, width='stretch')
 
     with tab2:
         st.subheader("Full Purchase Order Lines")
@@ -169,7 +202,7 @@ if po_files:
         # We catch the returned value from data_editor to update session state
         edited_df = st.data_editor(
             st.session_state.po_df, 
-            use_container_width=True, 
+            width='stretch', 
             height=500, 
             num_rows="dynamic",
             key="po_editor"
@@ -186,13 +219,13 @@ if po_files:
 
         col_a, col_b, col_c = st.columns(3)
         with col_a:
-            if st.button("Approve & Save", use_container_width=True, type="primary"):
+            if st.button("Approve & Save", width='stretch', type="primary"):
                 approved_path = os.path.join(pipeline_dir, f'approved_po_{selected_store_id}_{datetime.now().strftime("%Y%m%d_%H%M%S")}.csv')
                 st.session_state.po_df.to_csv(approved_path, index=False)
                 st.success(f"PO Approved locally.")
 
         with col_b:
-            if st.button("Dispatch to ERP", use_container_width=True, help="Push to iRetail SQL Staging"):
+            if st.button("Dispatch to ERP", width='stretch', help="Push to iRetail SQL Staging"):
                 from oasis.logic.iretail_integration import IRetailBridge
                 bridge = IRetailBridge(
                     server=config.get('sql_server', 'localhost'),
@@ -200,11 +233,15 @@ if po_files:
                     trusted_connection=config.get('sql_trusted', True)
                 )
                 
-                # Mocking the push for simulation safety as per plan
-                st.info("DRY RUN: Sending PO to iRetail Staging Queue...")
+                # BUG 3 FIX: Gate backend push on Shadow Mode toggling
                 order_data = st.session_state.po_df.to_dict('records')
-                # In real scenario: bridge.push_purchase_order(order_data)
-                st.success(f"Pushed {len(order_data)} lines to Production Staging.")
+                if config.get('shadow_mode', True):
+                    st.info("DRY RUN (Shadow Mode): Sending PO to iRetail Staging Queue...")
+                    st.success(f"Simulated push of {len(order_data)} lines to Production Staging.")
+                else:
+                    with st.spinner("Pushing to ERP (LIVE)..."):
+                        pushed_rows = bridge.push_purchase_order(order_data)
+                        st.success(f"LIVE DISPATCH: Pushed {pushed_rows} lines to Production Staging.")
 
         with col_c:
             # Download as Excel
@@ -217,24 +254,41 @@ if po_files:
                 data=output,
                 file_name=f"OASIS_Approved_PO_{datetime.now().strftime('%Y%m%d')}.xlsx",
                 mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                use_container_width=True,
+                width='stretch',
             )
 
     with tab3:
         st.subheader("Divergence Analysis: AI Recommendations vs Human Buyer")
         
-        # Load mock human PO for comparison if not provided
-        human_po_path = os.path.join(base_dir, 'mock_human_po.csv')
+        # Discover available human POs/GRNs
+        data_dir = os.path.join(base_dir, 'oasis', 'data')
+        all_files = os.listdir(data_dir)
+        # We prioritize 'grnd' files as they contain line-item details, but keep 'po' and 'csv' as options
+        available_pos = [f for f in all_files if (f.startswith('grnd') or f.startswith('po_') or f.endswith('.csv')) and not f.startswith('daily_po_')]
         
-        if os.path.exists(human_po_path):
+        selected_pos = st.multiselect("Select Human Inbound Data (GRNs preferred for line items)", 
+                                     sorted(available_pos), 
+                                     default=[f for f in available_pos if 'grnd' in f.lower()][:1])
+        
+        if selected_pos:
+            full_po_paths = [os.path.join(data_dir, f) for f in selected_pos]
             with st.spinner("Generating Divergence Report..."):
                 engine = ShadowModeEngine(base_dir)
                 # We use the current session_state po_df (in case they edited it)
                 engine.shadow_po = st.session_state.po_df.copy()
-                engine.ingest_human_orders(human_po_path)
+                engine.ingest_human_orders(full_po_paths)
                 comparison = engine.generate_comparison()
                 stats = engine.get_summary_stats()
+                
+                # Check for error logged by engine if columns were missing
+                if stats.get('human_total_value', 0) == 0 and not comparison.empty and 'Human PO data invalid' in str(comparison.iloc[0].get('Divergence_Detail', '')):
+                    st.error("Selected files (like PO headers) do not contain line-item data. Please select 'grnd' files for comparison.")
+        else:
+            st.info("Please select at least one human PO file to compare.")
+            comparison = pd.DataFrame()
+            stats = {}
 
+        if not comparison.empty:
             # Divergence Summary Cards
             m1, m2, m3, m4 = st.columns(4)
             m1.metric("Human Misses", stats.get('human_missed', 0), delta_color="inverse")
@@ -249,33 +303,38 @@ if po_files:
             
             with col1:
                 st.write("**Divergence Type Distribution**")
-                fig_div = px.pie(comparison, names='Divergence', color='Divergence',
-                                color_map={
-                                    'HUMAN_MISSED': '#e74c3c', 
-                                    'HUMAN_OVER_ORDERED': '#f1c40f',
-                                    'ALIGNED': '#2ecc71',
-                                    'NO_ORDER': '#95a5a6'
-                                })
-                st.plotly_chart(fig_div, use_container_width=True)
+                if not comparison.empty and 'Divergence' in comparison.columns:
+                    fig_div = px.pie(comparison, names='Divergence', color='Divergence',
+                                    color_discrete_map={
+                                        'HUMAN_MISSED': '#e74c3c', 
+                                        'HUMAN_OVER_ORDERED': '#f1c40f',
+                                        'ALIGNED': '#2ecc71',
+                                        'NO_ORDER': '#95a5a6'
+                                    })
+                    st.plotly_chart(fig_div, width='stretch')
+                else:
+                    st.info("Not enough data to calculate divergence distribution.")
 
             with col2:
                 st.write("**Top Material Discrepancies (Value)**")
-                # Highlight where human and AI differ most in value
-                comparison['Value_Diff'] = abs(
-                    comparison['Shadow_Order_Value'] - (
-                        comparison['Human_Order_Qty'] * (comparison['Unit_Cost'].fillna(0) if 'Unit_Cost' in comparison.columns else 0)
-                    )
-                )
-                top_diff = comparison.sort_values('Value_Diff', ascending=False).head(10)
-                fig_diff = px.bar(top_diff, x='Item_Name', y=['Shadow_Order_Value', 'Value_Diff'], 
-                                 barmode='group', title="AI vs Diff")
-                st.plotly_chart(fig_diff, use_container_width=True)
+                if not comparison.empty:
+                    human_qty = comparison.get('Human_Order_Qty', pd.Series(0, index=comparison.index))
+                    unit_cost = comparison['Unit_Cost'].fillna(0) if 'Unit_Cost' in comparison.columns else 0
+                        
+                    comparison['Value_Diff'] = abs(comparison.get('Shadow_Order_Value', 0) - (human_qty * unit_cost))
+                    top_diff = comparison.sort_values('Value_Diff', ascending=False).head(10)
+                    fig_diff = px.bar(top_diff, x='Item_Name', y=['Shadow_Order_Value', 'Value_Diff'], 
+                                     barmode='group', title="AI vs Diff")
+                    st.plotly_chart(fig_diff, width='stretch')
+                else:
+                    st.info("No comparative discrepancies found.")
 
             st.write("**Deep Dive: Divergence Details**")
-            st.dataframe(comparison[['Item_Name', 'Shadow_Order_Qty', 'Human_Order_Qty', 'Divergence', 'Divergence_Detail']], 
-                        use_container_width=True, height=400)
-        else:
-            st.warning("No Human Purchase Order found for comparison. Please upload a `human_po.csv` to enable Divergence Analysis.")
+            if not comparison.empty:
+                cols_to_show = [c for c in ['Item_Name', 'Shadow_Order_Qty', 'Human_Order_Qty', 'Divergence', 'Divergence_Detail'] if c in comparison.columns]
+                st.dataframe(comparison[cols_to_show], width=1200, height=400)
+            else:
+                st.info("No records to display.")
 
     with tab4:
         st.subheader("AMIT Negative List (Blocked from Ordering)")
@@ -293,7 +352,7 @@ if po_files:
             
             edited_neg = st.data_editor(
                 neg_df[['Item_Name', 'SOH', 'ADS', 'Capital_Trapped', 'Classification', 'Release_for_Purchase']],
-                use_container_width=True, 
+                width='stretch', 
                 height=400,
                 key="amit_editor"
             )
@@ -303,17 +362,104 @@ if po_files:
             if not overrides.empty:
                 if st.button(f"Inject {len(overrides)} Overrides into Draft PO"):
                     # Add necessary columns for PO format
-                    overrides['Shadow_Order_Qty'] = 1 # Default or manual logic
-                    if 'Unit_Cost' not in overrides.columns: overrides['Unit_Cost'] = 100 
+                    # C2 FIX: Look up actual costs from GRN intelligence cache instead of hardcoded KES 100
+                    grn_cache_path = os.path.join(base_dir, 'oasis', 'data', 'grn_intelligence_cache.json')
+                    cost_lookup = {}
+                    if os.path.exists(grn_cache_path):
+                        try:
+                            with open(grn_cache_path, 'r') as _gc:
+                                grn_cache = json.load(_gc)
+                            for item_key, item_data in grn_cache.items():
+                                if isinstance(item_data, dict):
+                                    cost_lookup[item_key] = item_data.get('avg_cost', item_data.get('unit_cost', 100.0))
+                        except (json.JSONDecodeError, IOError):
+                            st.warning("⚠️ GRN cost cache could not be loaded. Using fallback costs.")
+
+                    if 'ADS' in overrides.columns:
+                        overrides['Shadow_Order_Qty'] = (overrides['ADS'] * 7).clip(lower=1).astype(int) 
+                    else:
+                        overrides['Shadow_Order_Qty'] = 1
+                        
+                    if 'Unit_Cost' not in overrides.columns:
+                        # Map costs from GRN cache by item name, fallback to KES 100 only if not found
+                        overrides['Unit_Cost'] = overrides['Item_Name'].map(cost_lookup).fillna(100.0)
+                    else:
+                        overrides['Unit_Cost'] = overrides['Unit_Cost'].fillna(
+                            overrides['Item_Name'].map(cost_lookup)
+                        ).fillna(100.0)
+                        
                     overrides['Shadow_Order_Value'] = overrides['Shadow_Order_Qty'] * overrides['Unit_Cost']
                     overrides['Order_Reason'] = 'MANAGER_OVERRIDE'
-                    overrides['Supplier'] = 'OVERRIDE'
+                    
+                    if 'Supplier' not in overrides.columns: overrides['Supplier'] = 'OVERRIDE'
                     
                     st.session_state.po_df = pd.concat([st.session_state.po_df, overrides], ignore_index=True)
                     st.success("Overrides injected. Please review 'Full PO Detail' tab.")
                     st.rerun()
-        else:
-            st.info("No AMIT Negative List generated yet. Run the pipeline with AMIT enabled.")
+    with tab5:
+        st.subheader("O.A.S.I.S. Simulation Lab (High-Fidelity Backtest)")
+        st.write("Replay historical procurement cycles to audit AI performance against human buyers.")
+        
+        c1, c2 = st.columns(2)
+        with c1:
+            sim_start = st.date_input("Simulation Start", value=datetime(2026, 1, 20))
+        with c2:
+            sim_end = st.date_input("Simulation End", value=datetime(2026, 1, 22))
+            
+        if st.button("🚀 Run Network-Wide Backtest", width='stretch', type="primary"):
+            from oasis.logic.simulation_pipeline import SimulationEngine
+            
+            sim_engine = SimulationEngine(config)
+            progress_bar = st.progress(0)
+            status_text = st.empty()
+            
+            days_to_sim = (sim_end - sim_start).days + 1
+            results = []
+            
+            for i in range(days_to_sim):
+                curr_date = sim_start + timedelta(days=i)
+                date_str = curr_date.strftime("%Y-%m-%d")
+                status_text.text(f"Processing {date_str} ({i+1}/{days_to_sim})...")
+                
+                # We call the run_simulation logic per day for UI feedback
+                # Using a single-day simulation call
+                report = sim_engine.run_simulation(date_str, date_str)
+                results.append(report['daily_records'][0])
+                progress_bar.progress((i + 1) / days_to_sim)
+                
+            st.success(f"Simulation Complete for {days_to_sim} days!")
+            
+            # Aggregate stats
+            summary = sim_engine._aggregate_stats(results)
+            
+            k1, k2, k3, k4 = st.columns(4)
+            k1.metric("Cumulative Savings Opportunity", f"KES {summary['cumulative_holding_risk']:,.2f}")
+            k2.metric("Total Aligned Items", summary['total_aligned'])
+            k3.metric("Human Over-Orders", summary['total_human_over_ordered'], delta_color="inverse")
+            k4.metric("Human Under-Orders (Misses)", summary['total_human_missed'], delta_color="inverse")
+            
+            # Charts
+            sim_df = pd.DataFrame([
+                {
+                    'Date': r['date'], 
+                    'Missed': r['comparison'].get('human_missed', 0),
+                    'OverOrdered': r['comparison'].get('human_over_ordered', 0),
+                    'Aligned': r['comparison'].get('aligned', 0),
+                    'Risk': r['comparison'].get('over_order_waste_risk', 0)
+                } for r in results
+            ])
+            
+            st.divider()
+            st.write("**Daily Divergence Trend**")
+            fig_trend = px.line(sim_df, x='Date', y=['Missed', 'OverOrdered', 'Aligned'], 
+                               title="Day-over-Day Alignment", markers=True)
+            st.plotly_chart(fig_trend, width='stretch')
+            
+            st.write("**Daily Financial Risk (Cumulative Waste)**")
+            fig_risk = px.bar(sim_df, x='Date', y='Risk', title="Inventory Waste Risk (KES)",
+                             color_discrete_sequence=['#e74c3c'])
+            st.plotly_chart(fig_risk, width='stretch')
+
 
 else:
     st.info("No purchase orders generated yet. Click 'Run Daily Pipeline Now' in the sidebar to begin.")

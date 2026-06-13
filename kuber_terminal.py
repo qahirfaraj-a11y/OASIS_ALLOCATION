@@ -17,16 +17,23 @@ from oasis.exchange.ui_utils import (
 )
 
 def safe_rerun():
-    if hasattr(st, "rerun"):
-        st.rerun()
-    else:
-        st.experimental_rerun()
+    st.rerun()
 
 # --- SESSION STATE & ENGINE INIT ---
 DATA_DIR = os.path.join(os.path.dirname(__file__), "oasis", "data")
 if not os.path.exists(DATA_DIR): os.makedirs(DATA_DIR)
 
 st.set_page_config(page_title="KUBER Financial Terminal", layout="wide", page_icon="🏦")
+
+# ── Unified auth gate (U2) ──────────────────────────────────────────────
+# Financial/exchange terminal — restricted to ops_admin.
+from oasis.ui.auth import require_login as _oasis_require_login  # noqa: E402
+_AUTH_DB = os.getenv(
+    "OASIS_DB_PATH",
+    os.path.join(DATA_DIR, "mock_pos_erp.db"),
+)
+_oasis_require_login(st, _AUTH_DB, app_title="KUBER Financial Terminal",
+                     allowed_roles=["ops_admin"])
 
 if 'registry' not in st.session_state:
     st.session_state.registry = ExchangeRegistry(DATA_DIR)
@@ -184,7 +191,7 @@ with tab_market:
                         </div>
                         <div style="text-align: right;">
                             <span class="ticker-label">Projected Net Yield</span>
-                            <div style="color: var(--terminal-green); font-weight: 700; font-family: 'JetBrains Mono';">12.25% (Net)</div>
+                            <div style="color: var(--terminal-green); font-weight: 700; font-family: 'JetBrains Mono';">{((pos.get('sell_price', 0) - pos.get('cost_price', 0)) / max(pos.get('cost_price', 1), 1) * 100) if pos.get('cost_price', 0) > 0 else 12.25:.2f}% (Net)</div>
                         </div>
                     </div>
                 </div>""", unsafe_allow_html=True)
@@ -246,7 +253,6 @@ with tab_secondary:
             market.run_gpp_liquidity_bot()
             st.toast("GPP Engine processing liquidity requests...")
             st.rerun()
-      st.rerun()
 
 # --- TAB 3: SHADOW BANK LEDGER ---
 with tab_ledger:

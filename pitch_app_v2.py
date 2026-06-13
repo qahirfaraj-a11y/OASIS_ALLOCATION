@@ -13,6 +13,11 @@ try:
 except ImportError as _ing_err:
     INGESTOR_AVAILABLE = False
 
+if INGESTOR_AVAILABLE:
+    import pitch_data_ingestor_v2
+    import logging
+    logging.getLogger("OASIS.Pitch").debug(f"Ingestor Path: {pitch_data_ingestor_v2.__file__}")
+
 try:
     from export_generator import generate_excel_export, generate_word_export
     EXPORT_AVAILABLE = True
@@ -20,6 +25,17 @@ except ImportError as _exp_err:
     EXPORT_AVAILABLE = False
 
 st.set_page_config(page_title="O.A.S.I.S. Operations Forensic Audit", layout="wide", initial_sidebar_state="expanded")
+
+# ── Unified auth gate (U2) ──────────────────────────────────────────────
+# The forensic-audit pitch is an internal iLink-operator tool (prospects
+# receive the outputs, never log in). Restricted to ops_admin.
+from oasis.ui.auth import require_login as _oasis_require_login  # noqa: E402
+_AUTH_DB = os.getenv(
+    "OASIS_DB_PATH",
+    os.path.join(os.path.dirname(os.path.abspath(__file__)), "oasis", "data", "mock_pos_erp.db"),
+)
+_oasis_require_login(st, _AUTH_DB, app_title="Operations Forensic Audit",
+                     allowed_roles=["ops_admin"])
 
 # --- PREMIUM DESIGN SYSTEM (O.A.S.I.S. Standard) ---
 st.markdown("""
@@ -103,7 +119,12 @@ def render_dashboard(audit):
         )
     st.divider()
     
-    tab1, tab2, tab3 = st.tabs(["🔴 The Revenue Bleed (Store)", "🚚 Supplier Hostility (Supply Chain)", "📉 Network Entropy (Logistics)"])
+    tab1, tab2, tab3, tab4 = st.tabs([
+        "🔴 The Revenue Bleed (Store)", 
+        "🚚 Supplier Hostility (Supply Chain)", 
+        "📉 Network Entropy (Logistics)",
+        "🌊 Cycle Intelligence (Waveform)"
+    ])
     
     # ---------------- TAB 1: Revenue Bleed (AMIT & DHARAM) ---------------- #
     with tab1:
@@ -131,11 +152,13 @@ def render_dashboard(audit):
                 </div>""", unsafe_allow_html=True)
             
             with m3:
+                ghost_count = cat.get('ghost_demand_count', 0)
+                ghost_threshold = cat.get('ghost_demand_threshold', 2.0)
                 st.markdown(f"""
                 <div class="metric-box" style="border-bottom: 2px solid #f39c12;">
                     <div class="metric-label">Revenue Bleed (Ghost Demand)</div>
                     <div class="metric-value" style="color: #f39c12;">KES {cat.get('ghost_demand_value', 0):,.0f}</div>
-                    <div class="metric-delta" style="color: #f39c12;">{cat.get('ghost_demand_count', 0)} Missing Fast Movers</div>
+                    <div class="metric-delta" style="color: #f39c12;">{ghost_count} Missing Fast Movers (ADS &gt; {ghost_threshold:.1f})</div>
                 </div>""", unsafe_allow_html=True)
             
             st.divider()
@@ -196,7 +219,7 @@ def render_dashboard(audit):
                 <div class="metric-box" style="border-bottom: 2px solid #e74c3c;">
                     <div class="metric-label">Toxic / At-Risk Vendors</div>
                     <div class="metric-value" style="color: #e74c3c;">{sup.get('criminal_count', 0)}</div>
-                    <div class="metric-delta" style="color: #e74c3c;">STI Score > 0.15</div>
+                    <div class="metric-delta" style="color: #e74c3c;">STI Score &gt; 0.15 (Hostile) / &gt; 0.40 (Criminal)</div>
                 </div>""", unsafe_allow_html=True)
             
             with m3:
@@ -237,12 +260,13 @@ def render_dashboard(audit):
             st.info("💡 **OASIS Solution [LATA ENGINE]:** O.A.S.I.S uses a neural shield to mathematically throttle ordering patterns for these bad actors.")
 
             with st.expander("🔬 The Math of O.A.S.I.S. (Forensic Integrity)"):
-                st.latex(r"STI = (Failure\ Rate \times 0.7) + (Lead\ Time\ Volatility \times 0.3)")
+                st.latex(r"STI = (Failure\ Rate \times 0.6) + (Lead\ Time\ Volatility \times 0.25) + Return\ Penalty")
                 st.markdown("""
                 **Supplier Toxicity Methodology:**
-                - **Failure Rate:** $(1 - Fulfillment\%)$ - Direct impact on shelf availability.
-                - **Lead Time Volatility:** $\sigma_{LT} / Avg_{LT}$ - Direct impact on safety stock inflation.
-                - **Index:** A score > 0.15 identifies a vendor that is statistically damaging to the retailer's working capital.
+                - **Failure Rate:** $(1 - Fulfillment\%)$ - Direct impact on shelf availability. *Weight: 60%*
+                - **Lead Time Volatility:** $\sigma_{LT} / Avg_{LT}$ (Coefficient of Variation) - Direct impact on safety stock inflation. *Weight: 25%*
+                - **Return Penalty:** Each 'Short Supply' return event adds 0.05 to the STI score (capped at 0.30). *Weight: up to 15%*
+                - **Classification:** RELIABLE (< 0.15) → HOSTILE (0.15-0.40) → CRIMINAL (> 0.40)
                 """)
 
     # ---------------- TAB 3: Network Entropy ---------------- #
@@ -311,6 +335,54 @@ def render_dashboard(audit):
         💡 **OASIS Solution [THE ALLOCATOR]:** OASIS solves allocation mathematically at the root. It doesn't guess. It uses physics-based algorithms to place the exact optimal quantity per store, severely reducing lateral transfers and dead stock expiry.
         """)
 
+    # ---------------- TAB 4: Cycle Intelligence ---------------- #
+    with tab4:
+        st.header("Retail Lifecycle & Waveform")
+        cyc = audit.get('cycle', {})
+        if not cyc or cyc.get('status') == 'Insufficient Data':
+            st.warning("Insufficient multi-month data to generate cycle intelligence.")
+        else:
+            # High Impact Metric Tiles
+            m1, m2, m3 = st.columns(3)
+            with m1:
+                st.markdown(f"""
+                <div class="metric-box">
+                    <div class="metric-label">Payday Pulse Multiplier</div>
+                    <div class="metric-value">{cyc.get('payday_multiplier', 0)}x</div>
+                    <div class="metric-delta" style="color: #666;">Normalized Surge Volume</div>
+                </div>""", unsafe_allow_html=True)
+            with m2:
+                st.markdown(f"""
+                <div class="metric-box" style="border-bottom: 2px solid var(--neon-emerald);">
+                    <div class="metric-label">Payday Sales Share</div>
+                    <div class="metric-value">{cyc.get('payday_sales_share', 0)*100:.0f}%</div>
+                    <div class="metric-delta" style="color: var(--neon-emerald);">Concentrated Rev Area</div>
+                </div>""", unsafe_allow_html=True)
+            with m3:
+                st.markdown(f"""
+                <div class="metric-box">
+                    <div class="metric-label">Avg. Estimated Monthly GTV</div>
+                    <div class="metric-value">KES {cyc.get('avg_monthly_rev', 0):,.0f}</div>
+                    <div class="metric-delta" style="color: #666;">Multi-Month Baseline</div>
+                </div>""", unsafe_allow_html=True)
+
+            st.divider()
+            
+            st.subheader("The '30-Day Demand Heartbeat'")
+            wave = cyc.get('demand_wave', {})
+            if wave:
+                # Convert keys to int if they are strings (JSON artifacts)
+                wave_data = {int(k): v for k, v in wave.items()}
+                wdf = pd.DataFrame(list(wave_data.items()), columns=['Day', 'Volume']).sort_values('Day')
+                fig4 = px.line(wdf, x='Day', y='Volume', markers=True, color_discrete_sequence=['#10b981'])
+                fig4.update_layout(xaxis=dict(tickmode='linear', tick0=1, dtick=1))
+                # Highlight Payday Window
+                fig4.add_vrect(x0=24.5, x1=31.5, fillcolor="#10b981", opacity=0.1, layer="below", line_width=0, annotation_text="Payday")
+                fig4.add_vrect(x0=0.5, x1=5.5, fillcolor="#10b981", opacity=0.1, layer="below", line_width=0, annotation_text="Surge")
+                st.plotly_chart(fig4, use_container_width=True)
+            
+            st.info("💡 **OASIS Solution [NEURAL FLOW]:** OASIS identifies these payday waveforms. It automatically pre-funds and pre-stocks the specific categories that peak during the 25-5 window, ensuring you hit 100% of the payday opportunity.")
+
 
 # --- UI Layout (Premium Header) ---
 st.markdown("""
@@ -334,10 +406,10 @@ st.sidebar.markdown(f"""
 
 st.sidebar.header("🔌 Data Ingestion")
 st.sidebar.markdown("Upload target operational logs:")
-pos_file = st.sidebar.file_uploader("1. POS System Log", type=["csv", "json", "xls", "xlsx"])
-grn_file = st.sidebar.file_uploader("2. GRN/Purchasing Log", type=["csv", "json", "xls", "xlsx"])
-shrink_file = st.sidebar.file_uploader("3. Shrink/Adjustments Log", type=["csv", "json", "xls", "xlsx"])
-trans_file = st.sidebar.file_uploader("4. Branch Transfers Log", type=["csv", "json", "xls", "xlsx"])
+pos_file = st.sidebar.file_uploader("1. POS System Log", type=["csv", "json", "xls", "xlsx"], accept_multiple_files=True)
+grn_file = st.sidebar.file_uploader("2. GRN/Purchasing Log", type=["csv", "json", "xls", "xlsx"], accept_multiple_files=True)
+shrink_file = st.sidebar.file_uploader("3. Shrink/Adjustments Log", type=["csv", "json", "xls", "xlsx"], accept_multiple_files=True)
+trans_file = st.sidebar.file_uploader("4. Branch Transfers Log", type=["csv", "json", "xls", "xlsx"], accept_multiple_files=True)
 
 st.sidebar.divider()
 st.sidebar.markdown("### 🏆 Live Case Study")
@@ -366,7 +438,7 @@ if use_rhapta:
     else:
         st.error("Pre-loaded audit cache missing. Please run `cache_rhapta_demo.py` first.")
 
-elif pos_file is not None or grn_file is not None:
+elif pos_file or grn_file or shrink_file or trans_file:
     if not INGESTOR_AVAILABLE:
         st.error("⚠️ `pitch_data_ingestor_v2` module not found. Cannot run custom forensic scans.")
     else:
@@ -374,12 +446,35 @@ elif pos_file is not None or grn_file is not None:
         ingestor = ForensicOperationsIngestor(base_dir)
         with st.spinner("Initializing Custom Forensic Scan..."):
             ingestor.load_logs(pos_file=pos_file, grn_file=grn_file, shrink_file=shrink_file, transfer_file=trans_file)
-            ingestor.run_pos_analysis()
+            
+            # --- MAPPING HEALTH DIAGNOSTIC ---
+            with st.sidebar.expander("🔬 Forensic Mapping Health", expanded=True):
+                if ingestor.pos_df is not None:
+                    st.write("**POS Ingestion:**")
+                    cols = ingestor.pos_df.columns
+                    st.caption(f"Rows: {len(ingestor.pos_df)}")
+                    st.write(f"📅 Date: {'✅' if 'Date' in cols else '⚠️ Defaulted'}")
+                    st.write(f"🆔 Barcode: {'✅' if 'Barcode' in cols else '⚠️ Missing'}")
+                    st.write(f"💰 Price: {'✅' if ingestor.pos_df.get('Unit_Price_KES', 0).sum() > 0 else '⚠️ Defaulted/Zero'}")
+                if ingestor.grn_df is not None:
+                    st.write("**GRN Ingestion:**")
+                    grn_cols = ingestor.grn_df.columns
+                    st.caption(f"Rows: {len(ingestor.grn_df)}")
+                    st.write(f"🚚 Supplier: {'✅' if 'Supplier_Name' in grn_cols else '⚠️ Missing'}")
+
+            # FIXED EXECUTION ORDER: Supplier analysis FIRST so DHARAM recovery windows use real lead times
             ingestor.run_supplier_analysis()
+            ingestor.run_pos_analysis()
             ingestor.run_network_analysis()
+            ingestor.run_cycle_analysis()
             audit = ingestor.get_full_audit()
-        st.sidebar.success("Custom Audit Complete!")
-        render_dashboard(audit)
+        
+        if audit.get('catalog', {}).get('total_skus_scanned', 0) > 0:
+            st.sidebar.success(f"Custom Audit Complete! ({audit['catalog']['total_skus_scanned']} SKUs)")
+            render_dashboard(audit)
+        else:
+            st.error("🔬 **Forensic Failure:** The uploaded files were ingested but no recognizable retail data (Barcode, Qty, Item) was found. Please check your CSV/Excel headers.")
+            st.info("💡 **Tip:** Ensure your columns are named something like 'Barcode', 'Item Name', 'Qty', and 'Price'.")
 
 else:
     st.info("Awaiting Data Logs. Upload files or click 'Run Mock Store Audit' to begin.")

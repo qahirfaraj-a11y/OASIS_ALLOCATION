@@ -14,6 +14,15 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
+# ── Unified auth gate (U2) ──────────────────────────────────────────────
+from oasis.ui.auth import require_login  # noqa: E402 (must follow set_page_config)
+_AUTH_DB = os.getenv(
+    "OASIS_DB_PATH",
+    os.path.join(os.path.dirname(os.path.abspath(__file__)), "oasis", "data", "mock_pos_erp.db"),
+)
+require_login(st, _AUTH_DB, app_title="Shadow Audit Hub",
+              allowed_roles=["ops_admin", "regional_manager"])
+
 # Deep Night Glassmorphism Theme
 st.markdown("""
     <style>

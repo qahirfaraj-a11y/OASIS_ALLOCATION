@@ -9,6 +9,28 @@ import json
 import math
 import os
 import sys
+import folium
+from streamlit_folium import st_folium
+from folium.plugins import HeatMap, Draw
+
+# --- Helper Functions ---
+def haversine_km(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
+    """
+    Calculate great-circle distance between two points on Earth.
+    Coordinates in decimal degrees (lat negative=South, lon positive=East).
+    """
+    R = 6371.0  # Earth radius in km
+    
+    dlat = math.radians(lat2 - lat1)
+    dlon = math.radians(lon2 - lon1)
+    
+    a = (math.sin(dlat / 2) ** 2 +
+         math.cos(math.radians(lat1)) * math.cos(math.radians(lat2)) *
+         math.sin(dlon / 2) ** 2)
+    c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
+    
+    return R * c
+
 
 # Add models to path
 sys.path.append(os.getcwd())
@@ -18,6 +40,15 @@ from models.store_gnn import StoreGraphNetwork
 
 # Page Config
 st.set_page_config(page_title="ST-GAT Market Pulse", layout="wide", page_icon="🧠")
+
+# ── Unified auth gate (U2) ──────────────────────────────────────────────
+from oasis.ui.auth import require_login  # noqa: E402 (must follow set_page_config)
+_AUTH_DB = os.getenv(
+    "OASIS_DB_PATH",
+    os.path.join(os.path.dirname(os.path.abspath(__file__)), "oasis", "data", "mock_pos_erp.db"),
+)
+require_login(st, _AUTH_DB, app_title="ST-GAT Market Pulse",
+              allowed_roles=["ops_admin", "regional_manager"])
 
 # Custom CSS
 st.markdown("""
@@ -55,7 +86,8 @@ def load_resources():
     
     if os.path.exists("st_gat_v2.pt"):
         try:
-            state_dict = torch.load("st_gat_v2.pt")
+            sd = torch.load("st_gat_v2.pt", map_location="cpu")
+            state_dict = sd.get('model_state_dict', sd)
             
             # --- PATCH: Handle Dimension Mismatch (29 -> 30) ---
             # The model now expects 30 inputs (added Salary Hit), but checkpoint has 29.
@@ -151,6 +183,10 @@ adj = sim.adj
 with torch.no_grad():
     # Use x_t [N, F] and sim.edge_index [2, E] for the static GCN
     outputs = model(x_t, sim.edge_index)
+    
+    # --- PATCH: Inject Transfer Scores (Not returned by base GNN forward) ---
+    outputs['transfer'] = model.get_all_transfer_scores(outputs['embeddings']).unsqueeze(0)
+
 
 stores = sim.stores_data
 
@@ -181,11 +217,12 @@ for _, row in risk_data.iterrows():
 selected_store = st.sidebar.selectbox("Drill Down Store", ["ALL STORES"] + store_ids)
 
 # --- 5. Main Panel: The Live Graph Map ---
-tab_map, tab_intel, tab_cluster, tab_expansion = st.tabs([
+tab_map, tab_intel, tab_cluster, tab_expansion, tab_neural = st.tabs([
     "🗺️ Live Network Map", 
     "🧠 Store Intelligence", 
     "🔗 Cluster Analysis",
-    "📍 Expansion & Site Selection"
+    "📍 Expansion & Site Selection",
+    "🕸️ Neural Ecosystem"
 ])
 
 with tab_map:
@@ -289,8 +326,11 @@ with tab_map:
             sel_dept = st.selectbox("Select Department", list(dept_map.keys()), format_func=lambda x: dept_map[x])
             
             mu = outputs['demand'][sel_idx, sel_dept].item()
-            alpha = 1.0 # Constant for GCN
-            pi = 0.05   # Constant for GCN
+            # M6 FIX: Derive ZINB params from model output instead of hardcoded constants
+            demand_dist = outputs['demand'][sel_idx].detach().numpy()
+            risk_val = outputs['risk'][sel_idx].item()
+            alpha = max(0.1, float(np.std(demand_dist) / (np.mean(demand_dist) + 1e-6)))  # Dispersion from demand variance
+            pi = min(0.95, max(0.01, risk_val * 0.5))  # Zero-inflation from risk score
             
             # Gauge for Pi (Zero Probability)
             fig_gauge = go.Figure(go.Indicator(
@@ -400,7 +440,7 @@ with tab_intel:
         with col_vel2:
             st.subheader("💰 Top Revenue Drivers")
             top_rev = df_skus.sort_values("Revenue", ascending=False).head(15)
-            top_rev["Revenue"] = top_rev["Revenue"].apply(lambda x: f"${x:,.0f}")
+            top_rev["Revenue"] = top_rev["Revenue"].apply(lambda x: f"KES {x:,.0f}")
             st.dataframe(top_rev[["Product", "Category", "Revenue"]], hide_index=True)
             
         st.subheader("📂 Sales by Category")
@@ -438,12 +478,13 @@ with tab_cluster:
                 title="Store Similarity Map (PCA)"
             )
             st.plotly_chart(fig_pca, use_container_width=True)
-    except:
-        st.error("Install sklearn for clusters.")
+    except Exception as e:
+        st.error(f"Cluster Analysis Error: {e}")
+        st.info("Ensure scikit-learn is installed in the current environment.")
 
 # --- TAB 4: Expansion & Site Selection (NEW) ---
-@st.cache_data(show_spinner="Calculating Territory Gap Index...")
-def get_expansion_grid(_engine, internal_can, comp_friction):
+@st.cache_data(show_spinner="Calculating Territory Gap Index (ML Optimized)...")
+def get_expansion_grid(_engine, model_loaded):
     # Map coordinates for Nairobi and surroundings
     grid_data = []
     lats = np.linspace(-1.45, -1.20, 25)
@@ -451,7 +492,8 @@ def get_expansion_grid(_engine, internal_can, comp_friction):
     
     for lat in lats:
         for lon in lons:
-            score = _engine.calculate_gap_index(lat, lon, internal_can, comp_friction)
+            # We no longer pass radii as the engine uses Huff/ML now
+            score = _engine.calculate_gap_index(lat, lon)
             grid_data.append({
                 "lat": lat, "lon": lon, "score": score,
                 "color": [255 * (1-score), 255 * score, 0, 100]
@@ -459,94 +501,316 @@ def get_expansion_grid(_engine, internal_can, comp_friction):
     return grid_data
 
 with tab_expansion:
-    st.header("📍 Strategic Expansion Engine")
+    st.header("📍 Strategic Expansion Engine (V2)")
     st.markdown("""
-    Use this tool to identify optimum greenfield locations for new stores. 
-    The **Gap Index** factors in regional affluence, competitor density (Naivas/Quickmart/Carrefour), 
-    and internal cannibalization of existing Chandarana outlets.
+    This engine has been upgraded to **Behavioral Spatial Modeling**. 
+    It replaces radial penalties with the **Huff Gravity Model** (customer capture probability) 
+    and uses a **Random Forest** classifier to predict site success based on traffic isochrones.
     """)
     
     col_exp_ctrl, col_exp_map = st.columns([1, 2])
     
     with col_exp_ctrl:
         st.subheader("Expansion Parameters")
+        
+        # --- STATE SYNC: Handle pending updates from map BEFORE widgets render ---
+        # --- STATE SYNC: Handle pending updates from map BEFORE widgets render ---
+        if 'input_lat' not in st.session_state: st.session_state.input_lat = -1.3000
+        if 'input_lon' not in st.session_state: st.session_state.input_lon = 36.8000
+
+        if st.session_state.get("pending_lat") is not None:
+            st.session_state.input_lat = st.session_state.pop("pending_lat")
+            st.session_state.input_lon = st.session_state.pop("pending_lon")
+        
         internal_can = st.slider("Internal Cannibalization Radius (km)", 0.5, 10.0, 3.0, 0.5)
         comp_friction = st.slider("Competitor Friction Radius (km)", 0.5, 5.0, 2.0, 0.5)
         
         st.markdown("---")
         st.subheader("Site Analysis tool")
-        target_lat = st.number_input("Target Latitude", value=-1.3000, format="%.4f")
-        target_lon = st.number_input("Target Longitude", value=36.8000, format="%.4f")
+        
+        target_lat = st.number_input("Target Latitude", format="%.4f", key="input_lat")
+        target_lon = st.number_input("Target Longitude", format="%.4f", key="input_lon")
         
         if st.button("🔍 Analyze This Site", type="secondary"):
             engine = sim.expansion_engine
-            score = engine.calculate_gap_index(target_lat, target_lon, 
-                                             internal_radius_km=internal_can,
-                                             competitor_radius_km=comp_friction)
             
-            # Affluence lookup (mocked based on nearest cluster or default)
-            affluence = 3.5 # Default Medium-High
+            # Perform Analysis
+            huff_prob = engine.calculate_huff_probability(target_lat, target_lon)
+            final_score = engine.calculate_gap_index(target_lat, target_lon)
             
-            rec = engine.recommend_store_type(score, affluence)
+            # Isochrone Check (Travel time to nearest internal store)
+            nearest_store = stores[0]
+            min_dist = 999
+            for s in stores:
+                d = haversine_km(target_lat, target_lon, s['latitude'], s['longitude'])
+                if d < min_dist:
+                    min_dist = d
+                    nearest_store = s
             
-            st.metric("Expansion Opportunity Score", f"{score:.2f}")
+            travel_time = engine.estimate_travel_time(target_lat, target_lon, 
+                                                      nearest_store['latitude'], nearest_store['longitude'])
             
-            if score > 0.6:
-                st.success(f"**Recommendation:** {rec}")
-            elif score > 0.3:
-                st.warning(f"**Recommendation:** {rec}")
+            # Affluence lookup (dynamic based on nearest store)
+            affluence = nearest_store.get('catchment_affluence_index', 3.5)
+            
+            # GET DETAILED ANALYSIS
+            detail = engine.get_detailed_analysis(target_lat, target_lon, final_score, affluence)
+            
+            # Metrics Row
+            m1, m2, m3 = st.columns(3)
+            with m1: st.metric("ML Success Score", f"{final_score:.2f}")
+            with m2: st.metric("Huff Prob (Capture)", f"{huff_prob*100:.1f}%")
+            with m3: st.metric("Capital Allocation", detail['capital'])
+            
+            st.markdown(f"**Recommendation:** `{detail['store_type']}`")
+            st.info(f"**Strategic Rationale:** {detail['rationale']}")
+            
+            # Nearby Stores Impact Table
+            st.subheader("📍 Nearby Store Proximity & Impact")
+            if detail['nearby']:
+                df_nearby = pd.DataFrame(detail['nearby'])
+                # Order columns for clean display
+                df_nearby = df_nearby[['id', 'type', 'distance_km', 'impact']]
+                df_nearby.columns = ["Target Entity", "Entity Type", "Distance (km)", "Impact Assessment"]
+                st.table(df_nearby)
             else:
-                st.error(f"**Recommendation:** {rec}")
-                
-            st.info("Score factors in proximity to 335+ competitor locations.")
+                st.write("No existing stores within 10km radius.")
+            
+            st.info(f"Analysis accounts for {len(engine.competitors)} competitors.")
 
     with col_exp_map:
         # Generate Heatmap Grid (Optimized with Caching)
         engine = sim.expansion_engine
-        grid_data = get_expansion_grid(engine, internal_can, comp_friction)
+        model_loaded = engine.model is not None
+        grid_data = get_expansion_grid(engine, model_loaded)
         
         # Competitor Data
         comp_df = engine.competitors
-        comp_map_data = []
+        
+        # --- Interactive Folium Map ---
+        st.subheader("Selection Matrix (Click to Analyze Site)")
+             # Render Map with FIXED dimensions and alternative stable tiles
+        m = folium.Map(location=[-1.2921, 36.8219], zoom_start=11, tiles="cartodbpositron")
+        
+        # 1. HeatMap Layer (Safe)
+        heat_data = []
+        for point in grid_data:
+            lat, lon, score = point.get('lat'), point.get('lon'), point.get('score')
+            # Check for non-None and non-NaN values (0.0 is a valid score)
+            if (lat is not None and lon is not None and score is not None and 
+                not np.isnan(lat) and not np.isnan(lon) and not np.isnan(score)):
+                heat_data.append([lat, lon, score])
+        
+        if heat_data:
+            HeatMap(heat_data, radius=12, blur=8, min_opacity=0.3).add_to(m)
+
+        # 1.5 Add Drawing Tools (Crucial for Site Selection)
+        Draw(export=True).add_to(m)
+
+        # 2. Add Markers
+        for s in stores:
+            if s.get('latitude') and s.get('longitude'):
+                folium.CircleMarker([s['latitude'], s['longitude']], radius=5, color='blue', tooltip=f"EXISTING: {s['store_id']}").add_to(m)
+
+        # 3. Competitor Layer (Limited)
         if not comp_df.empty:
-            comp_map_data = comp_df[["Latitude", "Longitude", "Store_Name", "Chain"]].rename(
-                columns={"Latitude": "lat", "Longitude": "lon", "Store_Name": "name"}
-            ).to_dict('records')
-            for c in comp_map_data:
-                c["color"] = [255, 0, 0, 150] # Red for competitors
-                c["size"] = 50
+            valid_comp = comp_df.dropna(subset=['Latitude', 'Longitude']).head(100)
+            for _, row in valid_comp.iterrows(): 
+                folium.CircleMarker([row['Latitude'], row['Longitude']], radius=3, color='red', tooltip=f"COMP: {row.get('Store_Name', 'Unknown')}").add_to(m)
 
-        # PyDeck Expansion Layers
-        layer_heatmap = pdk.Layer(
-            "HeatmapLayer", grid_data,
-            get_position=["lon", "lat"], get_weight="score",
-            radius_pixels=40, threshold=0.1
+        map_out = st_folium(
+            m, 
+            width='stretch',
+            height=600, 
+            key="expansion_map_v_stable_final_4",
+            returned_objects=["last_clicked", "all_drawings"]
         )
         
-        layer_grid = pdk.Layer(
-            "ScatterplotLayer", grid_data,
-            get_position=["lon", "lat"], get_color="color", get_radius=200, pickable=True
-        )
+        if map_out:
+            has_update = False
+            # Handle Single Click
+            if map_out.get("last_clicked"):
+                lc = map_out["last_clicked"]
+                # Round to 4 decimal places
+                new_lat = round(float(lc["lat"]), 4)
+                new_lon = round(float(lc["lng"]), 4)
+                
+                if new_lat != st.session_state.input_lat or new_lon != st.session_state.input_lon:
+                    st.session_state.pending_lat = new_lat
+                    st.session_state.pending_lon = new_lon
+                    has_update = True
+                    st.toast(f"📍 New Site Captured: {new_lat:.4f}, {new_lon:.4f}")
+            
+            # Handle Area Selection (Last drawing)
+            if map_out.get("all_drawings"):
+                drawings = map_out["all_drawings"]
+                if drawings:
+                    last_draw = drawings[-1]
+                    new_lat, new_lon = None, None
+                    if last_draw['geometry']['type'] == 'Point':
+                        coords = last_draw['geometry']['coordinates']
+                        new_lon, new_lat = coords[0], coords[1]
+                    elif last_draw['geometry']['type'] == 'Polygon':
+                        coords = np.array(last_draw['geometry']['coordinates'][0])
+                        center = coords.mean(axis=0)
+                        new_lon, new_lat = center[0], center[1]
+                    
+                    if new_lat is not None:
+                        # Round to 4 decimal places
+                        new_lat = round(float(new_lat), 4)
+                        new_lon = round(float(new_lon), 4)
+                        
+                        if new_lat != st.session_state.input_lat or new_lon != st.session_state.input_lon:
+                            st.session_state.pending_lat = new_lat
+                            st.session_state.pending_lon = new_lon
+                            has_update = True
+                            st.toast("📐 Area Selection Analyzed")
+            
+            if has_update:
+                st.rerun()
 
-        layer_comp = pdk.Layer(
-            "ScatterplotLayer", comp_map_data,
-            get_position=["lon", "lat"], get_color="color", get_radius=100, pickable=True
-        )
+        st.caption("🔵 Existing Stores | 🔴 Competitors | Heatmap: Expansion Opportunity | Tool: Use Polygon/Rectangle on left to select area")
 
-        layer_existing = pdk.Layer(
-            "ScatterplotLayer", map_data,
-            get_position=["lon", "lat"], get_color=[0, 0, 255, 200], get_radius=300, pickable=True
-        )
+# --- 6. Neural Ecosystem ---
+@st.cache_data
+def load_neural_data():
+    base_dir = os.path.dirname(os.path.abspath(__file__))
+    nodes_path = os.path.join(base_dir, "neutral_network_export", "nodes.csv")
+    edges_path = os.path.join(base_dir, "neutral_network_export", "edges.csv")
+    
+    if os.path.exists(nodes_path) and os.path.exists(edges_path):
+        nodes = pd.read_csv(nodes_path)
+        edges = pd.read_csv(edges_path)
+        return nodes, edges
+    return pd.DataFrame(), pd.DataFrame()
 
-        view_state_exp = pdk.ViewState(latitude=-1.29, longitude=36.82, zoom=10, pitch=45)
+with tab_neural:
+    st.header("🕸️ Neural Ecosystem & Market Intelligence")
+    nodes_df, edges_df = load_neural_data()
+    
+    if not nodes_df.empty and not edges_df.empty:
+        # A. Supplier Fragility Matrix
+        st.subheader("🏢 Supplier Fragility & Dominance Matrix")
         
-        st.pydeck_chart(pdk.Deck(
-            layers=[layer_heatmap, layer_grid, layer_existing, layer_comp],
-            initial_view_state=view_state_exp,
-            tooltip={"text": "Expansion Score: {score}\nComp: {name}"}
-        ))
+        # Clean supplier names
+        nodes_df['supplier'] = nodes_df['supplier'].fillna('Unknown').astype(str)
+        nodes_df['revenue'] = pd.to_numeric(nodes_df['revenue'], errors='coerce').fillna(0)
+        nodes_df['margin_pct'] = pd.to_numeric(nodes_df['margin_pct'], errors='coerce').fillna(0)
         
-        st.caption("🔵 Existing Stores | 🔴 Competitors (Naivas/Quickmart) | Heatmap: Green = High Opportunity")
+        # Group by supplier
+        supplier_agg = nodes_df.groupby('supplier').agg(
+            total_revenue=('revenue', 'sum'),
+            avg_margin=('margin_pct', 'mean'),
+            sku_count=('id', 'count')
+        ).reset_index()
+        
+        # Filter out "Unknown" and tiny suppliers for better visibility
+        supplier_agg = supplier_agg[(supplier_agg['supplier'] != 'Unknown') & (supplier_agg['supplier'] != '[[Unknown]]')]
+        supplier_agg = supplier_agg[supplier_agg['total_revenue'] > 0]
+        
+        if not supplier_agg.empty:
+            fig_fragility = px.scatter(
+                supplier_agg, x="total_revenue", y="avg_margin", size="sku_count", 
+                color="total_revenue", hover_name="supplier",
+                title="Supplier Risk vs. Reward (Size = SKU Count)",
+                labels={"total_revenue": "Total Revenue (KES)", "avg_margin": "Average Margin (%)"}
+            )
+            st.plotly_chart(fig_fragility, use_container_width=True)
+            
+        # B. SKU Affinity & Substitution Engine
+        st.markdown("---")
+        st.subheader("🔗 SKU Affinity & Substitution Engine")
+        
+        try:
+            import networkx as nx
+            has_nx = True
+        except ImportError:
+            has_nx = False
+            st.warning("NetworkX not installed. Visualizations will be limited to tables.")
+        
+        skus_with_edges = pd.concat([edges_df['source'], edges_df['target']]).unique()
+        valid_skus = nodes_df[nodes_df['id'].isin(skus_with_edges)]['id'].tolist()
+        
+        if valid_skus:
+            selected_sku = st.selectbox("Select Target SKU to Trace Network", [""] + valid_skus[:1000])
+            
+            if selected_sku:
+                connected_edges = edges_df[(edges_df['source'] == selected_sku) | (edges_df['target'] == selected_sku)]
+                st.write(f"Found {len(connected_edges)} direct relationships for **{selected_sku}**")
+                
+                if not connected_edges.empty and has_nx:
+                    G = nx.Graph()
+                    for _, row in connected_edges.iterrows():
+                        G.add_edge(row['source'], row['target'], relation=row['relation'])
+                    
+                    pos = nx.spring_layout(G)
+                    
+                    edge_x = []
+                    edge_y = []
+                    for edge in G.edges():
+                        x0, y0 = pos[edge[0]]
+                        x1, y1 = pos[edge[1]]
+                        edge_x.extend([x0, x1, None])
+                        edge_y.extend([y0, y1, None])
+                        
+                    edge_trace = go.Scatter(
+                        x=edge_x, y=edge_y,
+                        line=dict(width=0.5, color='#888'),
+                        hoverinfo='none',
+                        mode='lines')
+
+                    node_x = []
+                    node_y = []
+                    node_text = []
+                    node_color = []
+                    for node in G.nodes():
+                        x, y = pos[node]
+                        node_x.append(x)
+                        node_y.append(y)
+                        node_text.append(str(node))
+                        node_color.append('red' if node == selected_sku else 'blue')
+
+                    node_trace = go.Scatter(
+                        x=node_x, y=node_y,
+                        mode='markers+text',
+                        hoverinfo='text',
+                        text=node_text,
+                        textposition="bottom center",
+                        marker=dict(showscale=False, color=node_color, size=10, line_width=2)
+                    )
+                            
+                    fig_net = go.Figure(data=[edge_trace, node_trace],
+                                layout=go.Layout(
+                                    title='Local SKU Affinity Network',
+                                    titlefont_size=16,
+                                    showlegend=False,
+                                    hovermode='closest',
+                                    margin=dict(b=20,l=5,r=5,t=40),
+                                    xaxis=dict(showgrid=False, zeroline=False, showticklabels=False),
+                                    yaxis=dict(showgrid=False, zeroline=False, showticklabels=False))
+                                    )
+                    st.plotly_chart(fig_net, use_container_width=True)
+
+        # C. Market Whitespace / Moat Finder
+        st.markdown("---")
+        st.subheader("📈 High-Velocity Market Moats (Whitespace Finder)")
+        
+        nodes_df['velocity_ads'] = pd.to_numeric(nodes_df['velocity_ads'], errors='coerce').fillna(0)
+        sku_nodes = nodes_df[nodes_df['type'] == 'SKU'].copy()
+        
+        if not sku_nodes.empty:
+            vel_threshold = sku_nodes['velocity_ads'].quantile(0.8)
+            moat_skus = sku_nodes[(sku_nodes['margin_pct'] > 15.0) & (sku_nodes['velocity_ads'] > vel_threshold)]
+            moat_skus = moat_skus.sort_values('gross_profit', ascending=False)
+            
+            st.dataframe(
+                moat_skus[['id', 'department', 'supplier', 'price', 'margin_pct', 'velocity_ads', 'gross_profit']],
+                hide_index=True,
+                use_container_width=True
+            )
+            
+    else:
+        st.warning("Neural Network data (nodes.csv / edges.csv) not found in the export directory.")
 
 
 # --- 7. Transfer Hub (Actionable) ---
@@ -573,7 +837,7 @@ if selected_store != "ALL STORES":
                 "Target": target_store['store_id'], 
                 "Score": f"{score:.2f}",
                 "Friction": f"{fric:.2f}",
-                "Profit": f"${est_gain:.0f}"
+                "Profit": f"KES {est_gain:.0f}"
             })
 
     if transfers_out:
