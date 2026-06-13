@@ -121,6 +121,28 @@ if st.session_state.get('has_allocation') and not st.session_state['basket_df'].
     # v2.6: Display Allocation Summary
     st.info(f"**Utilization**: {alloc_summary['utilization_pct']:.1f}% | **Skipped**: {alloc_summary['total_skipped']} items")
 
+    # A1: per-stage breakdown of where SKUs dropped out of the basket
+    _by_stage = alloc_summary.get('skipped_by_stage') or {}
+    if _by_stage:
+        _stage_labels = {
+            "pass1": "Pass 1 (width filter)",
+            "liquidity_prune": "Pass 1.5 (liquidity recovery)",
+            "premium_trim": "Premium cap",
+            "anchor_mov": "Pass 3 (anchor MOV)",
+            "safety_guards": "Safety guards",
+        }
+        with st.expander(f"Why {alloc_summary['total_skipped']} SKUs were skipped", expanded=False):
+            _stage_df = pd.DataFrame(
+                [{"Stage": _stage_labels.get(k, k), "SKUs": v}
+                 for k, v in sorted(_by_stage.items(), key=lambda x: -x[1])]
+            )
+            st.dataframe(_stage_df, use_container_width=True, hide_index=True)
+            _reasons = alloc_summary.get('skip_reasons') or {}
+            if _reasons:
+                st.caption("By reason: " + " · ".join(
+                    f"{k}: {v}" for k, v in sorted(_reasons.items(), key=lambda x: -x[1])
+                ))
+
 
     # Info Box (Dynamic Profile based on Budget)
     # Access the profile manager from the engine instance

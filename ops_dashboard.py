@@ -2543,6 +2543,28 @@ if "allocation_engine" in tab_map:
             _util_pct = _alloc_summary.get('utilization_pct', 0)
             st.progress(min(_util_pct / 100.0, 1.0), text=f"Budget Utilization: {_util_pct:.1f}% | Skipped: {_alloc_summary.get('total_skipped', 0)} items")
 
+            # A1: per-stage breakdown of where SKUs dropped out of the basket
+            _by_stage = _alloc_summary.get('skipped_by_stage') or {}
+            if _by_stage:
+                _stage_labels = {
+                    "pass1": "Pass 1 (width filter)",
+                    "liquidity_prune": "Pass 1.5 (liquidity recovery)",
+                    "premium_trim": "Premium cap",
+                    "anchor_mov": "Pass 3 (anchor MOV)",
+                    "safety_guards": "Safety guards",
+                }
+                with st.expander(f"Why {_alloc_summary.get('total_skipped', 0)} SKUs were skipped", expanded=False):
+                    _stage_df = pd.DataFrame(
+                        [{"Stage": _stage_labels.get(k, k), "SKUs": v}
+                         for k, v in sorted(_by_stage.items(), key=lambda x: -x[1])]
+                    )
+                    st.dataframe(_stage_df, use_container_width=True, hide_index=True)
+                    _reasons = _alloc_summary.get('skip_reasons') or {}
+                    if _reasons:
+                        st.caption("By reason: " + " · ".join(
+                            f"{k}: {v}" for k, v in sorted(_reasons.items(), key=lambda x: -x[1])
+                        ))
+
             # Engine profile info
             try:
                 _eng = get_order_engine()
