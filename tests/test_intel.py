@@ -112,12 +112,39 @@ class TestRegistry:
         assert reg[0].key == "pulse"
         assert reg[0].render is intel.render_pulse
 
-    def test_native_monitoring_pages(self):
+    def test_all_intel_pages_native(self):
         reg = {p.key: p for p in intel.build_intel_registry()}
         assert reg["velocity"].render is intel.render_velocity_alerts
         assert reg["stock_review"].render is intel.render_stock_review
         assert reg["live_sales"].render is intel.render_live_sales
         assert reg["network"].render is intel.render_network_intel
+        assert reg["exec_roi"].render is intel.render_exec_roi
+        assert reg["sim_lab"].render is intel.render_sim_lab
+
+
+class TestRoiScorecard:
+    def test_on_target_flags(self):
+        rows = intel.roi_scorecard_rows(
+            {"dead_stock_pct": 3.0, "stockout_pct": 1.0}, value_recovered=250000)
+        by = {r["Metric"]: r for r in rows}
+        assert by["Dead Stock %"]["On Target"] is True
+        assert by["Stockout %"]["On Target"] is True
+        assert by["Capital Recovered"]["On Target"] is True
+
+    def test_off_target_flags(self):
+        rows = intel.roi_scorecard_rows(
+            {"dead_stock_pct": 30.0, "stockout_pct": 12.0}, value_recovered=0)
+        by = {r["Metric"]: r for r in rows}
+        assert by["Dead Stock %"]["On Target"] is False
+        assert by["Stockout %"]["On Target"] is False
+        assert by["Capital Recovered"]["On Target"] is False
+
+    def test_scenario_templates_loadable(self):
+        from oasis.simulation.black_swan_events import SCENARIO_TEMPLATES
+        assert len(SCENARIO_TEMPLATES) > 0
+        ev = next(iter(SCENARIO_TEMPLATES.values()))
+        assert hasattr(ev, "get_multiplier_for_day")
+        assert 0.0 < ev.get_multiplier_for_day(15) < 2.0
 
     def test_role_visibility(self):
         reg = intel.build_intel_registry()

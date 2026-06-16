@@ -14,7 +14,7 @@ import-safe and unit tested.
 
 from __future__ import annotations
 
-from typing import Callable, Dict, List
+from typing import Dict, List
 
 from .shell import (
     Page, compute_health_metrics, _pos_adapter,
@@ -301,13 +301,120 @@ def render_network_intel(ctx) -> None:
         C.error_panel("Transfer scan unavailable.", str(e), st_module=st)
 
 
-def _intel_bridge(title: str, legacy: str, blurb: str) -> Callable:
-    def _render(ctx) -> None:
-        from . import components as C
-        C.empty_state(f"{title} — in the legacy console",
-                      f"{blurb}  Runs in {legacy} until migrated to the "
-                      f"Intelligence Console.", st_module=ctx["st"])
-    return _render
+def roi_scorecard_rows(health: dict, value_recovered: float) -> List[dict]:
+    """Pre→Post target scorecard rows (pure) — Playbook value table with live
+    figures where computable."""
+    dead = float(health.get("dead_stock_pct", 0))
+    so = float(health.get("stockout_pct", 0))
+    return [
+        {"Metric": "Dead Stock %", "Live": f"{dead}%", "Target": "< 5%", "On Target": dead < 5.0},
+        {"Metric": "Stockout %", "Live": f"{so}%", "Target": "< 2%", "On Target": so < 2.0},
+        {"Metric": "Capital Recovered", "Live": f"KES {float(value_recovered or 0):,.0f}",
+         "Target": "maximize", "On Target": float(value_recovered or 0) > 0},
+    ]
+
+
+def render_exec_roi(ctx) -> None:
+    """Executive ROI: the capital-recovery showcase — journey value + live
+    network health against the Playbook's Pre→Post targets."""
+    st = ctx["st"]
+    from . import components as C
+    from ..logic import journey_state as JS
+
+    state = JS.load_state(ctx.get("journey_state_path"))
+    st.markdown("### Executive ROI")
+    C.mode_phase_badge(state["mode"], state["phase"], state["phase_name"],
+                       state["value_recovered"], st_module=st)
+    C.value_recovered_meter(state["value_recovered"],
+                            state.get("value_target") or 0, st_module=st)
+
+    if "_intel_netstock" not in st.session_state and not st.button("⚙️ Load ROI scorecard"):
+        C.empty_state("Load the scorecard", "Pull live network health to score against targets.", st_module=st)
+        return
+    health = compute_health_metrics(_network_stock(ctx))
+    import pandas as pd
+    st.markdown("#### Network Health vs Targets")
+    st.dataframe(pd.DataFrame(roi_scorecard_rows(health, state["value_recovered"])),
+                 use_container_width=True, hide_index=True)
+    st.caption("Targets per the Implementation Playbook: dead stock < 5%, "
+               "fast-mover stockout < 2%, capital utilization > 95%.")
+
+
+def render_sim_lab(ctx) -> None:
+    """Simulation Lab: competitive/chaos what-if — scenario demand multiplier
+    and its effect on a store's recommended order quantities."""
+    import os
+    st = ctx["st"]
+    from . import components as C
+    try:
+        from ..simulation.black_swan_events import SCENARIO_TEMPLATES
+    except Exception as e:
+        C.error_panel("Simulation templates unavailable.", str(e), st_module=st)
+        return
+
+    st.markdown("### Simulation Lab")
+    keys = list(SCENARIO_TEMPLATES.keys())
+    key = st.selectbox("Scenario", keys,
+                       format_func=lambda k: f"{SCENARIO_TEMPLATES[k].competitor_name} "
+                                             f"({SCENARIO_TEMPLATES[k].impact_pct:+.0f}%)")
+    event = SCENARIO_TEMPLATES[key]
+    day = st.slider("Day into the event", 1, max(2, event.ramp_up_days), min(15, event.ramp_up_days))
+    mult = event.get_multiplier_for_day(day)
+    C.kpi_row([
+        {"label": "Competitor", "value": event.competitor_name},
+        {"label": "YoY Impact", "value": f"{event.impact_pct:+.1f}%"},
+        {"label": f"Demand × (day {day})", "value": f"{mult:.3f}"},
+        {"label": "Distance", "value": f"{event.distance_meters} m"},
+    ], st_module=st)
+
+    st.markdown("#### What-if on a store's order")
+    adapter = _pos_adapter(ctx)
+    try:
+        orgs = adapter.fetch_all_organizations()
+    except Exception:
+        orgs = []
+    if not orgs:
+        C.empty_state("No store data", "Connect store data to run a what-if.", st_module=st)
+        return
+    names = {o["ORG_CD"]: o.get("ORG_NAME", o["ORG_CD"]) for o in orgs}
+    org = st.selectbox("Store", list(names), format_func=lambda x: names[x], key="sim_org")
+    if st.button("Run what-if", type="primary"):
+        with st.spinner("Recomputing orders under the scenario…"):
+            try:
+                from ..logic.order_engine import OrderEngine
+                from ..logic.simulation_bridge import SimulationOrderUtil
+                data_dir = os.path.join(ctx["project_root"], "oasis", "data")
+                engine = st.session_state.get("_oasis_engine")
+                if engine is None:
+                    engine = OrderEngine(data_dir)
+                    engine.load_local_databases()
+                    st.session_state["_oasis_engine"] = engine
+                sim = SimulationOrderUtil(data_dir, engine=engine)
+                products = adapter.fetch_enriched_products(org)
+                base = sim.prepare_sku_data(products)
+                base_qty = sum(float(r.get("recommended_quantity", 0) or 0)
+                               for r in sim.calculate_order_quantity(base, use_real_date=True))
+                shocked = []
+                for p in products:
+                    q = dict(p)
+                    q["avg_daily_sales"] = float(q.get("avg_daily_sales", 0) or 0) * mult
+                    shocked.append(q)
+                shock_prep = sim.prepare_sku_data(shocked, skip_enrichment=True)
+                shock_qty = sum(float(r.get("recommended_quantity", 0) or 0)
+                                for r in sim.calculate_order_quantity(shock_prep, use_real_date=True))
+                delta = shock_qty - base_qty
+                C.kpi_row([
+                    {"label": "Baseline order qty", "value": f"{base_qty:,.0f}"},
+                    {"label": "Scenario order qty", "value": f"{shock_qty:,.0f}"},
+                    {"label": "Change", "value": f"{delta:+,.0f}",
+                     "status": "warning" if abs(delta) > 0 else "success"},
+                ], st_module=st)
+            except Exception as e:
+                C.error_panel("What-if simulation failed.", str(e), st_module=st)
+
+
+# Every Intelligence Console page is now native — the _intel_bridge helper
+# (which pointed at the legacy command center) has been retired.
 
 
 def build_intel_registry() -> List[Page]:
@@ -318,10 +425,6 @@ def build_intel_registry() -> List[Page]:
         Page("stock_review", "Stock Review", "▦", render_stock_review, _OVERSIGHT),
         Page("live_sales", "Live Sales", "▤", render_live_sales, _OVERSIGHT),
         Page("network", "Network Intel", "⇄", render_network_intel, _OVERSIGHT),
-        Page("exec_roi", "Executive ROI", "▣",
-             _intel_bridge("Executive ROI", "ops_dashboard.py",
-                           "The capital-recovery showcase."), _OVERSIGHT),
-        Page("sim_lab", "Simulation Lab", "🧪",
-             _intel_bridge("Simulation Lab", "ops_dashboard.py",
-                           "Chaos / what-if scenarios."), _OPERATOR),
+        Page("exec_roi", "Executive ROI", "▣", render_exec_roi, _OVERSIGHT),
+        Page("sim_lab", "Simulation Lab", "🧪", render_sim_lab, _OPERATOR),
     ]
