@@ -42,20 +42,14 @@ def build_registry() -> List[Page]:
     """The journey-ordered page registry (Customer Journey §5 IA)."""
     return [
         Page("home", "Home / Journey", "◎", render_home, _ALL),
-        Page("diagnose", "Diagnose", "⊙", _bridge("Forensic Audit",
-             "pitch_app_v2.py", "Operator-run forensic diagnosis (Phase 1)."),
-             _ADMIN),
+        Page("diagnose", "Diagnose", "⊙", render_diagnose, _ADMIN),
         Page("shadow", "Shadow", "◑", render_shadow, _MGMT),
         Page("ordering", "Ordering", "▤", render_ordering, _ALL),
         Page("transfers", "Transfers", "⇄", render_transfers, _MGMT),
         Page("suppliers", "Suppliers", "◇", render_suppliers, _MGMT),
         Page("allocation", "Allocation", "▦", render_allocation, _ALL),
-        Page("analytics", "Analytics", "▣", _bridge("Analytics",
-             "ops_dashboard.py", "Pre→Post target scorecard (Phase 7)."),
-             _MGMT),
-        Page("settings", "Settings", "⚙", _bridge("Settings",
-             "ops_dashboard.py", "Engine thresholds, users, mode control."),
-             _ADMIN),
+        Page("analytics", "Analytics", "▣", render_analytics, _MGMT),
+        Page("settings", "Settings", "⚙", render_settings, _ADMIN),
     ]
 
 
@@ -522,16 +516,141 @@ def render_shadow(ctx) -> None:
     st.dataframe(logs, use_container_width=True, hide_index=True, height=420)
 
 
-def _bridge(title: str, legacy_file: str, blurb: str) -> Callable:
-    """A page that explains a not-yet-migrated surface and points to its
-    legacy launcher. Honest interim state during the incremental migration."""
-    def _render(ctx) -> None:
-        st = ctx["st"]
-        from . import components as C
-        C.empty_state(
-            f"{title} — migrating to the shell",
-            f"{blurb}  This surface still runs in its dedicated dashboard "
-            f"({legacy_file}); it will move into the shell in a later U3 step.",
-            st_module=st,
-        )
-    return _render
+def compute_health_metrics(products_by_org: dict,
+                           dead_ads: float = 0.2, dead_soh: float = 15.0) -> dict:
+    """Network health metrics from enriched stock (pure, testable).
+
+    Uses the Playbook's documented detection rules:
+      - dead stock: ADS < dead_ads AND stock > dead_soh   (AMIT)
+      - stockout:   ADS > 0 AND stock < 1                 (DHARAM-style)
+    Returns counts and percentages over all SKUs in the network.
+    """
+    total = dead = stockout = 0
+    for products in (products_by_org or {}).values():
+        for p in products or []:
+            ads = float(p.get("avg_daily_sales", 0) or 0)
+            soh = float(p.get("current_stocks", p.get("current_stock", 0)) or 0)
+            total += 1
+            if ads < dead_ads and soh > dead_soh:
+                dead += 1
+            if ads > 0 and soh < 1.0:
+                stockout += 1
+    pct = lambda n: round(n / total * 100, 1) if total else 0.0  # noqa: E731
+    return {
+        "total_skus": total,
+        "dead_stock": dead,
+        "dead_stock_pct": pct(dead),
+        "stockouts": stockout,
+        "stockout_pct": pct(stockout),
+    }
+
+
+def render_analytics(ctx) -> None:
+    """Pre→Post target scorecard (Phase 7): live network health vs Playbook targets."""
+    st = ctx["st"]
+    from . import components as C
+    adapter = _pos_adapter(ctx)
+    try:
+        orgs = adapter.fetch_all_organizations()
+    except Exception as e:
+        C.error_panel("Could not load stores from the database.", str(e), st_module=st)
+        return
+    if not orgs:
+        C.empty_state("No data yet", "Connect store data to compute health.", st_module=st)
+        return
+
+    st.markdown("### Analytics — Network Health vs Targets")
+    if "_analytics" not in st.session_state or st.button("⚙️ Recompute"):
+        with st.spinner("Computing network health…"):
+            stock = {o["ORG_CD"]: adapter.fetch_enriched_products(o["ORG_CD"]) for o in orgs}
+            st.session_state["_analytics"] = compute_health_metrics(stock)
+    m = st.session_state["_analytics"]
+
+    # Live vs Playbook targets (dead stock < 5%, fast-mover stockout < 2%)
+    dead_ok = m["dead_stock_pct"] < 5.0
+    so_ok = m["stockout_pct"] < 2.0
+    C.kpi_row([
+        {"label": "Total SKUs", "value": f"{m['total_skus']:,}"},
+        {"label": "Dead Stock %", "value": f"{m['dead_stock_pct']}%",
+         "sub": "target < 5%", "status": "success" if dead_ok else "danger"},
+        {"label": "Stockout %", "value": f"{m['stockout_pct']}%",
+         "sub": "target < 2%", "status": "success" if so_ok else "danger"},
+    ], st_module=st)
+    st.caption(f"Dead stock: {m['dead_stock']:,} SKUs · Stockouts: {m['stockouts']:,} SKUs "
+               f"(rules: dead = ADS<0.2 & SOH>15; stockout = ADS>0 & SOH<1)")
+
+
+def render_settings(ctx) -> None:
+    """Admin: users, engine feature flags, and journey/mode state (read-mostly)."""
+    import os
+    import json
+    st = ctx["st"]
+    from . import components as C
+    from ..logic import journey_state as JS
+
+    st.markdown("### Settings")
+    # Journey / mode
+    state = JS.load_state(ctx.get("journey_state_path"))
+    C.mode_phase_badge(state["mode"], state["phase"], state["phase_name"],
+                       state["value_recovered"], st_module=st)
+    st.caption("Advance the journey phase from the Home screen (human-confirmed).")
+
+    # Users
+    st.markdown("#### Users")
+    try:
+        from ..logic.auth_manager import get_all_users
+        users = get_all_users(ctx["db_path"])
+        if users:
+            import pandas as pd
+            st.dataframe(pd.DataFrame(users)[["USERNAME", "DISPLAY_NAME", "ROLE",
+                         "ASSIGNED_ORG", "ACTIVE_FLAG", "LAST_LOGIN_DT"]],
+                         use_container_width=True, hide_index=True)
+        else:
+            C.empty_state("No users", "Seed accounts via OASIS_SEED_PASSWORD.", st_module=st)
+    except Exception as e:
+        C.error_panel("Could not load users.", str(e), st_module=st)
+
+    # Engine feature flags (read-only view)
+    st.markdown("#### Engine Flags")
+    cfg_path = os.path.join(ctx["project_root"], "oasis", "data", "oasis_engines_config.json")
+    if os.path.exists(cfg_path):
+        try:
+            with open(cfg_path, "r", encoding="utf-8") as f:
+                engines = json.load(f).get("engines", {})
+            rows = [{"Engine": k, "Enabled": bool(v.get("enabled"))}
+                    for k, v in engines.items()]
+            if rows:
+                import pandas as pd
+                st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True)
+        except Exception:
+            C.empty_state("Engine config unreadable", "Check oasis_engines_config.json.", st_module=st)
+    else:
+        C.empty_state("No engine config", "oasis_engines_config.json not found.", st_module=st)
+
+
+def render_diagnose(ctx) -> None:
+    """Operator-only forensic audit entry (Phase 1). The full upload/ingestion
+    pipeline is the dedicated pitch app; this surfaces the latest audit output
+    if present, and points operators to the ingestion tool otherwise."""
+    import os
+    import glob
+    st = ctx["st"]
+    from . import components as C
+
+    st.markdown("### Forensic Diagnosis (operator)")
+    root = ctx["project_root"]
+    outputs = sorted(glob.glob(os.path.join(root, "OASIS_Forensic_Audit_Data*.xlsx")) +
+                     glob.glob(os.path.join(root, "OASIS_Executive_Diagnostic*.docx")))
+    if outputs:
+        st.success(f"{len(outputs)} forensic audit output(s) on disk:")
+        for o in outputs[-5:]:
+            st.caption("• " + os.path.basename(o))
+    C.empty_state(
+        "Run the full forensic audit in the ingestion tool",
+        "The Phase-1 audit (messy-data upload → ForensicOperationsIngestor → "
+        "AMIT/DHARAM/LATA/MANDE → Word + Excel) is operated via pitch_app_v2.py. "
+        "Outputs are handed to the prospect; this shell view tracks them.",
+        st_module=st)
+
+# All journey pages are now native in the shell — the interim _bridge helper
+# (which pointed at legacy dashboards) has been retired.

@@ -108,3 +108,37 @@ class TestClassifySupplier:
 
     def test_none_defaults_reliable(self):
         assert shell.classify_supplier(None) == "RELIABLE"
+
+
+class TestHealthMetrics:
+    def _stock(self):
+        return {
+            "ORG001": [
+                {"avg_daily_sales": 0.0, "current_stocks": 50},   # dead (ADS<0.2, SOH>15)
+                {"avg_daily_sales": 5.0, "current_stocks": 0},    # stockout (ADS>0, SOH<1)
+                {"avg_daily_sales": 3.0, "current_stocks": 40},   # healthy
+            ],
+            "ORG002": [
+                {"avg_daily_sales": 0.1, "current_stocks": 30},   # dead
+            ],
+        }
+
+    def test_counts_and_pcts(self):
+        m = shell.compute_health_metrics(self._stock())
+        assert m["total_skus"] == 4
+        assert m["dead_stock"] == 2
+        assert m["stockouts"] == 1
+        assert m["dead_stock_pct"] == 50.0
+        assert m["stockout_pct"] == 25.0
+
+    def test_empty_is_safe(self):
+        m = shell.compute_health_metrics({})
+        assert m["total_skus"] == 0
+        assert m["dead_stock_pct"] == 0.0
+
+    def test_all_pages_native(self):
+        # Milestone: every journey page is a real renderer, none are bridges.
+        reg = {p.key: p.render for p in shell.build_registry()}
+        assert reg["analytics"] is shell.render_analytics
+        assert reg["settings"] is shell.render_settings
+        assert reg["diagnose"] is shell.render_diagnose
