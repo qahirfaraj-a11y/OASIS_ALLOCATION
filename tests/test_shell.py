@@ -86,3 +86,25 @@ class TestGroupBySupplier:
         transfers = next(p for p in shell.build_registry() if p.key == "transfers")
         assert transfers.render is shell.render_transfers
         assert transfers.roles == shell._MGMT  # mgmt-only
+
+    def test_suppliers_and_shadow_native(self):
+        reg = {p.key: p for p in shell.build_registry()}
+        assert reg["suppliers"].render is shell.render_suppliers
+        assert reg["shadow"].render is shell.render_shadow
+
+
+class TestClassifySupplier:
+    def test_reliable_at_or_below_one(self):
+        assert shell.classify_supplier(0.8) == "RELIABLE"
+        assert shell.classify_supplier(1.0) == "RELIABLE"
+
+    def test_watch_band(self):
+        assert shell.classify_supplier(1.2) == "WATCH"
+        assert shell.classify_supplier(1.49) == "WATCH"
+
+    def test_hostile_at_or_above_one_point_five(self):
+        assert shell.classify_supplier(1.5) == "HOSTILE"
+        assert shell.classify_supplier(2.0) == "HOSTILE"
+
+    def test_none_defaults_reliable(self):
+        assert shell.classify_supplier(None) == "RELIABLE"

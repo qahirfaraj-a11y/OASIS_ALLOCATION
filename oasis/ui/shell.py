@@ -45,14 +45,10 @@ def build_registry() -> List[Page]:
         Page("diagnose", "Diagnose", "⊙", _bridge("Forensic Audit",
              "pitch_app_v2.py", "Operator-run forensic diagnosis (Phase 1)."),
              _ADMIN),
-        Page("shadow", "Shadow", "◑", _bridge("Shadow Audit",
-             "shadow_dashboard.py", "Human-vs-OASIS divergence (Phase 2)."),
-             _MGMT),
+        Page("shadow", "Shadow", "◑", render_shadow, _MGMT),
         Page("ordering", "Ordering", "▤", render_ordering, _ALL),
         Page("transfers", "Transfers", "⇄", render_transfers, _MGMT),
-        Page("suppliers", "Suppliers", "◇", _bridge("Supplier Shield",
-             "ops_dashboard.py", "LATA supplier scorecards (Phase 5)."),
-             _MGMT),
+        Page("suppliers", "Suppliers", "◇", render_suppliers, _MGMT),
         Page("allocation", "Allocation", "▦", render_allocation, _ALL),
         Page("analytics", "Analytics", "▣", _bridge("Analytics",
              "ops_dashboard.py", "Pre→Post target scorecard (Phase 7)."),
@@ -412,6 +408,118 @@ def render_transfers(ctx) -> None:
             st.rerun()
         else:
             st.warning("No transfers queued (all selected were fresh/manual-only or rejected).")
+
+
+def classify_supplier(multiplier: float) -> str:
+    """Map a LATA variance multiplier to a Playbook reliability class (pure).
+
+    LATA inflates safety stock for unreliable suppliers (>1.0) and releases
+    capital for reliable ones (<=1.0). Bands mirror the Implementation
+    Playbook: RELIABLE 1.2x / WATCH 1.5x / HOSTILE 2.0x+.
+    """
+    m = float(multiplier or 1.0)
+    if m >= 1.5:
+        return "HOSTILE"
+    if m > 1.0:
+        return "WATCH"
+    return "RELIABLE"
+
+
+def _load_supplier_patterns(data_dir: str) -> dict:
+    import glob
+    import json
+    import os
+    matches = sorted(glob.glob(os.path.join(data_dir, "supplier_patterns*.json")))
+    if not matches:
+        return {}
+    try:
+        with open(matches[0], "r", encoding="utf-8") as f:
+            data = json.load(f)
+        return data if isinstance(data, dict) else {}
+    except Exception:
+        return {}
+
+
+def render_suppliers(ctx) -> None:
+    """LATA Supplier Shield scorecard (Phase 5). Runs the LATA engine on
+    demand and shows per-supplier reliability class + safety-stock multiplier."""
+    import os
+    st = ctx["st"]
+    from . import components as C
+    from ..logic.lata_shield import run_lata
+
+    data_dir = os.path.join(ctx["project_root"], "oasis", "data")
+    st.markdown("### Supplier Shield (LATA)")
+    if st.button("⚙️ Run LATA scan"):
+        with st.spinner("Scoring supplier reliability from delivery history…"):
+            nn = os.path.join(ctx["project_root"], "neutral_network_export")
+            run_lata(data_dir, nn if os.path.isdir(nn) else None)
+
+    patterns = _load_supplier_patterns(data_dir)
+    rows = []
+    for supplier, d in patterns.items():
+        if not isinstance(d, dict):
+            continue
+        mult = d.get("lata_variance_multiplier")
+        if mult is None:
+            continue
+        rows.append({
+            "Supplier": supplier,
+            "Classification": classify_supplier(mult),
+            "Safety Multiplier": round(float(mult), 2),
+            "Confidence": d.get("lata_confidence", "—"),
+            "Reason": d.get("lata_reason", ""),
+        })
+    if not rows:
+        C.empty_state("No supplier scores yet",
+                      "Run a LATA scan once GRN/delivery data has been ingested.",
+                      st_module=st)
+        return
+
+    import pandas as pd
+    counts = {"RELIABLE": 0, "WATCH": 0, "HOSTILE": 0}
+    for r in rows:
+        counts[r["Classification"]] += 1
+    C.kpi_row([
+        {"label": "Reliable", "value": counts["RELIABLE"], "status": "success"},
+        {"label": "Watch", "value": counts["WATCH"], "status": "warning"},
+        {"label": "Hostile", "value": counts["HOSTILE"], "status": "danger"},
+    ], st_module=st)
+    df = pd.DataFrame(rows).sort_values("Safety Multiplier", ascending=False)
+    st.dataframe(df, use_container_width=True, hide_index=True, height=420)
+
+
+def render_shadow(ctx) -> None:
+    """Shadow Review (Phase 2): the human-vs-OASIS divergence that builds trust
+    before the engine takes control. Read-only view of aggregated shadow logs."""
+    import os
+    st = ctx["st"]
+    from . import components as C
+    from ..logic.shadow_mode import ShadowModeEngine
+
+    data_dir = os.path.join(ctx["project_root"], "oasis", "data")
+    st.markdown("### Shadow Review — Human vs OASIS")
+    try:
+        logs = ShadowModeEngine(data_dir).load_aggregated_shadow_logs(14)
+    except Exception:
+        logs = None
+    if logs is None or logs.empty:
+        C.empty_state(
+            "No shadow comparisons yet",
+            "Shadow mode generates daily human-vs-OASIS divergence; run the "
+            "shadow daemon (Phase 2) to populate this review.", st_module=st)
+        return
+
+    if "Divergence" in logs.columns:
+        vc = logs["Divergence"].value_counts().to_dict()
+        total = max(int(len(logs)), 1)
+        C.kpi_row([
+            {"label": "Aligned", "value": vc.get("ALIGNED", 0), "status": "success"},
+            {"label": "Human Missed", "value": vc.get("HUMAN_MISSED", 0), "status": "danger"},
+            {"label": "Over-ordered", "value": vc.get("HUMAN_OVER_ORDERED", 0), "status": "warning"},
+            {"label": "Accuracy", "value": f"{vc.get('ALIGNED', 0) / total * 100:.0f}%"},
+        ], st_module=st)
+    st.dataframe(logs, use_container_width=True, hide_index=True, height=420)
 
 
 def _bridge(title: str, legacy_file: str, blurb: str) -> Callable:
