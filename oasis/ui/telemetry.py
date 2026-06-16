@@ -42,11 +42,14 @@ def log_ui_action(db_path: str, username: str, action: str, details=None) -> Non
 def page_view_counts(db_path: str, days: int = 7) -> Dict[str, int]:
     """{page_key: view_count} for PAGE_VIEW events in the last *days* days.
 
-    Reads via the central DB factory; returns {} on any error.
+    Reads the SAME database that log_page_view wrote to (the passed db_path),
+    not the env default — so the two are always consistent. Returns {} on any
+    error.
     """
     try:
         from ..logic import db as oasis_db
-        conn = oasis_db.get_raw_connection()
+        url = db_path if "://" in str(db_path) else f"sqlite:///{db_path}"
+        conn = oasis_db.get_raw_connection(db_url=url)
         try:
             cur = conn.execute(
                 """SELECT ENTITY_ID, COUNT(*) AS n
