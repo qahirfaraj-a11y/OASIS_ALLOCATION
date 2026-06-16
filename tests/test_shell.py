@@ -50,7 +50,35 @@ class TestRoleVisibility:
 
     def test_unknown_role_sees_only_open_pages(self):
         vis = {p.key for p in shell.visible_pages(self._reg(), "stranger")}
-        assert vis == {"home", "ordering", "allocation"}  # the _ALL pages
+        assert vis == {"home", "allocation"}  # the _ALL pages
+
+    # ── Journey role model ────────────────────────────────────────────
+    def _vis(self, role):
+        return {p.key for p in shell.visible_pages(self._reg(), role)}
+
+    def test_ilink_operator_sees_everything(self):
+        assert self._vis("ilink_operator") == {p.key for p in self._reg()}
+
+    def test_executive_oversight_only(self):
+        v = self._vis("executive")
+        assert {"home", "shadow", "analytics", "allocation"} <= v
+        assert "settings" not in v and "diagnose" not in v   # operator-only
+        assert "ordering" not in v and "transfers" not in v  # operational
+
+    def test_finance_capital_and_analytics_only(self):
+        v = self._vis("finance")
+        assert v == {"home", "allocation", "analytics"}
+
+    def test_approval_manager_operational(self):
+        v = self._vis("approval_manager")
+        assert {"home", "ordering", "transfers", "suppliers", "allocation"} <= v
+        assert "settings" not in v and "diagnose" not in v
+        assert "shadow" not in v  # oversight, not operational
+
+    def test_journey_roles_exist_in_auth(self):
+        from oasis.logic.auth_manager import ROLE_PERMISSIONS
+        for r in ("ilink_operator", "executive", "finance", "approval_manager"):
+            assert r in ROLE_PERMISSIONS
 
     def test_page_visible_to_helper(self):
         p_admin = shell.Page("x", "X", "•", lambda c: None, ("ops_admin",))
@@ -85,7 +113,7 @@ class TestGroupBySupplier:
     def test_transfers_page_in_registry_is_native(self):
         transfers = next(p for p in shell.build_registry() if p.key == "transfers")
         assert transfers.render is shell.render_transfers
-        assert transfers.roles == shell._MGMT  # mgmt-only
+        assert transfers.roles == shell._OPERATIONS
 
     def test_suppliers_and_shadow_native(self):
         reg = {p.key: p for p in shell.build_registry()}

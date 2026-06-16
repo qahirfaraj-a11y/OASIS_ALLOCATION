@@ -32,24 +32,28 @@ class Page:
         return not self.roles or role in set(self.roles)
 
 
-# Role groups (existing auth roles; journey target model is future work).
+# Role groups span the legacy roles (ops_admin / regional_manager /
+# branch_manager) and the journey role model (ilink_operator / executive /
+# finance / approval_manager), so both work side by side.
 _ALL = ()  # visible to any authenticated role
-_MGMT = ("ops_admin", "regional_manager")
-_ADMIN = ("ops_admin",)
+_OPERATOR = ("ops_admin", "ilink_operator")                       # full / admin
+_OVERSIGHT = _OPERATOR + ("regional_manager", "executive")        # view + approve gates
+_OPERATIONS = _OPERATOR + ("regional_manager", "approval_manager")  # act on orders/transfers
 
 
 def build_registry() -> List[Page]:
-    """The journey-ordered page registry (Customer Journey §5 IA)."""
+    """The journey-ordered page registry (Customer Journey §5 IA), with
+    per-page role visibility spanning legacy + journey roles."""
     return [
         Page("home", "Home / Journey", "◎", render_home, _ALL),
-        Page("diagnose", "Diagnose", "⊙", render_diagnose, _ADMIN),
-        Page("shadow", "Shadow", "◑", render_shadow, _MGMT),
-        Page("ordering", "Ordering", "▤", render_ordering, _ALL),
-        Page("transfers", "Transfers", "⇄", render_transfers, _MGMT),
-        Page("suppliers", "Suppliers", "◇", render_suppliers, _MGMT),
+        Page("diagnose", "Diagnose", "⊙", render_diagnose, _OPERATOR),
+        Page("shadow", "Shadow", "◑", render_shadow, _OVERSIGHT),
+        Page("ordering", "Ordering", "▤", render_ordering, _OPERATIONS + ("branch_manager",)),
+        Page("transfers", "Transfers", "⇄", render_transfers, _OPERATIONS),
+        Page("suppliers", "Suppliers", "◇", render_suppliers, _OPERATIONS),
         Page("allocation", "Allocation", "▦", render_allocation, _ALL),
-        Page("analytics", "Analytics", "▣", render_analytics, _MGMT),
-        Page("settings", "Settings", "⚙", render_settings, _ADMIN),
+        Page("analytics", "Analytics", "▣", render_analytics, _OVERSIGHT + ("finance",)),
+        Page("settings", "Settings", "⚙", render_settings, _OPERATOR),
     ]
 
 

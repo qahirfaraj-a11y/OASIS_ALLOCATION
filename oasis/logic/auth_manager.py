@@ -139,6 +139,56 @@ ROLE_PERMISSIONS = {
         "can_view_audit_log": True,
         "can_edit_config": True,
     },
+    # ── Journey role model (Customer Journey doc) — added alongside the
+    # legacy roles above, which are retained for backward compatibility. ──
+    "ilink_operator": {  # internal implementation/admin — full access
+        "tabs": {
+            "live_sales": True, "transfer_intelligence": True, "stock_review": True,
+            "smart_ordering": True, "oasis_processor": True, "allocation_engine": True,
+            "simulation_validation": True, "analytics": True, "settings": True,
+        },
+        "can_view_all_stores": True,
+        "can_approve_po": True,
+        "can_execute_transfers": True,
+        "can_view_audit_log": True,
+        "can_edit_config": True,
+    },
+    "executive": {  # oversight: view + approve gates, no engine config
+        "tabs": {
+            "live_sales": True, "transfer_intelligence": True, "stock_review": True,
+            "smart_ordering": False, "oasis_processor": False, "allocation_engine": False,
+            "simulation_validation": True, "analytics": True, "settings": False,
+        },
+        "can_view_all_stores": True,
+        "can_approve_po": False,
+        "can_execute_transfers": False,
+        "can_view_audit_log": True,
+        "can_edit_config": False,
+    },
+    "finance": {  # capital recovery + analytics, read-mostly
+        "tabs": {
+            "live_sales": False, "transfer_intelligence": False, "stock_review": False,
+            "smart_ordering": False, "oasis_processor": False, "allocation_engine": False,
+            "simulation_validation": False, "analytics": True, "settings": False,
+        },
+        "can_view_all_stores": True,
+        "can_approve_po": False,
+        "can_execute_transfers": False,
+        "can_view_audit_log": False,
+        "can_edit_config": False,
+    },
+    "approval_manager": {  # the buyer → daily PO approval + operations
+        "tabs": {
+            "live_sales": True, "transfer_intelligence": True, "stock_review": True,
+            "smart_ordering": True, "oasis_processor": True, "allocation_engine": True,
+            "simulation_validation": False, "analytics": True, "settings": False,
+        },
+        "can_view_all_stores": True,
+        "can_approve_po": True,
+        "can_execute_transfers": True,
+        "can_view_audit_log": False,
+        "can_edit_config": False,
+    },
 }
 
 
@@ -377,6 +427,35 @@ DEFAULT_USERS = [
         "role": "branch_manager",
         "assigned_org": "ORG001",
         "email": "demo@chandarana.co.ke",
+    },
+    # ── Journey-role seed accounts (added; existing accounts unaffected) ──
+    {
+        "username": "ilink_operator",
+        "display_name": "iLink Operator",
+        "role": "ilink_operator",
+        "assigned_org": None,
+        "email": "ops@ilink.co.ke",
+    },
+    {
+        "username": "exec_user",
+        "display_name": "Executive",
+        "role": "executive",
+        "assigned_org": None,
+        "email": "exec@chandarana.co.ke",
+    },
+    {
+        "username": "finance_user",
+        "display_name": "Finance",
+        "role": "finance",
+        "assigned_org": None,
+        "email": "finance@chandarana.co.ke",
+    },
+    {
+        "username": "approval_mgr",
+        "display_name": "Approval Manager",
+        "role": "approval_manager",
+        "assigned_org": None,
+        "email": "approvals@chandarana.co.ke",
     },
 ]
 
