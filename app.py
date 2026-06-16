@@ -78,4 +78,7 @@ ctx = {
 }
 
 selected = labels[choice]
-selected.render(ctx)
+# U4: every page render is wrapped — a page error shows a calm panel and is
+# logged in full, never a traceback on screen.
+from oasis.ui.components import safe_render
+safe_render(selected.render, ctx)

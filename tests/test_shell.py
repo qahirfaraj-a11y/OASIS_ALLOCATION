@@ -81,3 +81,8 @@ class TestGroupBySupplier:
         # The ordering page must now be the native renderer, not a bridge.
         ordering = next(p for p in shell.build_registry() if p.key == "ordering")
         assert ordering.render is shell.render_ordering
+
+    def test_transfers_page_in_registry_is_native(self):
+        transfers = next(p for p in shell.build_registry() if p.key == "transfers")
+        assert transfers.render is shell.render_transfers
+        assert transfers.roles == shell._MGMT  # mgmt-only

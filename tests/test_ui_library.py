@@ -99,6 +99,35 @@ class TestComponentHtml:
         assert "No data yet" in h
 
 
+class TestSafeRender:
+    class FakeSt:
+        def __init__(self):
+            self.markdown_calls = []
+
+        def markdown(self, html, **k):
+            self.markdown_calls.append(html)
+
+    def test_success_returns_true_and_runs(self):
+        st = self.FakeSt()
+        ran = {}
+        ok = C.safe_render(lambda ctx: ran.setdefault("yes", True), {"st": st}, st_module=st)
+        assert ok is True
+        assert ran.get("yes") is True
+
+    def test_exception_is_caught_and_paneled(self):
+        st = self.FakeSt()
+
+        def boom(ctx):
+            raise RuntimeError("kaboom")
+
+        ok = C.safe_render(boom, {"st": st}, st_module=st)
+        assert ok is False                      # did not propagate
+        joined = " ".join(st.markdown_calls)
+        assert "pick another page" in joined    # friendly panel shown
+        assert "kaboom" not in joined           # raw error NOT on screen
+        assert "Traceback" not in joined
+
+
 class TestJourneyPrimitives:
     def test_mode_phase_badge(self):
         h = C._html_mode_phase_badge("active", 4, "DHARAM", 4_200_000)

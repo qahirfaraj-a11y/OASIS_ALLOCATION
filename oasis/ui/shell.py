@@ -49,9 +49,7 @@ def build_registry() -> List[Page]:
              "shadow_dashboard.py", "Human-vs-OASIS divergence (Phase 2)."),
              _MGMT),
         Page("ordering", "Ordering", "▤", render_ordering, _ALL),
-        Page("transfers", "Transfers", "⇄", _bridge("Transfer Intelligence",
-             "ops_dashboard.py", "Network allocation & transfers (Phase 6)."),
-             _MGMT),
+        Page("transfers", "Transfers", "⇄", render_transfers, _MGMT),
         Page("suppliers", "Suppliers", "◇", _bridge("Supplier Shield",
              "ops_dashboard.py", "LATA supplier scorecards (Phase 5)."),
              _MGMT),
@@ -314,6 +312,106 @@ def _render_approvals(ctx, adapter, org_ids) -> None:
             st.rerun()
         else:
             st.error("PO not found.")
+
+
+def render_transfers(ctx) -> None:
+    """Native network-transfer opportunities, on the unified CTS scan
+    (PULL/PUSH with pending-transfer awareness — the same scan_network_
+    opportunities that replaced the inline dashboard logic). Mgmt-only.
+    Queue selected non-fresh transfers to the DB for dispatch."""
+    import os
+    st = ctx["st"]
+    from . import components as C
+    from ..logic.consolidated_transfer_service import ConsolidatedTransferService
+    from ..logic.moq_failure_store import load_moq_failures
+
+    adapter = _pos_adapter(ctx)
+    try:
+        orgs = adapter.fetch_all_organizations()
+    except Exception as e:
+        C.error_panel("Could not load stores from the database.", str(e), st_module=st)
+        return
+    if not orgs:
+        C.empty_state("No stores found", "Connect store data to scan transfers.", st_module=st)
+        return
+
+    name_map = {o["ORG_CD"]: o.get("ORG_NAME", o["ORG_CD"]) for o in orgs}
+    org_ids = list(name_map.keys())
+    data_dir = os.path.join(ctx["project_root"], "oasis", "data")
+
+    st.markdown("### Network Transfer Intelligence")
+    if "_transfers_scan" not in st.session_state or st.button("⚙️ Re-scan network"):
+        with st.spinner("Scanning the network (PULL + PUSH, pending-aware)…"):
+            try:
+                moq = {}
+                try:
+                    moq = load_moq_failures(os.path.join(data_dir, "moq_failures.json"))
+                except Exception:
+                    pass
+                pending = []
+                try:
+                    pdf = adapter.fetch_transfers(None)
+                    if not pdf.empty:
+                        pending = pdf.to_dict("records")
+                except Exception:
+                    pass
+                cts = ConsolidatedTransferService(
+                    org_names=name_map,
+                    stock_data={o: adapter.fetch_enriched_products(o) for o in org_ids},
+                    cold_node_days=60, hot_node_days=14)
+                scan = cts.scan_network_opportunities(
+                    moq_failures=moq, pending_transfers=pending)
+                st.session_state["_transfers_scan"] = scan.opportunities
+            except Exception as e:
+                C.error_panel("Transfer scan failed.", str(e), st_module=st)
+                return
+
+    opps = st.session_state.get("_transfers_scan", [])
+    if not opps:
+        C.empty_state("No transfer opportunities",
+                      "Every store is balanced, or no donor has excess above safety stock.",
+                      st_module=st)
+        return
+
+    import pandas as pd
+    rows = [{
+        "Type": ("PULL" if o.type == "PULL" else "PUSH") + (" (manual)" if o.manual_only else ""),
+        "Product": o.product_name[:45],
+        "From": name_map.get(o.from_org, o.from_org),
+        "To": name_map.get(o.to_org, o.to_org),
+        "Qty": o.transfer_qty,
+        "Value (KES)": o.value_kes,
+        "Department": o.department,
+    } for o in opps]
+    C.kpi_row([
+        {"label": "Opportunities", "value": len(opps)},
+        {"label": "Total Value", "value": f"KES {sum(o.value_kes for o in opps):,.0f}"},
+        {"label": "Store Pairs", "value": len({(o.from_org, o.to_org) for o in opps})},
+    ], st_module=st)
+    st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True, height=380)
+
+    n = st.number_input("Queue top N (non-fresh) transfers", 1, 500,
+                        min(50, len(opps)), step=10)
+    if st.button("🚀 Queue Transfers", type="primary"):
+        queued = 0
+        for o in opps[:int(n)]:
+            if o.manual_only:
+                continue  # fresh items are manual-dispatch only
+            try:
+                if adapter.push_transfer_request(o.from_org, o.to_org, [{
+                    "item_code": o.itm_cd, "product_name": o.product_name,
+                    "transfer_qty": o.transfer_qty, "transfer_value": o.value_kes,
+                    "urgency": "HIGH" if o.recipient_days_cover <= 1 else "MEDIUM",
+                }]):
+                    queued += 1
+            except Exception:
+                pass
+        if queued:
+            st.success(f"Queued {queued} transfers for dispatch.")
+            st.session_state.pop("_transfers_scan", None)
+            st.rerun()
+        else:
+            st.warning("No transfers queued (all selected were fresh/manual-only or rejected).")
 
 
 def _bridge(title: str, legacy_file: str, blurb: str) -> Callable:

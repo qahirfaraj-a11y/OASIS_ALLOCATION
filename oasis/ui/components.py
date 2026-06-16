@@ -126,6 +126,29 @@ def empty_state(title: str, body: str, st_module=None):
     _render(_html_empty_state(title, body), st_module)
 
 
+def safe_render(render_fn, ctx, st_module=None) -> bool:
+    """Run a page render, converting any exception into a friendly panel.
+
+    Full detail (with traceback) goes to the structured logger; the user sees
+    a calm message, never a Python traceback. Returns True on success, False
+    if the render raised. This is the U4 catch-all wrapped around every page.
+    """
+    st = st_module or ctx.get("st") or _st()
+    try:
+        render_fn(ctx)
+        return True
+    except Exception as e:
+        import logging
+        import traceback
+        logging.getLogger("OASIS.UI").error(
+            "Page render failed: %s\n%s", e, traceback.format_exc())
+        # error_panel called without detail so it doesn't double-log the line.
+        _render(_html_error_panel(
+            "This screen hit a problem and couldn't load. The team has been "
+            "notified — try again, or pick another page from the left."), st)
+        return False
+
+
 # ── U0: Journey primitives ───────────────────────────────────────────────
 def _html_mode_phase_badge(mode: str, phase_no: int, phase_name: str,
                            value_recovered: float) -> str:
