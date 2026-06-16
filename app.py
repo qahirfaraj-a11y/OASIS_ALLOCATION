@@ -18,6 +18,8 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from oasis.ui import theme
 from oasis.ui.auth import require_login, logout
 from oasis.ui import shell
+from oasis.ui.components import safe_render
+from oasis.ui.telemetry import log_page_view
 
 PROJECT_ROOT = os.path.dirname(os.path.abspath(__file__))
 DB_PATH = os.getenv(
@@ -78,7 +80,12 @@ ctx = {
 }
 
 selected = labels[choice]
+
+# U5: record a page view once per navigation (not on every Streamlit rerun).
+if st.session_state.get("_last_page") != selected.key:
+    log_page_view(DB_PATH, user.get("username", ""), selected.key)
+    st.session_state["_last_page"] = selected.key
+
 # U4: every page render is wrapped — a page error shows a calm panel and is
 # logged in full, never a traceback on screen.
-from oasis.ui.components import safe_render
 safe_render(selected.render, ctx)

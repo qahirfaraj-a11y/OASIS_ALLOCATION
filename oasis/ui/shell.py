@@ -627,6 +627,21 @@ def render_settings(ctx) -> None:
     else:
         C.empty_state("No engine config", "oasis_engines_config.json not found.", st_module=st)
 
+    # U5: adoption — which shell pages are used (last 7 days)
+    st.markdown("#### Adoption (last 7 days)")
+    try:
+        from .telemetry import page_view_counts
+        counts = page_view_counts(ctx["db_path"], days=7)
+        if counts:
+            import pandas as pd
+            st.dataframe(pd.DataFrame(
+                [{"Page": k, "Views": v} for k, v in counts.items()]),
+                use_container_width=True, hide_index=True)
+        else:
+            C.empty_state("No usage recorded yet", "Page views appear here as the shell is used.", st_module=st)
+    except Exception:
+        pass
+
 
 def render_diagnose(ctx) -> None:
     """Operator-only forensic audit entry (Phase 1). The full upload/ingestion
