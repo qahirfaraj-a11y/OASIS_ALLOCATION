@@ -29,6 +29,24 @@ st.set_page_config(page_title="O.A.S.I.S.", page_icon="◎", layout="wide",
                    initial_sidebar_state="expanded")
 theme.inject_theme(st)
 
+
+def _ensure_seeded(db_path: str) -> None:
+    """First-run convenience: ensure auth tables exist and seed the default
+    accounts ONLY if an operator opted in via OASIS_SEED_PASSWORD and no users
+    exist yet. Never invents credentials; a no-op otherwise."""
+    try:
+        from oasis.logic.db_connector import ensure_oasis_tables
+        ensure_oasis_tables(db_path)
+        if os.getenv("OASIS_SEED_PASSWORD"):
+            from oasis.logic.auth_manager import get_all_users, seed_users
+            if not get_all_users(db_path):
+                seed_users(db_path)
+    except Exception:
+        pass  # never block the app on seeding
+
+
+_ensure_seeded(DB_PATH)
+
 # One gate for the whole platform.
 user = require_login(st, DB_PATH, app_title="Retail Intelligence Platform")
 role = user.get("role")

@@ -48,9 +48,7 @@ def build_registry() -> List[Page]:
         Page("shadow", "Shadow", "◑", _bridge("Shadow Audit",
              "shadow_dashboard.py", "Human-vs-OASIS divergence (Phase 2)."),
              _MGMT),
-        Page("ordering", "Ordering", "▤", _bridge("Smart Ordering",
-             "ops_dashboard.py", "Daily PO review & approval (Phases 4–6)."),
-             _ALL),
+        Page("ordering", "Ordering", "▤", render_ordering, _ALL),
         Page("transfers", "Transfers", "⇄", _bridge("Transfer Intelligence",
              "ops_dashboard.py", "Network allocation & transfers (Phase 6)."),
              _MGMT),
@@ -151,6 +149,171 @@ def render_allocation(ctx) -> None:
         ], st_module=st)
         st.dataframe(res.basket.sort_values("Allocated_Cost", ascending=False),
                      use_container_width=True, hide_index=True)
+
+
+def group_recs_by_supplier(recs: Sequence[dict]) -> dict:
+    """Group positive-quantity recommendations by supplier (pure, testable)."""
+    out: dict = {}
+    for r in recs:
+        if float(r.get("recommended_quantity", 0) or 0) <= 0:
+            continue
+        supp = str(r.get("supplier_name") or "UNKNOWN").strip() or "UNKNOWN"
+        out.setdefault(supp, []).append(r)
+    return out
+
+
+def _pos_adapter(ctx):
+    """Cached PosErpAdapter via the central DB factory (honors OASIS_DB_URL)."""
+    st = ctx["st"]
+    if "_oasis_adapter" not in st.session_state:
+        import os
+        from ..logic.db_connector import UniversalConnector, SchemaMapper
+        from ..logic.pos_erp_adapter import PosErpAdapter
+        if os.getenv("OASIS_DB_URL"):
+            from ..logic import db as oasis_db
+            uri = oasis_db.get_sqlalchemy_url()
+        else:
+            uri = f"sqlite:///{ctx['db_path']}"
+        st.session_state["_oasis_adapter"] = PosErpAdapter(
+            UniversalConnector(uri, SchemaMapper.for_pos_erp()))
+    return st.session_state["_oasis_adapter"]
+
+
+def render_ordering(ctx) -> None:
+    """Native daily-driver: generate a store's PO (engine → network → MOQ gate),
+    review by supplier, push to approvals; plus an Approvals queue for approvers.
+
+    Reuses the exact unified logic (SimulationOrderUtil, ConsolidatedTransferService,
+    moq_failure_store) — no divergence from the fixes already landed. Advanced
+    features (chaos scenarios, GNN risk overlay) remain in the legacy command
+    center until migrated.
+    """
+    import os
+    st = ctx["st"]
+    from . import components as C
+    from ..logic.order_engine import OrderEngine
+    from ..logic.simulation_bridge import SimulationOrderUtil
+    from ..logic.consolidated_transfer_service import ConsolidatedTransferService
+    from ..logic.moq_failure_store import record_moq_failures
+
+    adapter = _pos_adapter(ctx)
+    try:
+        orgs = adapter.fetch_all_organizations()
+    except Exception as e:
+        C.error_panel("Could not load stores from the database.", str(e), st_module=st)
+        return
+    if not orgs:
+        C.empty_state("No stores found", "Seed or connect store data to order.", st_module=st)
+        return
+
+    name_map = {o["ORG_CD"]: o.get("ORG_NAME", o["ORG_CD"]) for o in orgs}
+    # Role scoping: branch managers see only their assigned store.
+    user = ctx.get("user", {})
+    if ctx.get("role") == "branch_manager" and user.get("assigned_org"):
+        org_ids = [user["assigned_org"]]
+    else:
+        org_ids = list(name_map.keys())
+
+    can_approve = ctx.get("role") in ("ops_admin", "regional_manager")
+    tabs = st.tabs(["🛠️ Generate Orders", "✅ Approvals"] if can_approve else ["🛠️ Generate Orders"])
+
+    with tabs[0]:
+        org = st.selectbox("Store", org_ids, format_func=lambda x: f"{name_map.get(x, x)} ({x})")
+        data_dir = os.path.join(ctx["project_root"], "oasis", "data")
+        key = f"_ordering_{org}"
+        c1, c2 = st.columns([3, 1])
+        with c2:
+            if st.button("⚙️ Regenerate", key=f"regen_{org}"):
+                st.session_state.pop(key, None)
+        if key not in st.session_state:
+            with st.spinner("Running ordering pipeline (engine → network → MOQ gate)…"):
+                try:
+                    engine = st.session_state.get("_oasis_engine")
+                    if engine is None:
+                        engine = OrderEngine(data_dir)
+                        engine.load_local_databases()
+                        st.session_state["_oasis_engine"] = engine
+                    products = adapter.fetch_enriched_products(org)
+                    sim = SimulationOrderUtil(data_dir, engine=engine)
+                    enriched = sim.prepare_sku_data(products)
+                    final = sim.finalize_orders(
+                        sim.calculate_order_quantity(enriched, use_real_date=True))
+                    cts = ConsolidatedTransferService(
+                        org_names=name_map,
+                        stock_data={o: adapter.fetch_enriched_products(o) for o in org_ids},
+                        cold_node_days=60, hot_node_days=14)
+                    plan = cts.optimize_network({org: final})
+                    adjusted = plan.adjusted_orders.get(org, final)
+                    mot = sim.apply_minimum_order_gate(adjusted)
+                    try:
+                        record_moq_failures(os.path.join(data_dir, "moq_failures.json"),
+                                            org, mot["transfer_recs"] or [])
+                    except Exception:
+                        pass
+                    st.session_state[key] = {"po_recs": mot["po_recs"]}
+                except Exception as e:
+                    C.error_panel("Ordering pipeline failed.", str(e), st_module=st)
+                    return
+        po_recs = st.session_state[key]["po_recs"]
+        positive = [r for r in po_recs if float(r.get("recommended_quantity", 0) or 0) > 0]
+        if not positive:
+            C.empty_state("No orders recommended",
+                          "Current stock and on-order cover demand for this store.", st_module=st)
+        else:
+            import pandas as pd
+            grouped = group_recs_by_supplier(positive)
+            C.kpi_row([
+                {"label": "Store", "value": name_map.get(org, org)},
+                {"label": "PO Lines", "value": len(positive)},
+                {"label": "Suppliers", "value": len(grouped)},
+            ], st_module=st)
+            for supp, items in grouped.items():
+                with st.expander(f"{supp} — {len(items)} items", expanded=False):
+                    st.dataframe(pd.DataFrame([{
+                        "Product": r.get("product_name", ""),
+                        "Qty": r.get("recommended_quantity", 0),
+                        "Reasoning": r.get("reasoning", ""),
+                    } for r in items]), use_container_width=True, hide_index=True)
+            if st.button("🚀 Push to Pending Approvals", type="primary"):
+                try:
+                    n = adapter.push_purchase_order(org, positive)
+                    st.success(f"Sent {n} PO lines to approvals.")
+                except Exception as e:
+                    C.error_panel("Could not push the purchase order.", str(e), st_module=st)
+
+    if can_approve and len(tabs) > 1:
+        with tabs[1]:
+            _render_approvals(ctx, adapter, org_ids)
+
+
+def _render_approvals(ctx, adapter, org_ids) -> None:
+    st = ctx["st"]
+    from . import components as C
+    org_filter = org_ids[0] if ctx.get("role") == "branch_manager" else None
+    try:
+        df = adapter.fetch_pending_pos(org_filter)
+    except Exception as e:
+        C.error_panel("Could not load pending POs.", str(e), st_module=st)
+        return
+    if df.empty:
+        C.empty_state("Nothing to approve", "No purchase orders are awaiting approval.", st_module=st)
+        return
+    st.caption("Approve or reject pending purchase orders.")
+    st.dataframe(df, use_container_width=True, hide_index=True)
+    col1, col2 = st.columns(2)
+    po_id = col1.number_input("PO_ID", min_value=1, step=1)
+    if col1.button("✅ Approve", type="primary"):
+        if adapter.update_po_status(int(po_id), "APPROVED", ctx.get("username", "")):
+            st.success(f"Approved PO {int(po_id)}.")
+            st.rerun()
+        else:
+            st.error("PO not found.")
+    if col2.button("❌ Reject"):
+        if adapter.update_po_status(int(po_id), "REJECTED", ctx.get("username", "")):
+            st.success(f"Rejected PO {int(po_id)}.")
+            st.rerun()
+        else:
+            st.error("PO not found.")
 
 
 def _bridge(title: str, legacy_file: str, blurb: str) -> Callable:
