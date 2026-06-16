@@ -81,6 +81,37 @@ def velocity_alert_rows(products_by_org: dict, org_names: dict = None,
     return rows
 
 
+def per_store_health(products_by_org: dict, org_names: dict = None) -> List[dict]:
+    """Per-store cover-class rollup (pure): SKUs / at-risk / overstock / dead."""
+    org_names = org_names or {}
+    rows = []
+    for org, products in (products_by_org or {}).items():
+        s = stock_review_summary({org: products})
+        at_risk = s["DEPLETED"] + s["CRITICAL"] + s["URGENT"] + s["LOW"]
+        rows.append({
+            "Store": org_names.get(org, org),
+            "SKUs": s["total"],
+            "At-Risk (≤3d)": at_risk,
+            "Overstock": s["OVERSTOCK"],
+            "Dead": s["DEAD"],
+            "_risk": at_risk,
+        })
+    rows.sort(key=lambda r: -r["_risk"])
+    return rows
+
+
+def top_movers(sales_df, n: int = 10) -> List[dict]:
+    """Top-selling items by revenue from a sales-history DataFrame (pure)."""
+    if sales_df is None or getattr(sales_df, "empty", True):
+        return []
+    g = (sales_df.groupby("item_name")
+         .agg(Units=("qty", "sum"), Revenue=("net_amt", "sum"))
+         .reset_index().sort_values("Revenue", ascending=False).head(n))
+    return [{"Product": str(r["item_name"])[:45],
+             "Units": round(float(r["Units"]), 1),
+             "Revenue": round(float(r["Revenue"]), 0)} for _, r in g.iterrows()]
+
+
 def stock_review_summary(products_by_org: dict) -> Dict[str, int]:
     """Network-wide counts by cover class (pure)."""
     out = {k: 0 for k in
@@ -188,6 +219,88 @@ def render_stock_review(ctx) -> None:
                  use_container_width=True, hide_index=True)
 
 
+def render_live_sales(ctx) -> None:
+    """Live sales feed for a store: revenue/units KPIs + top movers + daily trend."""
+    st = ctx["st"]
+    from . import components as C
+    adapter = _pos_adapter(ctx)
+    try:
+        orgs = adapter.fetch_all_organizations()
+    except Exception as e:
+        C.error_panel("Could not load stores.", str(e), st_module=st)
+        return
+    if not orgs:
+        C.empty_state("No stores", "Connect store data to view sales.", st_module=st)
+        return
+    names = {o["ORG_CD"]: o.get("ORG_NAME", o["ORG_CD"]) for o in orgs}
+    st.markdown("### Live Sales")
+    org = st.selectbox("Store", list(names), format_func=lambda x: f"{names[x]} ({x})")
+    days = st.slider("Window (days)", 7, 90, 30, step=7)
+    df = adapter.fetch_sales_history(org, days=days)
+    if df is None or df.empty:
+        C.empty_state("No sales in window", "No POS rows for this store/period.", st_module=st)
+        return
+    C.kpi_row([
+        {"label": "Revenue", "value": f"KES {float(df['net_amt'].sum()):,.0f}"},
+        {"label": "Units", "value": f"{float(df['qty'].sum()):,.0f}"},
+        {"label": "Lines", "value": f"{len(df):,}"},
+        {"label": "Avg Line", "value": f"KES {float(df['net_amt'].mean()):,.0f}"},
+    ], st_module=st)
+    import pandas as pd
+    movers = top_movers(df, n=15)
+    if movers:
+        st.markdown("#### Top Movers")
+        st.dataframe(pd.DataFrame(movers), use_container_width=True, hide_index=True)
+    try:
+        trend = df.groupby("bill_dt")["net_amt"].sum().reset_index()
+        if len(trend) > 1:
+            st.markdown("#### Daily Revenue")
+            st.line_chart(trend.set_index("bill_dt"))
+    except Exception:
+        pass
+
+
+def render_network_intel(ctx) -> None:
+    """Network intelligence: per-store inventory health + read-only transfer
+    opportunities (inventory-based; the deep ST-GAT/GNN view stays in the
+    dedicated dashboard)."""
+    st = ctx["st"]
+    from . import components as C
+    if "_intel_netstock" not in st.session_state and not st.button("⚙️ Load network intelligence"):
+        C.empty_state("Load network intelligence",
+                      "Pull live network stock to assess store health.", st_module=st)
+        return
+    stock = _network_stock(ctx)
+    names = st.session_state.get("_intel_orgnames", {})
+
+    st.markdown("### Network Intelligence")
+    st.markdown("#### Store Health")
+    import pandas as pd
+    rows = per_store_health(stock, names)
+    st.dataframe(pd.DataFrame([{k: v for k, v in r.items() if not k.startswith("_")}
+                               for r in rows]),
+                 use_container_width=True, hide_index=True)
+
+    st.markdown("#### Transfer Opportunities (read-only)")
+    try:
+        from ..logic.consolidated_transfer_service import ConsolidatedTransferService
+        cts = ConsolidatedTransferService(org_names=names, stock_data=stock,
+                                          cold_node_days=60, hot_node_days=14)
+        opps = cts.scan_network_opportunities().opportunities
+        if opps:
+            st.caption(f"{len(opps)} opportunities · act on them in the Operations Console → Transfers.")
+            st.dataframe(pd.DataFrame([{
+                "Type": o.type, "Product": o.product_name[:40],
+                "From": names.get(o.from_org, o.from_org),
+                "To": names.get(o.to_org, o.to_org),
+                "Qty": o.transfer_qty, "Value (KES)": o.value_kes,
+            } for o in opps[:50]]), use_container_width=True, hide_index=True, height=360)
+        else:
+            C.empty_state("No transfer opportunities", "Network is balanced.", st_module=st)
+    except Exception as e:
+        C.error_panel("Transfer scan unavailable.", str(e), st_module=st)
+
+
 def _intel_bridge(title: str, legacy: str, blurb: str) -> Callable:
     def _render(ctx) -> None:
         from . import components as C
@@ -203,12 +316,8 @@ def build_intel_registry() -> List[Page]:
         Page("pulse", "Pulse", "◎", render_pulse, _ALL),
         Page("velocity", "Velocity Alerts", "⚡", render_velocity_alerts, _OVERSIGHT),
         Page("stock_review", "Stock Review", "▦", render_stock_review, _OVERSIGHT),
-        Page("live_sales", "Live Sales", "▤",
-             _intel_bridge("Live Sales", "ops_dashboard.py",
-                           "Real-time sales feed (Phase 2+)."), _OVERSIGHT),
-        Page("network", "Network Intel", "⇄",
-             _intel_bridge("Network Intelligence", "st_gat_dashboard.py",
-                           "ST-GAT/GNN store-risk & transfer pulse."), _OVERSIGHT),
+        Page("live_sales", "Live Sales", "▤", render_live_sales, _OVERSIGHT),
+        Page("network", "Network Intel", "⇄", render_network_intel, _OVERSIGHT),
         Page("exec_roi", "Executive ROI", "▣",
              _intel_bridge("Executive ROI", "ops_dashboard.py",
                            "The capital-recovery showcase."), _OVERSIGHT),
