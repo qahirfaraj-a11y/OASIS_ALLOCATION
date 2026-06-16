@@ -219,10 +219,9 @@ def run_migrate():
 
 # ── Mode: Shell (unified single front door, U3) ──────────────────────
 
-def run_shell(port: int = 8500):
-    """Launch the unified OASIS shell (app.py) — one login, all functions."""
-    logger.info(f"Starting O.A.S.I.S. unified shell on port {port}...")
-    script = os.path.join(os.path.dirname(os.path.abspath(__file__)), "app.py")
+def _run_streamlit_console(script_name: str, port: int, label: str):
+    logger.info(f"Starting {label} on port {port}...")
+    script = os.path.join(os.path.dirname(os.path.abspath(__file__)), script_name)
     cmd = [
         sys.executable, "-m", "streamlit", "run", script,
         "--server.port", str(port),
@@ -234,7 +233,17 @@ def run_shell(port: int = 8500):
     _shutdown.wait()
     proc.terminate()
     proc.wait(timeout=10)
-    logger.info("OASIS shell stopped.")
+    logger.info(f"{label} stopped.")
+
+
+def run_shell(port: int = 8500):
+    """Launch the Operations Console (app.py) — transactional surfaces."""
+    _run_streamlit_console("app.py", port, "O.A.S.I.S. Operations Console")
+
+
+def run_intel(port: int = 8510):
+    """Launch the Intelligence Console (app_intel.py) — monitoring surfaces."""
+    _run_streamlit_console("app_intel.py", port, "O.A.S.I.S. Intelligence Console")
 
 
 # ── Mode: Full ────────────────────────────────────────────────────────
@@ -399,7 +408,7 @@ def main():
     parser.add_argument("--mode",
                         choices=["full", "engine", "dashboard", "showcase",
                                  "shadow", "simulation", "desktop", "bootstrap",
-                                 "api", "bridge", "migrate", "shell"],
+                                 "api", "bridge", "migrate", "shell", "intel"],
                         default="full", help="Run mode")
     parser.add_argument("--dashboard", choices=list(DASHBOARD_MAP.keys()),
                         default="ops", help="Dashboard to launch (dashboard mode)")
@@ -461,6 +470,8 @@ def main():
         run_migrate()
     elif args.mode == "shell":
         run_shell(args.port if args.port else 8500)
+    elif args.mode == "intel":
+        run_intel(args.port if args.port else 8510)
 
 
 if __name__ == "__main__":

@@ -61,6 +61,74 @@ def visible_pages(pages: Sequence[Page], role: Optional[str]) -> List[Page]:
     return [p for p in pages if p.visible_to(role)]
 
 
+def ensure_seeded(db_path: str) -> None:
+    """First-run convenience: ensure auth tables exist and seed default
+    accounts ONLY if OASIS_SEED_PASSWORD is set and no users exist yet.
+    Never invents credentials; a no-op otherwise."""
+    import os
+    try:
+        from ..logic.db_connector import ensure_oasis_tables
+        ensure_oasis_tables(db_path)
+        if os.getenv("OASIS_SEED_PASSWORD"):
+            from ..logic.auth_manager import get_all_users, seed_users
+            if not get_all_users(db_path):
+                seed_users(db_path)
+    except Exception:
+        pass  # never block the app on seeding
+
+
+def run_console(st, *, registry: Sequence[Page], db_path: str,
+                project_root: str, app_title: str) -> None:
+    """Shared console runner for every OASIS shell (Operations, Intelligence).
+
+    Assumes the caller already invoked st.set_page_config. Handles theme,
+    first-run seed, the single login gate, role-filtered navigation, page-view
+    telemetry, and the error-wrapped render. Both app.py and app_intel.py are
+    thin callers of this so the two consoles can't drift apart.
+    """
+    from . import theme
+    from .auth import require_login, logout
+    from .components import safe_render
+    from .telemetry import log_page_view
+
+    theme.inject_theme(st)
+    ensure_seeded(db_path)
+
+    user = require_login(st, db_path, app_title=app_title)
+    role = user.get("role")
+
+    pages = visible_pages(registry, role)
+    labels = {f"{p.icon}  {p.label}": p for p in pages}
+
+    with st.sidebar:
+        st.markdown(
+            f'<div class="oasis-badge">OASIS · '
+            f'<span style="color:var(--oasis-teal);">{role}</span></div>',
+            unsafe_allow_html=True,
+        )
+        st.caption(f"{app_title} — {user.get('display_name', user['username'])}")
+        choice = st.radio("Navigate", list(labels.keys()), label_visibility="collapsed")
+        st.divider()
+        if st.button("Log out", use_container_width=True):
+            logout(st, db_path)
+            st.rerun()
+
+    ctx = {
+        "st": st,
+        "user": user,
+        "role": role,
+        "username": user.get("username"),
+        "db_path": db_path,
+        "project_root": project_root,
+    }
+
+    selected = labels[choice]
+    if st.session_state.get("_last_page") != selected.key:
+        log_page_view(db_path, user.get("username", ""), selected.key)
+        st.session_state["_last_page"] = selected.key
+    safe_render(selected.render, ctx)
+
+
 # ── page renderers ───────────────────────────────────────────────────────
 def render_home(ctx) -> None:
     """The Journey home: mode/phase badge, value meter, the 7-stage rail, and
