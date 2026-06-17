@@ -899,7 +899,29 @@ tab_map = {key: tabs[i] for i, key in enumerate(tab_keys)}
 if "executive_roi" in tab_map:
     with tab_map["executive_roi"]:
         st.markdown(f"### 🏆 Executive ROI Overview — {store_name}")
-        
+
+        # CC-C fix: compute real network figures from live stock instead of
+        # hard-coding them. Dead-stock (AMIT rule: ADS<0.2 & SOH>15) and
+        # stockout (ADS>0 & SOH<1) counts, plus capital trapped in dead stock
+        # (the recoverable figure), all from the enriched product feed.
+        _roi_products = load_products(selected_org) or []
+        _roi_total_skus = len(_roi_products)
+        _roi_dead = 0
+        _roi_trapped = 0.0
+        _roi_stockout = 0
+        for _p in _roi_products:
+            _ads = float(_p.get('avg_daily_sales', 0) or 0)
+            _soh = float(_p.get('current_stocks', _p.get('current_stock', 0)) or 0)
+            _cost = float(_p.get('cost_price', _p.get('wac', 0)) or 0) or \
+                float(_p.get('selling_price', 0) or 0) * 0.75
+            if _ads < 0.2 and _soh > 15:
+                _roi_dead += 1
+                _roi_trapped += _soh * _cost
+            if _ads > 0 and _soh < 1:
+                _roi_stockout += 1
+        _roi_dead_pct = round(_roi_dead / _roi_total_skus * 100, 1) if _roi_total_skus else 0.0
+        _roi_so_pct = round(_roi_stockout / _roi_total_skus * 100, 1) if _roi_total_skus else 0.0
+
         # Pull showcase data from config if exists
         showcase_savings = "0"
         is_showcase = showcase_mode
@@ -915,114 +937,133 @@ if "executive_roi" in tab_map:
         if is_showcase:
             st.success(f"🌟 **Demo Showcase Active**: High-impact scenario loaded for {store_name}.")
         
-        # --- NEURAL DEMAND PROCESSING WIDGET ---
+        # --- LIVE NETWORK SNAPSHOT (real figures from the enriched feed) ---
+        _dead_color = "#00ff88" if _roi_dead_pct < 5 else "#ff4444"
+        _so_color = "#00ff88" if _roi_so_pct < 2 else "#ff4444"
         st.markdown(f"""
         <div style="background: rgba(0, 255, 136, 0.02); border: 1px solid rgba(0, 255, 136, 0.1); border-radius: 20px; padding: 25px; margin-bottom: 30px; box-shadow: 0 4px 24px rgba(0,0,0,0.2);">
             <div style="display: flex; justify-content: space-between; align-items: start;">
                 <div>
-                    <h4 style="margin: 0; color: var(--neon-emerald); font-size: 0.9em; text-transform: uppercase; letter-spacing: 1px;">Neural Demand Processing</h4>
-                    <p style="color: #888; font-size: 0.8em; margin-top: 4px;">O.A.S.I.S. is currently analyzing 14,282 SKU nodes across the {store_name} network.</p>
+                    <h4 style="margin: 0; color: var(--neon-emerald); font-size: 0.9em; text-transform: uppercase; letter-spacing: 1px;">Live Network Snapshot</h4>
+                    <p style="color: #888; font-size: 0.8em; margin-top: 4px;">{_roi_total_skus:,} active SKUs analyzed for {store_name}.</p>
                 </div>
                 <div style="text-align: right;">
-                    <span class="badge-green">ENGINE OPTIMAL</span>
+                    <span class="badge-green">LIVE DATA</span>
                 </div>
             </div>
             <div style="height: 1px; background: linear-gradient(90deg, var(--neon-emerald) 0%, rgba(0,255,136,0) 100%); margin: 20px 0; opacity: 0.3;"></div>
             <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px;">
                 <div style="text-align: center;">
-                    <div style="font-size: 1.6em; font-weight: 700; color: #fff; font-family: 'Outfit';">95.2%</div>
-                    <div style="font-size: 0.7em; color: #666; text-transform: uppercase; letter-spacing: 0.5px;">Inference Confidence</div>
+                    <div style="font-size: 1.6em; font-weight: 700; color: #fff; font-family: 'Outfit';">{_roi_total_skus:,}</div>
+                    <div style="font-size: 0.7em; color: #666; text-transform: uppercase; letter-spacing: 0.5px;">Active SKUs</div>
                 </div>
                 <div style="text-align: center;">
-                    <div style="font-size: 1.6em; font-weight: 700; color: #fff; font-family: 'Outfit';">14ms</div>
-                    <div style="font-size: 0.7em; color: #666; text-transform: uppercase; letter-spacing: 0.5px;">Neural Latency</div>
+                    <div style="font-size: 1.6em; font-weight: 700; color: {_dead_color}; font-family: 'Outfit';">{_roi_dead_pct}%</div>
+                    <div style="font-size: 0.7em; color: #666; text-transform: uppercase; letter-spacing: 0.5px;">Dead Stock (&lt;5% target)</div>
                 </div>
                 <div style="text-align: center;">
-                    <div style="font-size: 1.6em; font-weight: 700; color: #fff; font-family: 'Outfit';">4,122</div>
-                    <div style="font-size: 0.7em; color: #666; text-transform: uppercase; letter-spacing: 0.5px;">SKU Affinities Mapped</div>
+                    <div style="font-size: 1.6em; font-weight: 700; color: {_so_color}; font-family: 'Outfit';">{_roi_so_pct}%</div>
+                    <div style="font-size: 0.7em; color: #666; text-transform: uppercase; letter-spacing: 0.5px;">Stockout (&lt;2% target)</div>
                 </div>
                 <div style="text-align: center;">
-                    <div style="font-size: 1.6em; font-weight: 700; color: #fff; font-family: 'Outfit';">14.2%</div>
-                    <div style="font-size: 0.7em; color: #666; text-transform: uppercase; letter-spacing: 0.5px;">Ghost Demand Recovered</div>
+                    <div style="font-size: 1.6em; font-weight: 700; color: var(--neon-amber); font-family: 'Outfit';">KES {_roi_trapped:,.0f}</div>
+                    <div style="font-size: 0.7em; color: #666; text-transform: uppercase; letter-spacing: 0.5px;">Capital Trapped (Recoverable)</div>
                 </div>
             </div>
         </div>
         """, unsafe_allow_html=True)
         
-        # --- COMPARATIVE METRICS (Premium Glass Cards) ---
+        # --- COMPARATIVE METRICS (real figures; demo only in showcase mode) ---
         m1, m2, m3 = st.columns(3)
-        
-        # M8 FIX: Use hardcoded showcase metrics only in demo; derive from shadow data in production
+
+        # Live stock availability: % of active SKUs not stocked out.
+        _avail = round(100.0 - _roi_so_pct, 1)
+
+        # Fulfillment: measured from Shadow-mode alignment if logs exist; demo
+        # value only in showcase mode; otherwise honestly N/A.
+        _fulfil = None
         if showcase_mode:
-            before_f = 76.2; after_f = 98.8
-            before_s = 68.4; after_s = 94.2
+            _fulfil = 98.8
         else:
-            # Try to derive from shadow comparison logs
             try:
-                shadow_log_dir = os.path.join(os.getcwd(), 'shadow_logs')
-                latest_comp = sorted([f for f in os.listdir(shadow_log_dir) if f.startswith('shadow_comparison_')])
-                if latest_comp:
-                    comp_df = pd.read_csv(os.path.join(shadow_log_dir, latest_comp[-1]))
-                    aligned = len(comp_df[comp_df.get('Divergence', pd.Series()) == 'ALIGNED'])
-                    total = max(len(comp_df), 1)
-                    after_f = round(aligned / total * 100, 1)
-                    before_f = max(50.0, after_f - 22.6)  # Estimated legacy baseline offset
-                    after_s = round(min(99.9, after_f * 0.96), 1)
-                    before_s = max(45.0, after_s - 25.8)
-                else:
-                    before_f = 76.2; after_f = 98.8
-                    before_s = 68.4; after_s = 94.2
+                _sld = os.path.join(os.getcwd(), 'shadow_logs')
+                _lc = sorted([f for f in os.listdir(_sld) if f.startswith('shadow_comparison_')])
+                if _lc:
+                    _cdf = pd.read_csv(os.path.join(_sld, _lc[-1]))
+                    _al = len(_cdf[_cdf.get('Divergence', pd.Series()) == 'ALIGNED'])
+                    _fulfil = round(_al / max(len(_cdf), 1) * 100, 1)
             except Exception:
-                before_f = 76.2; after_f = 98.8
-                before_s = 68.4; after_s = 94.2
-        
+                _fulfil = None
+
         with m1:
-            st.markdown(f"""
-            <div class="metric-card">
-                <h3>Fulfillment Rate</h3>
-                <div class="value" style="color: var(--neon-emerald);">{after_f}%</div>
-                <div class="sub">↑ {after_f - before_f:+.1f}% vs Legacy Baseline</div>
-            </div>""", unsafe_allow_html=True)
-            
+            if _fulfil is not None:
+                st.markdown(f"""
+                <div class="metric-card">
+                    <h3>Fulfillment Rate</h3>
+                    <div class="value" style="color: var(--neon-emerald);">{_fulfil}%</div>
+                    <div class="sub">{'Demo showcase' if showcase_mode else 'From Shadow-mode alignment'}</div>
+                </div>""", unsafe_allow_html=True)
+            else:
+                st.markdown("""
+                <div class="metric-card">
+                    <h3>Fulfillment Rate</h3>
+                    <div class="value" style="color: #888;">—</div>
+                    <div class="sub">Run Shadow Mode (Phase 2) to measure</div>
+                </div>""", unsafe_allow_html=True)
+
         with m2:
+            _av_color = "var(--neon-emerald)" if _avail >= 98 else ("var(--neon-amber)" if _avail >= 95 else "var(--neon-ruby)")
             st.markdown(f"""
             <div class="metric-card">
                 <h3>Stock Availability</h3>
-                <div class="value" style="color: var(--neon-emerald);">{after_s}%</div>
-                <div class="sub">↑ {after_s - before_s:+.1f}% vs Manual Ordering</div>
+                <div class="value" style="color: {_av_color};">{_avail}%</div>
+                <div class="sub">{_roi_stockout} of {_roi_total_skus:,} SKUs out of stock</div>
             </div>""", unsafe_allow_html=True)
-            
+
         with m3:
+            _cap = showcase_savings if (showcase_mode and showcase_savings != "0") else f"{_roi_trapped:,.0f}"
             st.markdown(f"""
             <div class="metric-card">
-                <h3>Recaptured Capital</h3>
-                <div class="value" style="color: var(--neon-amber);">KES {showcase_savings}</div>
-                <div class="sub">Real-time Efficiency Extraction</div>
+                <h3>Recoverable Capital</h3>
+                <div class="value" style="color: var(--neon-amber);">KES {_cap}</div>
+                <div class="sub">Trapped in dead stock (AMIT rule)</div>
             </div>""", unsafe_allow_html=True)
 
         st.markdown("---")
-        
-        # ROI Chart: Optimized vs Baseline
-        st.markdown("#### 💹 Optimization Impact Analysis")
-        days = list(range(1, 11))
-        baseline = [82, 81, 79, 78, 77, 76, 75, 74, 73, 72] # declining slightly
-        optimized = [82, 85, 89, 92, 95, 96, 97, 98, 98, 99] # rising to 99%
-        
-        fig_roi = go.Figure()
-        fig_roi.add_trace(go.Scatter(x=days, y=baseline, name="Baseline (Legacy)", line=dict(color='#666', dash='dash')))
-        fig_roi.add_trace(go.Scatter(x=days, y=optimized, name="Oasis (Optimized)", line=dict(color='#4caf50', width=4)))
-        
-        fig_roi.update_layout(
-            title="Service Level Recovery (10-Day Projection)",
-            xaxis_title="Simulation Days",
-            yaxis_title="Service Level (%)",
-            plot_bgcolor="#0d1117", paper_bgcolor="#0d1117",
-            font_color="#c9d1d9", height=400,
-            yaxis=dict(range=[70, 100])
-        )
-        st.plotly_chart(fig_roi, use_container_width=True)
 
-        st.info("💡 **Insight**: By Phase 4, Oasis has successfully rebalanced the capital from inactive General Merchandise into under-stocked Dairy and Staples, ensuring 99%+ availability for the evening rush.")
+        # Real weekly revenue trend (replaces the former hard-coded projection).
+        st.markdown("#### 💹 Weekly Revenue Trend (last 90 days)")
+        _roi_sales = load_sales_data(selected_org, days=90)
+        if _roi_sales is not None and not _roi_sales.empty and 'net_amt' in _roi_sales.columns:
+            _rs = _roi_sales.copy()
+            _rs['bill_dt'] = pd.to_datetime(_rs['bill_dt'], errors='coerce')
+            _rs = _rs.dropna(subset=['bill_dt'])
+            _rs['week'] = _rs['bill_dt'].dt.strftime('%Y-W%U')
+            _trend = _rs.groupby('week')['net_amt'].sum().reset_index().sort_values('week')
+            fig_roi = go.Figure()
+            fig_roi.add_trace(go.Scatter(
+                x=_trend['week'], y=_trend['net_amt'], name="Weekly Revenue",
+                mode='lines+markers', line=dict(color='#4caf50', width=3),
+                fill='tozeroy', fillcolor='rgba(76,175,80,0.1)'))
+            fig_roi.update_layout(
+                xaxis_title="Week", yaxis_title="Revenue (KES)",
+                plot_bgcolor="#0d1117", paper_bgcolor="#0d1117",
+                font_color="#c9d1d9", height=380, margin=dict(t=20))
+            st.plotly_chart(fig_roi, use_container_width=True)
+        else:
+            st.info("No sales history available for this store yet.")
+
+        # Data-derived insight (replaces the former fixed narrative claim).
+        if _roi_total_skus:
+            _msg = (f"💡 **Insight**: {_roi_dead} SKUs ({_roi_dead_pct}%) are dead "
+                    f"stock holding **KES {_roi_trapped:,.0f}** of recoverable capital; "
+                    f"{_roi_stockout} SKUs ({_roi_so_pct}%) are stocked out.")
+            if _roi_dead_pct < 5 and _roi_so_pct < 2:
+                st.success(_msg + " Both within Playbook targets (dead <5%, stockout <2%).")
+            else:
+                st.info(_msg + " Targets: dead stock <5%, stockout <2%.")
+        else:
+            st.info("💡 No live stock data for this store yet — connect the ERP feed to populate ROI metrics.")
 
 
 # =====================================================================
