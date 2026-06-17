@@ -88,25 +88,32 @@ def load_resources():
         try:
             sd = torch.load("st_gat_v2.pt", map_location="cpu")
             state_dict = sd.get('model_state_dict', sd)
-            
-            # --- PATCH: Handle Dimension Mismatch (29 -> 30) ---
-            # The model now expects 30 inputs (added Salary Hit), but checkpoint has 29.
-            # We pad the weight matrix with zeros for the new feature so it has no initial effect.
-            key = 'temporal_lstm.weight_ih_l0'
-            if key in state_dict:
-                weight = state_dict[key]
-                if weight.shape[1] == 29:
-                    print("[PATCH] Extending input dimension 29 -> 30 (Salary Hit)")
-                    # Pad the last dimension with zeros
-                    # Shape: [Hidden*4, Input] -> [256, 29]
-                    # We need [256, 30]
-                    padding = torch.zeros(weight.shape[0], 1)
-                    new_weight = torch.cat([weight, padding], dim=1)
-                    state_dict[key] = new_weight
-            
-            model.load_state_dict(state_dict, strict=False)
-            print("[SUCCESS] Model weights loaded successfully (with patch).")
-            st.session_state["_gnn_trained"] = True
+
+            # Verify the checkpoint's input dimension matches the live feature
+            # matrix BEFORE trusting it (mirrors get_gnn_resources in the Command
+            # Center). A blind strict=False load would SILENTLY drop conv1 on a
+            # mismatch, leaving the input layer randomly initialised while the
+            # load still "succeeds" — so we gate explicitly and only mark the
+            # model trained when the core layers actually loaded. (An earlier
+            # build carried a dead 29->30 "Salary Hit" pad for a temporal_lstm
+            # layer this architecture no longer has; removed.)
+            ck_in = state_dict.get('conv1.weight')
+            if ck_in is not None and ck_in.shape[0] == F_in:
+                missing, _ = model.load_state_dict(state_dict, strict=False)
+                core_missing = [k for k in missing if k.startswith(('conv1', 'conv2'))]
+                if core_missing:
+                    st.session_state["_gnn_trained"] = False
+                    print(f"[WARN] Core GNN layers not loaded {core_missing}; "
+                          "treating model as untrained.")
+                else:
+                    st.session_state["_gnn_trained"] = True
+                    print(f"[SUCCESS] GNN weights loaded (input dim {F_in} "
+                          "matches checkpoint).")
+            else:
+                got = None if ck_in is None else ck_in.shape[0]
+                st.session_state["_gnn_trained"] = False
+                print(f"[WARN] Checkpoint input dim {got} != feature width "
+                      f"{F_in}; using random initialization.")
         except Exception as e:
             st.error(f"Failed to load model weights: {e}")
             st.warning("Proceeding with random initialization.")

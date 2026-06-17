@@ -127,8 +127,15 @@ ordering.
    now, or keep ST-GAT's direct model use until the service proves stable?
 
 ## 8. Explicitly NOT in scope
-- **MI-A retrain** — the 29→30 mismatch is consolidated into one place but the
-  real fix (a checkpoint matching the model) is a separate ML task.
+- ~~**MI-A retrain**~~ — **RESOLVED 2026-06-17, no retrain needed.** Investigation
+  showed the tree's `st_gat_v2.pt` is *already* 30-feature (`n_features=30`,
+  `conv1.weight (30,64)`, no `temporal_lstm`), and the live `get_feature_matrix()`
+  returns 30, so `load_state_dict` matches exactly (missing/unexpected both `[]`).
+  The "29→30 patch" in `st_gat_dashboard.load_resources` targeted a
+  `temporal_lstm` key this GCN architecture no longer has — dead code. Fixed in
+  place: removed the dead pad and adopted the Command Center's `conv1` dimension
+  guard so `_gnn_trained` (the MI-B banner) only reads "trained" when the core
+  layers actually load. S3 will fold this single honest loader into the service.
 - Changing the GNN architecture or the inventory heuristic's thresholds.
 - The ingestion/simulator de-duplication (separate consolidation efforts).
 
