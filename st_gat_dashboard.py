@@ -106,12 +106,15 @@ def load_resources():
             
             model.load_state_dict(state_dict, strict=False)
             print("[SUCCESS] Model weights loaded successfully (with patch).")
+            st.session_state["_gnn_trained"] = True
         except Exception as e:
             st.error(f"Failed to load model weights: {e}")
             st.warning("Proceeding with random initialization.")
+            st.session_state["_gnn_trained"] = False
     else:
         st.warning("⚠️ Model weights not found. Using random initialization.")
-    
+        st.session_state["_gnn_trained"] = False
+
     model.eval()
     return model, sim
 
@@ -119,6 +122,17 @@ model, sim = load_resources()
 
 if not model or not sim:
     st.stop()
+
+# MI-B fix: be explicit when the GNN is untrained. A randomly-initialized model
+# still produces confident-looking risk/demand/transfer numbers — so flag it
+# loudly rather than letting the dashboard imply trained intelligence.
+if not st.session_state.get("_gnn_trained", False):
+    st.error(
+        "⚠️ **GNN is UNTRAINED (random initialization).** `st_gat_v2.pt` was "
+        "missing or incompatible, so all risk scores, demand forecasts, and "
+        "transfer recommendations below are **illustrative only** — do not act "
+        "on them until a trained checkpoint is loaded."
+    )
 
 # --- 2. Simulation Controls & Scenarios ---
 st.sidebar.header("🎛️ Simulation Controls")
@@ -229,7 +243,11 @@ with tab_map:
     col_map, col_details = st.columns([2, 1])
     
     with col_map:
-        st.subheader("Live Graph Layer (Attention & Friction)")
+        st.subheader("Live Graph Layer (Traffic Friction)")
+        # MI-C note: the current model is a GCN with no attention heads, so the
+        # "attention arcs" below are derived from an identity matrix and render
+        # nothing. Kept inert (not removed) pending an attention-capable model;
+        # the meaningful overlay here is traffic friction.
         
         # Prepare Map Data
         map_data = []
@@ -813,9 +831,9 @@ with tab_neural:
         st.warning("Neural Network data (nodes.csv / edges.csv) not found in the export directory.")
 
 
-# --- 7. Transfer Hub (Actionable) ---
+# --- 7. Transfer Hub (Advisory) ---
 st.sidebar.markdown("---")
-st.sidebar.subheader("🚚 Transfer Hub")
+st.sidebar.subheader("🚚 Transfer Hub (Advisory)")
 
 if selected_store != "ALL STORES":
     transfer_scores = outputs['transfer'][0] 
@@ -843,9 +861,13 @@ if selected_store != "ALL STORES":
     if transfers_out:
         t_df = pd.DataFrame(transfers_out).sort_values("Score", ascending=False).head(5)
         st.sidebar.dataframe(t_df, hide_index=True)
-        
-        if st.sidebar.button("✅ Commit Transfers"):
-            st.sidebar.success(f"Dispatched {len(t_df)} transfers to ERP!")
+        # MI-D fix: these are STORE-LEVEL advisory scores (no SKU/qty), so this
+        # tool cannot create a real transfer. Removed the fake "Dispatched to
+        # ERP" success; item-level dispatch happens in the Operations Console.
+        st.sidebar.caption(
+            "Advisory store-pair scores. Execute item-level transfers in the "
+            "Operations Console → Transfers (writes to the ERP)."
+        )
     else:
         st.sidebar.write("No transfers recommended.")
 else:

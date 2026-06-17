@@ -516,11 +516,14 @@ if st.session_state['user'] is None:
 # Fallback for import-time or unauthenticated state to prevent subscript errors
 current_user = st.session_state.get('user')
 if not current_user:
+    # CC-A fix: fail CLOSED. This branch is only reached on import/unauthenticated
+    # state (the auth gate st.stop()s first on the normal run path); it must not
+    # grant any tab access if it is ever reached.
     current_user = {
         'username': 'system_import',
         'display_name': 'System Import',
         'role': 'guest',
-        'permissions': {'tabs': {'live_sales': True}, 'can_view_all_stores': False}
+        'permissions': {'tabs': {}, 'can_view_all_stores': False}
     }
 
 user_perms = current_user.get('permissions', {})
@@ -2695,14 +2698,17 @@ if "simulation_validation" in tab_map:
                             )
                             result_heur = sim_heuristic.run(sim_days)
 
-                            # Run 2: GNN-Adjusted
+                            # Run 2: GNN-Adjusted — inject the store's GNN risk
+                            # so the bridge inflates safety stock (CC-D fix: the
+                            # risk was previously computed but never passed, so
+                            # this run was identical to the heuristic one).
                             risk_scores_map = get_all_store_risks(sim_hour)
                             gnn_risk = risk_scores_map.get(selected_org, 0.0)
                             sim_gnn = RetailSimulator(
                                 "GNN-Adjusted", config, seed=42,
-                                bridge=bridge, initial_skus=sku_states
+                                bridge=bridge, initial_skus=sku_states,
+                                gnn_risk_score=gnn_risk
                             )
-                            # Inject risk score into the bridge for this run
                             result_gnn = sim_gnn.run(sim_days)
 
                             st.session_state['sim_lab_results'] = {
@@ -2885,11 +2891,14 @@ if "analytics" in tab_map:
 
         # PO Stats
         try:
+            # CC-E fix: the table is INTEGRATION_PURCHASE_ORDERS (the old name
+            # INTEGRATION_PO_RECOMMENDATIONS does not exist, so this KPI was
+            # silently 0); quantity column is QUANTITY.
             with connector.get_connection() as conn:
-                po_df = pd.read_sql("SELECT * FROM INTEGRATION_PO_RECOMMENDATIONS WHERE ORG_CD = :org",
+                po_df = pd.read_sql("SELECT * FROM INTEGRATION_PURCHASE_ORDERS WHERE ORG_CD = :org",
                                     conn, params={"org": selected_org})
                 po_count = len(po_df)
-                po_value = po_df['RECOMMENDED_QTY'].sum() if 'RECOMMENDED_QTY' in po_df.columns else 0
+                po_value = po_df['QUANTITY'].sum() if 'QUANTITY' in po_df.columns else 0
         except Exception:
             po_count, po_value = 0, 0
 

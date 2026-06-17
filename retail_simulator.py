@@ -118,6 +118,8 @@ class SKUState:
     avg_daily_sales: float
     demand_cv: float
     lead_time_days: int
+    item_code: str = ""
+    barcode: str = ""
     current_stock: float = 0.0
     on_order: float = 0.0
     days_until_arrival: int = 0
@@ -240,10 +242,12 @@ def load_scorecard_data(engine: OrderEngine, budget: float, tier_name: str, dema
         products = []
         for _, row in raw_df.iterrows():
             products.append({
-                'product_name': str(row.get('Product', 'Unknown')),
-                'supplier_name': str(row.get('Supplier', 'Unknown')),
-                'product_category': str(row.get('Department', 'GENERAL')),
-                'selling_price': float(row.get('Unit_Price', 0) or 0),
+                'item_code': str(row.get('Item Code', row.get('Item_Code', ''))),
+                'barcode': str(row.get('Barcode', row.get('BARCODE', ''))),
+                'product_name': str(row.get('Product', row.get('Item_Name', 'Unknown'))),
+                'supplier_name': str(row.get('Supplier', row.get('Supplier_Name', 'Unknown'))),
+                'product_category': str(row.get('Department', row.get('Product_Category', 'GENERAL'))),
+                'selling_price': float(row.get('Unit_Price', row.get('Selling_Price', 0)) or 0),
                 'margin_pct': float(row.get('Margin_Pct', 25) or 25),
                 'avg_daily_sales': float(row.get('Avg_Daily_Sales', 0) or 0) * demand_scale_factor, # Pre-scale ADS?
                 # Wait, OrderEngine does its own scaling sometimes? No, supply raw ADS. 
@@ -296,11 +300,10 @@ def load_scorecard_data(engine: OrderEngine, budget: float, tier_name: str, dema
             p_name = rec['product_name']
             supp = rec.get('supplier_name', 'Unknown')
             dept = rec.get('product_category', 'GENERAL')
+            item_code = rec.get('item_code', '')
+            barcode = rec.get('barcode', '')
             
             unit_price = float(rec.get('selling_price', 0))
-            # Recalculate cost using Simulator's simple logic or Engine's?
-            # Let's use Engine's enrichment to be consistent
-            # But we need cost_price in SKUState
             margin = rec.get('margin_pct', 25)
             cost_price = unit_price * (1 - margin/100)
             
@@ -313,6 +316,8 @@ def load_scorecard_data(engine: OrderEngine, budget: float, tier_name: str, dema
                 product_name=p_name,
                 supplier=supp,
                 department=dept,
+                item_code=item_code,
+                barcode=barcode,
                 unit_price=unit_price,
                 cost_price=cost_price,
                 avg_daily_sales=ads,
@@ -330,11 +335,14 @@ def load_scorecard_data(engine: OrderEngine, budget: float, tier_name: str, dema
 class RetailSimulator:
     """Core simulation engine for retail inventory dynamics."""
     
-    def __init__(self, tier_name: str, store_config: dict, seed: int = None, bridge: SimulationOrderUtil = None, initial_skus: List[SKUState] = None, seasonal_demand_map: Dict[str, float] = None, preloaded_data: pd.DataFrame = None, pre_enriched_products: List[dict] = None):
+    def __init__(self, tier_name: str, store_config: dict, seed: int = None, bridge: SimulationOrderUtil = None, initial_skus: List[SKUState] = None, seasonal_demand_map: Dict[str, float] = None, preloaded_data: pd.DataFrame = None, pre_enriched_products: List[dict] = None, gnn_risk_score: float = 0.0):
         self.tier_name = tier_name
         self.config = store_config
         self.seed = seed or random.randint(1, 10000)
         self.seasonal_demand_map = seasonal_demand_map or {}
+        # CC-D fix: a GNN risk score (0.0 = none) threaded into the bridge so a
+        # "GNN-Adjusted" run actually inflates safety stock vs the heuristic run.
+        self.gnn_risk_score = float(gnn_risk_score or 0.0)
         random.seed(self.seed)
         np.random.seed(self.seed)
         
@@ -377,6 +385,10 @@ class RetailSimulator:
         
         # Daily logs
         self.daily_logs: List[DailyLog] = []
+        
+        # --- BLACK SWAN / SHOCK LOGIC ---
+        self.active_shocks = [] # List of dicts: {type, start, end, target, magnitude}
+        self.current_day_shocks = []
         
         # Reorder tracking
         self.pending_orders: List[Tuple[int, str, float]] = []  # (arrival_day, product, qty)
@@ -442,6 +454,17 @@ class RetailSimulator:
         self._lost_vec.fill(0)
         self._stockout_vec.fill(0)
 
+    def add_shock(self, start_day: int, end_day: int, shock_type: str, target: str = None, magnitude: float = 1.0):
+        """Add a planned event/shock to the simulation schedule."""
+        self.active_shocks.append({
+            'type': shock_type,
+            'start': start_day,
+            'end': end_day,
+            'target': target,
+            'magnitude': magnitude
+        })
+        print(f"[SHOCK SCHEDULED] {shock_type} on Day {start_day}-{end_day} (Target: {target or 'Global'})")
+
     def sync_to_vectorized_state(self):
         """Pull latest object states (after arrivals/orders) into NumPy workspace."""
         if not self._active_sku_names: return
@@ -503,6 +526,16 @@ class RetailSimulator:
         if np.random.random() < 0.01:
             demand *= 5.0
             demand = round(demand)
+
+        # --- APPLY ACTIVE SHOCKS (Demand Side) ---
+        for shock in self.current_day_shocks:
+            if shock['type'] == "Demand Surge":
+                if not shock['target'] or shock['target'].lower() in sku.department.lower():
+                    demand *= (1.0 + shock['magnitude'])
+            elif shock['type'] == "Competitor Entry":
+                if not shock['target'] or shock['target'].lower() in sku.department.lower():
+                    # Competitor entry REDUCES demand
+                    demand *= max(0.1, (1.0 - shock['magnitude']))
 
         return float(demand)
 
@@ -668,8 +701,10 @@ class RetailSimulator:
                 tgt_days = rec.get('target_coverage_days', 7)
                 rec['reorder_point'] = sku.avg_daily_sales * tgt_days
         
-        # 4. Calculate Quantities
-        recs = self.bridge.calculate_order_quantity(enriched, store_config={}, current_day=current_day)
+        # 4. Calculate Quantities (CC-D: pass the GNN risk so it actually adjusts)
+        recs = self.bridge.calculate_order_quantity(
+            enriched, store_config={}, current_day=current_day,
+            gnn_risk_score=self.gnn_risk_score)
         
         # 5. Finalize (Guards)
         finalized = self.bridge.finalize_orders(recs)
@@ -742,10 +777,19 @@ class RetailSimulator:
                 
             if approved:
                 for (r, sku, qty, cost) in items:
-                    # Place the Order
+                    # Force the Order
                     lead_variability = random.uniform(0.8, 1.2)
                     lead_days = r.get('estimated_delivery_days', sku.lead_time_days)
-                    actual_lead = max(1, int(round(lead_days * lead_variability)))
+                    
+                    # --- APPLY ACTIVE SHOCKS (Supply Side) ---
+                    shock_factor = 1.0
+                    for shock in self.current_day_shocks:
+                        if shock['type'] == "Supplier Failure":
+                            if not shock['target'] or shock['target'].upper() in sku.supplier.upper() or shock['target'].upper() in sku.department.upper():
+                                # Supplier failure INCREASES lead time significantly (Magnitude * 14 days extra)
+                                shock_factor += shock['magnitude'] * 14.0
+                    
+                    actual_lead = max(1, int(round((lead_days + shock_factor - 1.0) * lead_variability)))
                     
                     arrival_day = current_day + actual_lead
                     
@@ -773,7 +817,13 @@ class RetailSimulator:
     def simulate_day(self, day_num: int, date: datetime) -> DailyLog:
         """Simulate a single day of operations."""
         log = DailyLog(day=day_num, date=date.strftime("%Y-%m-%d"))
-        
+
+        # 0. Prep Shocks for the day
+        self.current_day_shocks = [s for s in self.active_shocks if s['start'] <= day_num <= s['end']]
+        if self.current_day_shocks:
+            log_shocks = ", ".join([s['type'] for s in self.current_day_shocks])
+            # print(f"  [LOG] Active Events: {log_shocks}")
+
         # 1. Process arrivals
         self.process_arrivals(day_num)
         
