@@ -143,21 +143,41 @@ def _network_stock(ctx) -> dict:
 
 # ── pages ──────────────────────────────────────────────────────────────────
 def render_pulse(ctx) -> None:
-    """Network pulse: mode/phase, health vs targets, live alert count."""
+    """Network pulse: mode/phase, health vs targets, live alert count.
+
+    SH-B: this page is the feeder for the journey value thread — when network
+    stock is loaded it folds the live trapped-capital figure into journey_state
+    so the Home / Executive-ROI value meter reflects real recovery progress.
+    """
     st = ctx["st"]
     from . import components as C
     from ..logic import journey_state as JS
 
-    state = JS.load_state(ctx.get("journey_state_path"))
+    if "_intel_netstock" not in st.session_state and not st.button("⚙️ Load network pulse"):
+        st.markdown("### Operational Pulse")
+        state = JS.load_state(ctx.get("journey_state_path"))
+        C.mode_phase_badge(state["mode"], state["phase"], state["phase_name"],
+                           state["value_recovered"], st_module=st)
+        C.empty_state("Load the pulse", "Pull live network stock to compute health.", st_module=st)
+        return
+
+    stock = _network_stock(ctx)
+    names = st.session_state.get("_intel_orgnames", {})
+
+    # SH-B: feed value_recovered from trapped capital before rendering the badge.
+    try:
+        from ..logic.capital_recovery import trapped_capital_network, update_journey_recovery
+        state = update_journey_recovery(
+            trapped_capital_network(stock), ctx.get("journey_state_path"))
+    except Exception:
+        state = JS.load_state(ctx.get("journey_state_path"))
+
     st.markdown("### Operational Pulse")
     C.mode_phase_badge(state["mode"], state["phase"], state["phase_name"],
                        state["value_recovered"], st_module=st)
+    C.value_recovered_meter(state["value_recovered"],
+                            state.get("value_target") or 0, st_module=st)
 
-    if "_intel_netstock" not in st.session_state and not st.button("⚙️ Load network pulse"):
-        C.empty_state("Load the pulse", "Pull live network stock to compute health.", st_module=st)
-        return
-    stock = _network_stock(ctx)
-    names = st.session_state.get("_intel_orgnames", {})
     health = compute_health_metrics(stock)
     alerts = velocity_alert_rows(stock, names)
     C.kpi_row([
