@@ -35,8 +35,8 @@ def haversine_km(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
 # Add models to path
 sys.path.append(os.getcwd())
 
-from models.store_gnn import StoreGraphNetwork
-# from models.train_store_gnn import generate_traffic_friction # Not needed if we get from sim
+# Model construction + loading now lives in oasis.logic.gnn_service (SH-A S3);
+# this dashboard no longer builds StoreGraphNetwork directly.
 
 # Page Config
 st.set_page_config(page_title="ST-GAT Market Pulse", layout="wide", page_icon="🧠")
@@ -68,61 +68,23 @@ st.markdown("""
 # --- 1. Load Model & Simulation ---
 @st.cache_resource
 def load_resources():
-    network_path = "stores_network.json"
-    if not os.path.exists(network_path):
-        st.error(f"Network file not found: {network_path}")
+    """Load the GNN + simulator via the shared service (SH-A S3).
+
+    Delegates to oasis.logic.gnn_service._load_model so the loader, the conv1
+    dimension guard, and the trained/untrained/unavailable status all live in
+    ONE place (shared with the Command Center). Returns (model, sim); when the
+    checkpoint is missing or incompatible the model is still returned (random
+    init) so the dashboard renders, and the MI-B banner below — driven by
+    gnn_service.model_status() — flags it as untrained.
+    """
+    from oasis.logic import gnn_service
+    model, sim, status = gnn_service._load_model()
+    if status == "unavailable" or model is None or sim is None:
+        st.error(
+            "GNN resources unavailable — `stores_network.json` is missing or "
+            "torch could not be loaded."
+        )
         return None, None
-
-    # Init Simulator
-    from network_simulation import NetworkSimulator
-    sim = NetworkSimulator(network_path)
-    
-    # Load Model
-    # Get Feature Dim from one sample
-    stub_feat = sim.get_feature_matrix()
-    F_in = stub_feat.shape[1]
-    
-    model = StoreGraphNetwork(in_features=F_in)
-    
-    if os.path.exists("st_gat_v2.pt"):
-        try:
-            sd = torch.load("st_gat_v2.pt", map_location="cpu")
-            state_dict = sd.get('model_state_dict', sd)
-
-            # Verify the checkpoint's input dimension matches the live feature
-            # matrix BEFORE trusting it (mirrors get_gnn_resources in the Command
-            # Center). A blind strict=False load would SILENTLY drop conv1 on a
-            # mismatch, leaving the input layer randomly initialised while the
-            # load still "succeeds" — so we gate explicitly and only mark the
-            # model trained when the core layers actually loaded. (An earlier
-            # build carried a dead 29->30 "Salary Hit" pad for a temporal_lstm
-            # layer this architecture no longer has; removed.)
-            ck_in = state_dict.get('conv1.weight')
-            if ck_in is not None and ck_in.shape[0] == F_in:
-                missing, _ = model.load_state_dict(state_dict, strict=False)
-                core_missing = [k for k in missing if k.startswith(('conv1', 'conv2'))]
-                if core_missing:
-                    st.session_state["_gnn_trained"] = False
-                    print(f"[WARN] Core GNN layers not loaded {core_missing}; "
-                          "treating model as untrained.")
-                else:
-                    st.session_state["_gnn_trained"] = True
-                    print(f"[SUCCESS] GNN weights loaded (input dim {F_in} "
-                          "matches checkpoint).")
-            else:
-                got = None if ck_in is None else ck_in.shape[0]
-                st.session_state["_gnn_trained"] = False
-                print(f"[WARN] Checkpoint input dim {got} != feature width "
-                      f"{F_in}; using random initialization.")
-        except Exception as e:
-            st.error(f"Failed to load model weights: {e}")
-            st.warning("Proceeding with random initialization.")
-            st.session_state["_gnn_trained"] = False
-    else:
-        st.warning("⚠️ Model weights not found. Using random initialization.")
-        st.session_state["_gnn_trained"] = False
-
-    model.eval()
     return model, sim
 
 model, sim = load_resources()
@@ -133,7 +95,8 @@ if not model or not sim:
 # MI-B fix: be explicit when the GNN is untrained. A randomly-initialized model
 # still produces confident-looking risk/demand/transfer numbers — so flag it
 # loudly rather than letting the dashboard imply trained intelligence.
-if not st.session_state.get("_gnn_trained", False):
+from oasis.logic import gnn_service as _gnn_service
+if _gnn_service.model_status() != "trained":
     st.error(
         "⚠️ **GNN is UNTRAINED (random initialization).** `st_gat_v2.pt` was "
         "missing or incompatible, so all risk scores, demand forecasts, and "
