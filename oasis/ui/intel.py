@@ -81,22 +81,48 @@ def velocity_alert_rows(products_by_org: dict, org_names: dict = None,
     return rows
 
 
-def per_store_health(products_by_org: dict, org_names: dict = None) -> List[dict]:
-    """Per-store cover-class rollup (pure): SKUs / at-risk / overstock / dead."""
+def risk_band(risk: float) -> str:
+    """Display band for a 0..1 store-risk score (pure): HIGH / ELEVATED / OK."""
+    r = float(risk or 0)
+    if r >= 0.66:
+        return "HIGH"
+    if r >= 0.33:
+        return "ELEVATED"
+    return "OK"
+
+
+def per_store_health(products_by_org: dict, org_names: dict = None,
+                     risk_by_org: dict = None) -> List[dict]:
+    """Per-store cover-class rollup (pure): SKUs / at-risk / overstock / dead.
+
+    When ``risk_by_org`` ({org_cd: 0..1} from gnn_service.store_risk) is given,
+    each row gains a Risk band + Risk Score and rows sort by that score (highest
+    risk first); otherwise rows sort by at-risk SKU count as before.
+    """
     org_names = org_names or {}
+    risk_by_org = risk_by_org or {}
     rows = []
     for org, products in (products_by_org or {}).items():
         s = stock_review_summary({org: products})
         at_risk = s["DEPLETED"] + s["CRITICAL"] + s["URGENT"] + s["LOW"]
-        rows.append({
+        row = {
             "Store": org_names.get(org, org),
             "SKUs": s["total"],
             "At-Risk (≤3d)": at_risk,
             "Overstock": s["OVERSTOCK"],
             "Dead": s["DEAD"],
             "_risk": at_risk,
-        })
-    rows.sort(key=lambda r: -r["_risk"])
+        }
+        if org in risk_by_org:
+            score = float(risk_by_org[org] or 0)
+            row["Risk"] = risk_band(score)
+            row["Risk Score"] = round(score, 3)
+            row["_riskscore"] = score
+        rows.append(row)
+    if risk_by_org:
+        rows.sort(key=lambda r: -r.get("_riskscore", 0.0))
+    else:
+        rows.sort(key=lambda r: -r["_risk"])
     return rows
 
 
@@ -125,6 +151,19 @@ def stock_review_summary(products_by_org: dict) -> Dict[str, int]:
                 p.get("current_stocks", p.get("current_stock", 0)))
             out[cls] = out.get(cls, 0) + 1
     return out
+
+
+def model_status_note(status: str) -> tuple:
+    """(kind, message) for the GNN model-status banner (pure).
+
+    kind is "warning" (untrained — actively misleading if trusted) or "caption"
+    (trained / unavailable — informational).
+    """
+    if status == "trained":
+        return ("caption", "Store risk blends the trained GNN with live inventory signal.")
+    if status == "untrained":
+        return ("warning", "GNN model is untrained — store risk shown is inventory-only.")
+    return ("caption", "GNN unavailable — store risk shown is inventory-only.")
 
 
 # ── data ─────────────────────────────────────────────────────────────────
@@ -180,6 +219,16 @@ def render_pulse(ctx) -> None:
 
     health = compute_health_metrics(stock)
     alerts = velocity_alert_rows(stock, names)
+
+    # SH-A S5: high-risk store count from the shared risk service (GNN when
+    # trained, else inventory-only).
+    from ..logic import gnn_service
+    try:
+        risks = gnn_service.store_risk(stock)
+    except Exception:
+        risks = {}
+    high_risk = sum(1 for v in risks.values() if risk_band(v) == "HIGH")
+
     C.kpi_row([
         {"label": "Stores", "value": len(stock)},
         {"label": "SKUs", "value": f"{health['total_skus']:,}"},
@@ -187,7 +236,11 @@ def render_pulse(ctx) -> None:
          "status": "success" if health["dead_stock_pct"] < 5 else "danger"},
         {"label": "At-Risk (≤3d)", "value": len(alerts),
          "status": "danger" if alerts else "success"},
+        {"label": "High-Risk Stores", "value": high_risk,
+         "status": "danger" if high_risk else "success"},
     ], st_module=st)
+    kind, msg = model_status_note(gnn_service.model_status())
+    (st.warning if kind == "warning" else st.caption)(msg)
 
 
 def render_velocity_alerts(ctx) -> None:
@@ -293,10 +346,23 @@ def render_network_intel(ctx) -> None:
     stock = _network_stock(ctx)
     names = st.session_state.get("_intel_orgnames", {})
 
+    # SH-A S5: per-store risk from the shared service (GNN when trained, else
+    # inventory-only). Closes G-INT-1 — the Intelligence Console now surfaces the
+    # platform's headline model. Read-only; ordering is unaffected.
+    from ..logic import gnn_service
+    status = gnn_service.model_status()
+    try:
+        risks = gnn_service.store_risk(stock)
+    except Exception:
+        risks = {}
+
     st.markdown("### Network Intelligence")
+    kind, msg = model_status_note(status)
+    (st.warning if kind == "warning" else st.caption)(msg)
+
     st.markdown("#### Store Health")
     import pandas as pd
-    rows = per_store_health(stock, names)
+    rows = per_store_health(stock, names, risk_by_org=risks)
     st.dataframe(pd.DataFrame([{k: v for k, v in r.items() if not k.startswith("_")}
                                for r in rows]),
                  use_container_width=True, hide_index=True)

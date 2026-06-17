@@ -85,6 +85,46 @@ class TestPerStoreHealth:
         assert rows[0]["Store"] == "Alpha"
         beta = next(r for r in rows if r["Store"] == "Beta")
         assert beta["Overstock"] == 1 and beta["Dead"] == 1
+        # without risk map, no Risk column
+        assert "Risk" not in rows[0]
+
+    def test_risk_map_adds_column_and_sorts_by_risk(self):
+        stock = {
+            "A": [{"avg_daily_sales": 10, "current_stocks": 0}],   # many at-risk
+            "B": [{"avg_daily_sales": 1, "current_stocks": 60}],   # healthy-ish
+        }
+        # B is the higher-risk store per the GNN-blended score
+        rows = intel.per_store_health(stock, {"A": "Alpha", "B": "Beta"},
+                                      risk_by_org={"A": 0.1, "B": 0.8})
+        assert rows[0]["Store"] == "Beta"          # sorts by risk score, not at-risk count
+        assert rows[0]["Risk"] == "HIGH"
+        assert rows[0]["Risk Score"] == 0.8
+        assert rows[1]["Risk"] == "OK"
+
+
+class TestRiskBand:
+    def test_bands(self):
+        assert intel.risk_band(0.0) == "OK"
+        assert intel.risk_band(0.32) == "OK"
+        assert intel.risk_band(0.33) == "ELEVATED"
+        assert intel.risk_band(0.65) == "ELEVATED"
+        assert intel.risk_band(0.66) == "HIGH"
+        assert intel.risk_band(1.0) == "HIGH"
+        assert intel.risk_band(None) == "OK"
+
+
+class TestModelStatusNote:
+    def test_trained_is_caption(self):
+        kind, msg = intel.model_status_note("trained")
+        assert kind == "caption" and "blends" in msg
+
+    def test_untrained_is_warning(self):
+        kind, msg = intel.model_status_note("untrained")
+        assert kind == "warning" and "inventory-only" in msg
+
+    def test_unavailable_is_caption(self):
+        kind, msg = intel.model_status_note("unavailable")
+        assert kind == "caption" and "inventory-only" in msg
 
 
 class TestTopMovers:
