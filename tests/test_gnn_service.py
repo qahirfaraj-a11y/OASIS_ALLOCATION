@@ -112,6 +112,41 @@ class TestModelStatus:
         assert G.model_status() in {"trained", "untrained", "unavailable"}
 
 
+class TestS2BlendParity:
+    """Golden (S2): service math == the Command Center's former inline formula.
+
+    Reproduces get_all_store_risks' original inline block verbatim and asserts
+    risk_from_ratios + blend_risk reproduce it exactly, so the S2 delegation
+    provably does not move any Command Center risk score.
+    """
+
+    @staticmethod
+    def _legacy(rscore, so_ratio, crit_ratio, gnn_blend, gnn_uniform):
+        inv_risk = min(1.0, (so_ratio * 1.5) + (crit_ratio * 0.5))
+        if gnn_uniform:
+            alpha_dynamic = 0.0
+            inventory_dynamic = 1.0
+        else:
+            alpha_dynamic = gnn_blend * (1.0 - (inv_risk ** 2))
+            inventory_dynamic = 1.0 - alpha_dynamic
+        return (rscore * alpha_dynamic) + (inv_risk * inventory_dynamic)
+
+    def test_grid_parity(self):
+        import itertools
+        combos = itertools.product(
+            [0.0, 0.13, 0.3, 0.7, 1.0],   # rscore
+            [0.0, 0.25, 0.5, 0.75, 1.0],  # so_ratio
+            [0.0, 0.33, 0.5, 1.0],        # crit_ratio
+            [0.3, 0.5],                    # gnn_blend
+            [False, True],                # gnn_uniform
+        )
+        for rscore, so, crit, blend, uni in combos:
+            legacy = self._legacy(rscore, so, crit, blend, uni)
+            inv = G.risk_from_ratios(so, crit)
+            new = G.blend_risk(rscore, inv, blend, gnn_uniform=uni)
+            assert abs(legacy - new) < 1e-12, (rscore, so, crit, blend, uni)
+
+
 class TestStoreRiskContract:
     def test_keys_subset_of_input_with_trained_model(self):
         """With a trained model, result keys never exceed the input keys."""

@@ -382,26 +382,20 @@ def get_all_store_risks(sim_hour: int):
         # If GNN model is untrained (all scores identical), rely entirely on inventory heuristic
         _gnn_uniform = (max(risk_scores) - min(risk_scores)) < 0.02
         
+        # Shared inventory-risk + sigmoidal-brake blend (SH-A S2 delegation).
+        # Math is identical to the former inline block; the so/crit ratios are
+        # still derived here (incl. the live intraday-sim hour_stats path above),
+        # only the formula now lives in one place.
+        from oasis.logic import gnn_service
         final_scores = {}
         for i, (sid, rscore) in enumerate(zip(gnn_ids, risk_scores)):
             src = gnn_stores[i]
             so_ratio = src.get('_so_ratio', 0.0)
             crit_ratio = src.get('_crit_ratio', 0.0)
-            
-            # Weights: stockout is worse than critical
-            inv_risk = min(1.0, (so_ratio * 1.5) + (crit_ratio * 0.5))
-            
-            # Dynamic Blending (Sigmoidal Brake)
-            if _gnn_uniform:
-                alpha_dynamic = 0.0
-                inventory_dynamic = 1.0
-            else:
-                alpha_dynamic = gnn_blend * (1.0 - (inv_risk ** 2))
-                inventory_dynamic = 1.0 - alpha_dynamic
-            
-            blended_risk = (rscore * alpha_dynamic) + (inv_risk * inventory_dynamic)
-            final_scores[sid] = blended_risk
-            
+            inv_risk = gnn_service.risk_from_ratios(so_ratio, crit_ratio)
+            final_scores[sid] = gnn_service.blend_risk(
+                rscore, inv_risk, gnn_blend, gnn_uniform=_gnn_uniform)
+
         return final_scores
     except Exception as e:
         logger.error(f"GNN risk calculation failed: {e}")
@@ -1350,31 +1344,23 @@ if "live_sales" in tab_map:
 # =====================================================================
 @st.cache_resource
 def get_gnn_resources():
-    """Load NetworkSimulator + StoreGraphNetwork if available."""
-    network_path = os.path.join(os.getcwd(), "stores_network.json")
-    if not os.path.exists(network_path): return None, None
-    try:
-        import torch
-        from network_simulation import NetworkSimulator
-        from models.store_gnn import StoreGraphNetwork
-        sim = NetworkSimulator(network_path)
-        stub = sim.get_feature_matrix()
-        model = StoreGraphNetwork(in_features=stub.shape[1])
-        pt_path = os.path.join(os.getcwd(), "st_gat_v2.pt")
-        if os.path.exists(pt_path):
-            sd = torch.load(pt_path, map_location="cpu")
-            # Handle model state dict wrapper
-            state_dict = sd.get('model_state_dict', sd)
-            # Logic to handle minor state_dict mismatches if necessary
-            if 'conv1.weight' in state_dict and state_dict['conv1.weight'].shape[0] == stub.shape[1]:
-                model.load_state_dict(state_dict, strict=False)
-                logger.info("Successfully loaded GNN model weights.")
-            else:
-                logger.warning(f"GNN checkpoint dimension mismatch (expected shape[0] == {stub.shape[1]}). Using Xavier initialization.")
-        model.eval()
-        return model, sim
-    except Exception as e:
-        return None, str(e)
+    """Load NetworkSimulator + StoreGraphNetwork via the shared service (SH-A S2).
+
+    Delegates to oasis.logic.gnn_service._load_model — the single guarded loader
+    (conv1 dimension guard, trained/untrained/unavailable status). Returns the
+    same (model, sim) shape this dashboard expects; on an untrained checkpoint
+    the (random-init) model + sim are still returned, exactly as before, so the
+    downstream uniform-GNN detection takes over.
+    """
+    from oasis.logic import gnn_service
+    model, sim, status = gnn_service._load_model()
+    if model is None or sim is None:
+        return None, None
+    if status == "trained":
+        logger.info("Successfully loaded GNN model weights (via gnn_service).")
+    else:
+        logger.warning(f"GNN model status={status}; using inventory-led risk.")
+    return model, sim
 
 if "transfer_intelligence" in tab_map:
  with tab_map["transfer_intelligence"]:

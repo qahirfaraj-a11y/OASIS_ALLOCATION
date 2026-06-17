@@ -82,13 +82,20 @@ def stockout_ratios(products: Sequence[dict]) -> Tuple[float, float]:
     return so_count / denom, crit_count / denom
 
 
-def inventory_risk(products: Sequence[dict]) -> float:
-    """Inventory-only store risk 0..1 (pure).
+def risk_from_ratios(so_ratio: float, crit_ratio: float) -> float:
+    """Inventory risk 0..1 from precomputed ratios (pure).
 
     Stockout is weighted worse than critical: ``so*1.5 + crit*0.5`` capped at 1.
+    Exposed so callers that derive the ratios elsewhere (e.g. the Command
+    Center's live intraday-sim hour_stats) share this exact formula.
     """
+    return min(1.0, (float(so_ratio) * 1.5) + (float(crit_ratio) * 0.5))
+
+
+def inventory_risk(products: Sequence[dict]) -> float:
+    """Inventory-only store risk 0..1 from a product list (pure)."""
     so_ratio, crit_ratio = stockout_ratios(products)
-    return min(1.0, (so_ratio * 1.5) + (crit_ratio * 0.5))
+    return risk_from_ratios(so_ratio, crit_ratio)
 
 
 def blend_risk(gnn_score: float, inv_risk: float,
@@ -228,7 +235,7 @@ def store_risk(stock_by_org: Dict[str, Sequence[dict]],
                 continue
             so = float(x_t[i, _COL_STOCKOUT])
             crit = float(x_t[i, _COL_CRITICAL])
-            inv_r = min(1.0, (so * 1.5) + (crit * 0.5))
+            inv_r = risk_from_ratios(so, crit)
             result[org_cd] = blend_risk(risks[i], inv_r, ratio, gnn_uniform)
         return result
     except Exception:
