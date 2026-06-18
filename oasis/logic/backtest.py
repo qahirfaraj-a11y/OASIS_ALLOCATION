@@ -129,9 +129,49 @@ def summarize(pairs: Sequence[Pair]) -> dict:
     }
 
 
+def calibrated_evaluation(train_pairs: Sequence[Pair], test_pairs: Sequence[Pair]) -> dict:
+    """Fit isotonic calibration on train, evaluate on a held-out test set (pure).
+
+    Monotonic calibration preserves ranking, so PR-AUC is unchanged; the win is
+    Brier + calibration alignment. Fitting on a separate split avoids optimistic
+    in-sample calibration.
+    """
+    from .risk_calibration import calibrate_pairs, fit_isotonic
+    model = fit_isotonic(train_pairs)
+    cal = calibrate_pairs(model, test_pairs)
+    return {
+        "test_samples": len(test_pairs),
+        "pr_auc": average_precision(test_pairs),
+        "brier_raw": brier_score(test_pairs),
+        "brier_calibrated": brier_score(cal),
+        "calibration_raw": calibration_table(test_pairs),
+        "calibration_calibrated": calibration_table(cal),
+    }
+
+
+# ── de-circularized supply backtest (pure helpers) ──────────────────────────
+def supply_risk(stat: dict) -> float:
+    """Past supply-risk score from H1 supplier behavior (pure): worse of
+    under-fill (1 - fill rate) and short-supply rate."""
+    return max(0.0, min(1.0, max(1.0 - float(stat.get("fill", 1.0)),
+                                 float(stat.get("short_rate", 0.0)))))
+
+
+def supplier_failure_pairs(h1_stats: dict, h2_fail: dict) -> List[Pair]:
+    """(supply_risk from H1, failed-in-H2) pairs for suppliers seen in both halves
+    (pure). This is temporally separated, so it does NOT share inputs with the
+    on-hand reconstruction — the de-circularized test."""
+    pairs: List[Pair] = []
+    for v, st in h1_stats.items():
+        if v in h2_fail:
+            pairs.append((supply_risk(st), int(h2_fail[v])))
+    return pairs
+
+
 # ── integration entry ────────────────────────────────────────────────────────
 def run_backtest(data_dir: str, *, anchor="2026-01-20", horizon: int = 7,
-                 stride: int = 7, min_ads: float = 0.3, sample_cap: int = 3000) -> dict:
+                 stride: int = 7, min_ads: float = 0.3, sample_cap: int = 3000,
+                 calibrate: bool = True) -> dict:
     """Reconstruct the real Rhapta series and measure the P3 baseline (integration).
 
     Samples SKUs with meaningful demand (ads >= min_ads), reconstructs daily
@@ -157,6 +197,7 @@ def run_backtest(data_dir: str, *, anchor="2026-01-20", horizon: int = 7,
     days = [start + dt.timedelta(days=i) for i in range((end - start).days + 1)]
 
     pooled: List[Pair] = []
+    groups: List[List[Pair]] = []   # per-SKU, for a leakage-free calibration split
     used = 0
     for bc, info in master.items():
         if used >= sample_cap:
@@ -171,17 +212,86 @@ def run_backtest(data_dir: str, *, anchor="2026-01-20", horizon: int = 7,
         flow = moves.get(bc, {})
         # within-window flow totals to estimate the opening
         rec = sum(f.receipts for d, f in flow.items() if start <= d <= anchor_d)
-        out = sum(f.outflow for d, f in flow.items() if start <= d <= anchor_d)
+        outf = sum(f.outflow for d, f in flow.items() if start <= d <= anchor_d)
         dem = ads * len(days)
-        opening = estimate_opening(info["stock"], rec, dem, out)
+        opening = estimate_opening(info["stock"], rec, dem, outf)
         per = {d: DayFlow(receipts=flow.get(d, DayFlow()).receipts,
                           outflow=flow.get(d, DayFlow()).outflow, demand=ads)
                for d in days}
         states = simulate_ledger(opening, days, per)
-        pooled.extend(backtest_samples(states, row["mu_ltd"], row["sigma_ltd"],
-                                       horizon=horizon, stride=stride))
+        samples = backtest_samples(states, row["mu_ltd"], row["sigma_ltd"],
+                                   horizon=horizon, stride=stride)
+        if samples:
+            groups.append(samples)
+            pooled.extend(samples)
         used += 1
 
     out = summarize(pooled)
     out["skus_sampled"] = used
+    if calibrate and len(groups) >= 4:
+        mid = len(groups) // 2  # SKU-level split: no within-SKU leakage
+        train = [p for g in groups[:mid] for p in g]
+        test = [p for g in groups[mid:] for p in g]
+        out["calibrated"] = calibrated_evaluation(train, test)
+    return out
+
+
+def run_supply_backtest(data_dir: str, *, cutoff: str = "2025-07-01",
+                        min_orders: int = 5, fail_fill: float = 0.9) -> dict:
+    """De-circularized test: does H1 supplier behavior predict H2 supply failures?
+
+    Independent of the on-hand reconstruction — features come from the supplier's
+    first-half GRN fill rate + short-supply rate, the label from second-half
+    under-fills / short-supply. Validates the supply-risk signal that feeds
+    sigma_LTD without the risk↔label circularity of the inventory backtest.
+    """
+    import datetime as dt
+    import glob
+    import os
+
+    import pandas as pd
+
+    cut = dt.date.fromisoformat(cutoff)
+    # vendor -> half -> [po_qty, grn_qty, short_lines, lines]
+    agg = {}
+
+    def _v(cell):
+        return str(cell).split(" - ")[0].strip().upper()
+
+    for f in sorted(set(glob.glob(os.path.join(data_dir, "*grnds*.xlsx")) +
+                        glob.glob(os.path.join(data_dir, "grnds_*.xlsx")))):
+        try:
+            df = pd.read_excel(f)
+        except Exception:
+            continue
+        df.columns = [str(c).strip() for c in df.columns]
+        if not {"Vendor Code - Name", "GRN Date", "PO Qty", "GRN Qty"} <= set(df.columns):
+            continue
+        dates = pd.to_datetime(df["GRN Date"], errors="coerce", dayfirst=True)
+        for v, d, po, grn in zip(df["Vendor Code - Name"], dates, df["PO Qty"], df["GRN Qty"]):
+            if pd.isna(d):
+                continue
+            half = "h1" if d.date() < cut else "h2"
+            a = agg.setdefault(_v(v), {"h1": [0.0, 0.0, 0, 0], "h2": [0.0, 0.0, 0, 0]})[half]
+            po = float(po or 0)
+            grn = float(grn or 0)
+            a[0] += po
+            a[1] += grn
+            a[3] += 1
+            if po > 0 and grn < po * fail_fill:
+                a[2] += 1
+
+    h1_stats, h2_fail = {}, {}
+    for v, halves in agg.items():
+        h1, h2 = halves["h1"], halves["h2"]
+        if h1[3] < min_orders or h2[3] < min_orders or h1[0] <= 0 or h2[0] <= 0:
+            continue
+        h1_stats[v] = {"fill": h1[1] / h1[0], "short_rate": h1[2] / h1[3], "orders": h1[3]}
+        h2_fill = h2[1] / h2[0]
+        h2_fail[v] = 1 if (h2_fill < fail_fill or h2[2] > 0) else 0
+
+    pairs = supplier_failure_pairs(h1_stats, h2_fail)
+    out = summarize(pairs)
+    out["suppliers"] = len(pairs)
+    out["cutoff"] = cutoff
     return out

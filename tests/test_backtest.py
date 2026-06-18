@@ -8,6 +8,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 from oasis.logic.backtest import (
     base_rate, average_precision, brier_score, calibration_table,
     estimate_opening, backtest_samples, summarize,
+    calibrated_evaluation, supply_risk, supplier_failure_pairs,
 )
 from oasis.logic.stockout_ledger import DayFlow, simulate_ledger
 
@@ -82,3 +83,27 @@ class TestSummarize:
         assert s["samples"] == 4
         assert 0.0 <= s["pr_auc"] <= 1.0
         assert "calibration" in s and len(s["calibration"]) == 10
+
+
+class TestCalibratedEvaluation:
+    def test_calibration_lowers_brier_on_underconfident(self):
+        # under-confident raw scores: 0.3 actually positive, 0.02 actually negative
+        train = [(0.3, 1)] * 18 + [(0.3, 0)] * 2 + [(0.02, 0)] * 18 + [(0.02, 1)] * 2
+        test = list(train)
+        ev = calibrated_evaluation(train, test)
+        assert ev["brier_calibrated"] <= ev["brier_raw"]
+        # ranking (PR-AUC) unchanged by monotonic calibration
+        assert ev["pr_auc"] == average_precision(test)
+
+
+class TestSupplyBacktest:
+    def test_supply_risk_worst_of(self):
+        assert abs(supply_risk({"fill": 0.8, "short_rate": 0.1}) - 0.2) < 1e-9
+        assert abs(supply_risk({"fill": 0.95, "short_rate": 0.3}) - 0.3) < 1e-9
+
+    def test_failure_pairs_only_common_suppliers(self):
+        h1 = {"A": {"fill": 0.6, "short_rate": 0.0}, "B": {"fill": 1.0, "short_rate": 0.0}}
+        h2 = {"A": 1, "C": 0}   # B missing from h2 -> dropped
+        pairs = supplier_failure_pairs(h1, h2)
+        assert len(pairs) == 1
+        assert pairs[0][1] == 1 and abs(pairs[0][0] - 0.4) < 1e-9
