@@ -409,7 +409,7 @@ def main():
                         choices=["full", "engine", "dashboard", "showcase",
                                  "shadow", "simulation", "desktop", "bootstrap",
                                  "api", "bridge", "migrate", "shell", "intel",
-                                 "preflight"],
+                                 "preflight", "build-views"],
                         default="full", help="Run mode")
     parser.add_argument("--dashboard", choices=list(DASHBOARD_MAP.keys()),
                         default="ops", help="Dashboard to launch (dashboard mode)")
@@ -478,6 +478,19 @@ def main():
         report = run_preflight()
         print(format_report(report))
         sys.exit(0 if report["overall"] != "FAIL" else 2)
+    elif args.mode == "build-views":
+        from oasis.logic.client_schema import (
+            load_profile, identity_profile, validate_profile,
+            generate_view_ddl, create_clause_for,
+        )
+        profile_path = os.getenv("OASIS_SCHEMA_PROFILE")
+        profile = load_profile(profile_path) if profile_path else identity_profile()
+        v = validate_profile(profile)
+        dialect = os.getenv("OASIS_DB_DIALECT", "ansi")
+        print("\n".join(generate_view_ddl(profile, create_clause_for(dialect))))
+        if not v["ok"]:
+            sys.stderr.write(f"WARN: profile does not satisfy the required contract: {v}\n")
+        sys.exit(0 if v["ok"] else 2)
 
 
 if __name__ == "__main__":
