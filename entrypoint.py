@@ -408,7 +408,8 @@ def main():
     parser.add_argument("--mode",
                         choices=["full", "engine", "dashboard", "showcase",
                                  "shadow", "simulation", "desktop", "bootstrap",
-                                 "api", "bridge", "migrate", "shell", "intel"],
+                                 "api", "bridge", "migrate", "shell", "intel",
+                                 "preflight"],
                         default="full", help="Run mode")
     parser.add_argument("--dashboard", choices=list(DASHBOARD_MAP.keys()),
                         default="ops", help="Dashboard to launch (dashboard mode)")
@@ -472,6 +473,11 @@ def main():
         run_shell(args.port if args.port else 8500)
     elif args.mode == "intel":
         run_intel(args.port if args.port else 8510)
+    elif args.mode == "preflight":
+        from oasis.logic.preflight import run_preflight, format_report
+        report = run_preflight()
+        print(format_report(report))
+        sys.exit(0 if report["overall"] != "FAIL" else 2)
 
 
 if __name__ == "__main__":

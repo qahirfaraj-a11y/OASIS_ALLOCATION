@@ -38,6 +38,25 @@ def is_sqlite() -> bool:
     return get_db_url().startswith("sqlite")
 
 
+def get_pos_db_url() -> str:
+    """URL of the POS/ERP *source* database (read-only client system).
+
+    Separating this from OASIS's own operational store (get_db_url) lets a client
+    install read the POS database read-only while OASIS keeps its users/audit/
+    config/integration tables in its own store. Falls back to OASIS_DB_URL and
+    then the SQLite default, so the single-DB demo keeps working unchanged.
+    """
+    return os.getenv("OASIS_POS_DB_URL") or get_db_url()
+
+
+def get_pos_sqlalchemy_url(db_url: Optional[str] = None) -> str:
+    """SQLAlchemy URL for the POS source DB (normalizes postgres://)."""
+    url = db_url or get_pos_db_url()
+    if url.startswith("postgres://"):
+        url = url.replace("postgres://", "postgresql://", 1)
+    return url
+
+
 def _configure_sqlite(conn: sqlite3.Connection):
     conn.execute("PRAGMA journal_mode=WAL")
     conn.execute("PRAGMA synchronous=NORMAL")
