@@ -409,7 +409,7 @@ def main():
                         choices=["full", "engine", "dashboard", "showcase",
                                  "shadow", "simulation", "desktop", "bootstrap",
                                  "api", "bridge", "migrate", "shell", "intel",
-                                 "preflight", "build-views"],
+                                 "preflight", "build-views", "bootstrap-intel"],
                         default="full", help="Run mode")
     parser.add_argument("--dashboard", choices=list(DASHBOARD_MAP.keys()),
                         default="ops", help="Dashboard to launch (dashboard mode)")
@@ -491,6 +491,17 @@ def main():
         if not v["ok"]:
             sys.stderr.write(f"WARN: profile does not satisfy the required contract: {v}\n")
         sys.exit(0 if v["ok"] else 2)
+    elif args.mode == "bootstrap-intel":
+        from oasis.logic import db as oasis_db
+        from oasis.logic.db_connector import SchemaMapper, UniversalConnector
+        from oasis.logic.intel_bootstrap import bootstrap_intelligence
+        from oasis.logic.pos_erp_adapter import PosErpAdapter
+        data_dir = os.getenv("OASIS_DATA_DIR",
+                             os.path.join(os.path.dirname(__file__), "oasis", "data"))
+        adapter = PosErpAdapter(UniversalConnector(
+            oasis_db.get_pos_sqlalchemy_url(), SchemaMapper.for_pos_erp()))
+        summary = bootstrap_intelligence(adapter, data_dir)
+        print(f"Intelligence bootstrap complete: {summary}")
 
 
 if __name__ == "__main__":

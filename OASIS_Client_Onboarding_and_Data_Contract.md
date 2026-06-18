@@ -119,15 +119,25 @@ SQLite file; for multi-user installs use the client's Postgres via `OASIS_DB_URL
    (Omit `OASIS_POS_DB_URL` only for a single-DB demo.)
 3. **Migrate / bootstrap the OASIS store:** `python entrypoint.py --mode migrate`
    (creates OASIS tables + seeds the admin from `OASIS_SEED_PASSWORD`).
-4. **Preflight:** `python entrypoint.py --mode preflight` — must be `PASS` (or a
-   `WARN` you accept, e.g. short history). It checks connectivity, the §2/§3
+4. **Build schema views** *(only if the client schema differs from §2/§3)*:
+   author a schema profile (canonical → client names) and emit the read-only views:
+   ```
+   OASIS_SCHEMA_PROFILE=client.json OASIS_DB_DIALECT=mssql \
+       python entrypoint.py --mode build-views > views.sql
+   ```
+   The DBA runs `views.sql` once. (No profile = identity / RXL schema.)
+5. **Preflight:** `python entrypoint.py --mode preflight` — must be `PASS` (or a
+   `WARN` you accept, e.g. short history). Checks connectivity, the §2/§3
    contract, sales-history depth, and store writability. Exits non-zero on `FAIL`.
-5. **Intelligence bootstrap** (one-time, then periodic): generate the engine
-   intelligence from the client's data — `sales_forecasting` and
-   `supplier_patterns` can be produced live by the adapter; the AMIT dead-stock /
-   LATA toxicity / MANDE purge layers come from the forensic ingestion of a
-   historical export. Schedule a periodic refresh (e.g. monthly).
-6. **Launch** the consoles (`run_oasis.bat` / `run_oasis_intel.bat` /
+6. **Intelligence bootstrap** (one-time, then periodic — one command):
+   ```
+   python entrypoint.py --mode bootstrap-intel
+   ```
+   Generates `sales_forecasting`/`supplier_patterns` from the client's live POS
+   (writes the `*_updated.json` files the engine prefers). The AMIT dead-stock /
+   LATA toxicity / MANDE purge layers still come from the forensic ingestion of a
+   historical export. Schedule both on a periodic refresh (e.g. monthly).
+7. **Launch** the consoles (`run_oasis.bat` / `run_oasis_intel.bat` /
    `run_command_center.bat`) and log in with the seeded admin.
 
 ---
@@ -138,10 +148,13 @@ SQLite file; for multi-user installs use the client's Postgres via `OASIS_DB_URL
   sales, recency-weighted ADS, on-order awareness, and write POs/transfers back —
   through one DB-agnostic adapter. Read/store separation is enforced. The
   preflight gates an install.
-- **Per-client schema views**: the one integration task that varies per client
-  (only needed if their schema differs from §2/§3 names).
-- **Intelligence bootstrap**: must be run per client (step 5); not yet a single
-  one-command job — currently forensic-ingestion + adapter generators.
+- **Per-client schema views**: now a command — `--mode build-views` emits the
+  read-only view DDL from a schema profile (the one integration task that varies
+  per client, only when their schema differs from §2/§3 names).
+- **Intelligence bootstrap (demand + supplier)**: now a one-command job —
+  `--mode bootstrap-intel` regenerates `sales_forecasting`/`supplier_patterns`
+  from the live POS. The AMIT/LATA/MANDE governance layers still come from the
+  forensic-ingestion pass (the remaining manual step).
 - **Risk model**: the engines run on the interpretable inventory logic; the
   GNN/ML risk stays **monitoring-only** until validated against real daily
   stockout outcomes (see `OASIS_Risk_Scoring_Methodology_Redesign.md`). Not wired
