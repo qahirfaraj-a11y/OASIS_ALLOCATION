@@ -64,7 +64,10 @@ SOH(t) = SOH(t0)
         − Σ STO_Qty (out)   (trout_*.xlsx — transfers out)
         − Σ returns         (prts*.xlsx)
 ```
-Anchor `SOH(t0)` to the `dept.*` STOCK snapshot and walk back/forward.
+Anchor `SOH(t0)` to the `dept.*` STOCK snapshot — **dated 2026-01-20** — and
+walk backward/forward over the dated GRN/transfer/sales flows to build a real
+time-indexed inventory universe. (A known-date snapshot is exactly what makes
+the reconstruction verifiable; the live POS stream simply extends it forward.)
 
 ### 2b. Realized stockout / lost-sales labels
 - **Demand-side stockout:** `SOH(t) ≈ 0` while `ADS > 0` → lost-sales day(s).
