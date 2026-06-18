@@ -20,7 +20,7 @@ Usage:
 import logging
 import statistics
 from datetime import datetime, timedelta
-from typing import Dict, List, Optional, Any
+from typing import Dict, List, Optional
 
 import pandas as pd
 from sqlalchemy import text
@@ -34,13 +34,22 @@ class PosErpAdapter:
     Each fetch_* method returns data in the exact format OrderEngine expects.
     """
 
-    def __init__(self, connector):
+    def __init__(self, connector, store_connector=None):
         """
         Args:
-            connector: UniversalConnector instance (already connected)
+            connector:        UniversalConnector for the POS/ERP *source* DB
+                              (read-only client system; product/stock/sales/GRN).
+            store_connector:  optional UniversalConnector for OASIS's *own* store
+                              (users/audit/config + the INTEGRATION_* PO/transfer
+                              queues OASIS manages). Defaults to ``connector`` so
+                              the single-DB demo behaves exactly as before; in a
+                              client install this points at OASIS's local store so
+                              we never write OASIS tables into the client POS DB.
         """
         self.connector = connector
         self.engine = connector.engine
+        self.store_connector = store_connector or connector
+        self.store_engine = self.store_connector.engine
 
     # ------------------------------------------------------------------
     # 1. Product Master  →  List[dict] for OrderEngine.parse_inventory_file()
@@ -456,7 +465,7 @@ class PosErpAdapter:
 
         if rows:
             df = pd.DataFrame(rows)
-            df.to_sql("INTEGRATION_PURCHASE_ORDERS", self.engine, if_exists="append", index=False)
+            df.to_sql("INTEGRATION_PURCHASE_ORDERS", self.store_engine, if_exists="append", index=False)
 
         logger.info(f"Pushed {len(rows)} PO lines for {org_cd}")
         return len(rows)
@@ -468,8 +477,8 @@ class PosErpAdapter:
         if org_cd:
             query_str += " AND ORG_CD = :org_cd"
             params["org_cd"] = org_cd
-            
-        with self.engine.connect() as conn:
+
+        with self.store_engine.connect() as conn:
             df = pd.read_sql(text(query_str), conn, params=params)
         return df
 
@@ -488,7 +497,7 @@ class PosErpAdapter:
                 GROUP BY ITM_CD, CREATED_DT
             """)
             result = {}
-            with self.engine.connect() as conn:
+            with self.store_engine.connect() as conn:
                 rows = conn.execute(query, {"org_cd": org_cd}).mappings()
                 for row in rows:
                     itm_cd = str(row["ITM_CD"])
@@ -535,9 +544,9 @@ class PosErpAdapter:
             
         set_clause = ", ".join(updates)
         query = text(f"UPDATE INTEGRATION_PURCHASE_ORDERS SET {set_clause} WHERE PO_ID = :po_id")
-        
+
         try:
-            with self.engine.begin() as conn:
+            with self.store_engine.begin() as conn:
                 result = conn.execute(query, params)
                 return result.rowcount > 0
         except Exception as e:
@@ -570,8 +579,8 @@ class PosErpAdapter:
             
         if rows:
             df = pd.DataFrame(rows)
-            df.to_sql("INTEGRATION_TRANSFER_ORDERS", self.engine, if_exists="append", index=False)
-            
+            df.to_sql("INTEGRATION_TRANSFER_ORDERS", self.store_engine, if_exists="append", index=False)
+
         logger.info(f"Transfer request: Created {len(rows)} records. {from_org} → {to_org}")
         return len(rows) > 0
 
@@ -584,8 +593,8 @@ class PosErpAdapter:
             params["org_cd"] = org_cd
             
         query_str += " ORDER BY CREATED_DT DESC"
-            
-        with self.engine.connect() as conn:
+
+        with self.store_engine.connect() as conn:
             df = pd.read_sql(text(query_str), conn, params=params)
         return df
 
@@ -598,7 +607,7 @@ class PosErpAdapter:
             WHERE TRANSFER_ID = :tid
         """)
         try:
-            with self.engine.begin() as conn:
+            with self.store_engine.begin() as conn:
                 result = conn.execute(query, {"status": status, "now": now, "tid": transfer_id})
                 return result.rowcount > 0
         except Exception as e:

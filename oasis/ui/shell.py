@@ -227,15 +227,19 @@ def _pos_adapter(ctx):
     st = ctx["st"]
     if "_oasis_adapter" not in st.session_state:
         import os
-        from ..logic.db_connector import UniversalConnector, SchemaMapper
+        from ..logic import db as oasis_db
+        from ..logic.db_connector import SchemaMapper, UniversalConnector
         from ..logic.pos_erp_adapter import PosErpAdapter
-        if os.getenv("OASIS_DB_URL"):
-            from ..logic import db as oasis_db
-            uri = oasis_db.get_sqlalchemy_url()
-        else:
-            uri = f"sqlite:///{ctx['db_path']}"
-        st.session_state["_oasis_adapter"] = PosErpAdapter(
-            UniversalConnector(uri, SchemaMapper.for_pos_erp()))
+        # OASIS's own store (users/audit/config + PO/transfer queues).
+        store_uri = oasis_db.get_sqlalchemy_url() if os.getenv("OASIS_DB_URL") \
+            else f"sqlite:///{ctx['db_path']}"
+        # POS/ERP source (read-only). Splits from the store only when
+        # OASIS_POS_DB_URL is set; otherwise both share one DB (demo).
+        pos_uri = oasis_db.get_pos_sqlalchemy_url() if os.getenv("OASIS_POS_DB_URL") else store_uri
+        mapper = SchemaMapper.for_pos_erp()
+        pos_conn = UniversalConnector(pos_uri, mapper)
+        store_conn = pos_conn if pos_uri == store_uri else UniversalConnector(store_uri, mapper)
+        st.session_state["_oasis_adapter"] = PosErpAdapter(pos_conn, store_conn)
     return st.session_state["_oasis_adapter"]
 
 

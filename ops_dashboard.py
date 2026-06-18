@@ -202,10 +202,8 @@ REGISTRY_PATH = os.path.join(DATA_DIR, "transfers_registry.json")
 
 @st.cache_resource
 def get_connector():
-    """Create a cached UniversalConnector via the central DB factory.
-
-    Honors OASIS_DB_URL (PostgreSQL or SQLite); falls back to the local
-    SQLite DB_PATH when no URL is configured.
+    """Cached UniversalConnector for OASIS's own store (users/audit/config +
+    PO/transfer queues). Honors OASIS_DB_URL; falls back to the local DB_PATH.
     """
     from oasis.logic import db as oasis_db
     if os.getenv("OASIS_DB_URL"):
@@ -216,8 +214,21 @@ def get_connector():
     return UniversalConnector(uri, mapper)
 
 @st.cache_resource
+def get_pos_connector():
+    """Cached UniversalConnector for the read-only POS/ERP *source* DB.
+
+    Only distinct from the store when OASIS_POS_DB_URL is set; otherwise the
+    caller falls back to the single store connector (demo behaviour).
+    """
+    from oasis.logic import db as oasis_db
+    mapper = SchemaMapper.for_pos_erp()
+    return UniversalConnector(oasis_db.get_pos_sqlalchemy_url(), mapper)
+
+@st.cache_resource
 def get_adapter():
-    """Create a cached PosErpAdapter."""
+    """Cached PosErpAdapter: POS source for reads, OASIS store for the queues."""
+    if os.getenv("OASIS_POS_DB_URL"):
+        return PosErpAdapter(get_pos_connector(), get_connector())
     return PosErpAdapter(get_connector())
 
 @st.cache_resource
