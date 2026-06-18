@@ -9,6 +9,7 @@ from oasis.logic.backtest import (
     base_rate, average_precision, brier_score, calibration_table,
     estimate_opening, backtest_samples, summarize,
     calibrated_evaluation, supply_risk, supplier_failure_pairs,
+    naive_cover_risk, naive_soh_risk, predictor_pairs,
 )
 from oasis.logic.stockout_ledger import DayFlow, simulate_ledger
 
@@ -94,6 +95,29 @@ class TestCalibratedEvaluation:
         assert ev["brier_calibrated"] <= ev["brier_raw"]
         # ranking (PR-AUC) unchanged by monotonic calibration
         assert ev["pr_auc"] == average_precision(test)
+
+
+class TestNaivePredictorsAndAblation:
+    def test_naive_cover_monotonic(self):
+        # lower cover -> higher risk
+        assert naive_cover_risk(0, 5) == 1.0          # no stock, demand -> max
+        assert naive_cover_risk(100, 5) < naive_cover_risk(5, 5)
+        assert naive_cover_risk(10, 0) == 0.0          # no demand -> no risk
+
+    def test_naive_soh(self):
+        assert naive_soh_risk(0) == 1.0
+        assert naive_soh_risk(99) < naive_soh_risk(9)
+
+    def test_predictor_pairs_share_labels(self):
+        days = list(range(12))
+        flows = {d: DayFlow(demand=2) for d in days}
+        flows[0] = DayFlow(receipts=6, demand=2)
+        states = simulate_ledger(0, days, flows)
+        pp = predictor_pairs(states, 2.0, 1.4, 2.0, horizon=3, stride=1)
+        labels = [(y) for _, y in pp["p3"]]
+        # every predictor sees the identical label sequence
+        for k in ("cover", "soh", "random"):
+            assert [y for _, y in pp[k]] == labels
 
 
 class TestSupplyBacktest:

@@ -118,6 +118,44 @@ def backtest_samples(states, mu_ltd: float, sigma_ltd: float,
     return pairs
 
 
+def naive_cover_risk(soh: float, ads: float) -> float:
+    """Trivial predictor: higher risk when days-of-cover is low (pure).
+
+    risk = ads / (ads + soh) — monotonic in days-of-cover. This is the dumb
+    'stock is low' signal the newsvendor model must beat to claim real skill.
+    """
+    soh = max(0.0, float(soh or 0))
+    ads = max(0.0, float(ads or 0))
+    return ads / (ads + soh) if (ads + soh) > 0 else 0.0
+
+
+def naive_soh_risk(soh: float) -> float:
+    """Even dumber predictor: higher risk when raw on-hand is low (pure)."""
+    return 1.0 / (1.0 + max(0.0, float(soh or 0)))
+
+
+def predictor_pairs(states, mu_ltd: float, sigma_ltd: float, ads: float,
+                    horizon: int = 7, stride: int = 7) -> dict:
+    """Same labels, several predictors — the ablation that exposes self-validation.
+
+    If P3 ≈ the naive cover predictor, the newsvendor math adds no discrimination
+    and the inventory PR-AUC is an artifact of the simulation, not skill.
+    """
+    n = len(states)
+    h = max(1, int(horizon))
+    stride = max(1, int(stride))
+    so = [1 if s.stockout else 0 for s in states]
+    out = {"p3": [], "cover": [], "soh": [], "random": []}
+    for i in range(0, n - h, stride):
+        soh = states[i].soh_end
+        label = 1 if any(so[i + 1:i + 1 + h]) else 0
+        out["p3"].append((stockout_probability(soh, mu_ltd, sigma_ltd), label))
+        out["cover"].append((naive_cover_risk(soh, ads), label))
+        out["soh"].append((naive_soh_risk(soh), label))
+        out["random"].append((0.5, label))
+    return out
+
+
 def summarize(pairs: Sequence[Pair]) -> dict:
     """Headline backtest metrics for a pooled set of (risk, label) pairs (pure)."""
     return {
@@ -234,6 +272,65 @@ def run_backtest(data_dir: str, *, anchor="2026-01-20", horizon: int = 7,
         test = [p for g in groups[mid:] for p in g]
         out["calibrated"] = calibrated_evaluation(train, test)
     return out
+
+
+def run_predictor_comparison(data_dir: str, *, anchor="2026-01-20", horizon: int = 7,
+                             stride: int = 7, min_ads: float = 0.3,
+                             sample_cap: int = 2500) -> dict:
+    """Ablation: P3 vs naive cover/soh vs random on the SAME inventory samples.
+
+    Guards against self-validation — if P3's PR-AUC ≈ the naive cover predictor's,
+    the newsvendor modeling adds no discrimination on this (simulated-demand)
+    harness and the headline number is an artifact, not forecasting skill.
+    """
+    import datetime as dt
+
+    from . import ledger_loader as L
+    from . import risk_features as RF
+
+    master = L.load_master(data_dir)
+    moves = L.load_movements(data_dir)
+    psm, sp = RF.load_supply_map(data_dir)
+    demand = RF.load_demand_series(data_dir)
+    anchor_d = dt.date.fromisoformat(anchor)
+    all_days = [d for s in moves.values() for d in s]
+    if not all_days:
+        return {"error": "no movements"}
+    start = min(all_days)
+    end = min(anchor_d, max(all_days))
+    days = [start + dt.timedelta(days=i) for i in range((end - start).days + 1)]
+
+    pooled = {"p3": [], "cover": [], "soh": [], "random": []}
+    used = 0
+    for bc, info in master.items():
+        if used >= sample_cap:
+            break
+        nm = info["name"].upper()
+        if nm not in demand or not demand[nm] or nm not in psm or psm[nm] not in sp:
+            continue
+        row = RF.feature_row(info["name"], info["stock"], demand[nm], sp[psm[nm]])
+        if row["ads"] < min_ads:
+            continue
+        flow = moves.get(bc, {})
+        rec = sum(f.receipts for d, f in flow.items() if start <= d <= anchor_d)
+        outf = sum(f.outflow for d, f in flow.items() if start <= d <= anchor_d)
+        opening = estimate_opening(info["stock"], rec, row["ads"] * len(days), outf)
+        per = {d: DayFlow(receipts=flow.get(d, DayFlow()).receipts,
+                          outflow=flow.get(d, DayFlow()).outflow, demand=row["ads"])
+               for d in days}
+        states = simulate_ledger(opening, days, per)
+        pp = predictor_pairs(states, row["mu_ltd"], row["sigma_ltd"], row["ads"],
+                             horizon=horizon, stride=stride)
+        for k in pooled:
+            pooled[k].extend(pp[k])
+        used += 1
+
+    return {
+        "skus_sampled": used,
+        "samples": len(pooled["p3"]),
+        "base_rate": base_rate(pooled["p3"]),
+        "pr_auc": {k: average_precision(v) for k, v in pooled.items()},
+    }
 
 
 def run_supply_backtest(data_dir: str, *, cutoff: str = "2025-07-01",
