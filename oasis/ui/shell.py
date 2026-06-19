@@ -161,6 +161,7 @@ def render_home(ctx) -> None:
         if approved:
             JS.advance_phase(ctx.get("username", "unknown"),
                              ctx.get("journey_state_path"))
+            _log_action(ctx, "journey_advance_phase", {"to_phase": nxt})
             st.rerun()
     elif nxt is None:
         st.success("Sustain — the operation is self-driving.")
@@ -209,6 +210,9 @@ def render_allocation(ctx) -> None:
         ], st_module=st)
         st.dataframe(res.basket.sort_values("Allocated_Cost", ascending=False),
                      use_container_width=True, hide_index=True)
+        _log_action(ctx, "run_allocation",
+                    {"budget": float(budget), "skus": len(res.basket),
+                     "cash_used": float(res.cash_spend)})
 
 
 def group_recs_by_supplier(recs: Sequence[dict]) -> dict:
@@ -241,6 +245,18 @@ def _pos_adapter(ctx):
         store_conn = pos_conn if pos_uri == store_uri else UniversalConnector(store_uri, mapper)
         st.session_state["_oasis_adapter"] = PosErpAdapter(pos_conn, store_conn)
     return st.session_state["_oasis_adapter"]
+
+
+def _log_action(ctx, action: str, details=None) -> None:
+    """Audit a high-value operator action (push PO, queue transfers, advance phase).
+
+    Guarded — telemetry must never break the action it records.
+    """
+    try:
+        from .telemetry import log_ui_action
+        log_ui_action(ctx["db_path"], ctx.get("username", ""), action, details)
+    except Exception:
+        pass
 
 
 def render_ordering(ctx) -> None:
@@ -341,6 +357,7 @@ def render_ordering(ctx) -> None:
             if st.button("🚀 Push to Pending Approvals", type="primary"):
                 try:
                     n = adapter.push_purchase_order(org, positive)
+                    _log_action(ctx, "push_purchase_order", {"org": org, "lines": int(n)})
                     st.success(f"Sent {n} PO lines to approvals.")
                 except Exception as e:
                     C.error_panel("Could not push the purchase order.", str(e), st_module=st)
@@ -368,12 +385,14 @@ def _render_approvals(ctx, adapter, org_ids) -> None:
     po_id = col1.number_input("PO_ID", min_value=1, step=1)
     if col1.button("✅ Approve", type="primary"):
         if adapter.update_po_status(int(po_id), "APPROVED", ctx.get("username", "")):
+            _log_action(ctx, "approve_po", {"po_id": int(po_id)})
             st.success(f"Approved PO {int(po_id)}.")
             st.rerun()
         else:
             st.error("PO not found.")
     if col2.button("❌ Reject"):
         if adapter.update_po_status(int(po_id), "REJECTED", ctx.get("username", "")):
+            _log_action(ctx, "reject_po", {"po_id": int(po_id)})
             st.success(f"Rejected PO {int(po_id)}.")
             st.rerun()
         else:
@@ -473,6 +492,7 @@ def render_transfers(ctx) -> None:
             except Exception:
                 pass
         if queued:
+            _log_action(ctx, "queue_transfers", {"count": int(queued)})
             st.success(f"Queued {queued} transfers for dispatch.")
             st.session_state.pop("_transfers_scan", None)
             st.rerun()
