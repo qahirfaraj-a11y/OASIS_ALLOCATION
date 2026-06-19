@@ -410,7 +410,7 @@ def main():
                                  "shadow", "simulation", "desktop", "bootstrap",
                                  "api", "bridge", "migrate", "shell", "intel",
                                  "preflight", "build-views", "bootstrap-intel",
-                                 "bootstrap-governance"],
+                                 "bootstrap-governance", "build-graph"],
                         default="full", help="Run mode")
     parser.add_argument("--dashboard", choices=list(DASHBOARD_MAP.keys()),
                         default="ops", help="Dashboard to launch (dashboard mode)")
@@ -511,6 +511,16 @@ def main():
         summary = run_governance(data_dir, nn_path)
         print(f"Governance bootstrap: {summary}")
         sys.exit(0 if summary.get("overall") != "FAILED" else 2)
+    elif args.mode == "build-graph":
+        from oasis.logic.graph_export import build_graph_from_data
+        root = os.path.dirname(__file__)
+        data_dir = os.getenv("OASIS_DATA_DIR", os.path.join(root, "oasis", "data"))
+        out_dir = os.getenv("OASIS_NN_OUT", os.path.join(root, "neutral_network_export"))
+        k = int(os.getenv("OASIS_SUBSTITUTION_K", "8"))
+        summary = build_graph_from_data(data_dir, out_dir, k=k)
+        print(f"Graph export complete: {{'skus': {summary['skus']}, "
+              f"'nodes': {summary['nodes']}, 'edges': {summary['edges']}, "
+              f"'relations': {summary['relations']}}}")
 
 
 if __name__ == "__main__":

@@ -135,17 +135,25 @@ SQLite file; for multi-user installs use the client's Postgres via `OASIS_DB_URL
    ```
    Generates `sales_forecasting`/`supplier_patterns` from the client's live POS
    (writes the `*_updated.json` files the engine prefers).
-7. **Governance bootstrap** (one command): generate the governance artifacts by
-   orchestrating the canonical engines in order (LATA → AMIT → MANDE → DHARAM):
+7. **Build the product graph** (one command, headless — no Obsidian):
+   ```
+   python entrypoint.py --mode build-graph
+   ```
+   Regenerates `neutral_network_export/` (nodes.csv / edges.csv / full_graph.json)
+   from the canonical catalog + maps: SKU/Supplier/Department nodes, structural
+   `upstream_supply`/`downstream_demand` edges, and a transparent **weighted**
+   `substitution` edge (top-K same-department by composite price+velocity
+   similarity). `OASIS_SUBSTITUTION_K` tunes the neighbour count.
+8. **Governance bootstrap** (one command): orchestrates the canonical engines in
+   order (LATA → AMIT → MANDE → DHARAM):
    ```
    python entrypoint.py --mode bootstrap-governance
    ```
    Writes `amit_enforcement.json` (dead-stock blacklist), `mande_purge_report.json`
    (supplier delisting), `dharam_demand_patch.json`, and the LATA-enriched
-   `supplier_patterns`. Needs the `neutral_network_export/` graph (built upstream
-   by the forensic ingestion of the catalog/graph). Schedule steps 6–7 on a
+   `supplier_patterns`. Consumes the graph from step 7. Schedule steps 6–8 on a
    periodic refresh (e.g. monthly).
-8. **Launch** the consoles (`run_oasis.bat` / `run_oasis_intel.bat` /
+9. **Launch** the consoles (`run_oasis.bat` / `run_oasis_intel.bat` /
    `run_command_center.bat`) and log in with the seeded admin.
 
 ---
@@ -163,9 +171,12 @@ SQLite file; for multi-user installs use the client's Postgres via `OASIS_DB_URL
   `--mode bootstrap-intel` regenerates `sales_forecasting`/`supplier_patterns`
   from the live POS.
 - **Governance bootstrap (AMIT/LATA/MANDE/DHARAM)**: one command —
-  `--mode bootstrap-governance` orchestrates the canonical engines. The remaining
-  upstream dependency is the `neutral_network_export/` graph, still built by the
-  forensic ingestion of the catalog (the last non-command step).
+  `--mode bootstrap-governance` orchestrates the canonical engines.
+- **Product graph build**: one command — `--mode build-graph` regenerates the
+  `neutral_network_export/` graph natively (no Obsidian). The whole onboarding
+  sequence is now headless commands. Remaining enhancement (not blocking): real
+  SKU↔SKU basket-affinity (`link`) edges from POS co-purchase, which would feed
+  DHARAM's anchor/attachment analysis (currently 0 without them).
 - **Risk model**: the engines run on the interpretable inventory logic; the
   GNN/ML risk stays **monitoring-only** until validated against real daily
   stockout outcomes (see `OASIS_Risk_Scoring_Methodology_Redesign.md`). Not wired
