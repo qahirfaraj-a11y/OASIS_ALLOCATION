@@ -410,7 +410,8 @@ def main():
                                  "shadow", "simulation", "desktop", "bootstrap",
                                  "api", "bridge", "migrate", "shell", "intel",
                                  "preflight", "build-views", "bootstrap-intel",
-                                 "bootstrap-governance", "build-graph"],
+                                 "bootstrap-governance", "build-graph",
+                                 "build-store-graph"],
                         default="full", help="Run mode")
     parser.add_argument("--dashboard", choices=list(DASHBOARD_MAP.keys()),
                         default="ops", help="Dashboard to launch (dashboard mode)")
@@ -521,6 +522,18 @@ def main():
         print(f"Graph export complete: {{'skus': {summary['skus']}, "
               f"'nodes': {summary['nodes']}, 'edges': {summary['edges']}, "
               f"'relations': {summary['relations']}}}")
+    elif args.mode == "build-store-graph":
+        from oasis.logic import db as oasis_db
+        from oasis.logic.db_connector import SchemaMapper, UniversalConnector
+        from oasis.logic.pos_erp_adapter import PosErpAdapter
+        from oasis.logic.store_graph_export import build_store_graph_from_adapter
+        root = os.path.dirname(__file__)
+        out_path = os.getenv("OASIS_STORE_GRAPH_OUT",
+                             os.path.join(root, "stores_network.json"))
+        adapter = PosErpAdapter(UniversalConnector(
+            oasis_db.get_pos_sqlalchemy_url(), SchemaMapper.for_pos_erp()))
+        summary = build_store_graph_from_adapter(adapter, out_path)
+        print(f"Store-graph export complete: {summary}")
 
 
 if __name__ == "__main__":

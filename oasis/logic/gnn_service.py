@@ -210,7 +210,12 @@ def store_risk(stock_by_org: Dict[str, Sequence[dict]],
         x_t = sim.get_feature_matrix()
         order = []
         for i, src in enumerate(getattr(sim, "stores_data", [])):
-            org_cd = str(src.get("store_id", "")).replace("CFP-", "ORG")
+            # Match the graph node to live stock by ORG_CD. Native store graphs
+            # set store_id == ORG_CD (exact); the legacy demo graph uses CFP-NNN,
+            # so fall back to the CFP->ORG mapping. (Closes the silent-fallback
+            # where a mismatched graph made every store inventory-only.)
+            sid = str(src.get("store_id", ""))
+            org_cd = sid if sid in stock_by_org else sid.replace("CFP-", "ORG")
             order.append(org_cd)
             so_ratio, crit_ratio = stockout_ratios(stock_by_org.get(org_cd, []))
             x_t[i, _COL_STOCKOUT] = so_ratio
