@@ -409,7 +409,8 @@ def main():
                         choices=["full", "engine", "dashboard", "showcase",
                                  "shadow", "simulation", "desktop", "bootstrap",
                                  "api", "bridge", "migrate", "shell", "intel",
-                                 "preflight", "build-views", "bootstrap-intel"],
+                                 "preflight", "build-views", "bootstrap-intel",
+                                 "bootstrap-governance"],
                         default="full", help="Run mode")
     parser.add_argument("--dashboard", choices=list(DASHBOARD_MAP.keys()),
                         default="ops", help="Dashboard to launch (dashboard mode)")
@@ -502,6 +503,14 @@ def main():
             oasis_db.get_pos_sqlalchemy_url(), SchemaMapper.for_pos_erp()))
         summary = bootstrap_intelligence(adapter, data_dir)
         print(f"Intelligence bootstrap complete: {summary}")
+    elif args.mode == "bootstrap-governance":
+        from oasis.logic.governance_bootstrap import run_governance
+        root = os.path.dirname(__file__)
+        data_dir = os.getenv("OASIS_DATA_DIR", os.path.join(root, "oasis", "data"))
+        nn_path = os.getenv("OASIS_NN_PATH", os.path.join(root, "neutral_network_export"))
+        summary = run_governance(data_dir, nn_path)
+        print(f"Governance bootstrap: {summary}")
+        sys.exit(0 if summary.get("overall") != "FAILED" else 2)
 
 
 if __name__ == "__main__":

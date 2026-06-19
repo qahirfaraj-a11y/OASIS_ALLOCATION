@@ -134,10 +134,18 @@ SQLite file; for multi-user installs use the client's Postgres via `OASIS_DB_URL
    python entrypoint.py --mode bootstrap-intel
    ```
    Generates `sales_forecasting`/`supplier_patterns` from the client's live POS
-   (writes the `*_updated.json` files the engine prefers). The AMIT dead-stock /
-   LATA toxicity / MANDE purge layers still come from the forensic ingestion of a
-   historical export. Schedule both on a periodic refresh (e.g. monthly).
-7. **Launch** the consoles (`run_oasis.bat` / `run_oasis_intel.bat` /
+   (writes the `*_updated.json` files the engine prefers).
+7. **Governance bootstrap** (one command): generate the governance artifacts by
+   orchestrating the canonical engines in order (LATA → AMIT → MANDE → DHARAM):
+   ```
+   python entrypoint.py --mode bootstrap-governance
+   ```
+   Writes `amit_enforcement.json` (dead-stock blacklist), `mande_purge_report.json`
+   (supplier delisting), `dharam_demand_patch.json`, and the LATA-enriched
+   `supplier_patterns`. Needs the `neutral_network_export/` graph (built upstream
+   by the forensic ingestion of the catalog/graph). Schedule steps 6–7 on a
+   periodic refresh (e.g. monthly).
+8. **Launch** the consoles (`run_oasis.bat` / `run_oasis_intel.bat` /
    `run_command_center.bat`) and log in with the seeded admin.
 
 ---
@@ -151,10 +159,13 @@ SQLite file; for multi-user installs use the client's Postgres via `OASIS_DB_URL
 - **Per-client schema views**: now a command — `--mode build-views` emits the
   read-only view DDL from a schema profile (the one integration task that varies
   per client, only when their schema differs from §2/§3 names).
-- **Intelligence bootstrap (demand + supplier)**: now a one-command job —
+- **Intelligence bootstrap (demand + supplier)**: one command —
   `--mode bootstrap-intel` regenerates `sales_forecasting`/`supplier_patterns`
-  from the live POS. The AMIT/LATA/MANDE governance layers still come from the
-  forensic-ingestion pass (the remaining manual step).
+  from the live POS.
+- **Governance bootstrap (AMIT/LATA/MANDE/DHARAM)**: one command —
+  `--mode bootstrap-governance` orchestrates the canonical engines. The remaining
+  upstream dependency is the `neutral_network_export/` graph, still built by the
+  forensic ingestion of the catalog (the last non-command step).
 - **Risk model**: the engines run on the interpretable inventory logic; the
   GNN/ML risk stays **monitoring-only** until validated against real daily
   stockout outcomes (see `OASIS_Risk_Scoring_Methodology_Redesign.md`). Not wired
