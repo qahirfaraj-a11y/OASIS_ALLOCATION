@@ -1902,10 +1902,16 @@ if "smart_ordering" in tab_map:
                     ordering_thresholds = st.session_state.get('ordering_thresholds', None)
 
                     risk_scores_map = get_all_store_risks(sim_hour)
-                    store_risk = risk_scores_map.get(selected_org, 0.0)
+                    store_risk = risk_scores_map.get(selected_org, 0.0)  # blended — for display
                     sim_util = SimulationOrderUtil(DATA_DIR, thresholds=ordering_thresholds, engine=engine)
                     enriched = sim_util.prepare_sku_data(products)
-                    raw_recs = sim_util.calculate_order_quantity(enriched, gnn_risk_score=store_risk, use_real_date=True)
+                    # Gate-compliant ORDERING risk: inventory-only until the GNN is
+                    # validated (OASIS_GNN_ORDERING_WEIGHT). Closes F2 — the
+                    # unvalidated GNN no longer shifts live PO quantities; unified
+                    # with the Operations Console.
+                    from oasis.logic import gnn_service as _gnn_service
+                    _ordering_risk = _gnn_service.ordering_risk(products, gnn_risk_score=store_risk)
+                    raw_recs = sim_util.calculate_order_quantity(enriched, gnn_risk_score=_ordering_risk, use_real_date=True)
                     finalized_recs = sim_util.finalize_orders(raw_recs)
 
                     # ── UNIFIED NETWORK TRANSFER OPTIMIZATION ──

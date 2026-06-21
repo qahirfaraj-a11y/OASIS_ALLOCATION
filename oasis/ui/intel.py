@@ -477,9 +477,12 @@ def render_sim_lab(ctx) -> None:
                     st.session_state["_oasis_engine"] = engine
                 sim = SimulationOrderUtil(data_dir, engine=engine)
                 products = adapter.fetch_enriched_products(org)
+                # Same gate-compliant ordering risk as the live consoles.
+                from ..logic import gnn_service
+                _risk = gnn_service.ordering_risk(products)
                 base = sim.prepare_sku_data(products)
                 base_qty = sum(float(r.get("recommended_quantity", 0) or 0)
-                               for r in sim.calculate_order_quantity(base, use_real_date=True))
+                               for r in sim.calculate_order_quantity(base, gnn_risk_score=_risk, use_real_date=True))
                 shocked = []
                 for p in products:
                     q = dict(p)
@@ -487,7 +490,7 @@ def render_sim_lab(ctx) -> None:
                     shocked.append(q)
                 shock_prep = sim.prepare_sku_data(shocked, skip_enrichment=True)
                 shock_qty = sum(float(r.get("recommended_quantity", 0) or 0)
-                                for r in sim.calculate_order_quantity(shock_prep, use_real_date=True))
+                                for r in sim.calculate_order_quantity(shock_prep, gnn_risk_score=_risk, use_real_date=True))
                 delta = shock_qty - base_qty
                 C.kpi_row([
                     {"label": "Baseline order qty", "value": f"{base_qty:,.0f}"},

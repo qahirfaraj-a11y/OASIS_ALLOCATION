@@ -112,6 +112,28 @@ class TestModelStatus:
         assert G.model_status() in {"trained", "untrained", "unavailable"}
 
 
+class TestOrderingRisk:
+    def test_inventory_only_by_default(self, monkeypatch):
+        monkeypatch.delenv("OASIS_GNN_ORDERING_WEIGHT", raising=False)
+        prods = [_p(5.0, 0.0)]  # full stockout -> inv risk 1.0
+        # a high GNN score is IGNORED while the gate is closed (weight 0)
+        assert G.ordering_risk(prods, gnn_risk_score=0.99) == G.inventory_risk(prods)
+        assert G.ordering_risk(prods, gnn_risk_score=0.99) == 1.0
+
+    def test_gnn_blends_only_when_weight_set(self, monkeypatch):
+        monkeypatch.setenv("OASIS_GNN_ORDERING_WEIGHT", "0.5")
+        prods = [_p(1.0, 100.0)]  # healthy -> inv risk ~0
+        inv = G.inventory_risk(prods)
+        blended = G.ordering_risk(prods, gnn_risk_score=0.8)
+        assert blended == G.blend_risk(0.8, inv, 0.5)
+        assert blended > inv  # GNN now lifts it
+
+    def test_no_gnn_arg_is_inventory_even_when_weight_set(self, monkeypatch):
+        monkeypatch.setenv("OASIS_GNN_ORDERING_WEIGHT", "0.5")
+        prods = [_p(5.0, 0.0)]
+        assert G.ordering_risk(prods) == G.inventory_risk(prods)
+
+
 class TestS2BlendParity:
     """Golden (S2): service math == the Command Center's former inline formula.
 

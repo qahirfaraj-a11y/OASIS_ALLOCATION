@@ -98,6 +98,30 @@ def inventory_risk(products: Sequence[dict]) -> float:
     return risk_from_ratios(so_ratio, crit_ratio)
 
 
+def _ordering_gnn_weight() -> float:
+    """GNN weight for ORDERING risk, from OASIS_GNN_ORDERING_WEIGHT (default 0)."""
+    try:
+        return max(0.0, min(1.0, float(os.getenv("OASIS_GNN_ORDERING_WEIGHT", "0") or 0)))
+    except (ValueError, TypeError):
+        return 0.0
+
+
+def ordering_risk(products: Sequence[dict], gnn_risk_score: float = None) -> float:
+    """Gate-compliant per-store risk for ORDERING safety-stock inflation (pure-ish).
+
+    **Inventory-only by default** — the validated, interpretable signal. The
+    (unvalidated) GNN contributes ONLY when ``OASIS_GNN_ORDERING_WEIGHT > 0``,
+    set after the GNN beats the baseline on a real-outcome backtest. This is the
+    single switch that keeps every ordering surface consistent AND keeps the
+    unvalidated model out of live POs until it's earned its place.
+    """
+    inv = inventory_risk(products)
+    weight = _ordering_gnn_weight()
+    if weight > 0 and gnn_risk_score is not None:
+        return blend_risk(gnn_risk_score, inv, weight)
+    return inv
+
+
 def blend_risk(gnn_score: float, inv_risk: float,
                ratio: float = DEFAULT_BLEND_RATIO,
                gnn_uniform: bool = False) -> float:

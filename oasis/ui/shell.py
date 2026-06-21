@@ -316,8 +316,14 @@ def render_ordering(ctx) -> None:
                     products = adapter.fetch_enriched_products(org)
                     sim = SimulationOrderUtil(data_dir, engine=engine)
                     enriched = sim.prepare_sku_data(products)
+                    # Risk-aware ordering (unified, gate-compliant): inventory-only
+                    # risk inflates safety stock; GNN stays out until validated
+                    # (OASIS_GNN_ORDERING_WEIGHT). Same source as the Command Center.
+                    from ..logic import gnn_service
+                    _risk = gnn_service.ordering_risk(products)
                     final = sim.finalize_orders(
-                        sim.calculate_order_quantity(enriched, use_real_date=True))
+                        sim.calculate_order_quantity(enriched, gnn_risk_score=_risk,
+                                                     use_real_date=True))
                     cts = ConsolidatedTransferService(
                         org_names=name_map,
                         stock_data={o: adapter.fetch_enriched_products(o) for o in org_ids},
