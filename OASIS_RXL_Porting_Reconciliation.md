@@ -109,9 +109,14 @@ product-master query throws "invalid column" against a real RXL DB.
    - support **literal/default columns** (e.g. `NULL AS LEAD_TIME_DAYS`) so the
      canonical view satisfies the adapter's SELECT even when the ERP lacks the
      column.
-3. **Refactor the adapter's supply attributes** to come from `supplier_patterns`
-   (GRN-derived) rather than the ERP — drop `LEAD_TIME_DAYS`/`RELIABILITY_SCORE`/
-   `ORDER_FREQUENCY`/`SM_LAST_RECV_DT` from the ERP SELECTs.
+3. **Supply attributes via literal-NULL views, not adapter surgery (IMPLEMENTED).**
+   The synthetic columns (`LEAD_TIME_DAYS`/`RELIABILITY_SCORE`/`ORDER_FREQUENCY`/
+   `SM_LAST_RECV_DT`) are emitted as `NULL AS <col>` literals in the canonical
+   views, so the adapter's SELECT resolves and its existing `or <default>`
+   fallbacks apply — **the adapter runs unchanged**. The *real* supply
+   intelligence then comes from `supplier_patterns` (GRN-derived) and the
+   supplier intake (see `OASIS_Universe_Initialization_Supplier_Calendar.md`),
+   layered on during enrichment — not from the ERP.
 4. **Update the preflight contract** doc to note the RXL real names so a DBA can
    build the views, and add a `:store_level` parameter to the onboarding config.
 5. **Re-validate** against a real RXL DB (or `RetailExcel.bak` restored) with

@@ -64,3 +64,45 @@ class TestCreateClause:
     def test_known_and_default(self):
         assert create_clause_for("MSSQL") == "CREATE OR ALTER VIEW"
         assert create_clause_for("weird-db") == "CREATE VIEW"
+
+
+class TestLiteralsAndWhere:
+    def test_literal_satisfies_required_column(self):
+        # SUPPLIER_CD mapped, LEAD-style absent column provided as a NULL literal
+        prof = identity_profile()
+        prof["STOCK_MASTER"]["columns"].pop("SM_QTY")
+        prof["STOCK_MASTER"].setdefault("literals", {})["SM_QTY"] = "SM_CURR_STK_QTY"
+        assert validate_profile(prof)["ok"] is True
+
+    def test_ddl_emits_literals_and_where(self):
+        prof = {
+            "STOCK_MASTER": {
+                "source": "STOCK_MASTER",
+                "columns": {"SM_QTY": "SM_CURR_STK_QTY"},
+                "literals": {"SM_LAST_RECV_DT": "NULL"},
+                "where": "SM_LEVEL_NUMBER = 1",
+            }
+        }
+        ddl = generate_view_ddl(prof)[0]
+        assert "SM_CURR_STK_QTY AS SM_QTY" in ddl
+        assert "NULL AS SM_LAST_RECV_DT" in ddl
+        assert ddl.rstrip(";").endswith("WHERE SM_LEVEL_NUMBER = 1")
+
+
+class TestRxlProfile:
+    def test_rxl_profile_validates_and_generates(self):
+        import json
+        import os
+        path = os.path.join(os.path.dirname(__file__), "..", "rxl_schema_profile.json")
+        prof = {k: v for k, v in json.load(open(path, encoding="utf-8")).items()
+                if not k.startswith("_")}
+        assert validate_profile(prof)["ok"] is True
+        ddl = generate_view_ddl(prof, create_clause_for("mssql"))
+        joined = "\n".join(ddl)
+        # the key real->canonical remaps are present
+        assert "SM_CURR_STK_QTY AS SM_QTY" in joined
+        assert "BSP_SELL_PRICE AS BSP_SP" in joined
+        assert "VENDOR_CD AS SUPPLIER_CD" in joined
+        assert "FROM VENDOR_ADDRESS_MST" in joined
+        # synthetic attrs provided as literals so the adapter SELECT resolves
+        assert "NULL AS LEAD_TIME_DAYS" in joined

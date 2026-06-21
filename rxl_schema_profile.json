@@ -1,0 +1,85 @@
+{
+  "_README": "RXL/iRetail -> OASIS canonical schema profile. Feed to `OASIS_SCHEMA_PROFILE=rxl_schema_profile.json python entrypoint.py --mode build-views > rxl_views.sql`; a DBA runs rxl_views.sql (read-only views) on the RXL DB, then OASIS reads the canonical names unchanged. `literals` provide attributes RXL doesn't carry (adapter defaults then apply). `where` pins multi-level masters to the store tier — set :store_level per install. Confirm column existence (ITM_SHORT_NAME/UOM_DESC/WEIGHT_FLAG/TAX_AMT/PAYMENT_MODE/CUST_CD) against the client DB; literal-NULL any that are absent.",
+
+  "ITEM_MST": {
+    "source": "ITEM_MST",
+    "columns": {
+      "ITM_CD": "ITM_CD", "ITM_LONG_NAME": "ITM_LONG_NAME",
+      "SCAN_ITM_CD": "SCAN_ITM_CD", "CATEGORY": "CATEGORY",
+      "DEPARTMENT": "DEPARTMENT", "ACTIVE_FLAG": "ACTIVE_FLAG",
+      "SUPPLIER_CD": "VENDOR_CD"
+    },
+    "literals": {
+      "ITM_SHORT_NAME": "ITM_LONG_NAME", "UOM_CD": "'EA'",
+      "UOM_DESC": "'EACH'", "WEIGHT_FLAG": "'N'"
+    }
+  },
+
+  "STOCK_MASTER": {
+    "source": "STOCK_MASTER",
+    "columns": {
+      "SM_ITM_CD": "SM_ITM_CD", "SM_ORG_CD": "SM_ORG_CD",
+      "SM_QTY": "SM_CURR_STK_QTY", "SM_WAC": "SM_WT_AVG_COST"
+    },
+    "literals": { "SM_LAST_RECV_DT": "NULL" },
+    "where": "SM_LEVEL_NUMBER = :store_level"
+  },
+
+  "BASIC_SP_MST": {
+    "source": "BASIC_SP_MST",
+    "columns": {
+      "BSP_ITEM_CD": "BSP_ITEM_CD", "BSP_ORG_CD": "BSP_ORG_CD",
+      "BSP_SP": "BSP_SELL_PRICE", "BSP_MRP": "BSP_MRP"
+    },
+    "where": "BSP_LEVEL_NUMBER = :store_level"
+  },
+
+  "BASIC_CP_MST": {
+    "source": "BASIC_CP_MST",
+    "columns": {
+      "BCP_ITEM_CD": "BCP_ITEM_CD", "BCP_ORG_CD": "BCP_ORG_CD",
+      "BCP_CP": "BCP_COST_PRICE"
+    }
+  },
+
+  "SUPPLIER_MST": {
+    "source": "VENDOR_ADDRESS_MST",
+    "columns": { "SUPPLIER_CD": "VENDOR_CD", "SUPPLIER_NAME": "VENDOR_NAME" },
+    "literals": {
+      "LEAD_TIME_DAYS": "NULL", "RELIABILITY_SCORE": "NULL",
+      "ORDER_FREQUENCY": "NULL"
+    }
+  },
+
+  "POS_SALES_DTL": {
+    "source": "POS_SALES_DTL",
+    "columns": {
+      "ORG_CD": "ORG_CD", "ITM_CD": "ITM_CD", "BILL_NO": "BILL_NO",
+      "BILL_DT": "BILL_DT", "QTY": "QTY", "SELL_PRICE": "SELL_PRICE",
+      "NET_AMT": "NET_AMT", "TOTAL_VALUE": "TOTAL_VALUE", "VOID_FLAG": "VOID_FLAG"
+    },
+    "literals": { "ITEM_NAME": "''", "TAX_AMT": "0", "SERIAL_NO": "0" }
+  },
+
+  "POS_SALES_HDR": {
+    "source": "POS_SALES_HDR",
+    "columns": {
+      "ORG_CD": "ORG_CD", "BILL_NO": "BILL_NO", "BILL_DT": "BILL_DT",
+      "VOID_FLAG": "VOID_FLAG"
+    },
+    "literals": { "PAYMENT_MODE": "''", "CUST_CD": "''" }
+  },
+
+  "GRN_HDR": {
+    "source": "GRN_HDR",
+    "columns": { "SUPPLIER_CD": "VENDOR_CD", "ORG_CD": "ORG_CD",
+                 "GRN_NO": "GRN_NO" },
+    "literals": { "TOTAL_AMT": "0" }
+  },
+
+  "ORGANIZATION_MST": {
+    "source": "ORGANIZATION_MST",
+    "columns": { "ORG_CD": "ORG_CD", "ORG_NAME": "ORG_NAME",
+                 "ACTIVE_FLAG": "ACTIVE_FLAG" }
+  }
+}

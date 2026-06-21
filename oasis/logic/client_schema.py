@@ -60,11 +60,18 @@ def load_profile(path: str) -> dict:
         return json.load(f)
 
 
+def _mapped_columns(spec: dict) -> set:
+    """Canonical columns a spec provides — via real-column map OR literal."""
+    return (set((spec or {}).get("columns", {}) or {})
+            | set((spec or {}).get("literals", {}) or {}))
+
+
 def validate_profile(profile: dict) -> dict:
     """Check a profile covers the REQUIRED contract (pure).
 
-    Returns {ok, missing_tables, missing_columns}. Recommended tables are not
-    required, so their absence does not fail validation.
+    Returns {ok, missing_tables, missing_columns}. A required column counts as
+    satisfied if mapped to a real column OR provided as a literal/default.
+    Recommended tables are not required.
     """
     profile = profile or {}
     missing_tables: List[str] = []
@@ -73,7 +80,7 @@ def validate_profile(profile: dict) -> dict:
         if table not in profile:
             missing_tables.append(table)
             continue
-        mapped = (profile[table] or {}).get("columns", {}) or {}
+        mapped = _mapped_columns(profile[table])
         miss = [c for c in req_cols if c not in mapped]
         if miss:
             missing_columns[table] = miss
@@ -87,17 +94,28 @@ def validate_profile(profile: dict) -> dict:
 def generate_view_ddl(profile: dict, create_clause: str = "CREATE VIEW") -> List[str]:
     """Emit one CREATE VIEW statement per mapped table (pure).
 
-    Each view exposes the client's table under the canonical name with the
-    client's columns aliased to canonical columns, e.g.:
-        CREATE VIEW ITEM_MST AS SELECT ProductCode AS ITM_CD, ... FROM dbo.Products;
+    Each view exposes the client's table under the canonical name. Three spec
+    keys per table:
+      * ``columns``  : {canonical: client_column}  → ``client_column AS canonical``
+      * ``literals`` : {canonical: sql_expr}        → ``sql_expr AS canonical``
+                       (e.g. ``"NULL"`` for an attribute the ERP doesn't carry —
+                       the adapter's defaults then apply)
+      * ``where``    : optional filter (e.g. pin a multi-level master to the
+                       store tier: ``"SM_LEVEL_NUMBER = 1"``)
     """
     stmts: List[str] = []
     for canon_table, spec in (profile or {}).items():
         spec = spec or {}
         source = spec.get("source")
         cols = spec.get("columns", {}) or {}
-        if not source or not cols:
+        literals = spec.get("literals", {}) or {}
+        where = spec.get("where")
+        if not source or (not cols and not literals):
             continue
-        select = ", ".join(f"{src} AS {canon}" for canon, src in cols.items())
-        stmts.append(f"{create_clause} {canon_table} AS SELECT {select} FROM {source};")
+        parts = [f"{src} AS {canon}" for canon, src in cols.items()]
+        parts += [f"{expr} AS {canon}" for canon, expr in literals.items()]
+        sql = f"{create_clause} {canon_table} AS SELECT {', '.join(parts)} FROM {source}"
+        if where:
+            sql += f" WHERE {where}"
+        stmts.append(sql + ";")
     return stmts
