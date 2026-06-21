@@ -33,9 +33,16 @@ the two ready consoles; the Market Intelligence Tool should ship labelled
 - **GAP-4 RESOLVED** — CI is now green (**544 passed, 6 skipped, 14 xfailed, 0
   failed**) via a documented quarantine (`tests/conftest.py`): real-divergence
   tests `xfail` (signal preserved), brittle source-string/async tests `skip`.
-  **One genuine open question surfaced and flagged** (not silently passed): the
-  `FulfillmentDecider` returns `BOTH` for a **zero-ADS** item — needs spec
-  reconciliation to confirm it isn't proposing a dead-stock transfer.
+  The zero-ADS `FulfillmentDecider` question raised here was then **investigated
+  and RESOLVED** (see below).
+- **Zero-ADS decider — RESOLVED (no flaw).** Traced `FulfillmentDecider.decide`:
+  a zero-ADS item is transfer-eligible **only** when the ordering engine computed
+  a real shortfall (below min/display stock) — the documented "IMPORTANT FIX"
+  (≈53% of the catalog is intermittent). Verified the safety boundary: ADS=0 **and**
+  zero shortfall → `ORDER`, transfer_qty=0 (a truly dead item is never
+  transferred; AMIT's blacklist is the upstream guard). The stale test was
+  rewritten to the real contract (transfer-eligible case + dead-item boundary)
+  and un-quarantined; both pass.
 - **GAP-2 unchanged (by design)** — risk→ordering held; GNN/risk monitoring-only
   until validated on real daily POS outcomes.
 

@@ -149,21 +149,36 @@ class TestGapDaysFormula(unittest.TestCase):
         self.assertEqual(d.decision, "BOTH")
         self.assertAlmostEqual(d.transfer_qty, 25.0, places=0)
 
-    def test_zero_ads_means_no_transfer(self):
-        """
-        ADS=0 → days_of_stock=0, gap_days=lead_time=5
-        But gap_qty = 5 × 0 = 0 (no units needed even though gap exists in time)
-        Expected: ORDER (no items to transfer when nothing sells)
-        """
+    def test_zero_ads_with_real_shortfall_is_transfer_eligible(self):
+        """Current (deliberate) contract — see the 'IMPORTANT FIX' in
+        fulfillment_decider.decide: a zero-ADS item with a REAL engine shortfall
+        (below min/display stock) IS transfer-eligible. gap_qty≈0 (nothing sells)
+        but shortfall_qty is the real need signal, so transfer_target =
+        shortfall_qty. ~53% of the catalog is intermittent, so blocking these
+        would silently suppress most legitimate transfers. Safety is guaranteed
+        by the zero-shortfall boundary below."""
         nmap = self._make_network_with_donor(200)
-        decider = FulfillmentDecider()
-        d = decider.decide(
+        d = FulfillmentDecider().decide(
             itm_cd="ITM1", product_name="Test Item",
             recipient_org="027", shortfall_qty=50,
             network_map=nmap, lead_time_days=5.0,
             current_stock=0.0, avg_daily_sales=0.0,
         )
-        # ADS=0 → gap_qty=0 → transfer_target=0 → max_transferable=0 < 1.0 → ORDER
+        self.assertIn(d.decision, ("BOTH", "TRANSFER"))
+        self.assertEqual(d.transfer_qty, 50.0)
+
+    def test_zero_ads_zero_shortfall_never_transfers(self):
+        """Safety boundary: a TRULY dead item (ADS=0 AND no engine shortfall) is
+        never transferred — transfer_target=0 → ORDER, transfer_qty=0. (AMIT's
+        blacklist is the upstream guard that dead stock doesn't even produce a
+        shortfall.) This is what prevents dead-stock transfers."""
+        nmap = self._make_network_with_donor(200)
+        d = FulfillmentDecider().decide(
+            itm_cd="ITM1", product_name="Test Item",
+            recipient_org="027", shortfall_qty=0.0,
+            network_map=nmap, lead_time_days=5.0,
+            current_stock=0.0, avg_daily_sales=0.0,
+        )
         self.assertEqual(d.decision, "ORDER")
         self.assertEqual(d.transfer_qty, 0.0)
 

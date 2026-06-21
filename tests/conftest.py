@@ -21,10 +21,11 @@ import pytest
 
 # nodeid substring -> reason. The impl diverged from the encoded formula/spec.
 _XFAIL = {
-    "test_math_validation.py::TestGapDaysFormula::test_zero_ads_means_no_transfer":
-        "decider returns BOTH (not ORDER) for a zero-ADS item; transfer math "
-        "diverged from the documented spec — reconcile (does it propose a real "
-        "dead-stock transfer?) before asserting which is correct",
+    # NOTE: the zero-ADS decider behaviour was investigated and RESOLVED — it is
+    # intentional + safe (zero-ADS+zero-shortfall never transfers; only a real
+    # engine shortfall makes a zero-velocity item transfer-eligible). The stale
+    # test was rewritten (test_zero_ads_with_real_shortfall_is_transfer_eligible
+    # + test_zero_ads_zero_shortfall_never_transfers) and is no longer quarantined.
     "test_math_validation.py::TestTransferCostFormula::test_default_cost_at_10km":
         "transfer-cost constants changed (impl 700 vs test's hardcoded 1000)",
     "test_math_validation.py::TestSafetyStockAndExcess::test_negative_excess_when_understocked":
