@@ -1,6 +1,6 @@
 import pandas as pd
 import re
-from typing import Dict, Set, Union, List
+from typing import Dict, Set, Union
 from datetime import datetime
 
 class SupplierCalendar:
@@ -10,23 +10,63 @@ class SupplierCalendar:
         self.loaded = False
 
     def load(self):
-        """Loads and parses the Excel calendar."""
+        """Load the supplier ordering calendar.
+
+        Prefers a client-intake `supplier_schedule.json` (written by
+        oasis.logic.supplier_intake from suppliers.csv) — {supplier: "DAILY" |
+        [day-of-year]}. Falls back to the legacy Excel calendar when no JSON
+        intake is present.
+        """
         if self.loaded:
+            return
+
+        if self._load_json_schedule():
+            self.loaded = True
+            print(f"Calendar loaded from supplier_schedule.json. "
+                  f"Mapped {len(self.schedule)} suppliers.")
             return
 
         print(f"Loading Supplier Calendar from: {self.filepath}")
         try:
             # 1. Parse Daily Suppliers (Fresh)
             self._parse_daily_sheet()
-            
+
             # 2. Parse Master Schedule (Dry)
             self._parse_master_schedule()
-            
+
             self.loaded = True
             print(f"Calendar loaded. Mapped {len(self.schedule)} suppliers.")
-            
+
         except Exception as e:
             print(f"ERROR loading calendar: {e}")
+
+    def _load_json_schedule(self) -> bool:
+        """Load a client-intake supplier_schedule.json if present (returns True)."""
+        import json
+        import os
+        base = os.path.dirname(self.filepath) or "."
+        candidates = [
+            os.path.join(base, "supplier_schedule.json"),
+            os.path.join(base, "oasis", "data", "supplier_schedule.json"),
+            os.path.join(os.getcwd(), "supplier_schedule.json"),
+            os.path.join(os.getcwd(), "oasis", "data", "supplier_schedule.json"),
+        ]
+        for p in candidates:
+            if not os.path.exists(p):
+                continue
+            try:
+                with open(p, encoding="utf-8") as f:
+                    data = json.load(f)
+            except Exception:
+                continue
+            for raw, val in (data or {}).items():
+                norm = self._normalize_name(str(raw))
+                if not norm:
+                    continue
+                self.schedule[norm] = ("DAILY" if str(val).upper() == "DAILY"
+                                       else set(int(x) for x in val))
+            return bool(self.schedule)
+        return False
 
     def _normalize_name(self, raw_name: str) -> str:
         """
@@ -134,7 +174,7 @@ class SupplierCalendar:
                             self.schedule[norm].add(day_of_year)
                             count += 1
             
-            print(f"  - Parsed Master Schedule entries.")
+            print("  - Parsed Master Schedule entries.")
 
         except Exception as e:
             print(f"  - Warning: Could not parse Master Schedule: {e}")

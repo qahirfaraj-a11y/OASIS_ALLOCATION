@@ -114,9 +114,21 @@ def bootstrap_intelligence(adapter, data_dir: str, orgs: Optional[List[str]] = N
             json.dump(suppliers, f)
         files = {"sales_forecasting": sf_path, "supplier_patterns": sp_path}
 
+    # Universe Init v1.1: fold in the client supplier/calendar intake if present
+    # (writes supplier_schedule.json + merges lead-time/reliability overrides into
+    # the supplier_patterns we just wrote).
+    intake = {"applied": False}
+    if write:
+        try:
+            from .supplier_intake import apply_supplier_intake
+            intake = apply_supplier_intake(data_dir)
+        except Exception as e:
+            intake = {"applied": False, "error": str(e)[:120]}
+
     return {
         "orgs": len(orgs),
         "sales_forecasting_products": len(sales),
         "supplier_patterns_suppliers": len(suppliers),
+        "supplier_intake": intake,
         "files": files,
     }
