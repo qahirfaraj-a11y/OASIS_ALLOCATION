@@ -412,7 +412,7 @@ def main():
                                  "preflight", "build-views", "bootstrap-intel",
                                  "bootstrap-governance", "build-graph",
                                  "build-store-graph", "build-baskets", "build-prior",
-                                 "build-pos-db", "pos-sim", "pos-inject"],
+                                 "build-pos-db", "pos-sim", "pos-stream", "pos-inject"],
                         default="full", help="Run mode")
     parser.add_argument("--dashboard", choices=list(DASHBOARD_MAP.keys()),
                         default="ops", help="Dashboard to launch (dashboard mode)")
@@ -576,6 +576,17 @@ def main():
                           os.path.join(root, "neutral_network_export", "basket_prior.json"))
         run_simulator(db_path, prior_path=prior, batches=args.batches,
                       interval=args.interval, org=args.org or "ORG001")
+    elif args.mode == "pos-stream":
+        from oasis.logic.pos_simulator import stream_realtime
+        root = os.path.dirname(__file__)
+        db_path = os.getenv("OASIS_DB_PATH",
+                            os.path.join(root, "oasis", "data", "rhapta_pos.db"))
+        prior = os.getenv("OASIS_BASKET_PRIOR",
+                          os.path.join(root, "neutral_network_export", "basket_prior.json"))
+        # real-time defaults: pace 2s, stream until Ctrl-C (--batches 0)
+        interval = args.interval if args.interval != 15.0 else 2.0
+        stream_realtime(db_path, prior_path=prior, org=args.org or "ORG001",
+                        interval=interval, batches=args.batches if args.batches != 10 else 0)
     elif args.mode == "pos-inject":
         from oasis.logic.pos_injector import run_injector
         root = os.path.dirname(__file__)

@@ -101,6 +101,32 @@ def _seed_dept_weights(dept_items: Dict[str, List[str]],
             for d, items in dept_items.items() if items}
 
 
+def ring_up(codes: List[str], stock: Dict[str, float], meta: Dict[str, tuple],
+            rng: random.Random, max_qty: int = 4):
+    """Turn intended items into sellable receipt lines — STOCK INTEGRITY.
+
+    A line is only created for an item with on-hand > 0, and quantity never
+    exceeds what's available (no overselling, stock never goes negative). Items
+    that are out of stock are dropped from the receipt entirely.
+
+    Returns (lines, new_stock) where new_stock maps each sold item to its
+    decremented on-hand. Pure: it does not mutate ``stock``.
+    """
+    lines: List[SaleLine] = []
+    new_stock: Dict[str, float] = {}
+    for itm in codes:
+        avail = new_stock.get(itm, stock.get(itm, 0.0))
+        if avail <= 0:
+            continue
+        qty = min(avail, float(rng.randint(1, max_qty)))
+        if qty <= 0:
+            continue
+        name, price, _ = meta.get(itm, ("", 0.0, 0.0))
+        lines.append(SaleLine(itm, name, qty, price))
+        new_stock[itm] = round(avail - qty, 3)
+    return lines, new_stock
+
+
 # ── DB integration ───────────────────────────────────────────────────────────
 def _load_dept_items(conn, org: str, core_per_dept: Optional[int] = None):
     """{dept: [itm]}, {itm: (name, price, stock)} for in-stock SKUs.
@@ -168,17 +194,12 @@ def run_simulator(db_path: str, prior_path: Optional[str] = None, batches: int =
             seed_dept = _weighted_pick(seed_weights, rng)
             codes = generate_basket(seed_dept, dept_items, popularity, prior, rng,
                                     max_attach=max_attach)
-            sale_lines = []
-            for itm in codes:
-                if stock.get(itm, 0) <= 0:
-                    continue
-                name, price, _ = meta[itm]
-                qty = min(stock[itm], float(rng.randint(1, max_qty)))
-                stock[itm] = round(stock[itm] - qty, 3)
-                touched.add(itm)
-                sale_lines.append(SaleLine(itm, name, qty, price))
+            sale_lines, dec = ring_up(codes, stock, meta, rng, max_qty)
             if len(sale_lines) < 1:
                 continue
+            for itm, nq in dec.items():
+                stock[itm] = nq
+                touched.add(itm)
             bill_no = f"POS{b:08d}"
             hdr, dtl = build_bill(org, bill_no, today, sale_lines)
             if hdr_cols is None:
@@ -207,4 +228,90 @@ def run_simulator(db_path: str, prior_path: Optional[str] = None, batches: int =
         return {"org": org, "bills": bills, "lines": lines, "units": round(units, 0),
                 "active_skus": len(meta)}
     finally:
+        conn.close()
+
+
+def stream_realtime(db_path: str, prior_path: Optional[str] = None, org: str = "ORG001",
+                    interval: float = 2.0, batches: int = 0, max_qty: int = 4,
+                    core_per_dept: int = 12, pop_exponent: float = 1.2,
+                    max_attach: int = 4, seed: Optional[int] = None) -> dict:
+    """Ring up affinity baskets ONE AT A TIME, in real time, committing each
+    receipt so the three consoles reflect it live (point them at the same DB via
+    OASIS_DB_PATH and refresh).
+
+    Stock integrity is authoritative: on-hand is re-read from the DB for each
+    receipt, so a line is never created for an item that is out of stock per the
+    live snapshot, and quantities never exceed availability. batches<=0 streams
+    until interrupted (Ctrl-C).
+    """
+    import sqlite3
+    import time
+    from datetime import datetime
+
+    from .vault_prior import load_prior
+    rng = random.Random(seed)
+    prior = load_prior(prior_path) if prior_path else {}
+
+    conn = sqlite3.connect(db_path, timeout=60.0)
+    conn.execute("PRAGMA journal_mode=WAL")          # readers (consoles) see commits
+    conn.execute("PRAGMA busy_timeout=60000")
+    try:
+        dept_items, meta = _load_dept_items(conn, org, core_per_dept=core_per_dept)
+        if not meta:
+            return {"error": "no in-stock SKUs", "org": org}
+        popularity = assign_popularity(list(meta), rng, exponent=pop_exponent)
+        seed_weights = _seed_dept_weights(dept_items, prior)
+
+        bills = lines = oos_skipped = 0
+        units = 0.0
+        limit = batches if batches and batches > 0 else None
+        print(f"[pos-stream] {db_path} org={org} every {interval}s "
+              f"active_skus={len(meta)} prior={'on' if prior else 'off'} "
+              f"{'(' + str(limit) + ' receipts)' if limit else '(until Ctrl-C)'}")
+        b = 0
+        while limit is None or b < limit:
+            b += 1
+            seed_dept = _weighted_pick(seed_weights, rng)
+            codes = generate_basket(seed_dept, dept_items, popularity, prior, rng,
+                                    max_attach=max_attach)
+            # authoritative live on-hand for the intended items
+            live = {}
+            for itm in codes:
+                row = conn.execute("SELECT SM_QTY FROM STOCK_MASTER WHERE SM_ORG_CD=? "
+                                   "AND SM_ITM_CD=?", (org, itm)).fetchone()
+                live[itm] = float(row[0]) if row and row[0] is not None else 0.0
+            sale_lines, dec = ring_up(codes, live, meta, rng, max_qty)
+            oos_skipped += sum(1 for c in codes if live.get(c, 0.0) <= 0)
+            if not sale_lines:
+                continue   # nothing on the shelf — no receipt at all
+            today = datetime.now().strftime("%Y-%m-%d")
+            bill_no = f"POS{datetime.now().strftime('%H%M%S%f')[:12]}"
+            hdr, dtl = build_bill(org, bill_no, today, sale_lines)
+            conn.execute(f"INSERT INTO POS_SALES_HDR ({','.join(hdr)}) "
+                         f"VALUES ({','.join(['?'] * len(hdr))})", list(hdr.values()))
+            for d in dtl:
+                conn.execute(f"INSERT INTO POS_SALES_DTL ({','.join(d)}) "
+                             f"VALUES ({','.join(['?'] * len(d))})", list(d.values()))
+            for itm, nq in dec.items():
+                conn.execute("UPDATE STOCK_MASTER SET SM_QTY=?, SM_LAST_ISSUE_DT=? "
+                             "WHERE SM_ORG_CD=? AND SM_ITM_CD=?", (nq, today, org, itm))
+            conn.commit()    # ← visible to the three consoles right now
+            bills += 1
+            lines += len(sale_lines)
+            value = sum(s.qty * s.sell_price for s in sale_lines)
+            units += sum(s.qty for s in sale_lines)
+            ts = datetime.now().strftime("%H:%M:%S")
+            depleted = [s.itm_cd for s in sale_lines if dec.get(s.itm_cd, 1) <= 0]
+            tail = f"  ⚠ depleted {len(depleted)}" if depleted else ""
+            print(f"[{ts}] {bill_no}  {len(sale_lines)} item(s)  KES {value:,.0f}{tail}")
+            if interval:
+                time.sleep(max(0.0, interval))
+        return {"org": org, "bills": bills, "lines": lines, "units": round(units, 0),
+                "oos_lines_skipped": oos_skipped}
+    except KeyboardInterrupt:
+        print(f"\n[pos-stream] stopped — {bills} receipts, {lines} lines, "
+              f"{oos_skipped} OOS line(s) skipped.")
+        return {"org": org, "bills": bills, "lines": lines, "stopped": True}
+    finally:
+        conn.commit()
         conn.close()
