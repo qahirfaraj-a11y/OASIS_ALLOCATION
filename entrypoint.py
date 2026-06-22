@@ -411,7 +411,8 @@ def main():
                                  "api", "bridge", "migrate", "shell", "intel",
                                  "preflight", "build-views", "bootstrap-intel",
                                  "bootstrap-governance", "build-graph",
-                                 "build-store-graph", "build-baskets", "pos-inject"],
+                                 "build-store-graph", "build-baskets", "build-prior",
+                                 "build-pos-db", "pos-sim", "pos-inject"],
                         default="full", help="Run mode")
     parser.add_argument("--dashboard", choices=list(DASHBOARD_MAP.keys()),
                         default="ops", help="Dashboard to launch (dashboard mode)")
@@ -551,6 +552,30 @@ def main():
         summary = build_baskets_from_db(db_path, nn_dir, min_count=min_count,
                                         min_lift=min_lift, min_item_count=min_item)
         print(f"Basket affinity build complete: {summary}")
+    elif args.mode == "build-prior":
+        from oasis.logic.vault_prior import build_department_prior
+        root = os.path.dirname(__file__)
+        vault = os.getenv("OASIS_VAULT_DIR", os.path.join(root, "oasis_vault"))
+        data_dir = os.getenv("OASIS_DATA_DIR", os.path.join(root, "oasis", "data"))
+        out = os.getenv("OASIS_BASKET_PRIOR",
+                        os.path.join(root, "neutral_network_export", "basket_prior.json"))
+        print(f"Department halo prior built: {build_department_prior(vault, data_dir, out)}")
+    elif args.mode == "build-pos-db":
+        from oasis.logic.mock_pos_build import build_from_xlsx
+        root = os.path.dirname(__file__)
+        data_dir = os.getenv("OASIS_DATA_DIR", os.path.join(root, "oasis", "data"))
+        db_path = os.getenv("OASIS_DB_PATH",
+                            os.path.join(root, "oasis", "data", "rhapta_pos.db"))
+        print(f"Clean POS DB built from catalog: {build_from_xlsx(data_dir, db_path)}")
+    elif args.mode == "pos-sim":
+        from oasis.logic.pos_simulator import run_simulator
+        root = os.path.dirname(__file__)
+        db_path = os.getenv("OASIS_DB_PATH",
+                            os.path.join(root, "oasis", "data", "rhapta_pos.db"))
+        prior = os.getenv("OASIS_BASKET_PRIOR",
+                          os.path.join(root, "neutral_network_export", "basket_prior.json"))
+        run_simulator(db_path, prior_path=prior, batches=args.batches,
+                      interval=args.interval, org=args.org or "ORG001")
     elif args.mode == "pos-inject":
         from oasis.logic.pos_injector import run_injector
         root = os.path.dirname(__file__)
