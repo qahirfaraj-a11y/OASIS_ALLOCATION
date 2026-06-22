@@ -411,7 +411,7 @@ def main():
                                  "api", "bridge", "migrate", "shell", "intel",
                                  "preflight", "build-views", "bootstrap-intel",
                                  "bootstrap-governance", "build-graph",
-                                 "build-store-graph"],
+                                 "build-store-graph", "pos-inject"],
                         default="full", help="Run mode")
     parser.add_argument("--dashboard", choices=list(DASHBOARD_MAP.keys()),
                         default="ops", help="Dashboard to launch (dashboard mode)")
@@ -425,6 +425,11 @@ def main():
     # Shadow option
     parser.add_argument("--pathway", choices=["file", "sql"], default="file",
                         help="Data pathway for shadow mode")
+    # Mock POS injector options
+    parser.add_argument("--batches", type=int, default=10, help="pos-inject: number of bills")
+    parser.add_argument("--interval", type=float, default=15.0, help="pos-inject: seconds between bills")
+    parser.add_argument("--org", default=None, help="pos-inject: org to inject into (default: first active)")
+    parser.add_argument("--sku-count", type=int, default=8, help="pos-inject: SKUs per bill")
     # Pre-flight diagnostics toggle
     parser.add_argument("--skip-diag", action="store_true",
                         help="Skip production_diagnostic.py preflight")
@@ -534,6 +539,13 @@ def main():
             oasis_db.get_pos_sqlalchemy_url(), SchemaMapper.for_pos_erp()))
         summary = build_store_graph_from_adapter(adapter, out_path)
         print(f"Store-graph export complete: {summary}")
+    elif args.mode == "pos-inject":
+        from oasis.logic.pos_injector import run_injector
+        root = os.path.dirname(__file__)
+        db_path = os.getenv("OASIS_DB_PATH",
+                            os.path.join(root, "oasis", "data", "mock_pos_erp.db"))
+        run_injector(db_path, batches=args.batches, interval=args.interval,
+                     org=args.org, sku_count=args.sku_count)
 
 
 if __name__ == "__main__":
