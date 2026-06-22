@@ -17,7 +17,7 @@ from __future__ import annotations
 from typing import Dict, List
 
 from .shell import (
-    Page, compute_health_metrics, _pos_adapter, render_live_feed,
+    Page, compute_health_metrics, _pos_adapter,
     _OPERATOR, _OVERSIGHT,
 )
 
@@ -510,7 +510,6 @@ def build_intel_registry() -> List[Page]:
     """Monitoring-focused registry for the Intelligence Console."""
     return [
         Page("pulse", "Pulse", "◎", render_pulse, _ALL),
-        Page("livefeed", "Live POS", "◉", render_live_feed, _ALL),
         Page("velocity", "Velocity Alerts", "⚡", render_velocity_alerts, _OVERSIGHT),
         Page("stock_review", "Stock Review", "▦", render_stock_review, _OVERSIGHT),
         Page("live_sales", "Live Sales", "▤", render_live_sales, _OVERSIGHT),

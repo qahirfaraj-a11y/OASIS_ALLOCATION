@@ -188,10 +188,9 @@ class TestRoiScorecard:
 
     def test_role_visibility(self):
         reg = intel.build_intel_registry()
-        # finance is not in the intel oversight groups → sees only _ALL pages
-        # (pulse + the live POS feed, both visible to every role)
+        # finance is not in the intel oversight groups → sees only _ALL (pulse)
         fin = {p.key for p in shell.visible_pages(reg, "finance")}
-        assert fin == {"pulse", "livefeed"}
+        assert fin == {"pulse"}
         # executive (oversight) sees the monitoring pages
         execv = {p.key for p in shell.visible_pages(reg, "executive")}
         assert {"pulse", "velocity", "stock_review", "live_sales"} <= execv

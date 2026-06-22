@@ -46,7 +46,6 @@ def build_registry() -> List[Page]:
     per-page role visibility spanning legacy + journey roles."""
     return [
         Page("home", "Home / Journey", "◎", render_home, _ALL),
-        Page("livefeed", "Live POS", "◉", render_live_feed, _ALL),
         Page("diagnose", "Diagnose", "⊙", render_diagnose, _OPERATOR),
         Page("shadow", "Shadow", "◑", render_shadow, _OVERSIGHT),
         Page("ordering", "Ordering", "▤", render_ordering, _OPERATIONS + ("branch_manager",)),
@@ -166,64 +165,6 @@ def render_home(ctx) -> None:
             st.rerun()
     elif nxt is None:
         st.success("Sustain — the operation is self-driving.")
-
-
-def render_live_feed(ctx) -> None:
-    """Live POS activity — today's bills/units + SKUs depleted by today's sales.
-
-    Auto-refreshes in OASIS_DEMO_MODE via st.fragment(run_every) so injected /
-    live POS transactions surface within seconds without a manual reload (and
-    without dropping the session/login). Filtering to *today* isolates the live
-    window from the historical bulk, so injections are visible at any scale.
-    """
-    import os
-    st = ctx["st"]
-    demo = os.getenv("OASIS_DEMO_MODE", "false").lower() == "true"
-    if demo and hasattr(st, "fragment"):
-        st.fragment(run_every="5s")(lambda: _render_live_feed_body(ctx))()
-    else:
-        _render_live_feed_body(ctx)
-        if st.button("🔄 Refresh activity"):
-            st.rerun()
-
-
-def _render_live_feed_body(ctx) -> None:
-    import os
-    from datetime import datetime
-    st = ctx["st"]
-    from . import components as C
-    from ..logic import pos_activity as PA
-    db_path = ctx.get("db_path")
-
-    st.markdown("### Live POS Activity")
-    st.caption(f"As of {datetime.now():%H:%M:%S} · today = {datetime.now():%Y-%m-%d}"
-               + ("  ·  auto-refresh ON"
-                  if os.getenv("OASIS_DEMO_MODE", "false").lower() == "true" else ""))
-    s = PA.activity_summary(db_path)
-    C.kpi_row([
-        {"label": "Bills today", "value": f"{s['bills_today']:,}"},
-        {"label": "Units sold today", "value": f"{s['units_today']:,.0f}"},
-        {"label": "Depleted by today's sales", "value": f"{s['depleted_today']:,}",
-         "status": "danger" if s["depleted_today"] else "success"},
-        {"label": "Stockouts (network)", "value": f"{s['stockouts']:,}"},
-    ], st_module=st)
-
-    import pandas as pd
-    bills = PA.recent_bills(db_path, limit=15)
-    dep = PA.recently_depleted(db_path, limit=20)
-    c1, c2 = st.columns(2)
-    with c1:
-        st.markdown("#### Recent Bills (today first)")
-        if bills:
-            st.dataframe(pd.DataFrame(bills), use_container_width=True, hide_index=True, height=360)
-        else:
-            C.empty_state("No bills today", "Run `--mode pos-inject` to see activity here.", st_module=st)
-    with c2:
-        st.markdown("#### Depleted by Today's Sales")
-        if dep:
-            st.dataframe(pd.DataFrame(dep), use_container_width=True, hide_index=True, height=360)
-        else:
-            C.empty_state("Nothing depleted today", "Stock is holding up.", st_module=st)
 
 
 def render_allocation(ctx) -> None:

@@ -50,7 +50,7 @@ class TestRoleVisibility:
 
     def test_unknown_role_sees_only_open_pages(self):
         vis = {p.key for p in shell.visible_pages(self._reg(), "stranger")}
-        assert vis == {"home", "allocation", "livefeed"}  # the _ALL pages
+        assert vis == {"home", "allocation"}  # the _ALL pages
 
     # ── Journey role model ────────────────────────────────────────────
     def _vis(self, role):
@@ -67,7 +67,7 @@ class TestRoleVisibility:
 
     def test_finance_capital_and_analytics_only(self):
         v = self._vis("finance")
-        assert v == {"home", "allocation", "analytics", "livefeed"}
+        assert v == {"home", "allocation", "analytics"}
 
     def test_approval_manager_operational(self):
         v = self._vis("approval_manager")

@@ -895,21 +895,8 @@ if user_role in ('ops_admin', 'regional_manager') or showcase_mode:
     tab_labels.append("🔬 Supplier Intelligence")
     tab_keys.append("supplier_intelligence")
 
-# Live POS activity monitor — always available (read-only); auto-refreshes in
-# OASIS_DEMO_MODE so injected / live POS transactions surface immediately.
-tab_labels.append("◉ Live POS")
-tab_keys.append("live_pos")
-
 tabs = st.tabs(tab_labels)
 tab_map = {key: tabs[i] for i, key in enumerate(tab_keys)}
-
-if "live_pos" in tab_map:
-    with tab_map["live_pos"]:
-        try:
-            from oasis.ui.shell import render_live_feed
-            render_live_feed({"st": st, "db_path": DB_PATH})
-        except Exception as _e:
-            st.error(f"Live POS feed unavailable: {_e}")
 
 # ─────────────────────────────────────────────────────────────────────
 # TAB: Executive ROI Overview (THE SHOWCASE)

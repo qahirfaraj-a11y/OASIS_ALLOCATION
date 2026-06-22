@@ -57,7 +57,7 @@ class TestInjectOnce:
             "SELECT SM_ITM_CD, SM_QTY FROM STOCK_MASTER").fetchall())
 
         res = inject_once(db, org="ORG001", sku_count=3, max_qty=5,
-                          deplete=False, restock=0, seed=1)
+                          deplete=False, seed=1)
         assert res["lines"] >= 1 and res["units_sold"] > 0
 
         c = sqlite3.connect(db)
