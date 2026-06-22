@@ -55,7 +55,10 @@ def build_pos_db_from_catalog(rows: List[dict], db_path: str, org_cd: str = "ORG
             (org_cd, org_name, "RHAPTA", "Rhapta Road, Westlands", "Nairobi",
              "Nairobi", "KE", "KES", 1, "Y"))
 
-        # reuse the canonical system seeds so the consoles still authenticate
+        # reuse the canonical system seeds so the consoles still authenticate.
+        # Default the demo seed password so logins work out of the box (override
+        # with OASIS_SEED_PASSWORD); without it the seeder generates random ones.
+        os.environ.setdefault("OASIS_SEED_PASSWORD", "oasis2026")
         b._seed_system_preferences()
         b._seed_tax_plans()
         b._seed_counters()
