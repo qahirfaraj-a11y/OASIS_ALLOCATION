@@ -411,7 +411,7 @@ def main():
                                  "api", "bridge", "migrate", "shell", "intel",
                                  "preflight", "build-views", "bootstrap-intel",
                                  "bootstrap-governance", "build-graph",
-                                 "build-store-graph", "pos-inject"],
+                                 "build-store-graph", "build-baskets", "pos-inject"],
                         default="full", help="Run mode")
     parser.add_argument("--dashboard", choices=list(DASHBOARD_MAP.keys()),
                         default="ops", help="Dashboard to launch (dashboard mode)")
@@ -539,6 +539,18 @@ def main():
             oasis_db.get_pos_sqlalchemy_url(), SchemaMapper.for_pos_erp()))
         summary = build_store_graph_from_adapter(adapter, out_path)
         print(f"Store-graph export complete: {summary}")
+    elif args.mode == "build-baskets":
+        from oasis.logic.basket_affinity import build_baskets_from_db
+        root = os.path.dirname(__file__)
+        db_path = os.getenv("OASIS_DB_PATH",
+                            os.path.join(root, "oasis", "data", "mock_pos_erp.db"))
+        nn_dir = os.getenv("OASIS_NN_OUT", os.path.join(root, "neutral_network_export"))
+        min_count = int(os.getenv("OASIS_BASKET_MIN_COUNT", "3"))
+        min_lift = float(os.getenv("OASIS_BASKET_MIN_LIFT", "1.0"))
+        min_item = int(os.getenv("OASIS_BASKET_MIN_ITEM_COUNT", "5"))
+        summary = build_baskets_from_db(db_path, nn_dir, min_count=min_count,
+                                        min_lift=min_lift, min_item_count=min_item)
+        print(f"Basket affinity build complete: {summary}")
     elif args.mode == "pos-inject":
         from oasis.logic.pos_injector import run_injector
         root = os.path.dirname(__file__)

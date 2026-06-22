@@ -19,7 +19,7 @@ import os
 import logging
 import argparse
 from collections import defaultdict
-from typing import Dict, List, Any, Set, Tuple
+from typing import Dict, Any, Set, Tuple
 
 logger = logging.getLogger("OASIS.DHARAM")
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(name)s] %(levelname)s: %(message)s")
@@ -34,11 +34,12 @@ def _load_dharam_config(data_dir: str) -> Dict[str, Any]:
             return config.get('engines', {}).get('dharam', {})
         except Exception as e:
             logger.warning(f"Failed to load DHARAM config: {e}")
-    # Default Fallbacks
     return {
         "brand_loyalty_factor": 0.5,
         "stockout_fill_rate_threshold": 0.5,
-        "max_recovery_multiplier": 2.5
+        "max_recovery_multiplier": 2.5,
+        "min_affinity_core_count": 2,
+        "min_anchor_ads": 0.1
     }
 
 # Minimum occurrences required in edges.csv to consider a link a valid affinity
@@ -102,8 +103,16 @@ def load_edges(nn_path: str, nodes: Dict[str, Dict[str, Any]]) -> Tuple[Dict[str
                 s_id = source.strip()
                 t_id = target.strip()
                 if s_id in nodes and t_id in nodes:
-                    affinity_map[s_id][t_id] += 1
-                    affinity_map[t_id][s_id] += 1 # Bi-directional for affinity
+                    # Honour the co-occurrence weight when present (basket_affinity
+                    # emits one row per pair, weight = co-purchase count); fall back
+                    # to +1 per row for legacy unweighted link edges.
+                    try:
+                        w = int(float(row.get("weight", 1) or 1))
+                    except (TypeError, ValueError):
+                        w = 1
+                    w = max(1, w)
+                    affinity_map[s_id][t_id] += w
+                    affinity_map[t_id][s_id] += w # Bi-directional for affinity
             elif relation == "substitution":
                 s_id = source.strip()
                 t_id = target.strip()
@@ -118,17 +127,24 @@ def load_edges(nn_path: str, nodes: Dict[str, Dict[str, Any]]) -> Tuple[Dict[str
 def identify_anchors_and_attachments(
     nodes: Dict[str, Dict[str, Any]],
     affinity_map: Dict[str, Dict[str, int]],
+    config: Dict[str, Any] = None
 ) -> Dict[str, Dict[str, int]]:
     """
     Identify Anchor → Attachment relationships using 100% Graph Discovery.
     
     Returns: { anchor_sku: { attachment_sku: weight } }
     """
+    if config is None:
+        config = {"min_anchor_ads": 0.1, "min_affinity_core_count": 2}
+        
+    min_anchor_ads = config.get("min_anchor_ads", 0.1)
+    min_affinity = config.get("min_affinity_core_count", 2)
+    
     anchor_map: Dict[str, Dict[str, int]] = {}
 
     for sku_id, data in nodes.items():
         # Candidate must be a high-velocity Anchor
-        if data["velocity_ads"] < MIN_ANCHOR_ADS:
+        if data["velocity_ads"] < min_anchor_ads:
             continue
 
         # Check if this Anchor has any graph affinities
@@ -137,7 +153,7 @@ def identify_anchors_and_attachments(
 
         attachments = {}
         for target_id, weight in affinity_map[sku_id].items():
-            if weight >= MIN_AFFINITY_CORE_COUNT:
+            if weight >= min_affinity:
                 # Filter to active nodes only
                 if nodes[target_id]["velocity_ads"] > 0:
                     attachments[target_id] = weight
@@ -248,10 +264,9 @@ def run_dharam(nn_path: str, data_dir: str) -> Dict[str, Any]:
     affinity_map, substitution_map = load_edges(nn_path, nodes)
 
     # Step 1: Identify Anchor/Attachment pairs (100% Discovery)
-    anchor_map = identify_anchors_and_attachments(nodes, affinity_map)
-
-    # Load Config
+    # Load Config early to pass to anchor identification
     config = _load_dharam_config(data_dir)
+    anchor_map = identify_anchors_and_attachments(nodes, affinity_map, config=config)
 
     # Step 2: Calculate Ghost Demand patches (Edge-Weighted with Substitution Offset)
     patches = calculate_ghost_demand_patches(nodes, anchor_map, substitution_map, config=config)
@@ -265,7 +280,8 @@ def run_dharam(nn_path: str, data_dir: str) -> Dict[str, Any]:
             "total_demand_patches": len(patches),
             "stockout_threshold": config.get("stockout_fill_rate_threshold", 0.5),
             "brand_loyalty_factor": config.get("brand_loyalty_factor", 0.5),
-            "min_affinity_weight": MIN_AFFINITY_CORE_COUNT,
+            "min_affinity_weight": config.get("min_affinity_core_count", 2),
+            "min_anchor_ads": config.get("min_anchor_ads", 0.1),
             "max_recovery_multiplier": config.get("max_recovery_multiplier", 2.5),
         },
         "top_patches": sorted(
@@ -293,11 +309,11 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     result = run_dharam(args.nn_path, args.data_dir)
-    print(f"\n=== DHARAM COMPLETE ===")
+    print("\n=== DHARAM COMPLETE ===")
     print(f"Demand Patches Generated: {result['stats']['total_demand_patches']}")
     print(f"Anchors Identified: {result['stats']['total_anchors_identified']}")
     if result.get("top_patches"):
-        print(f"\nTop 5 Ghost Demand Recoveries:")
+        print("\nTop 5 Ghost Demand Recoveries:")
         for p in result["top_patches"][:5]:
             delta = p["patched_ads"] - p["original_ads"]
             print(f"  {p['sku']}: {p['original_ads']:.3f} -> {p['patched_ads']:.3f} (+{delta:.3f} ADS)")
