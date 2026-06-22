@@ -51,14 +51,31 @@ class TestAffinityMetrics:
 
 
 class TestLinkEdges:
-    def test_bidirectional_weighted_and_lift_gated(self):
-        txns = [["A", "B"]] * 5 + [["A", "C"]] * 5 + [["B"], ["C"]]
+    def test_directed_anchor_by_velocity(self):
+        # MILK&BREAD travel together; MILK is the high-velocity anchor
+        txns = [["MILK", "BREAD"]] * 5 + [["RICE", "BEANS"]] * 3
         metrics = affinity_metrics(*cooccurrence(txns), min_count=2)
-        edges = link_edges(metrics, min_lift=1.0, min_count=2)
-        # every kept pair yields two directed link edges with weight = co_count
+        edges = link_edges(metrics, velocity_ads={"MILK": 9.0, "BREAD": 1.0},
+                           min_lift=1.0, min_count=2)
+        mb = [e for e in edges if {e["source"], e["target"]} == {"MILK", "BREAD"}]
+        assert len(mb) == 1                      # one directed edge, not two
+        assert mb[0]["source"] == "MILK"         # anchor = higher velocity
+        assert mb[0]["target"] == "BREAD"
+        assert mb[0]["relation"] == "link" and mb[0]["weight"] == 5
+
+    def test_tiebreak_by_confidence_when_no_velocity(self):
+        # DIAPERS rarer than WIPES → conf(DIAPERS→WIPES) higher → DIAPERS anchors
+        txns = [["DIAPERS", "WIPES"]] * 4 + [["WIPES"]] * 6
+        metrics = affinity_metrics(*cooccurrence(txns), min_count=2)
+        edges = link_edges(metrics, min_lift=1.0, min_count=2)   # no velocity
+        assert len(edges) == 1 and edges[0]["source"] == "DIAPERS"
+
+    def test_legacy_undirected_still_available(self):
+        txns = [["A", "B"]] * 5 + [["C", "D"]] * 2
+        metrics = affinity_metrics(*cooccurrence(txns), min_count=2)
+        edges = link_edges(metrics, directed=False, min_lift=1.0, min_count=2)
         pairset = {(e["source"], e["target"]) for e in edges}
         assert ("A", "B") in pairset and ("B", "A") in pairset
-        assert all(e["relation"] == "link" and e["weight"] >= 2 for e in edges)
 
     def test_high_min_lift_drops_everything(self):
         txns = [["A", "B"], ["A", "B"], ["A"], ["B"]]

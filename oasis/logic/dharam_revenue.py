@@ -111,8 +111,9 @@ def load_edges(nn_path: str, nodes: Dict[str, Dict[str, Any]]) -> Tuple[Dict[str
                     except (TypeError, ValueError):
                         w = 1
                     w = max(1, w)
+                    # Directional anchor -> attachment (Ch. 8.4 Broken Halo:
+                    # affinity is not mutual). source is the anchor; do NOT mirror.
                     affinity_map[s_id][t_id] += w
-                    affinity_map[t_id][s_id] += w # Bi-directional for affinity
             elif relation == "substitution":
                 s_id = source.strip()
                 t_id = target.strip()

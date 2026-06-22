@@ -89,20 +89,39 @@ def affinity_metrics(pair_counts: Counter, item_counts: Counter, n_baskets: int,
     return out
 
 
-def link_edges(metrics: List[dict], min_lift: float = 1.0,
-               min_count: int = 2) -> List[dict]:
-    """Emit bidirectional ``link`` edges for above-chance pairs.
+def link_edges(metrics: List[dict], velocity_ads: Optional[Dict[str, float]] = None,
+               min_lift: float = 1.0, min_count: int = 2,
+               directed: bool = True) -> List[dict]:
+    """Emit ``link`` edges (weight = co_count) for above-chance pairs.
 
-    weight = co_count (DHARAM thresholds on it). Two rows per pair (a→b, b→a) so
-    the loader builds a symmetric affinity map even if it doesn't mirror.
+    Directionality matters (Kenyan_Retail_Bible Ch. 8.4 "Broken Halo": affinity is
+    NOT mutual — diapers pull wipes, wipes do not pull diapers; you only ever
+    discount the Anchor). So we emit ONE directed edge anchor → attachment:
+
+      * anchor = the higher-velocity SKU (the price-sensitive "destination" the
+        trip is built around — matches Ch. 8.1 and DHARAM's velocity gate);
+      * ties / no velocity → the association antecedent (higher confidence
+        direction, i.e. the rarer item that predicts the other, à la diapers).
+
+    Set directed=False for the legacy symmetric behaviour (two rows per pair).
     """
+    vel = velocity_ads or {}
     edges: List[dict] = []
     for m in metrics:
         if m["co_count"] < min_count or m["lift"] < min_lift:
             continue
         w = int(m["co_count"])
-        edges.append({"source": m["a"], "target": m["b"], "relation": "link", "weight": w})
-        edges.append({"source": m["b"], "target": m["a"], "relation": "link", "weight": w})
+        a, b = m["a"], m["b"]
+        if not directed:
+            edges.append({"source": a, "target": b, "relation": "link", "weight": w})
+            edges.append({"source": b, "target": a, "relation": "link", "weight": w})
+            continue
+        va, vb = vel.get(a, 0.0), vel.get(b, 0.0)
+        if va != vb:
+            anchor, attach = (a, b) if va > vb else (b, a)
+        else:
+            anchor, attach = (a, b) if m["conf_a_to_b"] >= m["conf_b_to_a"] else (b, a)
+        edges.append({"source": anchor, "target": attach, "relation": "link", "weight": w})
     return edges
 
 
@@ -187,16 +206,21 @@ def _load_velocity(nn_dir: str) -> Dict[str, float]:
 
 
 def mine_baskets(db_path: str, org: Optional[str] = None, since: Optional[str] = None,
-                 min_count: int = 3, min_lift: float = 1.0,
-                 min_item_count: int = 5) -> dict:
-    """End-to-end mine: transactions -> metrics -> link edges (no writes)."""
+                 min_count: int = 3, min_lift: float = 1.0, min_item_count: int = 5,
+                 velocity_ads: Optional[Dict[str, float]] = None) -> dict:
+    """End-to-end mine: transactions -> metrics -> directed link edges (no writes).
+
+    velocity_ads (SKU -> ADS) orients each edge anchor -> attachment; without it
+    direction falls back to the association antecedent.
+    """
     txns = load_transactions(db_path, org=org, since=since)
     pairs, items, n = cooccurrence(txns, min_item_count=min_item_count)
     metrics = affinity_metrics(pairs, items, n, min_count=min_count)
-    edges = link_edges(metrics, min_lift=min_lift, min_count=min_count)
+    edges = link_edges(metrics, velocity_ads=velocity_ads,
+                       min_lift=min_lift, min_count=min_count)
     return {
         "n_baskets": n, "n_items": len(items), "n_pairs": len(pairs),
-        "n_assoc_pairs": len(edges) // 2, "metrics": metrics, "edges": edges,
+        "n_assoc_pairs": len(edges), "metrics": metrics, "edges": edges,
     }
 
 
@@ -231,7 +255,7 @@ def write_basket_layer(nn_dir: str, edges: List[dict], metrics: List[dict],
                         for k, v in m.items()})
 
     summary = {
-        "n_baskets": n_baskets, "assoc_pairs": len(edges) // 2,
+        "n_baskets": n_baskets, "assoc_pairs": len(edges),
         "link_edges_written": len(edges),
         "edges_csv": edges_path, "affinity_csv": aff_path,
     }
@@ -244,8 +268,10 @@ def build_baskets_from_db(db_path: str, nn_dir: str, org: Optional[str] = None,
                           since: Optional[str] = None, min_count: int = 3,
                           min_lift: float = 1.0, min_item_count: int = 5) -> dict:
     """Mine co-purchase from POS and write the basket affinity layer + artifact."""
+    velocity = _load_velocity(nn_dir)
     res = mine_baskets(db_path, org=org, since=since, min_count=min_count,
-                       min_lift=min_lift, min_item_count=min_item_count)
+                       min_lift=min_lift, min_item_count=min_item_count,
+                       velocity_ads=velocity)
     summary = write_basket_layer(nn_dir, res["edges"], res["metrics"], res["n_baskets"])
     summary.update({"n_items": res["n_items"], "n_pairs_seen": res["n_pairs"]})
     return summary
