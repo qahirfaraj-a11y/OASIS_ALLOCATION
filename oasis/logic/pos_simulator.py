@@ -231,6 +231,77 @@ def run_simulator(db_path: str, prior_path: Optional[str] = None, batches: int =
         conn.close()
 
 
+def seed_demand_history(db_path: str, prior_path: Optional[str] = None,
+                        org: str = "ORG001", days: int = 30, bills_per_day: int = 400,
+                        max_qty: int = 5, core_per_dept: int = 12,
+                        pop_exponent: float = 1.2, max_attach: int = 4,
+                        seed: Optional[int] = None) -> dict:
+    """Seed a prior-days SALES HISTORY for a normalised demand (ADS) baseline.
+
+    Writes affinity-structured bills dated across the last ``days`` days
+    (EXCLUDING today), so the ADS calculators have a full window to divide by —
+    fixing the "divide today's sales by 30" under-count. Crucially it does NOT
+    decrement STOCK_MASTER: history represents past days that were replenished
+    overnight, so on-hand stays at the static start-of-day snapshot level. Today
+    is left empty, so the live run begins at the start of the day (06:00) with a
+    realistic demand signal already in place.
+    """
+    import sqlite3
+    from datetime import datetime, timedelta
+
+    from .vault_prior import load_prior
+    rng = random.Random(seed)
+    prior = load_prior(prior_path) if prior_path else {}
+    today = datetime.now().date()
+
+    conn = sqlite3.connect(db_path, timeout=60.0)
+    conn.execute("PRAGMA journal_mode=WAL")
+    conn.execute("PRAGMA busy_timeout=60000")
+    try:
+        dept_items, meta = _load_dept_items(conn, org, core_per_dept=core_per_dept)
+        if not meta:
+            return {"error": "no in-stock SKUs", "org": org}
+        popularity = assign_popularity(list(meta), rng, exponent=pop_exponent)
+        seed_weights = _seed_dept_weights(dept_items, prior)
+
+        hdr_rows: List[tuple] = []
+        dtl_rows: List[tuple] = []
+        hdr_cols = dtl_cols = None
+        bills = lines = seq = 0
+        for d in range(days, 0, -1):
+            bdate = (today - timedelta(days=d)).strftime("%Y-%m-%d")
+            for _ in range(bills_per_day):
+                seed_dept = _weighted_pick(seed_weights, rng)
+                codes = generate_basket(seed_dept, dept_items, popularity, prior, rng,
+                                        max_attach=max_attach)
+                if not codes:
+                    continue
+                sale_lines = [SaleLine(itm, meta[itm][0], float(rng.randint(1, max_qty)),
+                                       meta[itm][1]) for itm in codes]
+                seq += 1
+                bill_no = f"HIST{bdate.replace('-', '')}{seq:06d}"
+                hdr, dtl = build_bill(org, bill_no, bdate, sale_lines)
+                if hdr_cols is None:
+                    hdr_cols, dtl_cols = list(hdr), list(dtl[0])
+                hdr_rows.append(tuple(hdr[c] for c in hdr_cols))
+                dtl_rows.extend(tuple(x[c] for c in dtl_cols) for x in dtl)
+                bills += 1
+                lines += len(sale_lines)
+        if hdr_cols:
+            conn.executemany(
+                f"INSERT INTO POS_SALES_HDR ({','.join(hdr_cols)}) "
+                f"VALUES ({','.join(['?'] * len(hdr_cols))})", hdr_rows)
+            conn.executemany(
+                f"INSERT INTO POS_SALES_DTL ({','.join(dtl_cols)}) "
+                f"VALUES ({','.join(['?'] * len(dtl_cols))})", dtl_rows)
+            conn.commit()
+        print(f"[seed-history] {org}: {bills} bills over {days} prior days "
+              f"({lines} lines) — stock untouched, today left empty")
+        return {"org": org, "history_days": days, "bills": bills, "lines": lines}
+    finally:
+        conn.close()
+
+
 def stream_realtime(db_path: str, prior_path: Optional[str] = None, org: str = "ORG001",
                     interval: float = 2.0, batches: int = 0, max_qty: int = 4,
                     core_per_dept: int = 12, pop_exponent: float = 1.2,

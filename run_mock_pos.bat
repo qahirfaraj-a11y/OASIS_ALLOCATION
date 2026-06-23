@@ -7,12 +7,14 @@ if exist .oasis_venv\Scripts\python.exe (set PYTHON_EXEC=.oasis_venv\Scripts\pyt
 REM Stream against the real Rhapta catalog snapshot so the three consoles reflect it.
 set OASIS_DB_PATH=%~dp0oasis\data\rhapta_pos.db
 
-REM First run: build the clean snapshot + department halo prior from the catalog.
+REM First run: build the halo prior first, then the clean snapshot. build-pos-db
+REM seeds a 30-day demand history (normalised ADS baseline) and leaves TODAY empty,
+REM so the live run begins at the start of the day with accurate demand.
 if not exist "%OASIS_DB_PATH%" (
-    echo [setup] Building clean Rhapta POS snapshot from catalog...
-    "%PYTHON_EXEC%" entrypoint.py --mode build-pos-db
     echo [setup] Building department halo prior from the vault...
     "%PYTHON_EXEC%" entrypoint.py --mode build-prior
+    echo [setup] Building Rhapta snapshot + 30-day demand history...
+    "%PYTHON_EXEC%" entrypoint.py --mode build-pos-db
 )
 
 REM Real-time stream: one receipt every 2s until you close the window (Ctrl-C).

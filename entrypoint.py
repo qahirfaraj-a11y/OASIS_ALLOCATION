@@ -412,7 +412,8 @@ def main():
                                  "preflight", "build-views", "bootstrap-intel",
                                  "bootstrap-governance", "build-graph",
                                  "build-store-graph", "build-baskets", "build-prior",
-                                 "build-pos-db", "pos-sim", "pos-stream", "pos-inject"],
+                                 "build-pos-db", "seed-history", "pos-sim",
+                                 "pos-stream", "pos-inject"],
                         default="full", help="Run mode")
     parser.add_argument("--dashboard", choices=list(DASHBOARD_MAP.keys()),
                         default="ops", help="Dashboard to launch (dashboard mode)")
@@ -566,7 +567,28 @@ def main():
         data_dir = os.getenv("OASIS_DATA_DIR", os.path.join(root, "oasis", "data"))
         db_path = os.getenv("OASIS_DB_PATH",
                             os.path.join(root, "oasis", "data", "rhapta_pos.db"))
-        print(f"Clean POS DB built from catalog: {build_from_xlsx(data_dir, db_path)}")
+        summary = build_from_xlsx(data_dir, db_path)
+        # Seed a prior-days demand history (for a normalised ADS baseline) unless
+        # disabled. Stock is untouched; today is left empty (start of day).
+        hist_days = int(os.getenv("OASIS_HISTORY_DAYS", "30"))
+        if hist_days > 0:
+            from oasis.logic.pos_simulator import seed_demand_history
+            prior = os.getenv("OASIS_BASKET_PRIOR",
+                              os.path.join(root, "neutral_network_export", "basket_prior.json"))
+            bpd = int(os.getenv("OASIS_HISTORY_BILLS_PER_DAY", "400"))
+            summary["history"] = seed_demand_history(db_path, prior_path=prior,
+                                                     days=hist_days, bills_per_day=bpd)
+        print(f"Clean POS DB built from catalog: {summary}")
+    elif args.mode == "seed-history":
+        from oasis.logic.pos_simulator import seed_demand_history
+        root = os.path.dirname(__file__)
+        db_path = os.getenv("OASIS_DB_PATH",
+                            os.path.join(root, "oasis", "data", "rhapta_pos.db"))
+        prior = os.getenv("OASIS_BASKET_PRIOR",
+                          os.path.join(root, "neutral_network_export", "basket_prior.json"))
+        days = int(os.getenv("OASIS_HISTORY_DAYS", "30"))
+        bpd = int(os.getenv("OASIS_HISTORY_BILLS_PER_DAY", "400"))
+        print(f"Demand history seeded: {seed_demand_history(db_path, prior_path=prior, days=days, bills_per_day=bpd)}")
     elif args.mode == "pos-sim":
         from oasis.logic.pos_simulator import run_simulator
         root = os.path.dirname(__file__)
