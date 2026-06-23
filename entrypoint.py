@@ -412,8 +412,8 @@ def main():
                                  "preflight", "build-views", "bootstrap-intel",
                                  "bootstrap-governance", "build-graph",
                                  "build-store-graph", "build-baskets", "build-prior",
-                                 "build-pos-db", "seed-history", "pos-sim",
-                                 "pos-stream", "pos-inject"],
+                                 "build-pos-db", "seed-history", "seed-real-demand",
+                                 "pos-sim", "pos-stream", "pos-inject"],
                         default="full", help="Run mode")
     parser.add_argument("--dashboard", choices=list(DASHBOARD_MAP.keys()),
                         default="ops", help="Dashboard to launch (dashboard mode)")
@@ -579,6 +579,15 @@ def main():
             summary["history"] = seed_demand_history(db_path, prior_path=prior,
                                                      days=hist_days, bills_per_day=bpd)
         print(f"Clean POS DB built from catalog: {summary}")
+    elif args.mode == "seed-real-demand":
+        from oasis.logic.real_demand import seed_real_demand_from_files
+        root = os.path.dirname(__file__)
+        db_path = os.getenv("OASIS_DB_PATH",
+                            os.path.join(root, "oasis", "data", "rhapta_pos.db"))
+        cash_dir = os.getenv("OASIS_CASH_DIR",
+                             os.path.join(os.path.expanduser("~"), "Desktop", "Projects"))
+        print(f"Real demand seeded from {cash_dir}: "
+              f"{seed_real_demand_from_files(db_path, cash_dir, org=args.org or 'ORG001')}")
     elif args.mode == "seed-history":
         from oasis.logic.pos_simulator import seed_demand_history
         root = os.path.dirname(__file__)
