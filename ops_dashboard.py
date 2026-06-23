@@ -188,6 +188,34 @@ load_env_local()
 DATA_DIR = os.getenv("DATA_DIR", os.path.join(os.getcwd(), "oasis", "data"))
 DB_PATH = os.getenv("OASIS_DB_PATH", os.path.join(DATA_DIR, "mock_pos_erp.db"))
 showcase_mode = os.getenv('OASIS_SHOWCASE_MODE', 'false').lower() == 'true'
+# Live run: time-of-day is not dragged on a slider — it accrues automatically in
+# line with the mock POS stream (the more sales rung up today, the later the day).
+LIVE_MODE = os.getenv('OASIS_LIVE_MODE', 'false').lower() == 'true'
+# Number of today's bills that maps to a full trading day (06:00 → 22:00).
+LIVE_FULL_DAY_BILLS = int(os.getenv('OASIS_LIVE_FULL_DAY_BILLS', '1000'))
+
+
+def _bills_today(db_path: str) -> int:
+    """Count today's POS bills in the live snapshot (drives the auto clock)."""
+    import sqlite3
+    try:
+        c = sqlite3.connect(db_path, timeout=10.0)
+        try:
+            n = c.execute("SELECT COUNT(*) FROM POS_SALES_HDR "
+                          "WHERE BILL_DT = date('now','localtime')").fetchone()[0]
+            return int(n or 0)
+        finally:
+            c.close()
+    except Exception:
+        return 0
+
+
+def _live_sim_hour(db_path: str):
+    """(sim_hour, bills_today): the trading hour implied by sales accrued so far."""
+    bills = _bills_today(db_path)
+    frac = min(1.0, bills / float(max(1, LIVE_FULL_DAY_BILLS)))
+    hour = int(round(6 + frac * 16))          # 06:00 (open) → 22:00 (close)
+    return max(6, min(22, hour)), bills
 
 if not os.path.exists(DB_PATH) and not os.path.isabs(DB_PATH):
     # Fallback check
@@ -663,21 +691,39 @@ selected_org = st.sidebar.selectbox(
     format_func=lambda x: f"{org_names.get(x, x)} ({x})"
 )
 
-# Time of day
-sim_hour = st.sidebar.slider(
-    "🕐 Time of Day",
-    min_value=6, max_value=22, value=14,
-    format="%d:00",
-    help="Simulate what the store sees at this hour"
-)
+# Time of day — auto-accrues with the live POS in a live run; manual slider otherwise
+if LIVE_MODE:
+    sim_hour, _bills_today_n = _live_sim_hour(DB_PATH)
+    _close_pct = min(100, int(100 * _bills_today_n / max(1, LIVE_FULL_DAY_BILLS)))
+    st.sidebar.markdown(
+        f"""<div style="background:#1c3a5e22; border:1px solid #2e6ba6; border-radius:8px;
+                    padding:8px 12px;">
+            🟢 <strong>LIVE — time of day auto-accruing</strong><br/>
+            <span style="font-size:20px; font-weight:700;">{sim_hour:02d}:00</span>
+            <span style="color:#888;"> &nbsp;·&nbsp; {_bills_today_n:,} sales today &nbsp;·&nbsp; {_close_pct}% of trading day</span>
+        </div>""", unsafe_allow_html=True)
+    st.sidebar.caption("Tracks the mock POS stream — refresh to advance. "
+                       "Set OASIS_LIVE_FULL_DAY_BILLS to change the day length.")
+else:
+    sim_hour = st.sidebar.slider(
+        "🕐 Time of Day",
+        min_value=6, max_value=22, value=14,
+        format="%d:00",
+        help="Simulate what the store sees at this hour"
+    )
 
 # ── IntraDaySimulator: initialise once per session, cache in session_state ──
 if 'intraday_sim' not in st.session_state or st.sidebar.button("♻️ Reset Simulator"):
     try:
         with st.spinner("🔄 Loading intra-day simulation engine…"):
-            _sim_db = os.path.join(DATA_DIR, "mock_pos_erp_showcase.db")
-            if not os.path.exists(_sim_db):
+            # Live run: build the intraday view from the live snapshot itself,
+            # not the canned showcase DB, so it reflects real streamed sales.
+            if LIVE_MODE:
                 _sim_db = DB_PATH
+            else:
+                _sim_db = os.path.join(DATA_DIR, "mock_pos_erp_showcase.db")
+                if not os.path.exists(_sim_db):
+                    _sim_db = DB_PATH
             st.session_state['intraday_sim'] = IntraDaySimulator.from_db(_sim_db, registry_path=REGISTRY_PATH)
         st.session_state['intraday_sim_error'] = None
     except Exception as _e:
