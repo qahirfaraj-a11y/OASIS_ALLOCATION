@@ -702,8 +702,11 @@ if LIVE_MODE:
             <span style="font-size:20px; font-weight:700;">{sim_hour:02d}:00</span>
             <span style="color:#888;"> &nbsp;·&nbsp; {_bills_today_n:,} sales today &nbsp;·&nbsp; {_close_pct}% of trading day</span>
         </div>""", unsafe_allow_html=True)
-    st.sidebar.caption("Tracks the mock POS stream — refresh to advance. "
+    st.sidebar.caption("Tracks the mock POS stream — pull latest to advance. "
                        "Set OASIS_LIVE_FULL_DAY_BILLS to change the day length.")
+    if st.sidebar.button("🔄 Pull latest POS bills", use_container_width=True):
+        st.cache_data.clear()   # bust TTL caches so the just-committed bills show
+        st.rerun()
 else:
     sim_hour = st.sidebar.slider(
         "🕐 Time of Day",
@@ -712,36 +715,41 @@ else:
         help="Simulate what the store sees at this hour"
     )
 
-# ── IntraDaySimulator: initialise once per session, cache in session_state ──
-if 'intraday_sim' not in st.session_state or st.sidebar.button("♻️ Reset Simulator"):
-    try:
-        with st.spinner("🔄 Loading intra-day simulation engine…"):
-            # Live run: build the intraday view from the live snapshot itself,
-            # not the canned showcase DB, so it reflects real streamed sales.
-            if LIVE_MODE:
-                _sim_db = DB_PATH
-            else:
+# ── IntraDaySimulator ───────────────────────────────────────────────────────
+# Live run: read the POS stream DIRECTLY. The synthetic intra-day simulator is
+# bypassed entirely so every tab shows real streamed bills/stock (not modelled
+# rows) — this is what makes the dashboard react to live sale signals.
+if LIVE_MODE:
+    st.session_state.pop('intraday_sim', None)
+    _sim = None
+    _sim_state = None
+    _sim_err = None
+else:
+    # initialise once per session, cache in session_state
+    if 'intraday_sim' not in st.session_state or st.sidebar.button("♻️ Reset Simulator"):
+        try:
+            with st.spinner("🔄 Loading intra-day simulation engine…"):
                 _sim_db = os.path.join(DATA_DIR, "mock_pos_erp_showcase.db")
                 if not os.path.exists(_sim_db):
                     _sim_db = DB_PATH
-            st.session_state['intraday_sim'] = IntraDaySimulator.from_db(_sim_db, registry_path=REGISTRY_PATH)
-        st.session_state['intraday_sim_error'] = None
-    except Exception as _e:
-        st.session_state['intraday_sim'] = None
-        st.session_state['intraday_sim_error'] = str(_e)
+                st.session_state['intraday_sim'] = IntraDaySimulator.from_db(_sim_db, registry_path=REGISTRY_PATH)
+            st.session_state['intraday_sim_error'] = None
+        except Exception as _e:
+            st.session_state['intraday_sim'] = None
+            st.session_state['intraday_sim_error'] = str(_e)
 
-_sim = st.session_state.get('intraday_sim')
-_sim_err = st.session_state.get('intraday_sim_error')
+    _sim = st.session_state.get('intraday_sim')
+    _sim_err = st.session_state.get('intraday_sim_error')
 
-# Advance to the selected day first, then to the selected hour
-_sim_state = None
-if _sim:
-    try:
-        if sim_day > 1:
-            _sim.advance_to_day(sim_day)
-        _sim_state = _sim.advance_to_hour(sim_hour)
-    except Exception as _ex:
-        _sim_err = str(_ex)
+    # Advance to the selected day first, then to the selected hour
+    _sim_state = None
+    if _sim:
+        try:
+            if sim_day > 1:
+                _sim.advance_to_day(sim_day)
+            _sim_state = _sim.advance_to_hour(sim_hour)
+        except Exception as _ex:
+            _sim_err = str(_ex)
 
 # 🔴 LIVE SIM badge in sidebar
 if _sim:
