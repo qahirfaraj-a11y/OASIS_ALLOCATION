@@ -417,7 +417,8 @@ def main():
                                  "build-multi-store-db", "seed-multi-history",
                                  "multi-pos-stream",
                                  "issue-license", "license-status",
-                                 "backup", "restore", "set-password"],
+                                 "backup", "restore", "set-password",
+                                 "value-report", "metering-report"],
                         default="full", help="Run mode")
     parser.add_argument("--dashboard", choices=list(DASHBOARD_MAP.keys()),
                         default="ops", help="Dashboard to launch (dashboard mode)")
@@ -632,6 +633,30 @@ def main():
         interval = args.interval if args.interval != 15.0 else 2.0
         stream_realtime(db_path, prior_path=prior, org=args.org or "ORG001",
                         interval=interval, batches=args.batches if args.batches != 10 else 0)
+    elif args.mode == "value-report":
+        from oasis.logic.value_report import write_value_report
+        root = os.path.dirname(__file__)
+        db_path = os.getenv("OASIS_DB_PATH",
+                            os.path.join(root, "oasis", "data", "rhapta_pos.db"))
+        out_dir = os.getenv("OASIS_REPORTS_DIR", os.path.join(root, "reports"))
+        res = write_value_report(db_path, out_dir, period_days=args.days,
+                                 tenant=args.tenant or "")
+        print(f"Value report written: {res['markdown']}")
+        print(f"  capital recovered KES {res['value_recovered']:,.0f} | "
+              f"sales KES {res['sales_revenue']:,.0f} / {res['bills']:,} bills | "
+              f"dead stock KES {res['dead_stock_value']:,.0f} "
+              f"({res['dead_stock_pct_of_inventory']}%) | "
+              f"stockouts {res['stockouts']:,} ({res['stockout_pct']}%)")
+    elif args.mode == "metering-report":
+        from datetime import datetime as _dt
+        from datetime import timedelta as _td
+
+        from oasis.logic.value_report import usage_summary
+        root = os.path.dirname(__file__)
+        db_path = os.getenv("OASIS_DB_PATH",
+                            os.path.join(root, "oasis", "data", "rhapta_pos.db"))
+        since = (_dt.now() - _td(days=args.days)).strftime("%Y-%m-%d")
+        print(f"Usage since {since}: {usage_summary(db_path, since)}")
     elif args.mode == "backup":
         from oasis.logic.backup_util import backup_db
         root = os.path.dirname(__file__)
