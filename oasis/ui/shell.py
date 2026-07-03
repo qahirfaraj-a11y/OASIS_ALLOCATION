@@ -77,6 +77,26 @@ def ensure_seeded(db_path: str) -> None:
         pass  # never block the app on seeding
 
 
+def _uses_default_password(db_path: str, username: str) -> bool:
+    """True if the account still authenticates with the seeded install password."""
+    try:
+        import os
+        import sqlite3
+        from ..logic.auth_manager import verify_password
+        conn = sqlite3.connect(db_path, timeout=10.0)
+        try:
+            row = conn.execute("SELECT PASSWORD_HASH FROM OASIS_USERS "
+                               "WHERE USERNAME=?", (username,)).fetchone()
+        finally:
+            conn.close()
+        if not row or not row[0]:
+            return False
+        default_pw = os.getenv("OASIS_SEED_PASSWORD", "oasis2026")
+        return verify_password(default_pw, row[0])
+    except Exception:
+        return False
+
+
 def run_console(st, *, registry: Sequence[Page], db_path: str,
                 project_root: str, app_title: str,
                 license_module: str = "ops") -> None:
@@ -99,6 +119,15 @@ def run_console(st, *, registry: Sequence[Page], db_path: str,
 
     user = require_login(st, db_path, app_title=app_title)
     role = user.get("role")
+
+    # Default-credential warning: checked once per session (bcrypt is slow).
+    if "_default_pw" not in st.session_state:
+        st.session_state["_default_pw"] = _uses_default_password(
+            db_path, user.get("username", ""))
+    if st.session_state["_default_pw"]:
+        st.warning("🔐 This account still uses the default install password. "
+                   "Change it: `python entrypoint.py --mode set-password "
+                   f"--username {user.get('username','')}`")
 
     pages = visible_pages(registry, role)
     labels = {f"{p.icon}  {p.label}": p for p in pages}

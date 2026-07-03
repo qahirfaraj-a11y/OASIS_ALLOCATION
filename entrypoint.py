@@ -416,7 +416,8 @@ def main():
                                  "pos-sim", "pos-stream", "pos-inject",
                                  "build-multi-store-db", "seed-multi-history",
                                  "multi-pos-stream",
-                                 "issue-license", "license-status"],
+                                 "issue-license", "license-status",
+                                 "backup", "restore", "set-password"],
                         default="full", help="Run mode")
     parser.add_argument("--dashboard", choices=list(DASHBOARD_MAP.keys()),
                         default="ops", help="Dashboard to launch (dashboard mode)")
@@ -441,6 +442,10 @@ def main():
                         help="issue-license: comma-separated module list")
     parser.add_argument("--expiry", default=None, help="issue-license: YYYY-MM-DD")
     parser.add_argument("--out", default=None, help="issue-license: output key path")
+    # Backup / restore / credentials
+    parser.add_argument("--file", default=None, help="restore: backup file to restore")
+    parser.add_argument("--username", default=None, help="set-password: user to update")
+    parser.add_argument("--password", default=None, help="set-password: new password")
     # Pre-flight diagnostics toggle
     parser.add_argument("--skip-diag", action="store_true",
                         help="Skip production_diagnostic.py preflight")
@@ -627,6 +632,43 @@ def main():
         interval = args.interval if args.interval != 15.0 else 2.0
         stream_realtime(db_path, prior_path=prior, org=args.org or "ORG001",
                         interval=interval, batches=args.batches if args.batches != 10 else 0)
+    elif args.mode == "backup":
+        from oasis.logic.backup_util import backup_db
+        root = os.path.dirname(__file__)
+        db_path = os.getenv("OASIS_DB_PATH",
+                            os.path.join(root, "oasis", "data", "rhapta_pos.db"))
+        keep = int(os.getenv("OASIS_BACKUP_KEEP", "10"))
+        print(f"Backup complete: {backup_db(db_path, keep=keep)}")
+    elif args.mode == "restore":
+        from oasis.logic.backup_util import restore_db
+        if not args.file:
+            raise SystemExit("restore requires --file <backup path>")
+        root = os.path.dirname(__file__)
+        db_path = os.getenv("OASIS_DB_PATH",
+                            os.path.join(root, "oasis", "data", "rhapta_pos.db"))
+        print(f"Restore complete: {restore_db(db_path, args.file)}")
+    elif args.mode == "set-password":
+        import getpass
+        import sqlite3 as _sq
+        from oasis.logic.auth_manager import hash_password
+        if not args.username:
+            raise SystemExit("set-password requires --username")
+        pw = args.password or getpass.getpass(f"New password for {args.username}: ")
+        if len(pw) < 8:
+            raise SystemExit("Password must be at least 8 characters")
+        root = os.path.dirname(__file__)
+        db_path = os.getenv("OASIS_DB_PATH",
+                            os.path.join(root, "oasis", "data", "rhapta_pos.db"))
+        conn = _sq.connect(db_path)
+        try:
+            n = conn.execute("UPDATE OASIS_USERS SET PASSWORD_HASH=? WHERE USERNAME=?",
+                             (hash_password(pw), args.username)).rowcount
+            conn.commit()
+        finally:
+            conn.close()
+        if n == 0:
+            raise SystemExit(f"User '{args.username}' not found in {db_path}")
+        print(f"Password updated for '{args.username}' ({db_path})")
     elif args.mode == "issue-license":
         from oasis.logic.license_manager import KNOWN_MODULES, OfflineLicenseManager
         if not args.tenant or not args.expiry:
