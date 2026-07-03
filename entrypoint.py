@@ -413,7 +413,10 @@ def main():
                                  "bootstrap-governance", "build-graph",
                                  "build-store-graph", "build-baskets", "build-prior",
                                  "build-pos-db", "seed-history", "seed-real-demand",
-                                 "pos-sim", "pos-stream", "pos-inject"],
+                                 "pos-sim", "pos-stream", "pos-inject",
+                                 "build-multi-store-db", "seed-multi-history",
+                                 "multi-pos-stream",
+                                 "issue-license", "license-status"],
                         default="full", help="Run mode")
     parser.add_argument("--dashboard", choices=list(DASHBOARD_MAP.keys()),
                         default="ops", help="Dashboard to launch (dashboard mode)")
@@ -432,6 +435,12 @@ def main():
     parser.add_argument("--interval", type=float, default=15.0, help="pos-inject: seconds between bills")
     parser.add_argument("--org", default=None, help="pos-inject: org to inject into (default: first active)")
     parser.add_argument("--sku-count", type=int, default=8, help="pos-inject: SKUs per bill")
+    # Licensing (issue-license / license-status)
+    parser.add_argument("--tenant", default=None, help="issue-license: tenant id")
+    parser.add_argument("--modules", default="ops,intel,command",
+                        help="issue-license: comma-separated module list")
+    parser.add_argument("--expiry", default=None, help="issue-license: YYYY-MM-DD")
+    parser.add_argument("--out", default=None, help="issue-license: output key path")
     # Pre-flight diagnostics toggle
     parser.add_argument("--skip-diag", action="store_true",
                         help="Skip production_diagnostic.py preflight")
@@ -618,6 +627,21 @@ def main():
         interval = args.interval if args.interval != 15.0 else 2.0
         stream_realtime(db_path, prior_path=prior, org=args.org or "ORG001",
                         interval=interval, batches=args.batches if args.batches != 10 else 0)
+    elif args.mode == "issue-license":
+        from oasis.logic.license_manager import KNOWN_MODULES, OfflineLicenseManager
+        if not args.tenant or not args.expiry:
+            raise SystemExit("issue-license requires --tenant and --expiry YYYY-MM-DD")
+        mods = [m.strip() for m in args.modules.split(",") if m.strip()]
+        unknown = [m for m in mods if m not in KNOWN_MODULES]
+        if unknown:
+            logger.warning(f"Unknown module(s) {unknown}; known: {KNOWN_MODULES}")
+        print(f"License issued: {OfflineLicenseManager().issue(args.tenant, mods, args.expiry, out_path=args.out)}")
+    elif args.mode == "license-status":
+        from oasis.logic.license_manager import KNOWN_MODULES, OfflineLicenseManager
+        mgr = OfflineLicenseManager()
+        for m in KNOWN_MODULES:
+            s = mgr.status(m)
+            print(f"  {m:<12} {s['mode']:<11} {s['reason']}")
     elif args.mode == "pos-inject":
         from oasis.logic.pos_injector import run_injector
         root = os.path.dirname(__file__)
@@ -625,6 +649,33 @@ def main():
                             os.path.join(root, "oasis", "data", "mock_pos_erp.db"))
         run_injector(db_path, batches=args.batches, interval=args.interval,
                      org=args.org, sku_count=args.sku_count)
+    elif args.mode == "build-multi-store-db":
+        from oasis.logic.multi_store_build import build_multi_store_from_xlsx
+        root = os.path.dirname(__file__)
+        data_dir = os.getenv("OASIS_DATA_DIR",
+                             os.path.join(root, "oasis", "data"))
+        db_path = os.getenv("OASIS_DB_PATH",
+                            os.path.join(root, "oasis", "data", "rhapta_multi_store.db"))
+        summary = build_multi_store_from_xlsx(data_dir, db_path)
+        print(f"Multi-store DB built: {summary['stores']} stores, "
+              f"{summary['catalog_skus']} catalog SKUs")
+    elif args.mode == "seed-multi-history":
+        from oasis.logic.multi_store_pos import seed_multi_store_history
+        root = os.path.dirname(__file__)
+        db_path = os.getenv("OASIS_DB_PATH",
+                            os.path.join(root, "oasis", "data", "rhapta_multi_store.db"))
+        prior = os.getenv("OASIS_BASKET_PRIOR",
+                          os.path.join(root, "neutral_network_export", "basket_prior.json"))
+        print(f"Multi-store history: {seed_multi_store_history(db_path, prior_path=prior)}")
+    elif args.mode == "multi-pos-stream":
+        from oasis.logic.multi_store_pos import stream_multi_store
+        root = os.path.dirname(__file__)
+        db_path = os.getenv("OASIS_DB_PATH",
+                            os.path.join(root, "oasis", "data", "rhapta_multi_store.db"))
+        prior = os.getenv("OASIS_BASKET_PRIOR",
+                          os.path.join(root, "neutral_network_export", "basket_prior.json"))
+        stream_multi_store(db_path, prior_path=prior,
+                           batches=args.batches if args.batches != 10 else 0)
 
 
 if __name__ == "__main__":

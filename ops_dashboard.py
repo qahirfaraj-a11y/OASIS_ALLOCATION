@@ -64,6 +64,10 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
+# ── License enforcement (locked installs stop here) ─────────────────
+from oasis.logic.license_manager import console_gate as _license_gate  # noqa: E402
+_license_gate(st, "command")
+
 st.markdown("""
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Inter:wght@300;400;500;600;700&display=swap');
@@ -224,7 +228,12 @@ if not os.path.exists(DB_PATH) and not os.path.isabs(DB_PATH):
         DB_PATH = alt_path
 
 # Ensure OASIS auth/audit/config tables exist (migration-safe)
-ensure_oasis_tables(DB_PATH)
+@st.cache_resource
+def _init_db_schema(path: str):
+    ensure_oasis_tables(path)
+    return True
+
+_init_db_schema(DB_PATH)
 
 REGISTRY_PATH = os.path.join(DATA_DIR, "transfers_registry.json")
 
@@ -704,6 +713,16 @@ if LIVE_MODE:
         </div>""", unsafe_allow_html=True)
     st.sidebar.caption("Tracks the mock POS stream — pull latest to advance. "
                        "Set OASIS_LIVE_FULL_DAY_BILLS to change the day length.")
+    
+    auto_refresh = st.sidebar.checkbox("⏱ Auto-refresh (Live Streaming)", value=True)
+    st.session_state['auto_refresh'] = auto_refresh
+
+    if auto_refresh:
+        refresh_sec = st.sidebar.slider("Refresh Interval (seconds)", 5, 60, 10, help="Increase this if the app is lagging while rendering metrics")
+        from streamlit_autorefresh import st_autorefresh
+        st.cache_data.clear() # Clear cache on refresh so we get live data
+        st_autorefresh(interval=refresh_sec * 1000, key="data_autorefresh")
+
     if st.sidebar.button("🔄 Pull latest POS bills", use_container_width=True):
         st.cache_data.clear()   # bust TTL caches so the just-committed bills show
         st.rerun()
@@ -1154,19 +1173,33 @@ if "live_sales" in tab_map:
             else:
                 df_visible = pd.DataFrame(columns=['itm_cd', 'item_name', 'department', 'qty', 'sell_price', 'net_amt', 'sim_hour'])
         else:
-            # Fallback to historical simulation (the original logic)
-            df_sales["hour"] = pd.to_datetime(df_sales["bill_dt"]).dt.hour.fillna(12)
-            latest_date = df_sales["bill_dt"].max()
-            df_today = df_sales[df_sales["bill_dt"] == latest_date].copy()
-            if df_today.empty:
-                unique_dates = sorted(df_sales["bill_dt"].unique())
-                last_dates = unique_dates[-3:] if len(unique_dates) >= 3 else unique_dates
-                df_today = df_sales[df_sales["bill_dt"].isin(last_dates)].copy()
-            np.random.seed(42)
-            n = len(df_today)
-            hours = np.clip(np.random.normal(14, 3, n), 6, 22).astype(int)
-            df_today["sim_hour"] = hours
-            df_visible = df_today[df_today["sim_hour"] <= sim_hour]
+            if LIVE_MODE:
+                # In live mode, today's sales are the actual streamed sales.
+                latest_date = df_sales["bill_dt"].max()
+                df_today = df_sales[df_sales["bill_dt"] == latest_date].copy()
+                if not df_today.empty:
+                    # Reverse because fetch_sales_history sorts DESC
+                    df_today = df_today.iloc[::-1].reset_index(drop=True)
+                    if sim_hour > 6:
+                        frac = np.linspace(0, 1, len(df_today))
+                        df_today["sim_hour"] = np.clip(np.round(6 + frac * (sim_hour - 6)), 6, 22).astype(int)
+                    else:
+                        df_today["sim_hour"] = 6
+                df_visible = df_today
+            else:
+                # Fallback to historical simulation (the original logic)
+                df_sales["hour"] = pd.to_datetime(df_sales["bill_dt"]).dt.hour.fillna(12)
+                latest_date = df_sales["bill_dt"].max()
+                df_today = df_sales[df_sales["bill_dt"] == latest_date].copy()
+                if df_today.empty:
+                    unique_dates = sorted(df_sales["bill_dt"].unique())
+                    last_dates = unique_dates[-3:] if len(unique_dates) >= 3 else unique_dates
+                    df_today = df_sales[df_sales["bill_dt"].isin(last_dates)].copy()
+                np.random.seed(42)
+                n = len(df_today)
+                hours = np.clip(np.random.normal(14, 3, n), 6, 22).astype(int)
+                df_today["sim_hour"] = hours
+                df_visible = df_today[df_today["sim_hour"] <= sim_hour]
 
         # ── Metrics Row ──
         col1, col2, col3, col4 = st.columns(4)
@@ -3414,6 +3447,6 @@ st.sidebar.markdown("""
 <div style="text-align: center; color: #666; font-size: 0.75em; padding: 10px;">
     OASIS Retail Manager v4.0<br/>
     Operations · Allocation · Sales Intelligence · Simulation<br/>
-    © 2026
 </div>
 """, unsafe_allow_html=True)
+

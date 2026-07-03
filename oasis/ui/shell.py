@@ -78,19 +78,22 @@ def ensure_seeded(db_path: str) -> None:
 
 
 def run_console(st, *, registry: Sequence[Page], db_path: str,
-                project_root: str, app_title: str) -> None:
+                project_root: str, app_title: str,
+                license_module: str = "ops") -> None:
     """Shared console runner for every OASIS shell (Operations, Intelligence).
 
-    Assumes the caller already invoked st.set_page_config. Handles theme,
-    first-run seed, the single login gate, role-filtered navigation, page-view
-    telemetry, and the error-wrapped render. Both app.py and app_intel.py are
-    thin callers of this so the two consoles can't drift apart.
+    Assumes the caller already invoked st.set_page_config. Handles licensing,
+    theme, first-run seed, the single login gate, role-filtered navigation,
+    page-view telemetry, and the error-wrapped render. Both app.py and
+    app_intel.py are thin callers of this so the two consoles can't drift apart.
     """
     from . import theme
     from .auth import require_login, logout
     from .components import safe_render
     from .telemetry import log_page_view
+    from ..logic.license_manager import console_gate
 
+    console_gate(st, license_module)   # locked installs stop here
     theme.inject_theme(st)
     ensure_seeded(db_path)
 
