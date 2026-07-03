@@ -158,6 +158,7 @@ class TestRegistry:
         assert reg["stock_review"].render is intel.render_stock_review
         assert reg["live_sales"].render is intel.render_live_sales
         assert reg["network"].render is intel.render_network_intel
+        assert reg["baskets"].render is intel.render_basket_intel
         assert reg["exec_roi"].render is intel.render_exec_roi
         assert reg["sim_lab"].render is intel.render_sim_lab
 

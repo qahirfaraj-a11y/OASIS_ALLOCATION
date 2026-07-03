@@ -400,6 +400,59 @@ def roi_scorecard_rows(health: dict, value_recovered: float) -> List[dict]:
     ]
 
 
+def render_basket_intel(ctx) -> None:
+    """Halo pricing matrix (Bible Ch. 8.3): which Anchors pull which Attachments,
+    the expected daily halo revenue, and the pricing play — never mark up the
+    Anchor; the Attachment carries the margin."""
+    import os
+    st = ctx["st"]
+    from . import components as C
+    from ..logic import halo_pricing as HP
+
+    st.markdown("### Basket Intelligence — the Halo Pricing Matrix")
+    nn_dir = os.getenv("OASIS_NN_PATH",
+                       os.path.join(ctx.get("project_root", ""), "neutral_network_export"))
+    metrics = HP.load_affinity(nn_dir)
+    if not metrics:
+        C.empty_state(
+            "No basket affinity yet",
+            "Mine co-purchase first: `python entrypoint.py --mode build-baskets` "
+            "(needs POS sales history).", st_module=st)
+        return
+
+    if "_intel_netstock" not in st.session_state and not st.button("⚙️ Load pricing matrix"):
+        C.empty_state("Load the pricing matrix",
+                      f"{len(metrics):,} co-purchase pairs mined — pull live "
+                      "products to price the halos.", st_module=st)
+        return
+
+    stock = _network_stock(ctx)
+    meta: dict = {}
+    for products in stock.values():
+        meta.update(HP.product_meta_from_adapter(products))
+    rows = HP.halo_pricing_rows(metrics, meta)
+    if not rows:
+        C.empty_state("No qualifying halos",
+                      "Pairs exist but none pass the lift/confidence gates with "
+                      "priced, moving products.", st_module=st)
+        return
+
+    s = HP.halo_summary(rows)
+    C.kpi_row([
+        {"label": "Anchor SKUs", "value": f"{s['anchors']:,}"},
+        {"label": "Halo pairs", "value": f"{s['pairs']:,}"},
+        {"label": "Est. halo revenue / day", "value": f"KES {s['est_daily_halo_revenue']:,.0f}"},
+        {"label": "Margin-headroom plays", "value": f"{s['headroom_pairs']:,}"},
+    ], st_module=st)
+    st.caption("Rule of the Halo (Ch. 8): never discount an Attachment, never take "
+               "a high margin on an Anchor. Confidence = P(attachment | anchor); "
+               "lift > 1 = above-chance association.")
+
+    import pandas as pd
+    df = pd.DataFrame(rows).drop(columns=["anchor_cd", "attach_cd"])
+    st.dataframe(df, use_container_width=True, hide_index=True, height=480)
+
+
 def render_exec_roi(ctx) -> None:
     """Executive ROI: the capital-recovery showcase — journey value + live
     network health against the Playbook's Pre→Post targets."""
@@ -514,6 +567,7 @@ def build_intel_registry() -> List[Page]:
         Page("stock_review", "Stock Review", "▦", render_stock_review, _OVERSIGHT),
         Page("live_sales", "Live Sales", "▤", render_live_sales, _OVERSIGHT),
         Page("network", "Network Intel", "⇄", render_network_intel, _OVERSIGHT),
+        Page("baskets", "Basket Intelligence", "🧺", render_basket_intel, _OVERSIGHT),
         Page("exec_roi", "Executive ROI", "▣", render_exec_roi, _OVERSIGHT),
         Page("sim_lab", "Simulation Lab", "🧪", render_sim_lab, _OPERATOR),
     ]
