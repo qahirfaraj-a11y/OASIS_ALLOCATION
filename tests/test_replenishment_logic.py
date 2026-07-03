@@ -51,6 +51,35 @@ def _run(util, sku, **kw):
     return recs[0]
 
 
+class TestLataShield:
+    """F3: LATA supplier-variance multiplier deepens the safety buffer."""
+
+    @pytest.fixture()
+    def lata_util(self, tmp_path):
+        import json
+        data_dir = tmp_path / "data"
+        data_dir.mkdir()
+        (data_dir / "supplier_patterns_2025.json").write_text(json.dumps({
+            "FLAKY LTD": {"lata_variance_multiplier": 2.0},
+            "SOLID LTD": {"lata_variance_multiplier": 1.0},
+        }), encoding="utf-8")
+        engine = OrderEngine(str(data_dir))
+        return SimulationOrderUtil(str(data_dir), engine=engine)
+
+    def test_unreliable_supplier_orders_deeper(self, lata_util):
+        # gap 10 + lead 2; neutral buffer 1.5×1.4=2.1 → target 14.1d;
+        # flaky doubles the buffer → 4.2 → target 16.2d → bigger order.
+        flaky = _run(lata_util, _sku(supplier_name="FLAKY LTD", median_gap_days=10))
+        solid = _run(lata_util, _sku(supplier_name="SOLID LTD", median_gap_days=10))
+        assert flaky["recommended_quantity"] > solid["recommended_quantity"]
+        assert "[LATA Shield: x2.00" in flaky["reasoning"]
+        assert "LATA Shield" not in solid["reasoning"]     # neutral is silent
+
+    def test_no_patterns_file_is_neutral(self, util):
+        rec = _run(util, _sku())
+        assert "LATA Shield" not in rec["reasoning"]
+
+
 class TestNetRequirement:
     def test_standard_reorder(self, util):
         # Below ROP (50 ≤ 60). Dry target = max(14, gap7 + lead2 + buffer)

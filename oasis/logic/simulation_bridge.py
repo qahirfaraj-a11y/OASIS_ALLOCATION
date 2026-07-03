@@ -59,7 +59,13 @@ class SimulationOrderUtil:
         cal_path = _find_calendar_path(data_dir)
         self.calendar = SupplierCalendar(cal_path)
         self.calendar_loaded = False
-        
+
+        # F3: LATA Supplier Shield — per-supplier lead-time-variance safety
+        # multipliers from supplier_patterns (written by run_lata). Unreliable
+        # suppliers (>30% LT variance) inflate the buffer up to 2.0x; rock-solid
+        # ones trim it toward 0.8x. Missing file/entry → neutral 1.0.
+        self._lata_multipliers = self._load_lata_multipliers(data_dir)
+
         # G4 Fix: Configurable thresholds (can be overridden from Settings/DB)
         self.thresholds = thresholds or {
             'fresh_stale_days': 120,
@@ -72,6 +78,30 @@ class SimulationOrderUtil:
             'min_order_value_kes': 5000,
         }
         
+    @staticmethod
+    def _load_lata_multipliers(data_dir: str) -> Dict[str, float]:
+        """{SUPPLIER_UPPER: lata_variance_multiplier} from supplier_patterns_*.json."""
+        import glob
+        import json
+        import os
+        out: Dict[str, float] = {}
+        try:
+            candidates = sorted(glob.glob(os.path.join(data_dir, "supplier_patterns_*.json")),
+                                reverse=True)
+            if not candidates:
+                return out
+            with open(candidates[0], "r", encoding="utf-8") as f:
+                patterns = json.load(f)
+            for supplier, d in (patterns or {}).items():
+                if isinstance(d, dict) and d.get("lata_variance_multiplier") is not None:
+                    try:
+                        out[str(supplier).upper().strip()] = float(d["lata_variance_multiplier"])
+                    except (TypeError, ValueError):
+                        continue
+        except Exception:
+            return {}
+        return out
+
     def prepare_sku_data(self, sku_list: List[Dict[str, Any]], skip_enrichment: bool = False) -> List[Dict[str, Any]]:
         """
         Enrich raw SKU data using Oasis Intelligence.
@@ -215,13 +245,20 @@ class SimulationOrderUtil:
             if gnn_risk_score > 0.5:
                 # scale from 1.0 at risk 0.5 to 1.3 at risk 1.0
                 gnn_multiplier = 1.0 + ((gnn_risk_score - 0.5) * 0.6)
-                
-            safety_buffer = base_safety * (1 + (vol_factor * cv)) * gnn_multiplier
-            
+
+            # F3: LATA Supplier Shield — lead-time-variance multiplier for this
+            # SKU's supplier (unreliable suppliers need deeper safety stock).
+            lata_multiplier = self._lata_multipliers.get(supplier_upper, 1.0)
+
+            safety_buffer = (base_safety * (1 + (vol_factor * cv))
+                             * gnn_multiplier * lata_multiplier)
+
             critical_thresh = lead_time + safety_buffer
-            
+
             if gnn_multiplier > 1.0:
                  rec['reasoning'] += f" [GNN Risk Burst: +{(gnn_multiplier-1.0)*100:.0f}% Safety]"
+            if abs(lata_multiplier - 1.0) > 0.05:
+                 rec['reasoning'] += f" [LATA Shield: x{lata_multiplier:.2f} supplier variance]"
                  
             is_critical = days_coverage < critical_thresh
             
