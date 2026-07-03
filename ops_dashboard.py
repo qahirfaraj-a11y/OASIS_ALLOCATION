@@ -68,6 +68,10 @@ st.set_page_config(
 from oasis.logic.license_manager import console_gate as _license_gate  # noqa: E402
 _license_gate(st, "command")
 
+# Cross-links to the sibling consoles (suite polish)
+from oasis.ui.home import suite_links as _suite_links  # noqa: E402
+_suite_links(st, "command")
+
 st.markdown("""
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Inter:wght@300;400;500;600;700&display=swap');

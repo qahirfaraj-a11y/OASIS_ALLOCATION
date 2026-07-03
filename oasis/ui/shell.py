@@ -117,6 +117,9 @@ def run_console(st, *, registry: Sequence[Page], db_path: str,
     theme.inject_theme(st)
     ensure_seeded(db_path)
 
+    from .home import suite_links
+    suite_links(st, license_module)    # cross-links to the sibling consoles
+
     user = require_login(st, db_path, app_title=app_title)
     role = user.get("role")
 

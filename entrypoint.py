@@ -246,6 +246,11 @@ def run_intel(port: int = 8510):
     _run_streamlit_console("app_intel.py", port, "O.A.S.I.S. Intelligence Console")
 
 
+def run_home(port: int = 8490):
+    """Launch the suite Home launcher (home_app.py) — one front door."""
+    _run_streamlit_console("home_app.py", port, "O.A.S.I.S. Home")
+
+
 # ── Mode: Full ────────────────────────────────────────────────────────
 
 def run_full():
@@ -418,7 +423,7 @@ def main():
                                  "multi-pos-stream",
                                  "issue-license", "license-status",
                                  "backup", "restore", "set-password",
-                                 "value-report", "metering-report"],
+                                 "value-report", "metering-report", "home"],
                         default="full", help="Run mode")
     parser.add_argument("--dashboard", choices=list(DASHBOARD_MAP.keys()),
                         default="ops", help="Dashboard to launch (dashboard mode)")
@@ -497,6 +502,8 @@ def main():
         run_shell(args.port if args.port else 8500)
     elif args.mode == "intel":
         run_intel(args.port if args.port else 8510)
+    elif args.mode == "home":
+        run_home(args.port if args.port else 8490)
     elif args.mode == "preflight":
         from oasis.logic.preflight import run_preflight, format_report
         report = run_preflight()
