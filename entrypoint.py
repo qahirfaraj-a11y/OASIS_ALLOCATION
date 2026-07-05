@@ -204,17 +204,83 @@ def run_bridge(port: int = 8600):
 
 # ── Mode: Migrate (Alembic) ──────────────────────────────────────────
 
+def _read_version() -> str:
+    """Platform version from the VERSION file (single source of truth)."""
+    try:
+        with open(os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                               "VERSION"), "r", encoding="utf-8") as f:
+            return f.read().strip()
+    except OSError:
+        return "unknown"
+
+
+def run_upgrade():
+    """Safe on-prem upgrade: backup the store DB, apply migrations, preflight.
+
+    Run this AFTER unpacking a new release over the install directory. If the
+    preflight fails, restore the printed backup with --mode restore --file.
+    """
+    from oasis.logic.backup_util import backup_db
+    root = os.path.dirname(os.path.abspath(__file__))
+    db_path = os.getenv("OASIS_DB_PATH",
+                        os.path.join(root, "oasis", "data", "rhapta_pos.db"))
+    print(f"[upgrade] O.A.S.I.S. v{_read_version()}")
+    if os.path.exists(db_path):
+        res = backup_db(db_path, keep=int(os.getenv("OASIS_BACKUP_KEEP", "10")))
+        print(f"[upgrade] 1/3 backup: {res['backup']} ({res['size_mb']} MB)")
+    else:
+        print(f"[upgrade] 1/3 backup: skipped (no DB at {db_path})")
+    print("[upgrade] 2/3 migrations…")
+    run_migrate()
+    print("[upgrade] 3/3 preflight…")
+    from oasis.logic.preflight import format_report, run_preflight
+    report = run_preflight()
+    print(format_report(report))
+    if report["overall"] == "FAIL":
+        print("[upgrade] PREFLIGHT FAILED — restore the backup above with "
+              "--mode restore --file <backup> and contact iLink.")
+        sys.exit(2)
+    print("[upgrade] complete — relaunch the consoles.")
+
+
 def run_migrate():
-    """Apply Alembic migrations (upgrade head) against OASIS_DB_URL and exit."""
-    logger.info("Running Alembic migrations (upgrade head)...")
-    result = subprocess.run(
-        [sys.executable, "-m", "alembic", "upgrade", "head"],
-        cwd=os.path.dirname(os.path.abspath(__file__)),
-    )
-    if result.returncode != 0:
-        logger.error("Migration failed.")
-        sys.exit(result.returncode)
-    logger.info("Migrations applied successfully.")
+    """Apply Alembic migrations (upgrade head) against OASIS_DB_URL.
+
+    Runs alembic in-process (`python -m alembic` is unsupported by the installed
+    alembic). Databases that predate alembic (all current installs: schema
+    exists but no alembic_version table) are STAMPED at head first — the
+    baseline migration would otherwise try to re-create existing tables.
+    Errors are printed (alembic's fileConfig silences our logger).
+    """
+    print("[migrate] applying Alembic migrations (upgrade head)…")
+    root = os.path.dirname(os.path.abspath(__file__))
+    cwd = os.getcwd()
+    try:
+        from alembic import command
+        from alembic.config import Config
+        from sqlalchemy import create_engine, inspect
+
+        from oasis.logic import db as oasis_db
+        os.chdir(root)   # alembic.ini + migrations/ live at the project root
+        cfg = Config(os.path.join(root, "alembic.ini"))
+
+        url = oasis_db.get_sqlalchemy_url()
+        insp = inspect(create_engine(url))
+        tables = set(insp.get_table_names())
+        if "alembic_version" not in tables and "ORGANIZATION_MST" in tables:
+            print("[migrate] existing pre-alembic schema detected — stamping head")
+            command.stamp(cfg, "head")
+        command.upgrade(cfg, "head")
+        print("[migrate] migrations applied successfully.")
+    except SystemExit as e:
+        if e.code not in (0, None):
+            print(f"[migrate] FAILED (exit {e.code})")
+            sys.exit(int(e.code))
+    except Exception as e:
+        print(f"[migrate] FAILED: {e}")
+        sys.exit(1)
+    finally:
+        os.chdir(cwd)
 
 
 # ── Mode: Shell (unified single front door, U3) ──────────────────────
@@ -423,7 +489,9 @@ def main():
                                  "multi-pos-stream",
                                  "issue-license", "license-status",
                                  "backup", "restore", "set-password",
-                                 "value-report", "metering-report", "home"],
+                                 "value-report", "metering-report", "home",
+                                 "version", "upgrade", "assess",
+                                 "supplier-scorecard"],
                         default="full", help="Run mode")
     parser.add_argument("--dashboard", choices=list(DASHBOARD_MAP.keys()),
                         default="ops", help="Dashboard to launch (dashboard mode)")
@@ -457,7 +525,7 @@ def main():
                         help="Skip production_diagnostic.py preflight")
     args = parser.parse_args()
 
-    logger.info(f"O.A.S.I.S. v2.2.0 — Mode: {args.mode}")
+    logger.info(f"O.A.S.I.S. v{_read_version()} — Mode: {args.mode}")
 
     # Resolve port
     if args.port == 0:
@@ -640,6 +708,30 @@ def main():
         interval = args.interval if args.interval != 15.0 else 2.0
         stream_realtime(db_path, prior_path=prior, org=args.org or "ORG001",
                         interval=interval, batches=args.batches if args.batches != 10 else 0)
+    elif args.mode == "version":
+        print(f"O.A.S.I.S. v{_read_version()}")
+    elif args.mode == "upgrade":
+        run_upgrade()
+    elif args.mode == "assess":
+        from oasis.logic.day0_assessment import write_assessment
+        root = os.path.dirname(__file__)
+        data_dir = os.getenv("OASIS_DATA_DIR", os.path.join(root, "oasis", "data"))
+        cash_dir = os.getenv("OASIS_CASH_DIR",
+                             os.path.join(os.path.expanduser("~"), "Desktop", "Projects"))
+        out_dir = os.getenv("OASIS_REPORTS_DIR", os.path.join(root, "reports"))
+        res = write_assessment(data_dir, cash_dir, out_dir, tenant=args.tenant or "")
+        print(f"Day-0 assessment written: {res['markdown']}")
+        print(f"  {res['skus']:,} SKUs | dead stock KES {res['dead_stock_value']:,.0f} "
+              f"({res['dead_skus']:,} SKUs) | ghost sellers {res['ghost_sellers']:,} "
+              f"| demand coverage {res['coverage_pct']}%")
+    elif args.mode == "supplier-scorecard":
+        from oasis.logic.supplier_scorecard import write_scorecard
+        root = os.path.dirname(__file__)
+        data_dir = os.getenv("OASIS_DATA_DIR", os.path.join(root, "oasis", "data"))
+        out_dir = os.getenv("OASIS_REPORTS_DIR", os.path.join(root, "reports"))
+        res = write_scorecard(data_dir, out_dir, tenant=args.tenant or "")
+        print(f"Supplier scorecard written: {res['markdown']} "
+              f"({res['suppliers']} suppliers, {res['unreliable']} unreliable)")
     elif args.mode == "value-report":
         from oasis.logic.value_report import write_value_report
         root = os.path.dirname(__file__)

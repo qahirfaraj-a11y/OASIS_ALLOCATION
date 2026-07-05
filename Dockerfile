@@ -60,7 +60,7 @@ COPY requirements.txt /app/
 
 # Copy database migrations (entrypoint --mode migrate)
 COPY alembic.ini /app/
-COPY alembic/ /app/alembic/
+COPY migrations/ /app/migrations/
 
 # Copy dashboard files
 COPY ops_dashboard.py /app/dashboards/

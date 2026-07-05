@@ -28,7 +28,7 @@ requests==2.32.5
 bcrypt==5.0.0
 
 # Database migrations & PostgreSQL backend (OASIS_DB_URL=postgresql://...)
-alembic==1.18.4
+alembic==1.18.5
 psycopg2-binary==2.9.12
 
 # AI & GNN (CPU-only build for lightweight deployment)
