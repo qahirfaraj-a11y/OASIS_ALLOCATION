@@ -491,7 +491,7 @@ def main():
                                  "backup", "restore", "set-password",
                                  "value-report", "metering-report", "home",
                                  "version", "upgrade", "assess",
-                                 "supplier-scorecard"],
+                                 "supplier-scorecard", "category-report"],
                         default="full", help="Run mode")
     parser.add_argument("--dashboard", choices=list(DASHBOARD_MAP.keys()),
                         default="ops", help="Dashboard to launch (dashboard mode)")
@@ -516,6 +516,11 @@ def main():
                         help="issue-license: comma-separated module list")
     parser.add_argument("--expiry", default=None, help="issue-license: YYYY-MM-DD")
     parser.add_argument("--out", default=None, help="issue-license: output key path")
+    # Category report
+    parser.add_argument("--category", default="alcohol",
+                        help="category-report: named section (alcohol/dairy/beverages)")
+    parser.add_argument("--departments", default=None,
+                        help="category-report: comma-separated depts (overrides --category)")
     # Backup / restore / credentials
     parser.add_argument("--file", default=None, help="restore: backup file to restore")
     parser.add_argument("--username", default=None, help="set-password: user to update")
@@ -724,6 +729,21 @@ def main():
         print(f"  {res['skus']:,} SKUs | dead stock KES {res['dead_stock_value']:,.0f} "
               f"({res['dead_skus']:,} SKUs) | ghost sellers {res['ghost_sellers']:,} "
               f"| demand coverage {res['coverage_pct']}%")
+    elif args.mode == "category-report":
+        from oasis.logic.category_report import write_category_report
+        root = os.path.dirname(__file__)
+        data_dir = os.getenv("OASIS_DATA_DIR", os.path.join(root, "oasis", "data"))
+        cash_dir = os.getenv("OASIS_CASH_DIR",
+                             os.path.join(os.path.expanduser("~"), "Desktop", "Projects"))
+        out_dir = os.getenv("OASIS_REPORTS_DIR", os.path.join(root, "reports"))
+        depts = ([d.strip() for d in args.departments.split(",")]
+                 if args.departments else None)
+        res = write_category_report(data_dir, cash_dir, args.category, out_dir,
+                                    tenant=args.tenant or "", departments=depts)
+        print(f"Category report written: {res['markdown']}")
+        print(f"  {res['skus']:,} SKUs | revenue KES {res['revenue_period']:,.0f} "
+              f"({res['units_sold']:,.0f} units, {res['months_used']} mo) | "
+              f"dead KES {res['dead_value']:,.0f} | ghost {res['ghost_sellers']:,}")
     elif args.mode == "supplier-scorecard":
         from oasis.logic.supplier_scorecard import write_scorecard
         root = os.path.dirname(__file__)
