@@ -5,14 +5,21 @@ import sys
 # Add project root to path
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 
-from oasis.api.server import app, DATA_DIR
+from oasis.api import security as api_security
+from oasis.api.server import app, DATA_DIR  # noqa: F401 (DATA_DIR re-exported)
 
 client = TestClient(app)
+# Authed endpoints require X-API-Key. Send the key the security module actually
+# resolved (env var or its ephemeral generated one) so this passes regardless of
+# import order / whether OASIS_API_KEY is configured.
+AUTH = {"X-API-Key": api_security._API_KEY}
+
 
 def test_read_root():
     response = client.get("/")
     assert response.status_code == 200
     assert response.json() == {"status": "OASIS Mobile backend is running"}
+
 
 def test_static_files():
     # Test index.html serving
@@ -25,29 +32,18 @@ def test_static_files():
     assert response.status_code == 200
     assert ":root" in response.text
 
+
 def test_status_endpoint():
-    response = client.get("/status")
+    assert client.get("/status").status_code == 401   # fail-closed without key
+    response = client.get("/status", headers=AUTH)
     assert response.status_code == 200
     data = response.json()
     assert "state" in data
     assert "progress" in data
 
+
 def test_results_endpoint():
-    response = client.get("/results")
+    assert client.get("/results").status_code == 401  # fail-closed without key
+    response = client.get("/results", headers=AUTH)
     assert response.status_code == 200
     assert "results" in response.json()
-
-if __name__ == "__main__":
-    try:
-        test_read_root()
-        print("Root Endpoint: PASS")
-        test_static_files()
-        print("Static Files: PASS")
-        test_status_endpoint()
-        print("Status Endpoint: PASS")
-        test_results_endpoint()
-        print("Results Endpoint: PASS")
-        print("ALL TESTS PASSED")
-    except Exception as e:
-        print(f"TEST FAILED: {e}")
-        exit(1)

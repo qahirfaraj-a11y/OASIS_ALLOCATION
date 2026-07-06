@@ -20,40 +20,44 @@ def test_consignment_logic():
     # Consignment Item: $500 Cost -> Should fit (Free)
     # Cash Item 2: $150 Cost -> Should FAIL (Cash > 200)
     
+    # NOTE: with a micro budget (<200k) Pass 1 admits ONLY essentials/staples/
+    # A-class — and enrich_product_data recomputes ABC_Class (demoting these tiny
+    # fixtures to B). Use ESSENTIAL departments so the items qualify and the
+    # consignment-vs-cash budget logic is actually exercised.
     recommendations = [
         {
             "product_name": "AFFORDABLE CASH WIDGET",
-            "product_category": "GENERAL",
+            "product_category": "BREAD",           # essential dept
             "supplier_name": "CASH SUPPLIER",
             "pack_size": 1,
-            "selling_price": 200.0, # Cost 150
+            "selling_price": 800.0, # order value must clear the 1500 anchor-prune floor
             "avg_daily_sales": 10.0,
             "current_stocks": 0,
             "ABC_Class": "A"
         },
         {
             "product_name": "EXPENSIVE CONSIGNMENT BUT FREE",
-            "product_category": "FRESH",
+            "product_category": "FRESH MILK",      # essential dept
             "supplier_name": "FRESH KENCHIC", # Should match No GRN list
             "pack_size": 1,
-            "selling_price": 250.0, # Cost ~187 (Micro Limit 300)
+            "selling_price": 500.0, # expensive: proves consignment bypasses the cash budget
             "avg_daily_sales": 10.0,
             "current_stocks": 0,
             "ABC_Class": "A"
         },
         {
             "product_name": "CASH WIDGET 2",
-            "product_category": "GENERAL",
+            "product_category": "BREAD",           # essential dept
             "supplier_name": "CASH SUPPLIER",
             "pack_size": 1,
-            "selling_price": 200.0, # Cost 150
+            "selling_price": 800.0, # order value must clear the 1500 anchor-prune floor
             "avg_daily_sales": 5.0,
             "current_stocks": 0,
             "ABC_Class": "A"
         }
     ]
     
-    budget = 200.0
+    budget = 50_000.0   # realistic scale: anchor prune (>=1500/order) + 85% cap apply
     
     # Pre-enrich to make sure flags are set if engine doesn't automatically do it inside alloc
     # Actually engine.apply_greenfield_allocation expects enriched data usually? 
@@ -73,12 +77,14 @@ def test_consignment_logic():
         print(f"{r['product_name']}: Is Consignment? {r.get('is_consignment')}")
         
     print("\n--- Running Allocation (Budget: 1000) ---")
-    results = engine.apply_greenfield_allocation(recommendations, budget)
-    
+    # apply_greenfield_allocation returns {"recommendations": [...], "summary": {...}}
+    # since the pass decomposition — iterate the recommendations list.
+    results = engine.apply_greenfield_allocation(recommendations, budget)["recommendations"]
+
     print("\n--- Results ---")
     total_cash = 0
     total_consignment = 0
-    
+
     for r in results:
         qty = r.get('recommended_quantity', 0)
         cost = qty * r['selling_price'] * 0.75
@@ -93,10 +99,10 @@ def test_consignment_logic():
     print(f"\nTotal Cash Used: {total_cash}")
     print(f"Total Consignment: {total_consignment}")
     
-    if total_cash <= 1100 and total_consignment > 0: # 10% buffer allowed
-        print("\nSUCCESS: Consignment items allocated without breaking cash budget.")
-    else:
-        print("\nFAILURE: Budget logic incorrect.")
+    # consignment must be allocated without consuming the cash budget
+    assert total_cash <= budget * 1.1, f"cash budget breached: {total_cash}"  # 10% buffer
+    assert total_consignment > 0, "no consignment items were allocated"
+    print("\nSUCCESS: Consignment items allocated without breaking cash budget.")
 
 if __name__ == "__main__":
     test_consignment_logic()

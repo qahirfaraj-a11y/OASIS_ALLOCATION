@@ -318,11 +318,12 @@ class TestHaversineDistance(unittest.TestCase):
 class TestTransferCostFormula(unittest.TestCase):
     """
     Formula: transfer_cost = base_cost_kes + (distance_km × per_km_rate)
-    Defaults: base=500, per_km=50
+    Current defaults: base=200, per_km=50 (base was reduced from 500 when real
+    cost prices replaced the retail-value proxy in transfer economics).
     """
 
     def test_default_cost_at_10km(self):
-        """10 km: 500 + 10*50 = 1000 KES."""
+        """10 km: 200 + 10*50 = 700 KES."""
         # Distance default is 10km when no coords
         nmap = NetworkAvailabilityMap()
         nmap.add(StoreSkuState(
@@ -337,12 +338,11 @@ class TestTransferCostFormula(unittest.TestCase):
             network_map=nmap, lead_time_days=5.0,
             current_stock=0.0, avg_daily_sales=5.0,
         )
-        # 500 + 50*10 = 1000
-        # But we need to check the decision has the right transfer cost
+        # 200 + 50*10 = 700
         # The estimated_transfer_cost should be set regardless of decision outcome
         expected_cost = DEFAULT_TRANSFER_COST_KES + (10.0 * DEFAULT_PER_KM_RATE)
         self.assertAlmostEqual(d.estimated_transfer_cost, expected_cost, places=0)
-        self.assertEqual(expected_cost, 1000.0)
+        self.assertEqual(expected_cost, 700.0)
 
     def test_custom_cost_rate(self):
         """Custom: base=200, rate=30, dist=10 → 200+300=500."""
@@ -555,11 +555,12 @@ class TestSafetyStockAndExcess(unittest.TestCase):
     """
 
     def test_network_map_excess_calculation(self):
-        """Verify excess = current - (ADS × 2) via ConsolidatedTransferService."""
+        """Current spec: safety = ADS×14; excess only for genuine overstock —
+        days_cover > 30 (dry) AND (stock − safety) > ADS×7 — else 0."""
         stock_data = {
             "027": [
                 {"itm_cd": "A", "product_name": "Widget",
-                 "current_stocks": 100, "avg_daily_sales": 10,
+                 "current_stocks": 500, "avg_daily_sales": 10,
                  "selling_price": 500},
             ],
         }
@@ -569,12 +570,13 @@ class TestSafetyStockAndExcess(unittest.TestCase):
         )
         state = service.network_map.get_store_state("027", "A")
         self.assertIsNotNone(state)
-        # safety = 10 × 2 = 20, excess = 100 - 20 = 80
-        self.assertAlmostEqual(state.safety_stock, 20.0, places=1)
-        self.assertAlmostEqual(state.excess, 80.0, places=1)
+        # safety = 10 × 14 = 140; cover 50d > 30 and (500-140) > 70 → excess 360
+        self.assertAlmostEqual(state.safety_stock, 140.0, places=1)
+        self.assertAlmostEqual(state.excess, 360.0, places=1)
 
     def test_negative_excess_when_understocked(self):
-        """If stock < safety → excess is negative → not a donor."""
+        """If stock < safety → excess is CLAMPED to 0 (current spec) → not a donor.
+        (Previously excess went negative; the clamp keeps donor math monotone.)"""
         stock_data = {
             "027": [
                 {"itm_cd": "A", "product_name": "Widget",
@@ -587,8 +589,8 @@ class TestSafetyStockAndExcess(unittest.TestCase):
             stock_data=stock_data,
         )
         state = service.network_map.get_store_state("027", "A")
-        # safety = 20, excess = 5 - 20 = -15
-        self.assertAlmostEqual(state.excess, -15.0, places=1)
+        # safety = 10×14 = 140; stock 5 is far below → excess clamps to 0
+        self.assertAlmostEqual(state.excess, 0.0, places=1)
         # Should NOT appear as donor
         donors = service.network_map.find_donors("A", recipient_org="016")
         donor_orgs = [d.org_cd for d in donors]
