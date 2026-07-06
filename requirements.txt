@@ -57,3 +57,4 @@ flet==0.25.2
 
 # SQL Server Integration (Optional - install only if using MSSQL)
 # pyodbc==5.2.0
+fpdf2==2.8.7

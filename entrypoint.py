@@ -491,7 +491,8 @@ def main():
                                  "backup", "restore", "set-password",
                                  "value-report", "metering-report", "home",
                                  "version", "upgrade", "assess",
-                                 "supplier-scorecard", "category-report"],
+                                 "supplier-scorecard", "category-report",
+                                 "inject-grn-costs"],
                         default="full", help="Run mode")
     parser.add_argument("--dashboard", choices=list(DASHBOARD_MAP.keys()),
                         default="ops", help="Dashboard to launch (dashboard mode)")
@@ -521,6 +522,8 @@ def main():
                         help="category-report: named section (alcohol/dairy/beverages)")
     parser.add_argument("--departments", default=None,
                         help="category-report: comma-separated depts (overrides --category)")
+    parser.add_argument("--pdf", action="store_true",
+                        help="category-report: also render a PDF")
     # Backup / restore / credentials
     parser.add_argument("--file", default=None, help="restore: backup file to restore")
     parser.add_argument("--username", default=None, help="set-password: user to update")
@@ -739,11 +742,23 @@ def main():
         depts = ([d.strip() for d in args.departments.split(",")]
                  if args.departments else None)
         res = write_category_report(data_dir, cash_dir, args.category, out_dir,
-                                    tenant=args.tenant or "", departments=depts)
+                                    tenant=args.tenant or "", departments=depts,
+                                    pdf=args.pdf)
         print(f"Category report written: {res['markdown']}")
-        print(f"  {res['skus']:,} SKUs | revenue KES {res['revenue_period']:,.0f} "
-              f"({res['units_sold']:,.0f} units, {res['months_used']} mo) | "
-              f"dead KES {res['dead_value']:,.0f} | ghost {res['ghost_sellers']:,}")
+        if res.get("pdf"):
+            print(f"  PDF: {res['pdf']}")
+        print(f"  {res['skus']:,} SKUs | revenue KES {res['revenue_period']:,.0f} | "
+              f"gross profit KES {res['gross_profit_period']:,.0f}"
+              + (f" ({res['avg_margin_pct']}% margin)" if res['avg_margin_pct'] is not None else "")
+              + f" | dead KES {res['dead_value']:,.0f} | ghost {res['ghost_sellers']:,}")
+    elif args.mode == "inject-grn-costs":
+        from oasis.logic.grn_cost import inject_from_files
+        root = os.path.dirname(__file__)
+        data_dir = os.getenv("OASIS_DATA_DIR", os.path.join(root, "oasis", "data"))
+        db_path = os.getenv("OASIS_DB_PATH",
+                            os.path.join(root, "oasis", "data", "rhapta_pos.db"))
+        res = inject_from_files(db_path, data_dir)
+        print(f"GRN costs injected into {db_path}: {res}")
     elif args.mode == "supplier-scorecard":
         from oasis.logic.supplier_scorecard import write_scorecard
         root = os.path.dirname(__file__)

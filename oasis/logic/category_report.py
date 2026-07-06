@@ -49,9 +49,20 @@ def _month_files(cash_dir: str):
 
 
 def build_category_report(catalog_rows: List[dict], cash_dir: str,
-                          departments: List[str], top: int = 20) -> dict:
+                          departments: List[str], top: int = 20,
+                          costs: Optional[Dict[str, dict]] = None) -> dict:
     """Cross the section's catalogue with its real monthly sales. Pure-ish
-    (reads the monthly Excel files; all aggregation is deterministic)."""
+    (reads the monthly Excel files; all aggregation is deterministic).
+
+    costs: optional {barcode: {"cost": float}} from GRN — when present, movers
+    gain real margin and gross profit, and dead stock is valued at cost.
+    """
+    costs = costs or {}
+
+    def _cost(row):
+        c = costs.get(str(row.get("itm_cd", "")).strip())
+        return float(c["cost"]) if c and c.get("cost") else None
+
     dept_set = {d.upper() for d in departments}
     cat = [r for r in catalog_rows if str(r.get("dept", "")).upper() in dept_set]
     by_name: Dict[str, dict] = {}
@@ -94,26 +105,40 @@ def build_category_report(catalog_rows: List[dict], cash_dir: str,
     movers, dead, ghost = [], [], []
     dead_value = 0.0
     revenue_period = 0.0
+    gross_profit_period = 0.0
+    rev_with_cost = 0.0            # revenue of SKUs that HAVE a GRN cost (margin base)
+    skus_with_cost = 0
     matched_names = set()
     for nn, row in by_name.items():
         qty_complete = complete_units.get(nn, 0.0)
         qty_total = monthly_qty_by_name.get(nn, 0.0)
         price = float(row.get("price", 0) or 0)
         stock = float(row.get("stock", 0) or 0)
+        cost = _cost(row)
+        if cost is not None:
+            skus_with_cost += 1
         ads = qty_complete / days
         revenue_period += qty_total * price
+        margin_pct = (100.0 * (price - cost) / price) if (cost is not None and price > 0) else None
+        if cost is not None:
+            gross_profit_period += qty_total * (price - cost)
+            rev_with_cost += qty_total * price
         if qty_total > 0:
             matched_names.add(nn)
             entry = {"Item": (row.get("name") or "")[:44], "Dept": row.get("dept", ""),
                      "Vendor": (row.get("vendor") or "")[:24], "Price": round(price, 0),
+                     "Cost": round(cost, 0) if cost is not None else "-",
+                     "Margin %": round(margin_pct, 0) if margin_pct is not None else "-",
                      "ADS": round(ads, 2), "Stock": round(stock, 0),
                      "Days Cover": round(stock / ads, 1) if ads > 0 else None,
-                     "Rev/Day": round(ads * price, 0)}
+                     "Rev/Day": round(ads * price, 0),
+                     "GP/Day": round(ads * (price - cost), 0) if cost is not None else "-"}
             movers.append(entry)
             if stock <= 0 and ads > 0:
                 ghost.append(entry)
         elif stock > 0:
-            v = stock * price
+            # trapped capital at COST when known (what you paid), else retail
+            v = stock * (cost if cost is not None else price)
             dead_value += v
             dead.append({"Item": (row.get("name") or "")[:44], "Dept": row.get("dept", ""),
                          "Vendor": (row.get("vendor") or "")[:24],
@@ -158,6 +183,10 @@ def build_category_report(catalog_rows: List[dict], cash_dir: str,
         "inventory_retail": round(inv_retail, 0),
         "months_used": len(complete_months), "partial_months": sorted(partial),
         "units_sold": round(total_units, 0), "revenue_period": round(revenue_period, 0),
+        "gross_profit_period": round(gross_profit_period, 0),
+        "avg_margin_pct": (round(100.0 * gross_profit_period / rev_with_cost, 1)
+                           if rev_with_cost > 0 else None),
+        "cost_coverage_pct": round(100.0 * skus_with_cost / max(1, len(cat)), 1),
         "matched_skus": len(matched_names),
         "dead_skus": len(dead), "dead_value": round(dead_value, 0),
         "ghost_sellers": len(ghost),
@@ -182,14 +211,22 @@ def _mdtable(rows: List[dict], cols: List[str]) -> str:
 
 def write_category_report(data_dir: str, cash_dir: str, category: str,
                           out_dir: str, tenant: str = "",
-                          departments: Optional[List[str]] = None) -> dict:
+                          departments: Optional[List[str]] = None,
+                          use_grn_costs: bool = True, pdf: bool = False) -> dict:
     from .rhapta_catalog import load_catalog
     depts = departments or CATEGORY_PRESETS.get(category.lower())
     if not depts:
         raise SystemExit(f"unknown category '{category}'. Known: "
                          f"{', '.join(CATEGORY_PRESETS)} — or pass --departments.")
     rows = load_catalog(data_dir)
-    a = build_category_report(rows, cash_dir, depts)
+    costs = None
+    if use_grn_costs:
+        try:
+            from .grn_cost import load_grn_costs
+            costs = load_grn_costs(data_dir)
+        except Exception:
+            costs = None
+    a = build_category_report(rows, cash_dir, depts, costs=costs)
 
     os.makedirs(out_dir, exist_ok=True)
     stamp = datetime.now().strftime("%Y-%m-%d")
@@ -215,6 +252,8 @@ sales{partial_note}. Departments: {', '.join(a['departments'])}.*
 | Inventory on hand (retail) | KES {a['inventory_retail']:,.0f} |
 | Units sold (period) | {a['units_sold']:,.0f} |
 | Revenue (period, at retail) | KES {a['revenue_period']:,.0f} |
+| **Gross profit (real GRN cost)** | **KES {a['gross_profit_period']:,.0f}**{f" at {a['avg_margin_pct']}% avg margin" if a['avg_margin_pct'] is not None else ''} |
+| Cost coverage (SKUs with GRN cost) | {a['cost_coverage_pct']}% |
 | SKUs with sales | {a['matched_skus']:,} of {a['skus']:,} |
 | **Dead stock** (stocked, no sales) | **KES {a['dead_value']:,.0f}** across {a['dead_skus']:,} SKUs |
 | **Ghost sellers** (sell, zero stock) | **{a['ghost_sellers']:,} SKUs ≈ KES {a['ghost_lost_rev_day']:,.0f}/day lost** |
@@ -227,8 +266,8 @@ sales{partial_note}. Departments: {', '.join(a['departments'])}.*
 {_mdtable([{'Month': s['month'], 'Units': f"{s['units']:,}" + (' (partial)' if s['partial'] else '')} for s in a['seasonality']], ['Month', 'Units'])}
 {f"Peak **{peak['month']}** ({peak['units']:,} units) vs trough **{trough['month']}** ({trough['units']:,}) — a {round(peak['units']/max(1,trough['units']),1)}× swing." if peak and trough else ''}
 
-## Top movers (by daily revenue)
-{_mdtable(a['top_movers'][:15], ['Item', 'Dept', 'Vendor', 'Price', 'ADS', 'Stock', 'Days Cover', 'Rev/Day'])}
+## Top movers (real cost & margin from GRN)
+{_mdtable(a['top_movers'][:15], ['Item', 'Dept', 'Price', 'Cost', 'Margin %', 'ADS', 'Days Cover', 'GP/Day'])}
 
 ## Ghost sellers — revenue walking out (restock these first)
 {_mdtable(a['top_ghost'][:15], ['Item', 'Dept', 'Vendor', 'ADS', 'Rev/Day'])}
@@ -240,12 +279,25 @@ sales{partial_note}. Departments: {', '.join(a['departments'])}.*
 {_mdtable(a['supplier_top5'], ['name', 'skus', 'units', 'revenue', 'stock_val'])}
 
 ---
-*Revenue is at retail from real units sold × catalogue price. Coverage is limited
-to sales lines name-matched to the section catalogue; a code crosswalk at
-onboarding closes any residual gap.*
+*Gross profit and margin use real GRN unit cost (quantity-weighted average) where
+available; dead stock is valued at that cost (true trapped capital). Revenue is at
+retail from real units sold x catalogue price. Sales-line coverage is limited to
+names matched to the section catalogue; a code crosswalk at onboarding closes any
+residual gap.*
 """
     with open(md_path, "w", encoding="utf-8") as f:
         f.write(md)
+
+    pdf_path = None
+    if pdf:
+        try:
+            from .report_pdf import markdown_to_pdf
+            pdf_path = markdown_to_pdf(
+                md, os.path.splitext(md_path)[0] + ".pdf",
+                title=f"OASIS {category.title()} Report")
+        except Exception as e:
+            pdf_path = None
+            print(f"[category-report] PDF render skipped: {e}")
     with open(csv_path, "w", newline="", encoding="utf-8") as f:
         w = csv.writer(f)
         w.writerow(["section", "item", "dept", "vendor", "ads_or_units", "value"])
@@ -255,6 +307,6 @@ onboarding closes any residual gap.*
             w.writerow(["ghost", g["Item"], g["Dept"], g["Vendor"], g["ADS"], g["Rev/Day"]])
         for d in a["top_dead"]:
             w.writerow(["dead", d["Item"], d["Dept"], d["Vendor"], d["Stock"], d["Value (KES)"]])
-    return {"markdown": md_path, "csv": csv_path,
+    return {"markdown": md_path, "csv": csv_path, "pdf": pdf_path,
             **{k: v for k, v in a.items() if not k.startswith("top_")
                and k not in ("dept_rollup", "supplier_top5", "seasonality")}}
