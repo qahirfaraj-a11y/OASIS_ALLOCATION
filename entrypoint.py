@@ -492,7 +492,7 @@ def main():
                                  "value-report", "metering-report", "home",
                                  "version", "upgrade", "assess",
                                  "supplier-scorecard", "category-report",
-                                 "inject-grn-costs"],
+                                 "inject-grn-costs", "sku-deepdive"],
                         default="full", help="Run mode")
     parser.add_argument("--dashboard", choices=list(DASHBOARD_MAP.keys()),
                         default="ops", help="Dashboard to launch (dashboard mode)")
@@ -523,7 +523,11 @@ def main():
     parser.add_argument("--departments", default=None,
                         help="category-report: comma-separated depts (overrides --category)")
     parser.add_argument("--pdf", action="store_true",
-                        help="category-report: also render a PDF")
+                        help="category-report/sku-deepdive: also render a PDF")
+    parser.add_argument("--files", default=None,
+                        help="sku-deepdive: comma-separated snapshot xlsx paths")
+    parser.add_argument("--section", default="alcohol",
+                        help="sku-deepdive: section label for the report")
     # Backup / restore / credentials
     parser.add_argument("--file", default=None, help="restore: backup file to restore")
     parser.add_argument("--username", default=None, help="set-password: user to update")
@@ -751,6 +755,25 @@ def main():
               f"gross profit KES {res['gross_profit_period']:,.0f}"
               + (f" ({res['avg_margin_pct']}% margin)" if res['avg_margin_pct'] is not None else "")
               + f" | dead KES {res['dead_value']:,.0f} | ghost {res['ghost_sellers']:,}")
+    elif args.mode == "sku-deepdive":
+        from oasis.logic.sku_deepdive import write_sku_deepdive
+        if not args.files:
+            raise SystemExit("sku-deepdive requires --files <a.xlsx,b.xlsx,...>")
+        root = os.path.dirname(__file__)
+        data_dir = os.getenv("OASIS_DATA_DIR", os.path.join(root, "oasis", "data"))
+        cash_dir = os.getenv("OASIS_CASH_DIR",
+                             os.path.join(os.path.expanduser("~"), "Desktop", "Projects"))
+        out_dir = os.getenv("OASIS_REPORTS_DIR", os.path.join(root, "reports"))
+        files = [f.strip() for f in args.files.split(",") if f.strip()]
+        res = write_sku_deepdive(files, cash_dir, data_dir, out_dir,
+                                 tenant=args.tenant or "", section=args.section,
+                                 pdf=args.pdf)
+        print(f"SKU deep dive written: {res['markdown']}")
+        if res.get("pdf"):
+            print(f"  PDF: {res['pdf']}")
+        print(f"  {res['n_skus']:,} SKUs | capital KES {res['total_capital']:,.0f} | "
+              f"clear KES {res['clear_capital']:,.0f} | reduce KES {res['reduce_capital']:,.0f} | "
+              f"lost KES {res['lost_rev_day']:,.0f}/day")
     elif args.mode == "inject-grn-costs":
         from oasis.logic.grn_cost import inject_from_files
         root = os.path.dirname(__file__)
