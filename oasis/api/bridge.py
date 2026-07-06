@@ -209,16 +209,19 @@ def sync_from_erp(org_cd: str, identity: dict = Depends(require_auth)):
         raise HTTPException(status_code=400, detail="No active database connection. Call /connect first.")
 
     try:
-        from ..logic.order_engine import OrderEngine
-        engine = OrderEngine(DATA_DIR)
-        engine.load_from_erp(connector, org_cd)
-        products = engine.load_erp_products(org_cd)
-        
+        # The engine-side load_from_erp/load_erp_products API never shipped —
+        # the supported sync path is the PosErpAdapter (master + stock + sales
+        # intelligence in one enriched fetch).
+        from ..logic.pos_erp_adapter import PosErpAdapter
+        adapter = PosErpAdapter(connector)
+        products = adapter.fetch_enriched_products(org_cd)
+        with_sales = sum(1 for p in products
+                         if float(p.get("avg_daily_sales", 0) or 0) > 0)
         return {
             "status": "synced",
             "org_cd": org_cd,
             "products_loaded": len(products),
-            "databases_loaded": [k for k, v in engine.databases.items() if v],
+            "products_with_sales": with_sales,
         }
     except Exception as e:
         logger.error(f"ERP sync failed: {e}")

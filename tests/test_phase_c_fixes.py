@@ -182,12 +182,15 @@ class TestG17PODedup(unittest.TestCase):
     """G17: Dashboard should check for existing POs before generating."""
 
     def test_dedup_check_in_dashboard(self):
-        """Dashboard should contain PO dedup check logic."""
+        """Dashboard should contain PO dedup check logic (G17)."""
         dashboard_path = os.path.join(os.getcwd(), "ops_dashboard.py")
         with open(dashboard_path, "r", encoding="utf-8") as f:
             content = f.read()
-        self.assertIn("Duplicate PO Alert", content)
-        self.assertIn("fetch_pending_pos", content)
+        self.assertIn("fetch_pending_pos", content,
+                      "Dashboard should check pending POs before ordering")
+        # the warning copy drifts ("Alert"/"Warning") — assert the concept
+        self.assertIn("duplicate po", content.lower(),
+                      "Dashboard should warn about duplicate POs")
 
 
 class TestSettingsMOTControls(unittest.TestCase):

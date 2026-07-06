@@ -25,43 +25,19 @@ import pytest
 # clamp/14-day-safety basis), mobile_api (fail-closed 401 + authed 200), and
 # consignment (Dict return + micro-budget essentials scale) tests were
 # reconciled to the current spec and un-quarantined — they now pass for real.
-_XFAIL = {
-    "test_pos_erp_integration.py::TestMockDbCreation::test_seed_data_counts":
-        "fixture expects a minimal seeded DB; adapter reads the full catalog "
-        "(verified live, e.g. 23,511 vs 100) — fixture DB wiring is stale",
-    "test_pos_erp_integration.py::TestAdapterProductFetch::test_fetch_product_master_returns_data":
-        "stale fixed-count expectation (adapter returns full catalog, verified live)",
-    "test_pos_erp_integration.py::TestAdapterProductFetch::test_stock_snapshot":
-        "stale fixed-count expectation (adapter verified live)",
-    "test_pos_erp_integration.py::TestSalesIntelligence::test_avg_daily_sales_is_reasonable":
-        "fixture demand assumptions stale vs full catalog",
-    "test_pos_erp_integration.py::TestE2eErpToAllocation::test_order_engine_load_from_erp":
-        "fixture DB wiring stale (adapter verified live)",
-    "test_pos_erp_integration.py::TestE2eErpToAllocation::test_erp_products_enrichable":
-        "fixture DB wiring stale (adapter verified live)",
-    "test_pos_erp_integration.py::TestBiAndSuppliers::test_organization_fetch":
-        "fixture org-count expectation stale vs full catalog",
-    "test_consignment_budget.py::test_consignment_logic":
-        "apply_greenfield_allocation returns a Dict {recommendations, summary} "
-        "(documented -> Dict, post-decomposition); test iterates it as a list of "
-        "dicts (pre-decomposition API) — should read results['recommendations']",
-}
+# All 13 original xfails are now reconciled and un-quarantined:
+# math_validation (impl constants), mobile_api (authed calls), consignment
+# (Dict API), and the 7 pos_erp_integration tests (rewritten to invariants +
+# the real adapter API — which also exposed and fixed a broken /erp/sync
+# bridge endpoint calling a never-shipped OrderEngine.load_from_erp).
+_XFAIL = {}
 
-# nodeid substring -> reason. Test asserts the wrong thing / needs infra.
-_SKIP = {
-    "test_phase_a_fixes.py::TestG7G14NetworkIntegration::test_dashboard_has_network_optimization":
-        "brittle literal source-string assertion on the dashboard; drifted with WIP",
-    "test_phase_a_fixes.py::TestG7G14NetworkIntegration::test_dashboard_shows_on_order_awareness":
-        "brittle literal source-string assertion on the dashboard; drifted with WIP",
-    "test_phase_c_fixes.py::TestG17PODedup::test_dedup_check_in_dashboard":
-        "brittle literal source-string assertion on the dashboard; drifted with WIP",
-    "test_transfer_gap_plug.py::TestProactiveTransferRelaxedThresholds::test_relaxed_thresholds_in_source":
-        "brittle literal source-string assertion on CTS source; drifted with WIP",
-    "test_transfer_gap_plug.py::TestProactiveTransferRelaxedThresholds::test_warehouse_as_recipient_in_source":
-        "brittle literal source-string assertion on CTS source; drifted with WIP",
-    "test_v10_parity.py::test_parity":
-        "async def test needs pytest-asyncio config (not installed)",
-}
+# All 6 original skips are also reconciled: the 5 source-string tests now
+# assert wiring/concepts instead of UI copy or superseded constants, and
+# test_v10_parity was rewritten from an assertion-free async smoke script into
+# a real sync test. The quarantine is EMPTY — keep it that way: new failures
+# get fixed, not parked.
+_SKIP = {}
 
 
 def pytest_collection_modifyitems(config, items):

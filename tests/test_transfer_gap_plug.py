@@ -132,20 +132,26 @@ class TestDeadStockDonorBonus(unittest.TestCase):
 
 
 class TestProactiveTransferRelaxedThresholds(unittest.TestCase):
-    """Dead stock should be identified with relaxed criteria (45d, 0.05 velocity)."""
+    """Proactive (dead-stock) transfers use configurable cold/hot node windows.
+
+    The original G-fix hardcoded relaxed constants (45d / 0.05 velocity / 50u);
+    the unified CTS scan superseded that with configurable cold_node_days /
+    hot_node_days (defaults 60 / 14) — assert the current contract, not the
+    superseded literals."""
 
     def test_relaxed_thresholds_in_source(self):
         from oasis.logic.consolidated_transfer_service import ConsolidatedTransferService
         source = inspect.getsource(ConsolidatedTransferService._identify_proactive_transfers)
-        # Check relaxed thresholds are present
-        self.assertIn("45", source, "Days threshold should be 45")
-        self.assertIn("0.05", source, "Velocity threshold should be 0.05")
-        self.assertIn("50.0", source, "Max move should be 50 units")
-        self.assertIn("0.5", source, "Max move ratio should be 50%")
+        self.assertIn("cold_node_days", source, "Cold-node window should be configurable")
+        self.assertIn("hot_node_days", source, "Hot-node window should be configurable")
+        self.assertIn("60", source, "Default cold-node window should be 60d")
+        self.assertIn("14", source, "Default hot-node window should be 14d")
 
     def test_warehouse_as_recipient_in_source(self):
-        from oasis.logic.consolidated_transfer_service import ConsolidatedTransferService
-        source = inspect.getsource(ConsolidatedTransferService._identify_proactive_transfers)
+        # warehouse handling lives at CTS module level now (the proactive
+        # method delegates), so assert on the module source
+        import oasis.logic.consolidated_transfer_service as cts
+        source = inspect.getsource(cts)
         self.assertIn("warehouse_hubs", source, "Should reference warehouse hubs as recipients")
         self.assertIn("is_warehouse_hub", source, "Should check is_warehouse_hub flag")
 
