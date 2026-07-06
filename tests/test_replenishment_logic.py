@@ -80,6 +80,48 @@ class TestLataShield:
         assert "LATA Shield" not in rec["reasoning"]
 
 
+class TestNewsvendorRop:
+    """F4: OASIS_ROP_MODE=newsvendor replaces the flat fallback with μ+z·σ."""
+
+    def _fresh_util(self, tmp_path):
+        data_dir = tmp_path / "data"
+        data_dir.mkdir(exist_ok=True)
+        return SimulationOrderUtil(str(data_dir), engine=OrderEngine(str(data_dir)))
+
+    def test_newsvendor_rop_is_variance_aware(self, tmp_path, monkeypatch):
+        # ADS 10, LT 2, cv 0.2 → μ=20, σ=2.83 → ROP ≈ 24.65 at SL95.
+        # Stock 30 sits ABOVE the newsvendor ROP (no order) but BELOW the flat
+        # heuristic ROP of 38 (order) — the gate visibly changes the decision.
+        # (No-order paths overwrite the reasoning with "[Above ROP x]", so we
+        # assert on the ROP value + decision, the actual contract.)
+        sku = _sku(reorder_point=0.0, current_stock=30)
+        monkeypatch.setenv("OASIS_ROP_MODE", "newsvendor")
+        nv = _run(self._fresh_util(tmp_path), dict(sku))
+        assert nv["recommended_quantity"] == 0
+        assert "Above ROP 24.7" in nv["reasoning"]        # μ + z·σ, not the flat 38
+
+        monkeypatch.setenv("OASIS_ROP_MODE", "heuristic")
+        heur = _run(self._fresh_util(tmp_path), dict(sku))
+        assert heur["recommended_quantity"] > 0           # flat ROP 38 ≥ stock 30
+
+    def test_stored_rop_respected_unless_all_mode(self, tmp_path, monkeypatch):
+        # stored ROP 60 stays authoritative in 'newsvendor' mode: stock 50 ≤ 60 → order
+        monkeypatch.setenv("OASIS_ROP_MODE", "newsvendor")
+        rec = _run(self._fresh_util(tmp_path), _sku(reorder_point=60.0))
+        assert rec["recommended_quantity"] > 0
+        # …but 'newsvendor-all' overrides it: ROP 24.65 < stock 50 → no order
+        monkeypatch.setenv("OASIS_ROP_MODE", "newsvendor-all")
+        rec2 = _run(self._fresh_util(tmp_path), _sku(reorder_point=60.0))
+        assert rec2["recommended_quantity"] == 0
+        assert "Above ROP 24.7" in rec2["reasoning"]
+
+    def test_default_mode_unchanged(self, util):
+        # heuristic fallback: ROP = 10×(2 + 1.5×1.4) = 38 → stock 50 above → no order
+        rec = _run(util, _sku(reorder_point=0.0))
+        assert rec["recommended_quantity"] == 0
+        assert "Above ROP 38.0" in rec["reasoning"]
+
+
 class TestNetRequirement:
     def test_standard_reorder(self, util):
         # Below ROP (50 ≤ 60). Dry target = max(14, gap7 + lead2 + buffer)

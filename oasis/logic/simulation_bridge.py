@@ -66,6 +66,13 @@ class SimulationOrderUtil:
         # ones trim it toward 0.8x. Missing file/entry → neutral 1.0.
         self._lata_multipliers = self._load_lata_multipliers(data_dir)
 
+        # F4: ROP source gate. 'heuristic' (default) keeps the flat fallback
+        # ADS×(LT+safety). 'newsvendor' computes the statistically-correct
+        # reorder point (μ_LTD + z·σ_LTD at OASIS_SERVICE_LEVEL) when no stored
+        # ROP exists; 'newsvendor-all' also overrides stored ROPs (A/B mode).
+        self._rop_mode = os.getenv("OASIS_ROP_MODE", "heuristic").lower().strip()
+        self._service_level = float(os.getenv("OASIS_SERVICE_LEVEL", "0.95"))
+
         # G4 Fix: Configurable thresholds (can be overridden from Settings/DB)
         self.thresholds = thresholds or {
             'fresh_stale_days': 120,
@@ -305,9 +312,23 @@ class SimulationOrderUtil:
             avg_daily_sales = p.get('avg_daily_sales', 0)
             
             # G3 Fix: ROP Fallback — if reorder_point is 0 or missing (no intelligence data),
-            # calculate a dynamic fallback instead of treating 0 as real ROP
+            # calculate a dynamic fallback instead of treating 0 as real ROP.
+            # F4: in newsvendor mode the fallback (or, in 'newsvendor-all', every
+            # ROP) is the statistically-correct μ_LTD + z·σ_LTD instead of the
+            # flat heuristic — demand-variance-aware at the service level.
             reorder_point = p.get('reorder_point', 0)
-            if reorder_point <= 0 and avg_daily_sales > 0:
+            use_newsvendor = (self._rop_mode == "newsvendor-all"
+                              or (self._rop_mode == "newsvendor" and reorder_point <= 0))
+            if use_newsvendor and avg_daily_sales > 0:
+                from math import sqrt
+
+                from . import risk_baseline as RB
+                mu_ltd = avg_daily_sales * lead_time
+                sigma_ltd = cv * avg_daily_sales * sqrt(max(1.0, lead_time))
+                reorder_point = RB.reorder_point(mu_ltd, sigma_ltd,
+                                                 self._service_level)
+                rec['reasoning'] += (f" [ROP Newsvendor: SL{self._service_level:.0%}]")
+            elif reorder_point <= 0 and avg_daily_sales > 0:
                 # Fallback ROP = ADS * (lead_time + base_safety)
                 fallback_rop = avg_daily_sales * (lead_time + (base_safety * (1 + cv)))
                 reorder_point = fallback_rop
