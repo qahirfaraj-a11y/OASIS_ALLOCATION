@@ -38,7 +38,8 @@ def temp_db_url(monkeypatch):
 
 def _alembic_config(db_url: str) -> Config:
     cfg = Config(os.path.join(PROJECT_ROOT, "alembic.ini"))
-    cfg.set_main_option("script_location", os.path.join(PROJECT_ROOT, "alembic"))
+    # migrations/ (renamed from alembic/, which shadowed the alembic package)
+    cfg.set_main_option("script_location", os.path.join(PROJECT_ROOT, "migrations"))
     cfg.set_main_option("sqlalchemy.url", db_url)
     return cfg
 
