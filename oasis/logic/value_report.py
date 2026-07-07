@@ -30,8 +30,11 @@ def _q1(conn, sql: str, params=()) -> float:
 
 
 def usage_summary(db_path: str, since: str) -> dict:
-    """Adoption counters from the audit-log telemetry (best-effort)."""
-    out = {"page_views": 0, "operator_actions": 0, "active_users": 0}
+    """Adoption counters from the audit-log telemetry (best-effort), including
+    a per-module rollup of page views — the renewal/upsell evidence
+    ("your team opened Revenue Intelligence 47 times this month")."""
+    out = {"page_views": 0, "operator_actions": 0, "active_users": 0,
+           "usage_by_module": {}}
     try:
         conn = sqlite3.connect(db_path, timeout=15.0)
         try:
@@ -44,6 +47,15 @@ def usage_summary(db_path: str, since: str) -> dict:
             out["active_users"] = int(_q1(conn,
                 "SELECT COUNT(DISTINCT USERNAME) FROM OASIS_AUDIT_LOG "
                 "WHERE CREATED_DT >= ?", (since,)))
+            from .license_manager import PAGE_MODULES
+            by_mod: dict = {}
+            for key, n in conn.execute(
+                    "SELECT ENTITY_ID, COUNT(*) FROM OASIS_AUDIT_LOG "
+                    "WHERE ACTION='PAGE_VIEW' AND CREATED_DT >= ? "
+                    "GROUP BY ENTITY_ID", (since,)):
+                mod = PAGE_MODULES.get(str(key or ""), "core")
+                by_mod[mod] = by_mod.get(mod, 0) + int(n or 0)
+            out["usage_by_module"] = by_mod
         finally:
             conn.close()
     except sqlite3.Error:
@@ -143,6 +155,7 @@ def write_value_report(db_path: str, out_dir: str, period_days: int = 30,
 | Active users | {m['active_users']} |
 | Screens viewed | {m['page_views']:,} |
 | Operator actions | {m['operator_actions']:,} |
+| Usage by module | {', '.join(f"{k}: {v}" for k, v in sorted(m['usage_by_module'].items())) or '—'} |
 
 *Dead stock and stockout figures are live snapshot values; capital recovered is
 the cumulative journey figure. Playbook targets: dead stock <5%, stockouts <2%.*

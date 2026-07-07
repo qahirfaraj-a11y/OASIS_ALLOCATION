@@ -25,7 +25,8 @@ def _mini(path):
             TOTAL_COST REAL, STATUS TEXT, CREATED_DT TEXT);
         CREATE TABLE STOCK_MASTER (SM_ORG_CD TEXT, SM_ITM_CD TEXT, SM_QTY REAL,
             SM_WAC REAL);
-        CREATE TABLE OASIS_AUDIT_LOG (USERNAME TEXT, ACTION TEXT, CREATED_DT TEXT);
+        CREATE TABLE OASIS_AUDIT_LOG (USERNAME TEXT, ACTION TEXT,
+                                      ENTITY_ID TEXT, CREATED_DT TEXT);
     """)
     # this-period sale of item A; item B has stock but NO sales -> dead stock
     c.execute("INSERT INTO POS_SALES_HDR VALUES ('ORG001','B1',?,1000,'F')", (today,))
@@ -35,8 +36,8 @@ def _mini(path):
     c.execute("INSERT INTO STOCK_MASTER VALUES ('ORG001','B',4,100)")   # dead: 400
     c.execute("INSERT INTO STOCK_MASTER VALUES ('ORG001','C',0,10)")    # stockout
     c.execute("INSERT INTO INTEGRATION_PURCHASE_ORDERS VALUES (1,'ORG001',2500,'APPROVED',?)", (today,))
-    c.execute("INSERT INTO OASIS_AUDIT_LOG VALUES ('ops_admin','PAGE_VIEW',?)", (today,))
-    c.execute("INSERT INTO OASIS_AUDIT_LOG VALUES ('ops_admin','APPROVE_PO',?)", (today,))
+    c.execute("INSERT INTO OASIS_AUDIT_LOG VALUES ('ops_admin','PAGE_VIEW','baskets',?)", (today,))
+    c.execute("INSERT INTO OASIS_AUDIT_LOG VALUES ('ops_admin','APPROVE_PO',NULL,?)", (today,))
     c.commit()
     c.close()
 
@@ -77,4 +78,5 @@ class TestUsageSummary:
         db = str(tmp_path / "v.db")
         _mini(db)
         s = usage_summary(db, "1970-01-01")
-        assert s == {"page_views": 1, "operator_actions": 1, "active_users": 1}
+        assert s == {"page_views": 1, "operator_actions": 1, "active_users": 1,
+                     "usage_by_module": {"revenue": 1}}   # baskets → revenue SKU

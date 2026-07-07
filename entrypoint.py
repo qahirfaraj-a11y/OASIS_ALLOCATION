@@ -498,6 +498,7 @@ def main():
                                  "multi-pos-stream",
                                  "issue-license", "license-status",
                                  "backup", "restore", "set-password",
+                                 "package-release",
                                  "value-report", "metering-report", "home",
                                  "version", "upgrade", "assess",
                                  "supplier-scorecard", "category-report",
@@ -830,6 +831,13 @@ def main():
                             os.path.join(root, "oasis", "data", "rhapta_pos.db"))
         since = (_dt.now() - _td(days=args.days)).strftime("%Y-%m-%d")
         print(f"Usage since {since}: {usage_summary(db_path, since)}")
+    elif args.mode == "package-release":
+        from oasis.logic.release_packager import build_release
+        root = os.path.dirname(os.path.abspath(__file__))
+        res = build_release(root)
+        print(f"Release packaged: {res['zip']}")
+        print(f"  v{res['version']} | {res['files_shipped']:,} files shipped, "
+              f"{res['files_skipped']:,} excluded | {res['size_mb']} MB")
     elif args.mode == "backup":
         from oasis.logic.backup_util import backup_db
         root = os.path.dirname(__file__)

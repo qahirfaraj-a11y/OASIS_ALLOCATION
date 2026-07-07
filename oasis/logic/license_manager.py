@@ -45,6 +45,16 @@ BUNDLES = {
     "enterprise": KNOWN_MODULES,
 }
 
+#: page/tab keys → module SKU (used for gating and per-module usage metering);
+#: any key not listed is "core".
+PAGE_MODULES = {
+    "ordering": "ordering", "suppliers": "ordering",
+    "smart_ordering": "ordering", "supplier_intelligence": "ordering",
+    "shadow": "network", "transfers": "network", "allocation": "network",
+    "transfer_intelligence": "network", "allocation_engine": "network",
+    "baskets": "revenue",
+}
+
 _ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 
