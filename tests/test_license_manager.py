@@ -7,7 +7,12 @@ from datetime import date, timedelta
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
-from oasis.logic.license_manager import OfflineLicenseManager
+from oasis.logic.license_manager import (
+    BUNDLES,
+    KNOWN_MODULES,
+    OfflineLicenseManager,
+    allowed_modules,
+)
 
 
 def _mgr(tmp_path, salt="test-salt", monkeypatch=None):
@@ -54,6 +59,45 @@ class TestIssueAndVerify:
             assert False, "should have raised"
         except RuntimeError:
             pass
+
+
+class TestModuleSkus:
+    def test_bundles_are_valid_and_include_core(self):
+        for name, mods in BUNDLES.items():
+            assert "core" in mods, f"bundle '{name}' must include core"
+            assert set(mods) <= set(KNOWN_MODULES)
+        assert set(BUNDLES["enterprise"]) == set(KNOWN_MODULES)
+
+    def test_evaluation_unlocks_everything(self, tmp_path, monkeypatch):
+        monkeypatch.setenv("OASIS_TRIAL_DAYS", "14")
+        m = _mgr(tmp_path, monkeypatch=monkeypatch)
+        assert allowed_modules(m) == set(KNOWN_MODULES)
+
+    def test_licensed_gets_exactly_its_modules(self, tmp_path, monkeypatch):
+        m = _mgr(tmp_path, monkeypatch=monkeypatch)
+        exp = (date.today() + timedelta(days=365)).isoformat()
+        m.issue("ACME", ["core", "ordering"], exp)
+        assert allowed_modules(m) == {"core", "ordering"}
+
+    def test_core_is_mandatory(self, tmp_path, monkeypatch):
+        # a key without core grants nothing (consoles won't even start)
+        m = _mgr(tmp_path, monkeypatch=monkeypatch)
+        exp = (date.today() + timedelta(days=365)).isoformat()
+        m.issue("ACME", ["revenue", "api"], exp)
+        assert allowed_modules(m) == set()
+
+    def test_page_module_tagging(self):
+        from oasis.ui.intel import build_intel_registry
+        from oasis.ui.shell import build_registry
+        shell_mods = {p.key: p.module for p in build_registry()}
+        assert shell_mods["home"] == "core"
+        assert shell_mods["ordering"] == "ordering"
+        assert shell_mods["suppliers"] == "ordering"
+        assert shell_mods["transfers"] == "network"
+        assert shell_mods["allocation"] == "network"
+        intel_mods = {p.key: p.module for p in build_intel_registry()}
+        assert intel_mods["baskets"] == "revenue"
+        assert intel_mods["pulse"] == "core"
 
 
 class TestTrial:

@@ -41,6 +41,13 @@ sys.path.append(os.getcwd())
 # Page Config
 st.set_page_config(page_title="ST-GAT Market Pulse", layout="wide", page_icon="🧠")
 
+# ── License gate: Market Intelligence ships in the Network module ───────
+from oasis.logic.license_manager import allowed_modules, console_gate, render_upsell  # noqa: E402
+console_gate(st, "core")
+if "network" not in allowed_modules():
+    render_upsell(st, "network")
+    st.stop()
+
 # ── Unified auth gate (U2) ──────────────────────────────────────────────
 from oasis.ui.auth import require_login  # noqa: E402 (must follow set_page_config)
 _AUTH_DB = os.getenv(

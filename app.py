@@ -34,5 +34,5 @@ shell.run_console(
     db_path=DB_PATH,
     project_root=PROJECT_ROOT,
     app_title="Operations Console",
-    license_module="ops",
+    license_module="core",
 )

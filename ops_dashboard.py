@@ -66,7 +66,7 @@ st.set_page_config(
 
 # ── License enforcement (locked installs stop here) ─────────────────
 from oasis.logic.license_manager import console_gate as _license_gate  # noqa: E402
-_license_gate(st, "command")
+_license_gate(st, "core")
 
 # Cross-links to the sibling consoles (suite polish)
 from oasis.ui.home import suite_links as _suite_links  # noqa: E402
@@ -975,6 +975,30 @@ if user_role in ('ops_admin', 'regional_manager') or showcase_mode:
 tabs = st.tabs(tab_labels)
 tab_map = {key: tabs[i] for i, key in enumerate(tab_keys)}
 
+# ── Module gating: premium tabs render an upsell stub when unlicensed ──
+from oasis.logic.license_manager import allowed_modules as _allowed_modules  # noqa: E402
+from oasis.logic.license_manager import render_upsell as _render_upsell  # noqa: E402
+
+TAB_MODULES = {
+    "smart_ordering": "ordering",
+    "supplier_intelligence": "ordering",
+    "transfer_intelligence": "network",
+    "allocation_engine": "network",
+}
+if "_allowed_mods" not in st.session_state:
+    st.session_state["_allowed_mods"] = _allowed_modules()
+_MODS = st.session_state["_allowed_mods"]
+
+
+def _mod_ok(tab_key: str) -> bool:
+    return TAB_MODULES.get(tab_key, "core") in _MODS
+
+
+for _key, _mod in TAB_MODULES.items():
+    if _key in tab_map and _mod not in _MODS:
+        with tab_map[_key]:
+            _render_upsell(st, _mod)
+
 # ─────────────────────────────────────────────────────────────────────
 # TAB: Executive ROI Overview (THE SHOWCASE)
 # ─────────────────────────────────────────────────────────────────────
@@ -1464,7 +1488,7 @@ def get_gnn_resources():
         logger.warning(f"GNN model status={status}; using inventory-led risk.")
     return model, sim
 
-if "transfer_intelligence" in tab_map:
+if "transfer_intelligence" in tab_map and _mod_ok("transfer_intelligence"):
  with tab_map["transfer_intelligence"]:
     st.markdown(f"### 🔄 Transfer Intelligence — Intra-Day Stockout Prevention")
 
@@ -1935,7 +1959,7 @@ if "stock_review" in tab_map:
 # =====================================================================
 # TAB 4: SMART ORDERING
 # =====================================================================
-if "smart_ordering" in tab_map:
+if "smart_ordering" in tab_map and _mod_ok("smart_ordering"):
  with tab_map["smart_ordering"]:
     st.markdown(f"### 🛒 Smart Ordering — {store_name}")
     engine = get_order_engine()
@@ -2591,7 +2615,7 @@ if "oasis_processor" in tab_map:
 # =====================================================================
 # TAB 6: 🧮 ALLOCATION ENGINE (Phase 4.1)
 # =====================================================================
-if "allocation_engine" in tab_map:
+if "allocation_engine" in tab_map and _mod_ok("allocation_engine"):
  with tab_map["allocation_engine"]:
     st.markdown(f"### 🧮 Allocation Engine — Budget-Constrained Order Generation")
     st.caption("Two-Pass allocation with efficiency guards. Powered by OrderEngine 2.0.")
@@ -3367,7 +3391,7 @@ if "settings" in tab_map:
 # ─────────────────────────────────────────────────────────────────────
 # TAB: Supplier Intelligence (U5 — Previously Dormant)
 # ─────────────────────────────────────────────────────────────────────
-if "supplier_intelligence" in tab_map:
+if "supplier_intelligence" in tab_map and _mod_ok("supplier_intelligence"):
     with tab_map["supplier_intelligence"]:
         st.markdown("### 🔬 Supplier Intelligence & Concentration Risk")
         st.caption("Powered by `oasis.analytics.supplier_analytics` — Identifies single-supplier dependency risks using HHI scoring.")

@@ -101,6 +101,20 @@ if os.path.exists(_last_results_path):
 def health_check():
     return {"status": "Bridge Online", "time": datetime.now(), "intelligence_loaded": len(historical_stats)}
 
+
+# ── Module gate: the REST bridge ships in the Integrations ("api") module ──
+@app.middleware("http")
+async def _api_module_gate(request, call_next):
+    if request.url.path not in ("/", "/health", "/metrics"):
+        from ..logic.license_manager import allowed_modules
+        if "api" not in allowed_modules():
+            from fastapi.responses import JSONResponse
+            return JSONResponse(status_code=403, content={
+                "detail": "The Integrations (api) module is not licensed for "
+                          "this install. Contact iLink to activate it."})
+    return await call_next(request)
+
+
 # --- 1. ERP CONNECTIVITY ---
 
 @app.post("/connect", response_model=dict)

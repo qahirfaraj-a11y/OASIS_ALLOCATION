@@ -26,8 +26,24 @@ from typing import Dict, List, Optional
 
 logger = logging.getLogger("OASIS.LicenseManager")
 
-#: module identifiers used by the shipped surfaces
-KNOWN_MODULES = ("ops", "intel", "command", "api", "allocation", "stgat")
+#: the sellable module SKUs. "core" is the mandatory base every install needs;
+#: the rest gate feature groups (pages/tabs/CLI modes) via CAPABILITIES below.
+KNOWN_MODULES = ("core", "ordering", "network", "revenue", "api")
+
+MODULE_LABELS = {
+    "core": "OASIS Core",
+    "ordering": "Smart Ordering",
+    "network": "Network (Transfers & Allocation)",
+    "revenue": "Revenue Intelligence",
+    "api": "Integrations (REST API)",
+}
+
+#: sales bundles → module sets (issue-license --bundle <name>)
+BUNDLES = {
+    "starter": ("core",),
+    "pro": ("core", "ordering", "revenue"),
+    "enterprise": KNOWN_MODULES,
+}
 
 _ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -157,6 +173,44 @@ class OfflineLicenseManager:
 def verify_module_startup(module_name: str) -> bool:
     """Helper function to run on application startup (back-compat)."""
     return OfflineLicenseManager().verify_license(module_name)
+
+
+def allowed_modules(mgr: Optional[OfflineLicenseManager] = None) -> set:
+    """The set of module SKUs this install may use right now.
+
+    Evaluation (trial) unlocks EVERYTHING — the day-15 lock screens do the
+    selling. A licensed install gets exactly the modules in its key. A locked
+    install gets nothing (the console core gate stops it first anyway).
+    """
+    mgr = mgr or OfflineLicenseManager()
+    core = mgr.status("core")
+    if core["mode"] == "evaluation":
+        return set(KNOWN_MODULES)
+    if core["mode"] != "licensed":       # core is mandatory — no core, no modules
+        return set()
+    return {m for m in KNOWN_MODULES if mgr.status(m)["mode"] == "licensed"}
+
+
+def module_allowed(module: str, allowed: Optional[set] = None) -> bool:
+    return module in (allowed if allowed is not None else allowed_modules())
+
+
+def render_upsell(st, module: str) -> None:
+    """The locked-feature stub — a sales surface, not a dead end."""
+    label = MODULE_LABELS.get(module, module.title())
+    st.markdown(
+        f"""<div style="border:1px dashed #888; border-radius:12px; padding:28px;
+                    text-align:center; margin-top:24px;">
+            <div style="font-size:34px;">🔒</div>
+            <div style="font-size:19px; font-weight:700; margin:6px 0;">
+                {label} module</div>
+            <div style="color:#888; max-width:520px; margin:0 auto;">
+                This capability is part of the <b>{label}</b> module, which is
+                not included in your current license. Your data is already
+                being collected — activation is immediate once licensed.</div>
+            <div style="margin-top:14px; color:#2e6ba6; font-weight:600;">
+                Contact iLink to activate {label}.</div>
+        </div>""", unsafe_allow_html=True)
 
 
 def console_gate(st, module: str) -> dict:

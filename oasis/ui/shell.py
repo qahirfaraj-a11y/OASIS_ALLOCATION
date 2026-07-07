@@ -27,6 +27,7 @@ class Page:
     icon: str
     render: Callable          # render(ctx) -> None
     roles: Sequence[str] = field(default_factory=tuple)  # empty = all roles
+    module: str = "core"      # sellable module SKU this page belongs to
 
     def visible_to(self, role: Optional[str]) -> bool:
         return not self.roles or role in set(self.roles)
@@ -47,11 +48,15 @@ def build_registry() -> List[Page]:
     return [
         Page("home", "Home / Journey", "◎", render_home, _ALL),
         Page("diagnose", "Diagnose", "⊙", render_diagnose, _OPERATOR),
-        Page("shadow", "Shadow", "◑", render_shadow, _OVERSIGHT),
-        Page("ordering", "Ordering", "▤", render_ordering, _OPERATIONS + ("branch_manager",)),
-        Page("transfers", "Transfers", "⇄", render_transfers, _OPERATIONS),
-        Page("suppliers", "Suppliers", "◇", render_suppliers, _OPERATIONS),
-        Page("allocation", "Allocation", "▦", render_allocation, _ALL),
+        Page("shadow", "Shadow", "◑", render_shadow, _OVERSIGHT, module="network"),
+        Page("ordering", "Ordering", "▤", render_ordering,
+             _OPERATIONS + ("branch_manager",), module="ordering"),
+        Page("transfers", "Transfers", "⇄", render_transfers, _OPERATIONS,
+             module="network"),
+        Page("suppliers", "Suppliers", "◇", render_suppliers, _OPERATIONS,
+             module="ordering"),
+        Page("allocation", "Allocation", "▦", render_allocation, _ALL,
+             module="network"),
         Page("analytics", "Analytics", "▣", render_analytics, _OVERSIGHT + ("finance",)),
         Page("settings", "Settings", "⚙", render_settings, _OPERATOR),
     ]
@@ -133,7 +138,16 @@ def run_console(st, *, registry: Sequence[Page], db_path: str,
                    f"--username {user.get('username','')}`")
 
     pages = visible_pages(registry, role)
-    labels = {f"{p.icon}  {p.label}": p for p in pages}
+    # Module gating: locked pages stay visible (marked 🔒) and render an
+    # upsell stub instead of the feature — a sales surface, not a dead end.
+    from ..logic.license_manager import allowed_modules, render_upsell
+    if "_allowed_modules" not in st.session_state:
+        st.session_state["_allowed_modules"] = allowed_modules()
+    _mods = st.session_state["_allowed_modules"]
+    labels = {}
+    for p in pages:
+        lock = "" if p.module in _mods else " 🔒"
+        labels[f"{p.icon}  {p.label}{lock}"] = p
 
     with st.sidebar:
         st.markdown(
@@ -161,7 +175,10 @@ def run_console(st, *, registry: Sequence[Page], db_path: str,
     if st.session_state.get("_last_page") != selected.key:
         log_page_view(db_path, user.get("username", ""), selected.key)
         st.session_state["_last_page"] = selected.key
-    safe_render(selected.render, ctx)
+    if selected.module in _mods:
+        safe_render(selected.render, ctx)
+    else:
+        render_upsell(st, selected.module)
 
 
 # ── page renderers ───────────────────────────────────────────────────────

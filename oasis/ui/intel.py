@@ -567,7 +567,8 @@ def build_intel_registry() -> List[Page]:
         Page("stock_review", "Stock Review", "▦", render_stock_review, _OVERSIGHT),
         Page("live_sales", "Live Sales", "▤", render_live_sales, _OVERSIGHT),
         Page("network", "Network Intel", "⇄", render_network_intel, _OVERSIGHT),
-        Page("baskets", "Basket Intelligence", "🧺", render_basket_intel, _OVERSIGHT),
+        Page("baskets", "Basket Intelligence", "🧺", render_basket_intel, _OVERSIGHT,
+             module="revenue"),
         Page("exec_roi", "Executive ROI", "▣", render_exec_roi, _OVERSIGHT),
         Page("sim_lab", "Simulation Lab", "🧪", render_sim_lab, _OPERATOR),
     ]

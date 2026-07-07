@@ -204,6 +204,15 @@ def run_bridge(port: int = 8600):
 
 # ── Mode: Migrate (Alembic) ──────────────────────────────────────────
 
+def _require_module(module: str) -> None:
+    """Gate a CLI mode on a licensed/trial module SKU (fail-closed)."""
+    from oasis.logic.license_manager import MODULE_LABELS, allowed_modules
+    if module not in allowed_modules():
+        label = MODULE_LABELS.get(module, module)
+        raise SystemExit(f"This command is part of the '{label}' module, which "
+                         "is not licensed for this install. Contact iLink.")
+
+
 def _read_version() -> str:
     """Platform version from the VERSION file (single source of truth)."""
     try:
@@ -513,8 +522,12 @@ def main():
     parser.add_argument("--sku-count", type=int, default=8, help="pos-inject: SKUs per bill")
     # Licensing (issue-license / license-status)
     parser.add_argument("--tenant", default=None, help="issue-license: tenant id")
-    parser.add_argument("--modules", default="ops,intel,command",
-                        help="issue-license: comma-separated module list")
+    parser.add_argument("--modules", default=None,
+                        help="issue-license: comma-separated module list "
+                             "(core,ordering,network,revenue,api)")
+    parser.add_argument("--bundle", default=None,
+                        help="issue-license: bundle preset "
+                             "(starter | pro | enterprise) — overrides --modules")
     parser.add_argument("--expiry", default=None, help="issue-license: YYYY-MM-DD")
     parser.add_argument("--out", default=None, help="issue-license: output key path")
     # Category report
@@ -737,6 +750,7 @@ def main():
               f"({res['dead_skus']:,} SKUs) | ghost sellers {res['ghost_sellers']:,} "
               f"| demand coverage {res['coverage_pct']}%")
     elif args.mode == "category-report":
+        _require_module("revenue")
         from oasis.logic.category_report import write_category_report
         root = os.path.dirname(__file__)
         data_dir = os.getenv("OASIS_DATA_DIR", os.path.join(root, "oasis", "data"))
@@ -756,6 +770,7 @@ def main():
               + (f" ({res['avg_margin_pct']}% margin)" if res['avg_margin_pct'] is not None else "")
               + f" | dead KES {res['dead_value']:,.0f} | ghost {res['ghost_sellers']:,}")
     elif args.mode == "sku-deepdive":
+        _require_module("revenue")
         from oasis.logic.sku_deepdive import write_sku_deepdive
         if not args.files:
             raise SystemExit("sku-deepdive requires --files <a.xlsx,b.xlsx,...>")
@@ -783,6 +798,7 @@ def main():
         res = inject_from_files(db_path, data_dir)
         print(f"GRN costs injected into {db_path}: {res}")
     elif args.mode == "supplier-scorecard":
+        _require_module("ordering")
         from oasis.logic.supplier_scorecard import write_scorecard
         root = os.path.dirname(__file__)
         data_dir = os.getenv("OASIS_DATA_DIR", os.path.join(root, "oasis", "data"))
@@ -852,20 +868,32 @@ def main():
             raise SystemExit(f"User '{args.username}' not found in {db_path}")
         print(f"Password updated for '{args.username}' ({db_path})")
     elif args.mode == "issue-license":
-        from oasis.logic.license_manager import KNOWN_MODULES, OfflineLicenseManager
+        from oasis.logic.license_manager import (
+            BUNDLES, KNOWN_MODULES, OfflineLicenseManager,
+        )
         if not args.tenant or not args.expiry:
             raise SystemExit("issue-license requires --tenant and --expiry YYYY-MM-DD")
-        mods = [m.strip() for m in args.modules.split(",") if m.strip()]
+        if args.bundle:
+            if args.bundle not in BUNDLES:
+                raise SystemExit(f"unknown bundle '{args.bundle}'; "
+                                 f"choose from: {', '.join(BUNDLES)}")
+            mods = list(BUNDLES[args.bundle])
+        else:
+            mods = [m.strip() for m in (args.modules or "core").split(",") if m.strip()]
+        if "core" not in mods:
+            raise SystemExit("every license must include 'core' (the mandatory base)")
         unknown = [m for m in mods if m not in KNOWN_MODULES]
         if unknown:
             logger.warning(f"Unknown module(s) {unknown}; known: {KNOWN_MODULES}")
         print(f"License issued: {OfflineLicenseManager().issue(args.tenant, mods, args.expiry, out_path=args.out)}")
     elif args.mode == "license-status":
-        from oasis.logic.license_manager import KNOWN_MODULES, OfflineLicenseManager
+        from oasis.logic.license_manager import (
+            KNOWN_MODULES, MODULE_LABELS, OfflineLicenseManager,
+        )
         mgr = OfflineLicenseManager()
         for m in KNOWN_MODULES:
             s = mgr.status(m)
-            print(f"  {m:<12} {s['mode']:<11} {s['reason']}")
+            print(f"  {m:<10} {MODULE_LABELS.get(m, m):<34} {s['mode']:<11} {s['reason']}")
     elif args.mode == "pos-inject":
         from oasis.logic.pos_injector import run_injector
         root = os.path.dirname(__file__)
