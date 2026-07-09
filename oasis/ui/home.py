@@ -105,9 +105,12 @@ def suite_links(st, current_key: str) -> None:
 def render_home_page(st, project_root: str) -> None:
     """The launcher page (thin; all logic in the helpers above)."""
     from ..logic.branding import load_branding
+    from ..logic.install_profile import is_multi_store, load_profile
     from ..logic.license_manager import KNOWN_MODULES, OfflineLicenseManager
 
     b = load_branding()
+    _profile = load_profile()
+    _is_multi = is_multi_store()
     logo = ""
     if b.logo_data_uri:
         logo = f'<img src="{b.logo_data_uri}" style="height:56px;margin-right:16px;vertical-align:middle;">'
@@ -121,6 +124,15 @@ def render_home_page(st, project_root: str) -> None:
         f"{logo}<h1 style='margin:0'>{b.product_name}{subline}</h1></div>"
         f"<p style='color:#888;margin-top:2px'>{subtitle}</p>",
         unsafe_allow_html=True)
+    # Profile badge — tells the operator (and any support tech) which topology
+    # is active and where the DB lives.
+    if _profile:
+        _label = "Multi-store network" if _is_multi else "Single store"
+        st.caption(f"▸ {_label} · DB: `{_profile.get('db_path', '—')}`")
+    else:
+        st.warning("This install has not been initialised. "
+                   "Run `entrypoint.py --mode init --profile single` "
+                   "(or `--profile multi`) to build the DB and record the topology.")
 
     # ── consoles ────────────────────────────────────────────────────────
     cards = console_cards()

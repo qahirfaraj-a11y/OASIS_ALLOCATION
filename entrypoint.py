@@ -499,6 +499,7 @@ def main():
                                  "issue-license", "license-status",
                                  "backup", "restore", "set-password",
                                  "package-release", "set-branding", "show-branding",
+                                 "init",
                                  "value-report", "metering-report", "home",
                                  "version", "upgrade", "assess",
                                  "supplier-scorecard", "category-report",
@@ -553,6 +554,9 @@ def main():
     parser.add_argument("--primary-color", default=None, help="set-branding: hex primary/accent")
     parser.add_argument("--accent-color", default=None, help="set-branding: hex hover/darker accent")
     parser.add_argument("--welcome-message", default=None, help="set-branding: Home page subtitle")
+    # Install profile (init)
+    parser.add_argument("--profile", choices=["single", "multi"], default="single",
+                        help="init: single-store or multi-store install (default: single)")
     # Release packaging
     parser.add_argument("--bundle-runtime", action="store_true",
                         help="package-release: include embedded Python + wheels for offline install")
@@ -841,6 +845,12 @@ def main():
                             os.path.join(root, "oasis", "data", "rhapta_pos.db"))
         since = (_dt.now() - _td(days=args.days)).strftime("%Y-%m-%d")
         print(f"Usage since {since}: {usage_summary(db_path, since)}")
+    elif args.mode == "init":
+        from oasis.logic.install_profile import init_install
+        summary = init_install(profile=args.profile, tenant=args.tenant or "")
+        print(f"OASIS initialised in {args.profile}-store mode:")
+        for k, v in summary.items():
+            print(f"  {k}: {v}")
     elif args.mode == "set-branding":
         import base64
         import mimetypes
