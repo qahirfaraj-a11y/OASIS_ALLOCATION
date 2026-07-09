@@ -257,3 +257,39 @@ def _st():
 def _render(html_str: str, st_module=None) -> None:
     st = st_module or _st()
     st.markdown(html_str, unsafe_allow_html=True)
+
+
+# ── OASIS SYSTEMS v1.0 brand primitives ────────────────────────────────────
+def _html_spec_tag(text: str, hot: bool = False) -> str:
+    """Render a spec-sheet-style bracket tag: [ AUDITED LOGIC_ENGINE_V3.1 ].
+
+    Set ``hot=True`` for the teal-highlighted variant (system-alive tags).
+    """
+    cls = "oasis-tag hot" if hot else "oasis-tag"
+    return f'<span class="{cls}">{_esc(text)}</span>'
+
+
+def spec_tag(text: str, hot: bool = False, st_module=None):
+    _st(st_module).markdown(_html_spec_tag(text, hot), unsafe_allow_html=True)
+
+
+def _html_status_ticker(items: Sequence[dict]) -> str:
+    """The brand's signature ticker line: [● SYSTEM READINESS: PEAK].
+
+    Each item is {"label": ..., "value": ...}. All items get the teal dot
+    treatment — the ticker is intentionally uniform (not colour-coded), the
+    dot alone signals liveness.
+    """
+    parts = []
+    for it in items:
+        label = _esc(it.get("label", ""))
+        value = _esc(str(it.get("value", "")))
+        parts.append(
+            f'<span class="item"><span class="dot"></span>'
+            f'{label}: <span class="val">{value}</span></span>'
+        )
+    return f'<div class="oasis-ticker">{"".join(parts)}</div>'
+
+
+def status_ticker(items: Sequence[dict], st_module=None):
+    _st(st_module).markdown(_html_status_ticker(items), unsafe_allow_html=True)

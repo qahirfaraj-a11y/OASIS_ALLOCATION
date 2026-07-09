@@ -42,8 +42,11 @@ class TestThemeCss:
     def test_css_contains_tokens_and_fonts(self):
         css = theme.theme_css()
         assert theme.PALETTE.teal in css
-        assert "Montserrat" in css and "Space+Mono" in css
+        # OASIS SYSTEMS v1.0 spec-sheet type family
+        assert "JetBrains+Mono" in css and "Inter" in css
         assert "--oasis-teal" in css
+        # exact brand-spec tokens present
+        assert "#00F5D4" in css and "#0B1020" in css
 
     def test_inject_is_idempotent(self):
         class FakeState(dict):
@@ -61,7 +64,9 @@ class TestThemeCss:
         theme.inject_theme(st)
         theme.inject_theme(st)
         theme.inject_theme(st)
-        assert st.calls == 1  # injected exactly once
+        # base stylesheet + one whitelabel-override markdown per first inject
+        # (guarded by _THEME_FLAG so subsequent calls are no-ops)
+        assert st.calls <= 2
 
 
 class TestComponentHtml:
@@ -192,3 +197,29 @@ class TestInteractiveWithFakeStreamlit:
         st = self.FakeSt(click={"g2"})
         assert C.decision_gate_card("Gate", "targets met", "Active",
                                     can_advance=True, key="g2", st_module=st) is True
+
+
+class TestBrandPrimitives:
+    """OASIS SYSTEMS v1.0 brand-signature components."""
+
+    def test_spec_tag_wraps_in_brackets_via_css(self):
+        h = C._html_spec_tag("AUDITED LOGIC_ENGINE_V3.1")
+        assert "oasis-tag" in h and "AUDITED LOGIC_ENGINE_V3.1" in h
+        assert "hot" not in h                       # not highlighted by default
+
+    def test_spec_tag_hot_variant(self):
+        assert "oasis-tag hot" in C._html_spec_tag("SYSTEM READY", hot=True)
+
+    def test_status_ticker_renders_teal_dots_and_labels(self):
+        h = C._html_status_ticker([
+            {"label": "System Readiness", "value": "PEAK"},
+            {"label": "Nodal Integrity", "value": "SECURE"},
+        ])
+        assert "oasis-ticker" in h
+        assert "dot" in h                           # dot element present
+        assert "System Readiness" in h and "PEAK" in h
+        assert "Nodal Integrity" in h and "SECURE" in h
+        assert h.count("class=\"item\"") == 2       # one item per entry
+
+    def test_spec_tag_escapes(self):
+        assert "<script>" not in C._html_spec_tag("<script>alert(1)</script>")

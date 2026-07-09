@@ -102,6 +102,15 @@ def suite_links(st, current_key: str) -> None:
         pass
 
 
+def _version_str(project_root: str) -> str:
+    """Read VERSION for the AUDITED LOGIC_ENGINE_V<n> spec tag."""
+    try:
+        with open(os.path.join(project_root, "VERSION"), "r", encoding="utf-8") as f:
+            return f.read().strip()
+    except OSError:
+        return "0.0"
+
+
 def render_home_page(st, project_root: str) -> None:
     """The launcher page (thin; all logic in the helpers above)."""
     from ..logic.branding import load_branding
@@ -116,14 +125,35 @@ def render_home_page(st, project_root: str) -> None:
         logo = f'<img src="{b.logo_data_uri}" style="height:56px;margin-right:16px;vertical-align:middle;">'
     elif b.logo:
         logo = f'<img src="{b.logo}" style="height:56px;margin-right:16px;vertical-align:middle;">'
-    subtitle = b.welcome_message or ("Omni-channel Autonomous Stock "
-                                     "Intelligence System — suite launcher")
+    subtitle = b.welcome_message or ("Algorithmic Retail Systems & Logic")
     subline = f" · {b.tenant_name}" if b.tenant_name != b.product_name else ""
+    # Top spec tag — brand's "[ AUDITED LOGIC_ENGINE_V3.1 ]" motif
+    from . import components as C
+    from ..logic.license_manager import OfflineLicenseManager, allowed_modules
+    _sys_status = "PEAK" if OfflineLicenseManager().status("core")["mode"] != "locked" else "LOCKED"
+    C.spec_tag(f"AUDITED LOGIC_ENGINE_V{_version_str(project_root)}", hot=True,
+               st_module=st)
     st.markdown(
-        f"<div style='display:flex;align-items:center;margin-bottom:6px'>"
+        f"<div style='display:flex;align-items:center;margin-top:8px;"
+        f"margin-bottom:6px'>"
         f"{logo}<h1 style='margin:0'>{b.product_name}{subline}</h1></div>"
-        f"<p style='color:#888;margin-top:2px'>{subtitle}</p>",
+        f"<p style='color:var(--oasis-text-3);margin-top:2px;"
+        f"font-family:var(--oasis-mono);letter-spacing:0.14em;"
+        f"text-transform:uppercase;font-size:0.78em;'>"
+        f"{subtitle}</p>",
         unsafe_allow_html=True)
+    # Status ticker: the brand's signature "● SYSTEM READINESS: PEAK" line
+    _snap = system_snapshot(
+        os.getenv("OASIS_DB_PATH",
+                  os.path.join(project_root, "oasis", "data",
+                               "rhapta_pos.db")))
+    _mods = allowed_modules()
+    C.status_ticker([
+        {"label": "System Readiness", "value": _sys_status},
+        {"label": "Nodal Integrity",
+         "value": "SECURE" if _snap["db_exists"] else "PENDING"},
+        {"label": "Modules Live", "value": f"{len(_mods)}/5"},
+    ], st_module=st)
     # Profile badge — tells the operator (and any support tech) which topology
     # is active and where the DB lives.
     if _profile:

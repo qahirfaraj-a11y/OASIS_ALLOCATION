@@ -14,38 +14,45 @@ from dataclasses import dataclass
 
 # ── SYS v2.9 palette ─────────────────────────────────────────────────────
 # Values follow the Visual System Guide: system teal-turquoise accent,
-# deep slate chrome, platform-white surfaces. Secondary text is chosen to
-# pass WCAG AA (>=4.5:1) on the slate background (the old #888 on #0b0e14
-# failed this).
+# --- OASIS SYSTEMS v1.0 Brand Ecosystem -------------------------------------
+# Exact tokens from the primary spec sheet (Obsidian Mode):
+#   Deep #0B1020  ·  System #00F5D4  ·  Platform #FFFFFF  ·  Neutral #E0E0E0
+# The chrome takes a "technical spec sheet" personality: monospace uppercase
+# labels ([ AUDITED / SYSTEM READY / NODAL INTEGRITY ]), teal status ticker
+# dots, and a display family (JetBrains-family) chosen to match the brand's
+# angular geometric weight.
 @dataclass(frozen=True)
 class Palette:
-    # Brand
-    teal: str = "#00E5C4"          # system teal-turquoise — primary accent / "alive"
-    teal_dark: str = "#00B89E"     # hover / accent on light surfaces
+    # Brand — exact from the spec sheet
+    teal: str = "#00F5D4"           # SYSTEM #00F5D4 — primary accent / "alive"
+    teal_dark: str = "#00C4AB"       # accent on light surfaces / hover
+    teal_glow: str = "#00F5D466"     # soft glow (40% alpha) for dot halos
     # Chrome
-    deep_slate: str = "#10181D"    # app background
-    slate_surface: str = "#1A2731" # cards / panels
-    slate_border: str = "#2B3A44"  # hairlines
-    platform_white: str = "#F4F7F9"
-    # Text
-    text_primary: str = "#F4F7F9"  # on slate
-    text_secondary: str = "#AEBEC8"  # on slate — AA compliant
-    text_muted: str = "#8497A3"    # on slate — AA for large/secondary only
-    # Status (used as icon + label + colour, never colour alone)
-    success: str = "#00E5C4"       # teal — healthy / reliable
-    warning: str = "#FFB020"       # amber — watch
-    danger: str = "#FF5247"        # ruby — hostile / critical
-    info: str = "#4FB0FF"
+    deep_obsidian: str = "#0B1020"   # DEEP #0B1020 — app background
+    obsidian_raise: str = "#141A2E"  # cards / panels — one step up from bg
+    obsidian_border: str = "#1F2740" # hairlines
+    platform_white: str = "#FFFFFF"  # PLATFORM #FFFFFF
+    neutral: str = "#E0E0E0"         # NEUTRAL #E0E0E0
+    # Text (AA-tested on the obsidian background)
+    text_primary: str = "#FFFFFF"    # on obsidian
+    text_secondary: str = "#B8C0D9"  # on obsidian — AA compliant
+    text_muted: str = "#7A85A8"      # on obsidian — AA for large text
+    # Status (icon + label + colour vocabulary — accessibility)
+    success: str = "#00F5D4"         # teal — SECURE / PEAK / CONFIRMED
+    warning: str = "#FFC857"         # amber — WATCH
+    danger: str = "#FF4D6D"          # ruby — HOSTILE / VULNERABLE
+    info: str = "#7DD3FC"
 
 
 @dataclass(frozen=True)
 class Type:
-    display: str = "'Montserrat', system-ui, sans-serif"   # headings / UI
-    mono: str = "'Space Mono', ui-monospace, monospace"    # data / money / codes
+    # Angular / geometric family to match the brand's spec-sheet personality.
+    display: str = "'JetBrains Sans', 'Inter', system-ui, sans-serif"
+    mono: str = "'JetBrains Mono', ui-monospace, 'Space Mono', monospace"
     font_import: str = (
         "https://fonts.googleapis.com/css2?"
-        "family=Montserrat:wght@400;500;600;700;800&"
-        "family=Space+Mono:wght@400;700&display=swap"
+        "family=Inter:wght@400;500;600;700;800;900&"
+        "family=JetBrains+Mono:wght@400;500;700&display=swap"
     )
 
 
@@ -55,13 +62,26 @@ class Space:
     sm: str = "8px"
     md: str = "16px"
     lg: str = "24px"
-    xl: str = "32px"
-    radius: str = "14px"
+    xl: str = "40px"    # more generous — spec-sheet whitespace
+    radius: str = "10px"  # tighter — technical rather than friendly
 
 
 PALETTE = Palette()
 TYPE = Type()
 SPACE = Space()
+
+
+# ── Back-compat: SYS v2.9 attr names alias into the new brand tokens ──
+# Old callers referenced `deep_slate` / `slate_surface` etc.; we keep those
+# names working (proxying to the obsidian tokens) so existing code and tests
+# don't need to change beyond the rename.
+def _palette_alias(inst: Palette, old: str, new: str) -> None:
+    object.__setattr__(inst, old, getattr(inst, new))
+
+
+_palette_alias(PALETTE, "deep_slate", "deep_obsidian")
+_palette_alias(PALETTE, "slate_surface", "obsidian_raise")
+_palette_alias(PALETTE, "slate_border", "obsidian_border")
 
 # Status vocabulary: status_key -> (icon, colour, label). Status is always
 # conveyed by icon + label + colour together (accessibility).
@@ -117,49 +137,128 @@ def theme_css() -> str:
 :root {{
     --oasis-teal: {p.teal};
     --oasis-teal-dark: {p.teal_dark};
-    --oasis-bg: {p.deep_slate};
-    --oasis-surface: {p.slate_surface};
-    --oasis-border: {p.slate_border};
+    --oasis-teal-glow: {p.teal_glow};
+    --oasis-bg: {p.deep_obsidian};
+    --oasis-surface: {p.obsidian_raise};
+    --oasis-border: {p.obsidian_border};
+    --oasis-neutral: {p.neutral};
     --oasis-text: {p.text_primary};
     --oasis-text-2: {p.text_secondary};
+    --oasis-text-3: {p.text_muted};
     --oasis-success: {p.success};
     --oasis-warning: {p.warning};
     --oasis-danger: {p.danger};
     --oasis-radius: {s.radius};
+    --oasis-mono: {t.mono};
+    --oasis-display: {t.display};
 }}
+/* --- App shell -------------------------------------------------------- */
 .stApp {{ background: var(--oasis-bg); color: var(--oasis-text);
-          font-family: {t.display}; }}
-h1, h2, h3, h4 {{ font-family: {t.display}; font-weight: 700;
-                  letter-spacing: -0.3px; color: var(--oasis-text); }}
+          font-family: var(--oasis-display);
+          background-image:
+              radial-gradient(circle at 20% 0%, rgba(0,245,212,0.05) 0%, transparent 40%),
+              radial-gradient(circle at 80% 100%, rgba(0,245,212,0.03) 0%, transparent 40%);
+          background-attachment: fixed; }}
+
+/* Editorial display headings — heavy, tight, uppercase for H1 */
+h1 {{ font-family: var(--oasis-display); font-weight: 800;
+      letter-spacing: -0.02em; text-transform: uppercase;
+      color: var(--oasis-text); }}
+h2, h3 {{ font-family: var(--oasis-display); font-weight: 700;
+         letter-spacing: -0.01em; color: var(--oasis-text); }}
+h4 {{ font-family: var(--oasis-mono); font-weight: 500;
+      text-transform: uppercase; letter-spacing: 0.15em; font-size: 0.85em;
+      color: var(--oasis-text-2); }}
+
+/* Spec-sheet bracket tags — [ AUDITED / SYSTEM READY / etc. ] */
+.oasis-tag {{ font-family: var(--oasis-mono); font-size: 0.72em;
+              letter-spacing: 0.14em; text-transform: uppercase;
+              color: var(--oasis-text-3); }}
+.oasis-tag::before {{ content: "[ "; }}
+.oasis-tag::after  {{ content: " ]"; }}
+.oasis-tag.hot {{ color: var(--oasis-teal); }}
+
+/* Cards — hairline border, no soft shadow (technical, not fluffy) */
 .oasis-card {{ background: var(--oasis-surface);
                border: 1px solid var(--oasis-border);
                border-radius: var(--oasis-radius);
-               padding: {s.lg}; margin: {s.sm} 0; }}
-.oasis-mono, .oasis-metric-value {{ font-family: {t.mono}; }}
-.oasis-metric-label {{ font-size: 0.78em; color: var(--oasis-text-2);
-                       text-transform: uppercase; letter-spacing: 0.5px; }}
-.oasis-metric-value {{ font-size: 2em; font-weight: 700;
-                       color: var(--oasis-text); }}
-.oasis-metric-sub {{ font-size: 0.85em; color: var(--oasis-text-2); }}
+               padding: {s.lg}; margin: {s.sm} 0;
+               position: relative; }}
+.oasis-card::before {{ content: ""; position: absolute; top: 0; left: {s.md};
+                       right: {s.md}; height: 1px;
+                       background: linear-gradient(90deg, transparent,
+                            var(--oasis-teal-glow), transparent);
+                       opacity: 0.6; }}
+
+/* Metrics — monospace value, uppercase micro-label */
+.oasis-mono, .oasis-metric-value {{ font-family: var(--oasis-mono); }}
+.oasis-metric-label {{ font-family: var(--oasis-mono); font-size: 0.72em;
+                       color: var(--oasis-text-3);
+                       text-transform: uppercase; letter-spacing: 0.15em; }}
+.oasis-metric-value {{ font-size: 2.1em; font-weight: 500;
+                       color: var(--oasis-text); font-variant-numeric: tabular-nums;
+                       margin-top: 4px; }}
+.oasis-metric-sub {{ font-size: 0.78em; color: var(--oasis-text-2);
+                     font-family: var(--oasis-mono); }}
+
+/* Status ticker dots — the brand's signature "● SYSTEM READINESS: PEAK" line */
+.oasis-ticker {{ display: flex; flex-wrap: wrap; gap: {s.md};
+                 font-family: var(--oasis-mono); font-size: 0.78em;
+                 text-transform: uppercase; letter-spacing: 0.1em; }}
+.oasis-ticker .item {{ display: inline-flex; align-items: center; gap: 8px;
+                       color: var(--oasis-text-2); }}
+.oasis-ticker .dot {{ width: 8px; height: 8px; border-radius: 50%;
+                      background: var(--oasis-teal);
+                      box-shadow: 0 0 8px var(--oasis-teal-glow); }}
+.oasis-ticker .val {{ color: var(--oasis-teal); font-weight: 700; }}
+
+/* Chips + badges */
 .oasis-chip {{ display: inline-flex; align-items: center; gap: 6px;
-               padding: 3px 10px; border-radius: 999px; font-size: 0.8em;
-               font-weight: 600; border: 1px solid; }}
+               padding: 3px 10px; border-radius: 999px; font-size: 0.75em;
+               font-weight: 500; font-family: var(--oasis-mono);
+               text-transform: uppercase; letter-spacing: 0.08em;
+               border: 1px solid; }}
 .oasis-badge {{ display: inline-flex; align-items: center; gap: 10px;
                 background: var(--oasis-surface); border: 1px solid var(--oasis-border);
-                border-radius: 999px; padding: 6px 14px; font-size: 0.85em; }}
+                border-radius: 999px; padding: 6px 14px; font-size: 0.85em;
+                font-family: var(--oasis-mono); letter-spacing: 0.06em; }}
+
+/* Journey rail */
 .oasis-rail {{ display: flex; gap: 6px; align-items: center; }}
-.oasis-rail-step {{ flex: 1; text-align: center; font-size: 0.72em;
-                    padding: 6px 4px; border-radius: 8px;
+.oasis-rail-step {{ flex: 1; text-align: center; font-size: 0.7em;
+                    padding: 8px 4px; border-radius: 6px;
                     border: 1px solid var(--oasis-border);
-                    color: var(--oasis-text-2); }}
-.oasis-rail-step.done {{ border-color: var(--oasis-teal);
+                    color: var(--oasis-text-3);
+                    font-family: var(--oasis-mono); text-transform: uppercase;
+                    letter-spacing: 0.1em; }}
+.oasis-rail-step.done {{ border-color: var(--oasis-teal-dark);
                          color: var(--oasis-teal); }}
 .oasis-rail-step.current {{ background: var(--oasis-teal);
                             color: var(--oasis-bg); font-weight: 700;
                             border-color: var(--oasis-teal); }}
+
+/* Progress meter */
 .oasis-meter-track {{ background: var(--oasis-border); border-radius: 999px;
-                      height: 10px; overflow: hidden; }}
-.oasis-meter-fill {{ background: var(--oasis-teal); height: 100%; }}
+                      height: 8px; overflow: hidden; }}
+.oasis-meter-fill {{ background: linear-gradient(90deg,
+                        var(--oasis-teal-dark), var(--oasis-teal));
+                     height: 100%; box-shadow: 0 0 8px var(--oasis-teal-glow); }}
+
+/* Streamlit primitives → brand-tint (tabs, buttons, inputs) */
+button[kind="primary"], .stButton>button {{ font-family: var(--oasis-mono);
+    text-transform: uppercase; letter-spacing: 0.12em; font-size: 0.82em;
+    border-radius: 6px; border: 1px solid var(--oasis-border); }}
+.stButton>button:hover {{ border-color: var(--oasis-teal);
+    color: var(--oasis-teal); }}
+[data-baseweb="tab"] {{ font-family: var(--oasis-mono);
+    text-transform: uppercase; letter-spacing: 0.12em; font-size: 0.8em; }}
+[data-baseweb="tab"][aria-selected="true"] {{ color: var(--oasis-teal); }}
+[data-baseweb="tab-highlight"] {{ background: var(--oasis-teal); }}
+[data-testid="stMetricLabel"] {{ font-family: var(--oasis-mono);
+    text-transform: uppercase; letter-spacing: 0.14em;
+    color: var(--oasis-text-3); font-size: 0.72em; }}
+[data-testid="stMetricValue"] {{ font-family: var(--oasis-mono);
+    font-variant-numeric: tabular-nums; color: var(--oasis-text); }}
 """
 
 
