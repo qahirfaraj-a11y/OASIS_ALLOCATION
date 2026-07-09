@@ -23,7 +23,6 @@ Pure decision logic (should_ship) is unit-tested; build_release is the zipper.
 from __future__ import annotations
 
 import os
-import shutil
 import zipfile
 from typing import Optional, Tuple
 
@@ -53,7 +52,21 @@ _EXCLUDE_FILES = {
 #: extensions never shipped (data/weights live on the client, not the release)
 _EXCLUDE_EXTS = {".db", ".db-wal", ".db-shm", ".xlsx", ".xls", ".pyc",
                  ".zip", ".log", ".pdf", ".gguf", ".joblib", ".pt", ".pth",
-                 ".onnx", ".mp3", ".mp4", ".csv"}
+                 ".onnx", ".mp3", ".mp4", ".csv", ".jpg", ".jpeg"}
+
+
+#: path-glob patterns never shipped (data caches, generated maps, big JSON, etc.)
+_EXCLUDE_GLOBS = (
+    "oasis/data/*.json", "oasis/data/*.bak_*", "oasis/data/outputs/*",
+    "*.json.bak_*", "product_*_map.json", "barcode_*_map.json",
+    "rhapta_master_metrics.json", "supplier_*_analysis.json",
+    "supplier_weekly_schedule.json", "supplier_predictive_analysis.json",
+    "supplier_schedule*.json", "shadow_health.json",
+    "*_intelligence_cache.json", "aneek_analysis.json", "kapa_*.json",
+    "moq_failures.json", "journey_state.json", "transfers_registry.json",
+    "zip_contents.txt", "oasis_exchange_text.txt",
+    "TouchDesigner_Vibe/*", "*.png",
+)
 
 #: anything bigger than this is data/derived, not application code
 _MAX_FILE_MB = 20.0
@@ -61,7 +74,9 @@ _MAX_FILE_MB = 20.0
 
 def should_ship(relpath: str, size_bytes: int = 0) -> Tuple[bool, str]:
     """(ship?, reason) for a repo-relative path. Pure."""
-    parts = relpath.replace("\\", "/").split("/")
+    import fnmatch
+    rel = relpath.replace("\\", "/")
+    parts = rel.split("/")
     for seg in parts[:-1]:
         if seg in _EXCLUDE_DIRS:
             return False, f"excluded dir '{seg}'"
@@ -74,6 +89,9 @@ def should_ship(relpath: str, size_bytes: int = 0) -> Tuple[bool, str]:
         return False, "database sidecar"
     if ext in _EXCLUDE_EXTS:
         return False, f"excluded extension '{ext}'"
+    for pat in _EXCLUDE_GLOBS:
+        if fnmatch.fnmatch(rel, pat) or fnmatch.fnmatch(name, pat):
+            return False, f"matches exclude glob '{pat}'"
     if size_bytes > _MAX_FILE_MB * 1e6:
         return False, f"exceeds {_MAX_FILE_MB:.0f}MB size cap (data, not code)"
     return True, "ok"
@@ -167,7 +185,7 @@ def build_release(root: str, out_dir: Optional[str] = None,
         # Add runtime bundle if requested
         runtime_info = {}
         if bundle_runtime:
-            print(f"[package] Including embedded runtime bundle...")
+            print("[package] Including embedded runtime bundle...")
             runtime_info = _add_runtime_bundle(zf, root, arc_prefix)
             shipped += runtime_info.get("runtime_files", 0)
             print(f"[package] Runtime: {runtime_info.get('runtime_files', 0)} files, "
