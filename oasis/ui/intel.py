@@ -453,6 +453,87 @@ def render_basket_intel(ctx) -> None:
     st.dataframe(df, use_container_width=True, hide_index=True, height=480)
 
 
+def render_category_deepdive(ctx) -> None:
+    """User-picked department deep-dive: run the SKU verdict portfolio (RESTOCK
+    NOW / RETAIN-CORE / RETAIN / REDUCE / REVIEW / CLEAR & DELIST / DELIST
+    (paper)) on any department in the live catalogue. Same logic that produced
+    the alcohol section report — now available at runtime for every industry."""
+    st = ctx["st"]
+    from . import components as C
+    from ..logic.sku_deepdive import build_sku_deepdive_live, list_departments_from_db
+
+    db_path = ctx.get("db_path")
+    st.markdown("### Category Deep-Dive")
+    st.caption(
+        "Pick any department(s) in your catalogue; the engine judges every SKU "
+        "on velocity, capital and stock-cover, producing an explainable "
+        "retain-or-cut verdict for each. Works on your live data."
+    )
+
+    depts = list_departments_from_db(db_path)
+    if not depts:
+        C.empty_state(
+            "No departments found",
+            "Onboard your catalogue first (--mode build-pos-db or build-views).",
+            st_module=st)
+        return
+    options = {f"{d['dept']}  ·  {d['skus']} SKUs ({d['in_stock']} in stock)": d["dept"]
+               for d in depts}
+    picks = st.multiselect(
+        "Departments", list(options.keys()), max_selections=5,
+        help="Up to 5 departments per run. Big sections (>1k SKUs) may take a few seconds.")
+    if not picks:
+        st.info("Select one or more departments above to run the deep-dive.")
+        return
+
+    picked = [options[k] for k in picks]
+    with st.spinner(f"Analysing {len(picked)} department(s) live…"):
+        # Real GRN cost overrides where available (client can also inject via
+        # --mode inject-grn-costs; this reads the file if present).
+        costs = None
+        try:
+            import os as _os
+            from ..logic.grn_cost import load_grn_costs
+            data_dir = _os.path.join(ctx.get("project_root", ""), "oasis", "data")
+            costs = load_grn_costs(data_dir)
+        except Exception:
+            costs = None
+        a = build_sku_deepdive_live(db_path, picked, costs=costs)
+
+    if not a["skus"]:
+        C.empty_state("No SKUs matched",
+                      "Those departments have no stocked items yet.", st_module=st)
+        return
+
+    C.kpi_row([
+        {"label": "SKUs on shelf", "value": f"{a['n_skus']:,}",
+         "sub": f"{a['n_sellers']:,} sold in last {a['months_used']} mo"},
+        {"label": "Capital on shelf", "value": f"KES {a['total_capital']:,.0f}"},
+        {"label": "Recoverable via clearance",
+         "value": f"KES {a['clear_capital']:,.0f}", "status": "warning"},
+        {"label": "Lost revenue / day",
+         "value": f"KES {a['lost_rev_day']:,.0f}", "status": "danger"},
+    ], st_module=st)
+
+    import pandas as pd
+    st.markdown("#### Portfolio by verdict")
+    st.dataframe(
+        pd.DataFrame([{"Verdict": k, **v} for k, v in a["by_verdict"].items()]),
+        use_container_width=True, hide_index=True)
+
+    df = pd.DataFrame(a["skus"])
+    verdict_filter = st.multiselect(
+        "Filter by verdict", sorted(df["Verdict"].unique()),
+        default=sorted(df["Verdict"].unique()))
+    show = df[df["Verdict"].isin(verdict_filter)].sort_values("Rev/Day", ascending=False)
+    st.markdown(f"#### Every SKU ({len(show):,} rows)")
+    st.dataframe(show, use_container_width=True, hide_index=True, height=480)
+    st.download_button(
+        "⬇ Download full CSV",
+        show.to_csv(index=False).encode("utf-8"),
+        file_name=f"OASIS_Deepdive_{'_'.join(picked)[:60]}.csv", mime="text/csv")
+
+
 def render_exec_roi(ctx) -> None:
     """Executive ROI: the capital-recovery showcase — journey value + live
     network health against the Playbook's Pre→Post targets."""
@@ -569,6 +650,8 @@ def build_intel_registry() -> List[Page]:
         Page("network", "Network Intel", "⇄", render_network_intel, _OVERSIGHT),
         Page("baskets", "Basket Intelligence", "🧺", render_basket_intel, _OVERSIGHT,
              module="revenue"),
+        Page("deepdive", "Category Deep-Dive", "🔍", render_category_deepdive,
+             _OVERSIGHT, module="revenue"),
         Page("exec_roi", "Executive ROI", "▣", render_exec_roi, _OVERSIGHT),
         Page("sim_lab", "Simulation Lab", "🧪", render_sim_lab, _OPERATOR),
     ]

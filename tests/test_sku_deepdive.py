@@ -63,3 +63,63 @@ class TestSnapshot:
         by_bc = {r["barcode"]: r for r in rows}
         assert by_bc["111"]["dept"] == "BEER"       # first file claimed it
         assert by_bc["222"]["dept"] == "CIDERS"
+
+
+class TestLiveDb:
+    """User-picked department deep-dive on a live OASIS install."""
+
+    def _mini_db(self, tmp_path):
+        import sqlite3
+        db = str(tmp_path / "mini.db")
+        c = sqlite3.connect(db)
+        c.executescript("""
+            CREATE TABLE ITEM_MST (ITM_CD TEXT PRIMARY KEY, ITM_LONG_NAME TEXT,
+                                   DEPARTMENT TEXT, SUPPLIER_CD TEXT);
+            CREATE TABLE STOCK_MASTER (SM_ITM_CD TEXT, SM_ORG_CD TEXT, SM_QTY REAL);
+            CREATE TABLE BASIC_SP_MST (BSP_ITEM_CD TEXT, BSP_ORG_CD TEXT, BSP_SP REAL);
+            CREATE TABLE SUPPLIER_MST (SUPPLIER_CD TEXT, SUPPLIER_NAME TEXT);
+            CREATE TABLE POS_SALES_DTL (ORG_CD TEXT, BILL_DT TEXT, ITM_CD TEXT,
+                                        QTY REAL, VOID_FLAG TEXT);
+            INSERT INTO ITEM_MST VALUES ('A','Milk','DAIRY','S1');
+            INSERT INTO ITEM_MST VALUES ('B','Cheese','DAIRY','S1');
+            INSERT INTO ITEM_MST VALUES ('C','Bread','BAKERY','S2');
+            INSERT INTO STOCK_MASTER VALUES ('A','ORG001',10);
+            INSERT INTO STOCK_MASTER VALUES ('B','ORG001',0);
+            INSERT INTO STOCK_MASTER VALUES ('C','ORG001',5);
+            INSERT INTO BASIC_SP_MST VALUES ('A','ORG001',100);
+            INSERT INTO BASIC_SP_MST VALUES ('B','ORG001',300);
+            INSERT INTO BASIC_SP_MST VALUES ('C','ORG001',50);
+            INSERT INTO SUPPLIER_MST VALUES ('S1','DairyCo');
+            INSERT INTO POS_SALES_DTL VALUES ('ORG001','2026-06-01','A',30,'F');
+            INSERT INTO POS_SALES_DTL VALUES ('ORG001','2026-07-01','A',30,'F');
+            INSERT INTO POS_SALES_DTL VALUES ('ORG001','2026-06-01','B',15,'F');
+        """)
+        c.commit()
+        c.close()
+        return db
+
+    def test_list_departments(self, tmp_path):
+        from oasis.logic.sku_deepdive import list_departments_from_db
+        db = self._mini_db(tmp_path)
+        depts = {d["dept"]: d for d in list_departments_from_db(db)}
+        assert set(depts) == {"DAIRY", "BAKERY"}
+        assert depts["DAIRY"]["skus"] == 2 and depts["DAIRY"]["in_stock"] == 1
+
+    def test_live_deepdive_verdicts(self, tmp_path):
+        from oasis.logic.sku_deepdive import build_sku_deepdive_live
+        db = self._mini_db(tmp_path)
+        a = build_sku_deepdive_live(db, ["DAIRY"])
+        by = {s["Barcode"]: s for s in a["skus"]}
+        assert set(by) == {"A", "B"}         # BAKERY excluded
+        # A sells (60 units, 10 on hand, ~2 mo) — has cover, verdict is one of
+        # the sold-with-stock buckets
+        assert by["A"]["Verdict"] in ("RETAIN", "RETAIN-CORE", "REDUCE", "REVIEW")
+        assert by["A"]["ADS"] > 0
+        # B: sold once (15 units, 1 month) but stock=0 -> RESTOCK NOW
+        assert by["B"]["Verdict"] == "RESTOCK NOW"
+
+    def test_multi_department_selection(self, tmp_path):
+        from oasis.logic.sku_deepdive import build_sku_deepdive_live
+        db = self._mini_db(tmp_path)
+        a = build_sku_deepdive_live(db, ["DAIRY", "BAKERY"])
+        assert a["n_skus"] == 3   # all 3 SKUs across both depts

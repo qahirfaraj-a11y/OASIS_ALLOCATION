@@ -52,6 +52,175 @@ def infer_dept(path: str) -> str:
     return "UNKNOWN"
 
 
+def list_departments_from_db(db_path: str, org_cd: Optional[str] = None) -> List[dict]:
+    """Every DEPARTMENT that has stocked SKUs — one row per (dept, SKU count, in-stock).
+
+    Powers the Intelligence Console's department picker: user sees exactly
+    which sections have data before running the deep-dive.
+    """
+    import sqlite3
+    conn = sqlite3.connect(db_path, timeout=15.0)
+    try:
+        params: List = []
+        where = "COALESCE(i.DEPARTMENT,'') <> ''"
+        if org_cd:
+            where += " AND s.SM_ORG_CD = ?"
+            params.append(org_cd)
+        rows = conn.execute(
+            "SELECT i.DEPARTMENT AS dept, COUNT(*) AS skus, "
+            "  SUM(CASE WHEN COALESCE(s.SM_QTY,0)>0 THEN 1 ELSE 0 END) AS in_stock "
+            "FROM ITEM_MST i LEFT JOIN STOCK_MASTER s ON s.SM_ITM_CD = i.ITM_CD "
+            f"WHERE {where} GROUP BY i.DEPARTMENT ORDER BY 2 DESC", params).fetchall()
+        return [{"dept": r[0], "skus": int(r[1] or 0),
+                 "in_stock": int(r[2] or 0)} for r in rows]
+    finally:
+        conn.close()
+
+
+def snapshot_from_db(db_path: str, departments: List[str],
+                     org_cd: Optional[str] = None) -> List[dict]:
+    """Live-DB variant of load_snapshot: build the SKU list from ITEM_MST +
+    STOCK_MASTER + BASIC_SP_MST + BASIC_CP_MST for one or more departments.
+
+    Returns records shaped like load_snapshot(), so build_sku_deepdive() runs
+    unchanged. Cost from BCP is used as the *snapshot* cost — real GRN WAC
+    still overrides when available via load_grn_costs() upstream.
+    """
+    import sqlite3
+    conn = sqlite3.connect(db_path, timeout=30.0)
+    try:
+        placeholders = ",".join("?" * len(departments))
+        params: List = list(departments)
+        org_where = ""
+        if org_cd:
+            org_where = " AND s.SM_ORG_CD = ? AND sp.BSP_ORG_CD = ? "
+            params += [org_cd, org_cd]
+        rows = conn.execute(
+            "SELECT i.ITM_CD AS barcode, "
+            "       COALESCE(i.ITM_LONG_NAME, i.ITM_CD) AS name, "
+            "       COALESCE(sup.SUPPLIER_NAME, '') AS vendor, "
+            "       i.DEPARTMENT AS dept, "
+            "       COALESCE(sp.BSP_SP, 0) AS price, "
+            "       COALESCE(s.SM_QTY, 0) AS stock "
+            "FROM ITEM_MST i "
+            "LEFT JOIN STOCK_MASTER s ON s.SM_ITM_CD = i.ITM_CD "
+            "LEFT JOIN BASIC_SP_MST sp ON sp.BSP_ITEM_CD = i.ITM_CD "
+            "LEFT JOIN SUPPLIER_MST sup ON sup.SUPPLIER_CD = i.SUPPLIER_CD "
+            f"WHERE UPPER(i.DEPARTMENT) IN ({placeholders.upper() if False else placeholders}){org_where}",
+            params).fetchall()
+        return [{"barcode": str(r[0]), "name": str(r[1] or ""),
+                 "vendor": str(r[2] or ""), "dept": str(r[3] or ""),
+                 "price": float(r[4] or 0), "stock": max(0.0, float(r[5] or 0))}
+                for r in rows]
+    finally:
+        conn.close()
+
+
+def demand_from_db(db_path: str, org_cd: Optional[str] = None,
+                   days: int = 274) -> Tuple[Dict[str, List[float]], int]:
+    """{barcode: [qty per complete month]} + n_months, straight from POS_SALES_DTL.
+
+    Replaces monthly_demand_by_name() for live-DB clients whose demand lives
+    in the system already (not in month-of-year Excel files).
+    """
+    import sqlite3
+    from datetime import datetime, timedelta
+    conn = sqlite3.connect(db_path, timeout=30.0)
+    try:
+        cutoff = (datetime.now() - timedelta(days=days)).strftime("%Y-%m-%d")
+        params: List = [cutoff]
+        org_where = ""
+        if org_cd:
+            org_where = " AND d.ORG_CD = ?"
+            params.append(org_cd)
+        rows = conn.execute(
+            "SELECT d.ITM_CD, strftime('%Y-%m', d.BILL_DT) AS mo, SUM(d.QTY) "
+            "FROM POS_SALES_DTL d "
+            f"WHERE d.BILL_DT >= ? AND COALESCE(d.VOID_FLAG,'F') <> 'T'{org_where} "
+            "GROUP BY d.ITM_CD, mo", params).fetchall()
+        by_sku: Dict[str, Dict[str, float]] = {}
+        months = set()
+        for itm, mo, qty in rows:
+            by_sku.setdefault(str(itm), {})[str(mo)] = float(qty or 0)
+            months.add(str(mo))
+        month_order = sorted(months)
+        series = {itm: [d.get(m, 0.0) for m in month_order] for itm, d in by_sku.items()}
+        return series, len(month_order)
+    finally:
+        conn.close()
+
+
+def build_sku_deepdive_live(db_path: str, departments: List[str],
+                            org_cd: Optional[str] = None,
+                            costs: Optional[Dict[str, dict]] = None) -> dict:
+    """End-to-end live-DB deep-dive: pick departments -> read stock+sales+cost
+    from the installed OASIS DB -> produce the same verdict portfolio as
+    build_sku_deepdive() from snapshot files."""
+    snapshot = snapshot_from_db(db_path, departments, org_cd=org_cd)
+    series, n_months = demand_from_db(db_path, org_cd=org_cd)
+    return _score_snapshot(snapshot, series, n_months, costs or {})
+
+
+def _score_snapshot(snapshot: List[dict], series: Dict[str, List[float]],
+                    n_months: int, costs: Dict[str, dict]) -> dict:
+    """Shared scoring core — takes ready-made snapshot + monthly series."""
+    from datetime import datetime, timedelta   # noqa: F401 (parity with above)
+    days = max(1.0, n_months * 30.4)
+    skus: List[dict] = []
+    for row in snapshot:
+        monthly = series.get(row["barcode"], [])
+        units = sum(monthly)
+        months_sold = sum(1 for q in monthly if q > 0)
+        ads = units / days
+        price = row["price"]
+        stock = row["stock"]
+        c = costs.get(row["barcode"])
+        cost = float(c["cost"]) if c and c.get("cost") else None
+        margin = (100.0 * (price - cost) / price) if (cost is not None and price > 0) else None
+        capital = stock * (cost if cost is not None else price)
+        cover = (stock / ads) if ads > 0 else None
+        verdict, reason = classify_sku(ads, stock, cover, months_sold, units, n_months)
+        gp_day = ads * (price - cost) if cost is not None else None
+        skus.append({
+            "Item": row["name"][:48], "Dept": row["dept"], "Vendor": row["vendor"][:26],
+            "Barcode": row["barcode"], "Price": round(price, 0),
+            "Cost": round(cost, 1) if cost is not None else None,
+            "Margin %": round(margin, 1) if margin is not None else None,
+            "ADS": round(ads, 3), "Units (period)": round(units, 0),
+            "Months Sold": months_sold, "Stock": round(stock, 0),
+            "Days Cover": round(cover, 1) if cover is not None else None,
+            "Capital (KES)": round(capital, 0),
+            "Capital Basis": "cost" if cost is not None else "retail",
+            "Rev/Day": round(ads * price, 0),
+            "GP/Day": round(gp_day, 0) if gp_day is not None else None,
+            "Verdict": verdict, "Why": reason,
+        })
+    by_verdict: Dict[str, dict] = {}
+    for s in skus:
+        e = by_verdict.setdefault(s["Verdict"], {"skus": 0, "capital": 0.0, "rev_day": 0.0})
+        e["skus"] += 1
+        e["capital"] += s["Capital (KES)"]
+        e["rev_day"] += s["Rev/Day"]
+    gp_rows = sorted((s for s in skus if s["GP/Day"]), key=lambda s: s["GP/Day"], reverse=True)
+    total_gp_day = sum(s["GP/Day"] for s in gp_rows)
+    top20_gp = sum(s["GP/Day"] for s in gp_rows[:20])
+    total_capital = sum(s["Capital (KES)"] for s in skus)
+    sellers = [s for s in skus if s["ADS"] > 0]
+    return {
+        "skus": skus, "n_skus": len(skus), "n_sellers": len(sellers),
+        "months_used": n_months, "partial_months": [],
+        "total_capital": round(total_capital, 0),
+        "by_verdict": {k: {"skus": v["skus"], "capital": round(v["capital"], 0),
+                           "rev_day": round(v["rev_day"], 0)}
+                       for k, v in sorted(by_verdict.items())},
+        "gp_day_total": round(total_gp_day, 0),
+        "gp_top20_pct": round(100.0 * top20_gp / total_gp_day, 1) if total_gp_day else 0.0,
+        "lost_rev_day": round(sum(s["Rev/Day"] for s in skus if s["Verdict"] == "RESTOCK NOW"), 0),
+        "clear_capital": round(sum(s["Capital (KES)"] for s in skus if s["Verdict"] == "CLEAR & DELIST"), 0),
+        "reduce_capital": round(sum(s["Capital (KES)"] for s in skus if s["Verdict"] == "REDUCE"), 0),
+    }
+
+
 def load_snapshot(files: List[str]) -> Tuple[List[dict], int]:
     """Read the snapshot exports; dedupe by barcode (first file wins).
 
