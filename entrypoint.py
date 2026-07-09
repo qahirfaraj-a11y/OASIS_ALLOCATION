@@ -498,7 +498,7 @@ def main():
                                  "multi-pos-stream",
                                  "issue-license", "license-status",
                                  "backup", "restore", "set-password",
-                                 "package-release",
+                                 "package-release", "set-branding", "show-branding",
                                  "value-report", "metering-report", "home",
                                  "version", "upgrade", "assess",
                                  "supplier-scorecard", "category-report",
@@ -546,6 +546,13 @@ def main():
     parser.add_argument("--file", default=None, help="restore: backup file to restore")
     parser.add_argument("--username", default=None, help="set-password: user to update")
     parser.add_argument("--password", default=None, help="set-password: new password")
+    # Whitelabel branding
+    parser.add_argument("--tenant-name", default=None, help="set-branding: client display name")
+    parser.add_argument("--product-name", default=None, help="set-branding: product name shown to users (default: OASIS)")
+    parser.add_argument("--logo", default=None, help="set-branding: path to logo (png/jpg, embedded as data-uri)")
+    parser.add_argument("--primary-color", default=None, help="set-branding: hex primary/accent")
+    parser.add_argument("--accent-color", default=None, help="set-branding: hex hover/darker accent")
+    parser.add_argument("--welcome-message", default=None, help="set-branding: Home page subtitle")
     # Release packaging
     parser.add_argument("--bundle-runtime", action="store_true",
                         help="package-release: include embedded Python + wheels for offline install")
@@ -834,6 +841,43 @@ def main():
                             os.path.join(root, "oasis", "data", "rhapta_pos.db"))
         since = (_dt.now() - _td(days=args.days)).strftime("%Y-%m-%d")
         print(f"Usage since {since}: {usage_summary(db_path, since)}")
+    elif args.mode == "set-branding":
+        import base64
+        import mimetypes
+
+        from oasis.logic.branding import Branding, load_branding, save_branding
+        cur = load_branding()
+        updates = {}
+        if args.tenant_name is not None: updates["tenant_name"] = args.tenant_name
+        if args.product_name is not None: updates["product_name"] = args.product_name
+        if args.primary_color is not None: updates["primary_color"] = args.primary_color
+        if args.accent_color is not None: updates["accent_color"] = args.accent_color
+        if args.welcome_message is not None: updates["welcome_message"] = args.welcome_message
+        if args.logo:
+            if not os.path.exists(args.logo):
+                raise SystemExit(f"logo not found: {args.logo}")
+            mime = mimetypes.guess_type(args.logo)[0] or "image/png"
+            with open(args.logo, "rb") as f:
+                updates["logo_data_uri"] = f"data:{mime};base64,{base64.b64encode(f.read()).decode()}"
+            updates["logo"] = os.path.basename(args.logo)
+        merged = {**{k: getattr(cur, k) for k in Branding.__dataclass_fields__ if k != "source"}, **updates}
+        merged.pop("source", None)
+        path = save_branding(Branding(**merged))
+        print(f"Branding saved: {path}")
+        print(f"  tenant     : {merged.get('tenant_name')}")
+        print(f"  product    : {merged.get('product_name')}")
+        print(f"  primary    : {merged.get('primary_color')} / accent {merged.get('accent_color')}")
+        print(f"  logo       : {merged.get('logo') or '(none)'}")
+    elif args.mode == "show-branding":
+        from oasis.logic.branding import load_branding
+        b = load_branding()
+        print(f"Branding source: {b.source or '(defaults — no branding.json)'}")
+        print(f"  tenant   : {b.tenant_name}")
+        print(f"  product  : {b.product_name}")
+        print(f"  primary  : {b.primary_color} / accent {b.accent_color}")
+        print(f"  logo     : {b.logo or '(none)'}"
+              + (" [+data-uri]" if b.logo_data_uri else ""))
+        print(f"  welcome  : {b.welcome_message or '(default)'}")
     elif args.mode == "package-release":
         from oasis.logic.release_packager import build_release
         root = os.path.dirname(os.path.abspath(__file__))

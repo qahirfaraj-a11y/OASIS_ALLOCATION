@@ -104,12 +104,23 @@ def suite_links(st, current_key: str) -> None:
 
 def render_home_page(st, project_root: str) -> None:
     """The launcher page (thin; all logic in the helpers above)."""
+    from ..logic.branding import load_branding
     from ..logic.license_manager import KNOWN_MODULES, OfflineLicenseManager
 
+    b = load_branding()
+    logo = ""
+    if b.logo_data_uri:
+        logo = f'<img src="{b.logo_data_uri}" style="height:56px;margin-right:16px;vertical-align:middle;">'
+    elif b.logo:
+        logo = f'<img src="{b.logo}" style="height:56px;margin-right:16px;vertical-align:middle;">'
+    subtitle = b.welcome_message or ("Omni-channel Autonomous Stock "
+                                     "Intelligence System — suite launcher")
+    subline = f" · {b.tenant_name}" if b.tenant_name != b.product_name else ""
     st.markdown(
-        "<h1 style='margin-bottom:0'>O.A.S.I.S.</h1>"
-        "<p style='color:#888;margin-top:2px'>Omni-channel Autonomous Stock "
-        "Intelligence System — suite launcher</p>", unsafe_allow_html=True)
+        f"<div style='display:flex;align-items:center;margin-bottom:6px'>"
+        f"{logo}<h1 style='margin:0'>{b.product_name}{subline}</h1></div>"
+        f"<p style='color:#888;margin-top:2px'>{subtitle}</p>",
+        unsafe_allow_html=True)
 
     # ── consoles ────────────────────────────────────────────────────────
     cards = console_cards()

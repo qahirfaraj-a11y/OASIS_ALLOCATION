@@ -149,13 +149,29 @@ def run_console(st, *, registry: Sequence[Page], db_path: str,
         lock = "" if p.module in _mods else " 🔒"
         labels[f"{p.icon}  {p.label}{lock}"] = p
 
+    from ..logic.branding import load_branding
+    _brand = load_branding()
+
     with st.sidebar:
+        # Whitelabel-aware badge: tenant logo (if set) + product name + role
+        _logo_html = ""
+        if _brand.logo_data_uri:
+            _logo_html = (f'<img src="{_brand.logo_data_uri}" '
+                          f'style="height:26px;vertical-align:middle;'
+                          f'margin-right:8px;">')
+        elif _brand.logo:
+            _logo_html = (f'<img src="{_brand.logo}" '
+                          f'style="height:26px;vertical-align:middle;'
+                          f'margin-right:8px;">')
         st.markdown(
-            f'<div class="oasis-badge">OASIS · '
+            f'<div class="oasis-badge">{_logo_html}{_brand.product_name} · '
             f'<span style="color:var(--oasis-teal);">{role}</span></div>',
             unsafe_allow_html=True,
         )
-        st.caption(f"{app_title} — {user.get('display_name', user['username'])}")
+        if _brand.tenant_name and _brand.tenant_name != _brand.product_name:
+            st.caption(f"{_brand.tenant_name} · {app_title}")
+        else:
+            st.caption(f"{app_title} — {user.get('display_name', user['username'])}")
         choice = st.radio("Navigate", list(labels.keys()), label_visibility="collapsed")
         st.divider()
         if st.button("Log out", use_container_width=True):

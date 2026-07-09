@@ -170,11 +170,23 @@ def inject_theme(st_module=None) -> None:
     """Inject the theme once per session. Pass `st` or let it import.
 
     Safe to call on every page render — guarded by a session flag so the
-    stylesheet is emitted only once.
+    stylesheet is emitted only once. Tenant primary/accent colors from
+    branding.json override the default palette variables here.
     """
     if st_module is None:
         import streamlit as st_module
     if st_module.session_state.get(_THEME_FLAG):
         return
     st_module.markdown(f"<style>{theme_css()}</style>", unsafe_allow_html=True)
+    # Whitelabel: overwrite the two accent CSS variables (rest of the palette
+    # is intentionally shared so contrast + status colors don't drift).
+    try:
+        from ..logic.branding import load_branding
+        b = load_branding()
+        st_module.markdown(
+            f"<style>:root {{ --oasis-teal: {b.primary_color}; "
+            f"--oasis-teal-dark: {b.accent_color}; }}</style>",
+            unsafe_allow_html=True)
+    except Exception:
+        pass
     st_module.session_state[_THEME_FLAG] = True

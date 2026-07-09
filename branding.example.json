@@ -1,0 +1,9 @@
+{
+  "tenant_name": "Client Name Here",
+  "product_name": "OASIS",
+  "logo": "client_logo.png",
+  "primary_color": "#00E5C4",
+  "accent_color": "#00B89E",
+  "welcome_message": "Retail intelligence, delivered daily.",
+  "pdf_footer": "Prepared by OASIS for the client's private use."
+}
