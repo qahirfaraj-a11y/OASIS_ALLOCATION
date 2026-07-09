@@ -7,8 +7,7 @@ preventing silent corruption of calculations downstream.
 
 import logging
 import pandas as pd
-import numpy as np
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any
 
 logger = logging.getLogger("DataValidator")
 

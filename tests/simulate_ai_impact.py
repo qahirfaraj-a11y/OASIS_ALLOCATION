@@ -40,7 +40,7 @@ async def run_simulation():
     
     # Run Allocation with Micro Budget (should trigger strict logic)
     res_micro = engine.apply_greenfield_allocation(enriched.copy(), 150_000)
-    print(f"\nMicro Store Results ($150k):")
+    print("\nMicro Store Results ($150k):")
     for r in res_micro:
         if r.get('recommended_quantity', 0) > 0:
             print(f"- {r['product_name']}: {r['recommended_quantity']} ({r['reasoning']})")
@@ -49,7 +49,7 @@ async def run_simulation():
             
     # Run Allocation with Mid Budget (should allow expensive items)
     res_mid = engine.apply_greenfield_allocation(enriched.copy(), 10_000_000)
-    print(f"\nMid Store Results ($10M):")
+    print("\nMid Store Results ($10M):")
     for r in res_mid:
         if r.get('recommended_quantity', 0) > 0:
             print(f"- {r['product_name']}: {r['recommended_quantity']} ({r['reasoning']})")

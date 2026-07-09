@@ -1,11 +1,9 @@
 import os
 import csv
 import logging
-import math
-import time
 from datetime import datetime
 from typing import List, Dict, Optional, Any
-from openpyxl import load_workbook, Workbook
+from openpyxl import load_workbook
 
 import warnings
 # Suppress openpyxl warnings (v10.0 Optimization)
@@ -129,17 +127,48 @@ class DataMixin:
             logger.error(f"Error parsing file: {e}")
             raise
             
-        # Standardize field names
+        # Standardize field names (v10.1 robustness against Csv Casing)
         for p in products:
-            p['product_name'] = p.get('product_name') or p.get('description') or p.get('item_name') or 'Unknown'
-            # Enhanced stock detection for 027 branch
-            p['current_stocks'] = self._safe_float(p.get('current_stocks') or p.get('stock_on_hand') or p.get('027_-_rhapta_road', 0))
-            p['avg_daily_sales'] = self._safe_float(p.get('avg_daily_sales') or p.get('daily_usage') or p.get('estimated_daily_sales', 0))
-            p['item_code'] = p.get('item_code') or p.get('code') or p.get('itm_code')
-            p['barcode'] = p.get('barcode')
-            p['supplier_name'] = p.get('supplier_name') or p.get('vendor', 'Unknown')
-            p['last_days_since_last_delivery'] = self._safe_int(p.get('last_days_since_last_delivery') or p.get('last_delivery_days') or p.get('rr_grn', 0))
-            p['blocked_open_for_order'] = p.get('blocked_open_for_order') or p.get('blocked_status', 'open') or ('blocked' if p.get('rr_pb') in ['1', 'BLOCKED'] else 'open')
+            # Create a lower-case alias map for safe fetching
+            p_lower = {str(k).lower(): v for k, v in p.items()}
+            
+            p['product_name'] = (p.get('product_name') or p.get('description') or 
+                                 p_lower.get('item_name') or p_lower.get('itm_name') or 
+                                 p_lower.get('product') or 'Unknown')
+            
+            p['current_stocks'] = self._safe_float(
+                p.get('current_stocks') or p_lower.get('current_stock') or p_lower.get('stock_on_hand') or 
+                p_lower.get('soh') or p_lower.get('027_-_rhapta_road') or 0
+            )
+            
+            # v10.10: Capture Live Sales Data from Forensic Exports
+            live_units_30d = self._safe_float(p_lower.get('total_units_sold_(30_days)') or p_lower.get('units_sold_30d') or 0)
+            live_ads = live_units_30d / 30.0 if live_units_30d > 0 else 0.0
+
+            p['avg_daily_sales'] = self._safe_float(
+                p.get('avg_daily_sales') or p_lower.get('avg_daily_sales') or p_lower.get('daily_usage') or 
+                p_lower.get('ads') or p_lower.get('estimated_daily_sales') or live_ads or 0
+            )
+            
+            # Store raw live data for blending in IntelligenceMixin
+            p['live_ads_30d'] = live_ads
+
+            p['cost_price'] = self._safe_float(
+                p.get('cost_price') or p_lower.get('unit_cost') or p_lower.get('cost') or p_lower.get('unit_price') or 0
+            )
+
+            p['item_code'] = p.get('item_code') or p_lower.get('code') or p_lower.get('itm_code') or p_lower.get('itm_cd')
+            p['barcode'] = p.get('barcode') or p_lower.get('barcode')
+            p['supplier_name'] = p.get('supplier_name') or p_lower.get('vendor') or p_lower.get('supplier') or 'Unknown'
+            p['department'] = p.get('department') or p_lower.get('dept') or p_lower.get('department') or 'GENERAL'
+            
+            p['last_days_since_last_delivery'] = self._safe_int(
+                p.get('last_days_since_last_delivery') or p_lower.get('last_delivery_days') or p_lower.get('rr_grn') or 0
+            )
+            
+            p['blocked_open_for_order'] = (p.get('blocked_open_for_order') or 
+                                           p_lower.get('blocked_status', 'open') or 
+                                           ('blocked' if p.get('rr_pb') in ['1', 'BLOCKED'] else 'open'))
             
         return products
 
@@ -150,7 +179,6 @@ class DataMixin:
         Populates self.grn_db and self.grn_frequency_map.
         """
         import glob
-        from datetime import datetime
         target_dir = search_dir or self.data_dir
         logger.info(f"Phase 3: Deep-Scanning GRNs in {target_dir}...")
         grn_stats = {}
@@ -231,6 +259,16 @@ class DataMixin:
                 if avg_gap > 0:
                     self.grn_frequency_map[key] = 1.0 / avg_gap
         
+        # BUG 8 FIX: Populate days_since_last_grn for each SKU.
+        # IntelligenceMixin reads grn_stat.get('days_since_last_grn') for discontinued detection,
+        # but the scanner never set this field — all items appeared as 0 days old.
+        from datetime import date as date_type
+        today = date_type.today()
+        for key, dates in sku_order_dates.items():
+            if key in grn_stats and dates:
+                max_date = max(dates)
+                grn_stats[key]['days_since_last_grn'] = (today - max_date).days
+        
         logger.info(f"Scanning Complete. Harvesting Stats for {len(grn_stats)} SKUs and Rhythm for {len(self.grn_frequency_map)} SKUs.")
         return grn_stats
 
@@ -240,7 +278,6 @@ class DataMixin:
         Used to calculate order rhythm (gaps between orders).
         """
         import glob
-        from datetime import datetime
         logger.info("Scanning Purchase Order Excel files for rhythm tracking...")
         po_history = {}
         
@@ -580,11 +617,16 @@ class DataMixin:
         transf = self.scan_inventory_transfers()
         if not sales and not transf: return
         f_db = self.databases.get('sales_forecasting', {})
+        # BUG 6 FIX: Use actual data period instead of hardcoded 300 days.
+        # Each *_cash.xlsx represents ~30 days. Count files to get true span.
+        import glob
+        num_cash_files = max(1, len(glob.glob(os.path.join(self.data_dir, "*_cash.xlsx"))))
+        data_span_days = num_cash_files * 30.0
         for key in (set(sales.keys()) | set(transf.keys())):
             entry = f_db.get(key)
             if entry:
                 true_demand = sales.get(key, 0.0) + transf.get(key, {}).get('out', 0.0) - transf.get(key, {}).get('in', 0.0)
-                calc_daily = max(0.0, true_demand / 300.0)
+                calc_daily = max(0.0, true_demand / data_span_days)
                 prev = entry.get('avg_daily_sales', 0.0)
                 entry['avg_daily_sales'] = round((prev + calc_daily) / 2, 4) if prev > 0 else round(calc_daily, 4)
         self.databases['sales_forecasting'] = f_db
@@ -606,7 +648,6 @@ class DataMixin:
     def update_lead_time_intelligence(self):
         """Calculates fulfillment lead times by linking PO dates to GRN receipt dates."""
         import glob
-        from datetime import datetime
         import statistics
         po_dates = {}
         for fpath in glob.glob(os.path.join(self.data_dir, "po_*.xlsx")):
@@ -652,7 +693,7 @@ class DataMixin:
                         d1 = parse_dt(d1_val)
                         d2 = parse_dt(d2_val)
                         
-                        from datetime import datetime as dt, date
+                        from datetime import datetime as dt
                         if d1 and d2:
                             # Standardize to date for subtraction
                             dt1 = d1.date() if isinstance(d1, dt) else d1

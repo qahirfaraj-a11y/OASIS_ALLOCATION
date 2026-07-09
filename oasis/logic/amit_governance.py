@@ -12,9 +12,7 @@ import os
 import json
 import logging
 import pandas as pd
-import numpy as np
 from datetime import datetime
-from typing import Dict, List, Any
 
 logger = logging.getLogger("OASIS.AMITGov")
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(name)s] %(levelname)s: %(message)s")
@@ -28,40 +26,86 @@ class AMITGovernance:
         self.governance_dir = os.path.join(data_dir, 'amit_governance')
         os.makedirs(self.governance_dir, exist_ok=True)
         self.negative_list = pd.DataFrame()
+        
+        # Load Central Config
+        self.config = self._load_central_config()
 
-    def generate_negative_list(self, scorecard_path: str, ads_threshold: float = 0.2, soh_threshold: int = 15):
+    def _load_central_config(self):
+        """Load central O.A.S.I.S. configuration."""
+        path = os.path.join(self.data_dir, 'oasis_engines_config.json')
+        if os.path.exists(path):
+            try:
+                with open(path, 'r', encoding='utf-8') as f:
+                    return json.load(f)
+            except Exception as e:
+                logger.warning(f"Failed to load central config: {e}")
+        return {}
+
+    def generate_negative_list(self, scorecard_path: str):
         """
         Scans the scorecard and generates the formal AMIT Negative List.
-        Items with ADS < threshold AND SOH > threshold are classified as dead stock.
+        Uses category-aware thresholds from the central config.
         """
-        logger.info("Generating AMIT Negative List...")
+        logger.info("Generating AMIT Negative List (Category-Aware)...")
         scorecard = pd.read_csv(scorecard_path)
+        
+        ds_conf = self.config.get("engines", {}).get("dead_stock", {})
+        fallback_cost = ds_conf.get("fallback_unit_cost", 100)
+        capital_floor = ds_conf.get("capital_floor", 500.0)
+        perishability_tiers = ds_conf.get("perishability_tiers", {})
+        default_days = ds_conf.get("days_default", 45)
 
         # Normalize columns
         col_map = {}
         for c in scorecard.columns:
             cl = c.lower().strip()
-            if 'product' in cl or 'item' in cl: col_map[c] = 'Item_Name'
-            elif 'ads' in cl or 'avg_daily' in cl or 'velocity' in cl: col_map[c] = 'ADS'
-            elif 'soh' in cl or 'stock_on_hand' in cl or 'stock' in cl: col_map[c] = 'SOH'
-            elif 'cost' in cl or 'unit_cost' in cl or 'unit_price' in cl: col_map[c] = 'Unit_Cost'
-            elif 'supplier' in cl or 'vendor' in cl: col_map[c] = 'Supplier'
-            elif 'department' in cl or 'dept' in cl: col_map[c] = 'Department'
-            elif 'barcode' in cl: col_map[c] = 'Barcode'
+            if ('product' in cl or 'item' in cl) and 'Item_Name' not in col_map.values(): col_map[c] = 'Item_Name'
+            elif ('ads' in cl or 'avg_daily' in cl or 'velocity' in cl) and 'ADS' not in col_map.values(): col_map[c] = 'ADS'
+            elif ('soh' in cl or 'stock_on_hand' in cl or 'stock' in cl) and 'SOH' not in col_map.values(): col_map[c] = 'SOH'
+            elif ('cost' in cl or 'unit_cost' in cl or 'unit_price' in cl) and 'Unit_Cost' not in col_map.values(): col_map[c] = 'Unit_Cost'
+            elif ('supplier' in cl or 'vendor' in cl) and 'Supplier' not in col_map.values(): col_map[c] = 'Supplier'
+            elif ('department' in cl or 'dept' in cl) and 'Department' not in col_map.values(): col_map[c] = 'Department'
+            elif ('barcode' in cl) and 'Barcode' not in col_map.values(): col_map[c] = 'Barcode'
         scorecard = scorecard.rename(columns=col_map)
 
         if 'ADS' not in scorecard.columns: scorecard['ADS'] = 0
         if 'SOH' not in scorecard.columns: scorecard['SOH'] = 0
-        if 'Unit_Cost' not in scorecard.columns: scorecard['Unit_Cost'] = 100
+        if 'Unit_Cost' not in scorecard.columns: scorecard['Unit_Cost'] = fallback_cost
+        if 'Department' not in scorecard.columns: scorecard['Department'] = 'GENERAL'
 
         scorecard['ADS'] = pd.to_numeric(scorecard['ADS'], errors='coerce').fillna(0)
         scorecard['SOH'] = pd.to_numeric(scorecard['SOH'], errors='coerce').fillna(0)
-        scorecard['Unit_Cost'] = pd.to_numeric(scorecard['Unit_Cost'], errors='coerce').fillna(100)
+        scorecard['Unit_Cost'] = pd.to_numeric(scorecard['Unit_Cost'], errors='coerce').fillna(fallback_cost)
+        scorecard['Capital_Trapped'] = scorecard['SOH'] * scorecard['Unit_Cost']
 
-        # Apply AMIT dead stock detection
-        dead = scorecard[(scorecard['ADS'] < ads_threshold) & (scorecard['SOH'] > soh_threshold)].copy()
-        dead['Capital_Trapped'] = dead['SOH'] * dead['Unit_Cost']
-        dead['Days_Of_Stock'] = (dead['SOH'] / dead['ADS'].replace(0, 0.01)).astype(int)
+        # Apply AMIT dead stock detection per category
+        dead_list = []
+        for idx, row in scorecard.iterrows():
+            dept = str(row['Department']).upper()
+            threshold_days = perishability_tiers.get(dept, default_days)
+            
+            ads = row['ADS']
+            soh = row['SOH']
+            capital = row['Capital_Trapped']
+            
+            is_dead = False
+            if ads > 0:
+                if (soh / ads) > threshold_days:
+                    is_dead = True
+            elif soh > 0:
+                is_dead = True
+                
+            if is_dead and capital >= capital_floor:
+                row_dict = row.to_dict()
+                row_dict['Threshold_Days'] = threshold_days
+                row_dict['Days_Of_Stock'] = (soh / max(0.01, ads))
+                dead_list.append(row_dict)
+
+        if not dead_list:
+            self.negative_list = pd.DataFrame()
+            return self.negative_list
+
+        dead = pd.DataFrame(dead_list)
         dead['Classification'] = 'DEAD_STOCK'
         dead['Date_Flagged'] = datetime.now().strftime('%Y-%m-%d')
 
@@ -122,13 +166,16 @@ class AMITGovernance:
             return
 
         blocked_items = self.negative_list['Item_Name'].tolist()
+        
+        # BUG 2 FIX: Write to the correct path and schema for the OrderEngine to read
         block_config = {
-            'amit_blocked_skus': blocked_items,
+            'blacklist': blocked_items,
+            'lowest_gmroi_per_dept': {},  # Placeholder for full AMIT engine parity
             'block_activated': datetime.now().isoformat(),
             'total_blocked': len(blocked_items),
         }
 
-        block_path = config_path or os.path.join(self.governance_dir, 'amit_purchase_blocks.json')
+        block_path = config_path or os.path.join(self.data_dir, 'amit_enforcement.json')
         with open(block_path, 'w') as f:
             json.dump(block_config, f, indent=2)
 
@@ -150,8 +197,8 @@ class AMITGovernance:
         col_map = {}
         for c in current.columns:
             cl = c.lower().strip()
-            if 'product' in cl or 'item' in cl: col_map[c] = 'Item_Name'
-            elif 'soh' in cl or 'stock' in cl or 'qty' in cl: col_map[c] = 'Current_SOH'
+            if ('product' in cl or 'item' in cl) and 'Item_Name' not in col_map.values(): col_map[c] = 'Item_Name'
+            elif ('soh' in cl or 'stock' in cl or 'qty' in cl) and 'Current_SOH' not in col_map.values(): col_map[c] = 'Current_SOH'
         current = current.rename(columns=col_map)
 
         original = self.negative_list[['Item_Name', 'SOH', 'Unit_Cost', 'Capital_Trapped']].copy()

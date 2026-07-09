@@ -38,7 +38,14 @@ graph TD
 
 - **[[Core_Logic_System|OrderEngine & Mixins]]**: The brain of the system, handling data ingestion, intelligence calculation, and replenishment logic.
 - **[[App_Ecosystem|Application Ecosystem]]**: A suite of tools for different operational needs, including real-time monitoring and GNN-based market analysis.
-- **[[Simulation_Lab|Simulation Engine]]**: A Monte Carlo environment for stress-testing supply chains against "Black Swan" events and volatility.
+- **[[Operations_Launcher_Guide|Operations Launcher Guide]]**: Detailed breakdown of all system entry points and launchers.
+- **[[Simulation_Lab|Simulation Engine]]**: A Sandbox for stress-testing supply chains against "Black Swan" events and volatility.
+
+## Deep Dive Breakdowns
+- **[[Oasis_Ordering_Logic|Ordering Logic Breakdown]]**: Line-by-line analysis of the replenishment engine.
+- **[[Oasis_Approval_Dashboard_Logic|Approval Dashboard Logic]]**: Forensic breakdown of the PO approval workflow.
+- **[[Oasis_Allocation_Logic|Allocation Engine Logic]]**: Logic governing multi-store stock distribution.
+- **[[OASIS_Ecosystem_Deep_Dive|O.A.S.I.S. Ecosystem Deep Dive]]**: Comprehensive overview of all interconnected engines and apps.
 
 ## Data Flow
 1. **Ingestion**: `DataMixin` parses inventory lists (CSV/Excel).

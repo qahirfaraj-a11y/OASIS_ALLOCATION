@@ -1,18 +1,11 @@
 import json
 import csv
-import io
-import re
 import os
 import asyncio
-import httpx
-import math
 import logging
-import logging
-import textwrap
 import sys
 from datetime import datetime
-from typing import Literal, Any, Dict, List, Tuple, Optional, Union
-from openpyxl import load_workbook
+from typing import Any, Dict, List, Optional
 
 # Add root to path for absolute imports if needed
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -28,7 +21,7 @@ from .obsidian_mixin import ObsidianMixin
 from .budget_manager import BudgetManager
 from .store_profile_manager import StoreProfileManager
 from .order_logic_guards import apply_safety_guards
-from .department_constants import ESSENTIAL_DEPARTMENTS, FAST_FIVE_DEPARTMENTS, FRESH_DEPARTMENTS
+from .allocation_strategies import AllocationConfig
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("OrderEngine")
@@ -42,7 +35,7 @@ class OrderEngine(IntelligenceMixin, ProcurementMixin, MaintenanceMixin, DataMix
     
     def __init__(self, data_dir: str):
         self.data_dir = data_dir
-        ObsidianMixin.__init__(self)
+        ObsidianMixin.__init__(self, vault_path=os.path.join(self.data_dir, "Oasis"))
         self.databases: Dict[str, Any] = {}
         self.grn_db: Dict[str, Any] = {} 
         self.no_grn_suppliers: List[str] = []
@@ -50,6 +43,7 @@ class OrderEngine(IntelligenceMixin, ProcurementMixin, MaintenanceMixin, DataMix
         # Core Managers
         self.budget_manager = BudgetManager(data_dir)
         self.profile_manager = StoreProfileManager()
+        self.allocation_config = AllocationConfig()
 
         # Cache & Indexing Attributes for Mixins
         self.grn_frequency_map: Dict[str, float] = {}
@@ -58,6 +52,22 @@ class OrderEngine(IntelligenceMixin, ProcurementMixin, MaintenanceMixin, DataMix
         self._sales_index_cache: Dict[str, str] = {}
         self._brand_index_source_id: Optional[int] = None
         self._po_history_dates: Dict[str, List[datetime]] = {}
+        
+        # v10.12: Load Dynamic Rhythm & Schedule
+        self.rhythm_db = {}
+        self.schedule_db = {}
+        r_path = os.path.join(self.data_dir, '..', 'supplier_rhythm_analysis.json')
+        s_path = os.path.join(self.data_dir, '..', 'supplier_weekly_schedule.json')
+        
+        if os.path.exists(r_path):
+            with open(r_path, 'r') as f:
+                self.rhythm_db = json.load(f).get('po_rhythm', {})
+                logger.info(f"Loaded PO Rhythm for {len(self.rhythm_db)} suppliers.")
+        
+        if os.path.exists(s_path):
+            with open(s_path, 'r') as f:
+                self.schedule_db = json.load(f)
+                logger.info("Loaded Weekly Supplier Schedule.")
         
         # Chapter 11: OASIS Engine Feature Flags
         self.engines_config: Dict[str, Any] = self._load_engines_config()
@@ -136,6 +146,52 @@ class OrderEngine(IntelligenceMixin, ProcurementMixin, MaintenanceMixin, DataMix
             else:
                 logger.warning("[DHARAM] Enabled but no dharam_demand_patch.json found. Run dharam_revenue.py first.")
                 self.databases['dharam_demand_patch'] = {}
+        
+        # MANDE: Load purge report blacklist
+        self.databases['mande_purge_list'] = set()
+        mande_path = os.path.join(self.data_dir, 'mande_purge_report.json')
+        if not os.path.exists(mande_path):
+            mande_path = os.path.join(os.path.dirname(__file__), '..', 'data', 'mande_purge_report.json')
+        if os.path.exists(mande_path):
+            try:
+                with open(mande_path, 'r', encoding='utf-8') as f:
+                    data = json.load(f)
+                    purge_cands = data.get('purge_candidates', [])
+                    for s in purge_cands:
+                        self.databases['mande_purge_list'].add(s.get('supplier', '').strip().upper())
+                logger.info(f"[MANDE] Loaded purge list: {len(self.databases['mande_purge_list'])} suppliers flagged for delisting.")
+            except Exception as e:
+                logger.warning(f"[MANDE] Failed to load cache: {e}")
+                
+        # HALO / MASTERCLASS: Load affinity protections
+        self.databases['halo_protection_list'] = set()
+        halo_paths = [
+            os.path.join(self.data_dir, 'alcohol_masterclass_intel.json'),
+            os.path.join(os.path.dirname(__file__), '..', '..', 'alcohol_masterclass_intel.json')
+        ]
+        h_path = next((p for p in halo_paths if os.path.exists(p)), None)
+        if h_path:
+            try:
+                with open(h_path, 'r', encoding='utf-8') as f:
+                    data = json.load(f)
+                    
+                # Protect pareto leaders
+                for category in ['beer_pareto', 'wine_pareto', 'spirit_insights']:
+                    for item in data.get(category, []):
+                        name = item.get('SKU Name', '')
+                        if name and name != 'Unknown SKU':
+                            self.databases['halo_protection_list'].add(self.normalize_product_name(name))
+                            
+                # Protect direct halo partners
+                halo_partners = data.get('halo_partners', {})
+                for k in halo_partners:
+                    if k and not any(x in k for x in ['LTD', 'COMPANY', 'LIMITED']):
+                        self.databases['halo_protection_list'].add(self.normalize_product_name(k))
+                        
+                logger.info(f"[HALO] Guardian logic active: {len(self.databases['halo_protection_list'])} key anchor/halo items protected.")
+            except Exception as e:
+                logger.warning(f"[HALO] Failed to load cache: {e}")
+
 
     def has_grn_data(self, key: str) -> bool:
         """v8.0: Quick check for historical presence."""
@@ -172,8 +228,7 @@ class OrderEngine(IntelligenceMixin, ProcurementMixin, MaintenanceMixin, DataMix
         # Authoritative Golden Fallback
         self.no_grn_suppliers = [
             "PLU", "LOCAL", "DIRECT", "CONSIGNMENT", "KEBS", "CITY COUNCIL",
-            "JIKONI", "BAKERY FOODPLUS", "BAKERY", "FRESH", "WATER", "MILK", "EGGS",
-            "VEGETABLES", "FRUITS", "MEAT", "POULTRY", "FISH", "CHANDARANA",
+            "JIKONI", "BAKERY FOODPLUS", "BAKERY", "CHANDARANA",
             "INTERNAL", "TRANSFER", "PROMO", "SAMPLE", "ADJUSTMENT", "CONSIGN"
         ]
         return self.no_grn_suppliers
@@ -272,7 +327,7 @@ class OrderEngine(IntelligenceMixin, ProcurementMixin, MaintenanceMixin, DataMix
                 self.grn_db = json.load(f)
                 logger.info("Loaded GRN Intelligence Cache (Sync)")
         else:
-            self.grn_db = {}
+            self.grn_db = self.scan_grn_files()
             
         db_configs = {
             'supplier_patterns': 'supplier_patterns_2025',
@@ -306,6 +361,41 @@ class OrderEngine(IntelligenceMixin, ProcurementMixin, MaintenanceMixin, DataMix
         
         # Chapter 11: Load pre-computed engine caches (AMIT, DHARAM, LATA)
         self._load_engine_caches()
+        
+        # Calendar Analyzer: Enrich supplier patterns with PO/GRN lead time data
+        try:
+            from .calendar_analyzer import CalendarAnalyzer
+            cal_analyzer = CalendarAnalyzer()
+            cal_analyzer.load_data()
+            cal_results = cal_analyzer.analyze()
+            if cal_results:
+                # Merge calendar-derived lead times into supplier_patterns
+                sp = self.databases.get('supplier_patterns', {})
+                enriched_count = 0
+                for supplier_name, cal_data in cal_results.items():
+                    s_upper = supplier_name.upper().strip()
+                    if s_upper in sp:
+                        # Only override if calendar has better data (more order history)
+                        if cal_data.get('order_count', 0) >= 3:
+                            sp[s_upper]['estimated_delivery_days'] = cal_data['lead_time_days']
+                            sp[s_upper]['calendar_frequency_days'] = cal_data['frequency_days']
+                            sp[s_upper]['calendar_category'] = cal_data['category']
+                            enriched_count += 1
+                    else:
+                        # New supplier discovered from PO/GRN files
+                        sp[s_upper] = {
+                            'estimated_delivery_days': cal_data['lead_time_days'],
+                            'median_gap_days': cal_data['frequency_days'],
+                            'reliability_score': 0.85,
+                            'order_frequency': cal_data['category'].lower(),
+                            'calendar_frequency_days': cal_data['frequency_days'],
+                            'calendar_category': cal_data['category'],
+                        }
+                        enriched_count += 1
+                self.databases['supplier_patterns'] = sp
+                logger.info(f"[CALENDAR] Enriched {enriched_count} suppliers with PO/GRN delivery rhythm data.")
+        except Exception as e:
+            logger.warning(f"[CALENDAR] CalendarAnalyzer integration skipped: {e}")
 
     async def update_demand_intelligence_async(self):
         """Phase 1: Online & Multi-Store Demand Sync (v10.1 Pro)"""
@@ -367,11 +457,14 @@ class OrderEngine(IntelligenceMixin, ProcurementMixin, MaintenanceMixin, DataMix
         # Phase 1: Refresh Online Intelligence (NEW in v10.1)
         await self.update_demand_intelligence_async()
         
-        # Phase 2: Parallel Database Loading
-        await self.load_databases_async()
+        # BUG 9 FIX: Only load databases if not already loaded (startup load_local_databases covers this).
+        # Prevents redundant re-parsing of all JSON databases + GRN files on every click.
+        if not self.databases:
+            await self.load_databases_async()
         
-        # Phase 3: Synchronize Rhythm & History
-        self._po_history_dates = self.scan_purchase_orders()
+        # BUG 10 FIX: Cache PO history — only scan on first run.
+        if not self._po_history_dates:
+            self._po_history_dates = self.scan_purchase_orders()
         
         # Phase 4: Parsing
         products = self.parse_inventory_file(file_path)
@@ -416,6 +509,11 @@ class OrderEngine(IntelligenceMixin, ProcurementMixin, MaintenanceMixin, DataMix
                     final_recommendations = await llm.analyze(all_enriched)
                 except Exception as e:
                     logger.error(f"Rule engine failed: {e}")
+                    final_recommendations = []
+
+            # BUG 3 FIX: Apply safety guards AFTER both paths have resolved,
+            # and only if we have valid recommendations to guard.
+            if final_recommendations:
                 final_recommendations = apply_safety_guards(final_recommendations, {p['product_name']: p for p in all_enriched}, allocation_mode)
 
         # Merge remaining metadata for reporting
@@ -461,3 +559,93 @@ class OrderEngine(IntelligenceMixin, ProcurementMixin, MaintenanceMixin, DataMix
                 logger.error(f"Failed to generate Excel report: {e}")
         
         return final_recommendations
+
+    def run_mop_up_engine(self, recommendations: List[dict], total_budget: float) -> List[dict]:
+        """
+        Phase A: K-Core Pruning. Prune isolated loose units based on affinity/velocity.
+        Phase B: Knapsack Mop-Up. Consolidate high-velocity items to pack sizes using remaining budget.
+        """
+        logger.info("Executing Post-Allocation Mop-Up Engine...")
+        
+        # Calculate currently utilized budget
+        current_utilized = sum(float(r.get('recommended_quantity', 0)) * float(r.get('cost_price', 0)) for r in recommendations)
+        
+        # PHASE A: K-Core Pruning (Heuristic based on ads vs pack size for isolated 1-units)
+        reclaimed_capital = 0.0
+        pruned_count = 0
+        for r in recommendations:
+            qty = float(r.get('recommended_quantity', 0))
+            if qty <= 0: continue
+            
+            pack_size = float(r.get('pack_size', 1))
+            ads = float(r.get('avg_daily_sales', 0))
+            cost = float(r.get('cost_price', 0))
+            
+            # Prune ONLY dead/extremely slow singles to reclaim capital safely
+            if qty == 1 and cost > 0:
+                if ads < 0.05:
+                    r['recommended_quantity'] = 0.0
+                    r['reasoning'] = r.get('reasoning', '') + " [MOP-UP: Pruned Dead SKU]"
+                    r['mop_up_action'] = "PRUNED"
+                    reclaimed_capital += cost
+                    pruned_count += 1
+        
+        current_utilized -= reclaimed_capital
+        remaining_budget = total_budget - current_utilized
+        logger.info(f"Mop-Up Phase A: Pruned {pruned_count} items. Reclaimed KES {reclaimed_capital:.2f}. Remaining budget: KES {remaining_budget:.2f}")
+        
+        # PHASE B: Knapsack Mop-Up
+        if remaining_budget <= 0:
+            return recommendations
+            
+        candidates = sorted([r for r in recommendations if r.get('recommended_quantity', 0) > 0], key=lambda x: float(x.get('avg_daily_sales', 0)), reverse=True)
+        consolidated_count = 0
+        
+        # 1. Round up broken packs first
+        for r in candidates:
+            qty = float(r.get('recommended_quantity', 0))
+            pack_size = float(r.get('pack_size', 1))
+            cost = float(r.get('cost_price', 0))
+            
+            if cost > 0 and pack_size > 1 and qty > 0 and (qty % pack_size) != 0:
+                needed_units = pack_size - (qty % pack_size)
+                additional_cost = needed_units * cost
+                
+                if additional_cost <= remaining_budget:
+                    r['recommended_quantity'] += needed_units
+                    remaining_budget -= additional_cost
+                    r['reasoning'] = r.get('reasoning', '') + f" [MOP-UP: Consolidated (+{needed_units})]"
+                    r['mop_up_action'] = f"CONSOLIDATED (+{needed_units})"
+                    consolidated_count += 1
+                    
+        # 2. Round-Robin Scale Up for high-velocity items
+        high_velocity = [r for r in candidates if float(r.get('avg_daily_sales', 0)) >= 0.2 and float(r.get('cost_price', 0)) > 0]
+        
+        if high_velocity and remaining_budget > 0:
+            scaled_amounts = {}
+            # Limit to a single pass to avoid inflating quantities dangerously
+            for r in high_velocity:
+                name = r['product_name']
+                pack_size = float(r.get('pack_size', 1))
+                cost = float(r.get('cost_price', 0))
+                ads = float(r.get('avg_daily_sales', 0))
+                qty = float(r.get('recommended_quantity', 0))
+                additional_cost = pack_size * cost
+                
+                # Safety Cap: Do not scale if it pushes coverage beyond 30 days
+                if (qty + pack_size) <= max(ads * 30, pack_size * 2):
+                    if additional_cost > 0 and additional_cost <= remaining_budget:
+                        r['recommended_quantity'] += pack_size
+                        remaining_budget -= additional_cost
+                        scaled_amounts[name] = scaled_amounts.get(name, 0) + pack_size
+                    
+            for r in high_velocity:
+                name = r['product_name']
+                if name in scaled_amounts:
+                    added = scaled_amounts[name]
+                    r['reasoning'] = r.get('reasoning', '') + f" [MOP-UP: Scaled Up (+{added})]"
+                    r['mop_up_action'] = f"SCALED (+{added})"
+                    consolidated_count += 1
+                    
+        logger.info(f"Mop-Up Phase B: Consolidated/Scaled {consolidated_count} items. Remaining budget: KES {remaining_budget:.2f}")
+        return recommendations

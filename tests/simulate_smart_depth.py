@@ -48,7 +48,7 @@ async def run_simulation():
     # Budget 1M -> "Mini-Mart" -> Depth 14 Days
     res = engine.apply_greenfield_allocation(enriched.copy(), 1_000_000)
     
-    print(f"\nResults (Base Store Depth: 14 Days):")
+    print("\nResults (Base Store Depth: 14 Days):")
     for r in res:
         name = r['product_name']
         qty = r['recommended_quantity']

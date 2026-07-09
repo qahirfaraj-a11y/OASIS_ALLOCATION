@@ -8,12 +8,10 @@ them against the client's actual human-generated POs to prove algorithmic superi
 
 import os
 import json
-import csv
 import logging
 import pandas as pd
-import numpy as np
-from datetime import datetime, date
-from typing import Dict, List, Any, Optional
+from datetime import datetime
+from typing import Dict, Any
 
 logger = logging.getLogger("OASIS.ShadowMode")
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(name)s] %(levelname)s: %(message)s")
@@ -34,76 +32,129 @@ class ShadowModeEngine:
         self.human_po = pd.DataFrame()
         self.comparison = pd.DataFrame()
 
-    def run_shadow_cycle(self, scorecard_path: str, pos_path: str = None, grn_path: str = None):
+    def _get_grn_db(self) -> Dict[str, Any]:
+        """Loads and caches the GRN intelligence DB to avoid duplicate reads."""
+        if hasattr(self, '_cached_grn_db'):
+            return self._cached_grn_db
+        grn_cache_path = os.path.join(self.data_dir, "grn_intelligence_cache.json")
+        self._cached_grn_db = {}
+        if os.path.exists(grn_cache_path):
+            try:
+                with open(grn_cache_path, 'r') as f:
+                    self._cached_grn_db = json.load(f)
+            except Exception as e:
+                logger.warning(f"Failed to load GRN intelligence cache: {e}")
+        return self._cached_grn_db
+
+    def run_shadow_cycle(self, scorecard_path: str, pos_path: str = None, grn_path: str = None, shadow_budget: float = 250000000.0):
         """
         Runs the full O.A.S.I.S. ordering logic and writes the result to a shadow log
         instead of dispatching to suppliers.
         """
-        logger.info("Running Shadow Cycle...")
+        logger.info(f"Running Shadow Cycle with budget: {shadow_budget}")
 
-        # Load scorecard
-        scorecard = pd.read_csv(scorecard_path)
+        import asyncio
+        from .order_engine import OrderEngine
 
-        # Normalize column names
-        col_map = {}
-        for c in scorecard.columns:
-            cl = c.lower().strip()
-            if ('product' in cl or 'item' in cl) and 'Item_Name' not in col_map.values(): col_map[c] = 'Item_Name'
-            elif ('ads' in cl or 'avg_daily' in cl or 'velocity' in cl) and 'ADS' not in col_map.values(): col_map[c] = 'ADS'
-            elif ('soh' in cl or 'stock_on_hand' in cl or 'stock' in cl) and 'SOH' not in col_map.values(): col_map[c] = 'SOH'
-            elif ('cost' in cl or 'unit_cost' in cl or 'unit_price' in cl) and 'Unit_Cost' not in col_map.values(): col_map[c] = 'Unit_Cost'
-            elif ('lead' in cl) and 'Lead_Time' not in col_map.values(): col_map[c] = 'Lead_Time'
-            elif ('supplier' in cl or 'vendor' in cl) and 'Supplier' not in col_map.values(): col_map[c] = 'Supplier'
-            elif ('department' in cl or 'dept' in cl) and 'Department' not in col_map.values(): col_map[c] = 'Department'
-            elif ('safety' in cl) and 'Safety_Factor' not in col_map.values(): col_map[c] = 'Safety_Factor'
-        scorecard = scorecard.rename(columns=col_map)
+        # Define a high-speed Shadow Mixin to prevent Streamlit UI timeouts
+        # For a massive 40,000 product baseline, deep string fuzzy-matching results in O(N^2) operations.
+        # This overrides it to use only primary alias tracking, keeping Golden logic untouched.
+        class ShadowFastOrderEngine(OrderEngine):
+            def find_best_match(self, code, barcode, name, database):
+                # Only trust exact alias cache hits during shadow bulk simulation
+                norm_name = self.normalize_product_name(str(name))
+                if getattr(self, '_sales_index_cache', None) and norm_name in self._sales_index_cache:
+                    return database.get(self._sales_index_cache[norm_name])
+                return None
 
-        # Set sensible defaults for missing columns
-        if 'ADS' not in scorecard.columns: scorecard['ADS'] = 1.0
-        if 'SOH' not in scorecard.columns: scorecard['SOH'] = 0
-        if 'Unit_Cost' not in scorecard.columns: scorecard['Unit_Cost'] = 100
-        if 'Lead_Time' not in scorecard.columns: scorecard['Lead_Time'] = 7
-        if 'In_Transit' not in scorecard.columns: scorecard['In_Transit'] = 0 # Prevent double-ordering
-        if 'Safety_Factor' not in scorecard.columns: scorecard['Safety_Factor'] = 1.645 # Default to 95% SL Z-score
-        if 'Supplier' not in scorecard.columns: scorecard['Supplier'] = 'GENERAL'
-        if 'Department' not in scorecard.columns: scorecard['Department'] = 'GENERAL'
-
-        # 95% Service Level Statistical Formula:
-        # ReorderPoint = (ADS x Lead_Time) + (Z x Sigma_LT x ADS)
-        # Simplified for Shadow Mode to: (ADS x (Lead_Time + 1.645 * StdDev_LT))
-        scorecard['ADS'] = pd.to_numeric(scorecard['ADS'], errors='coerce').fillna(0)
-        scorecard['SOH'] = pd.to_numeric(scorecard['SOH'], errors='coerce').fillna(0)
-        scorecard['In_Transit'] = pd.to_numeric(scorecard['In_Transit'], errors='coerce').fillna(0)
-        scorecard['Lead_Time'] = pd.to_numeric(scorecard['Lead_Time'], errors='coerce').fillna(7)
-        scorecard['Unit_Cost'] = pd.to_numeric(scorecard['Unit_Cost'], errors='coerce').fillna(100)
-
-        # Calculate Reorder Point with 95% Service Level Confidence
-        # For a clean pitch, we assume a ~2 day standard deviation if not provided
-        std_dev_lt = 2.0 
-        scorecard['Effective_Lead_Time'] = scorecard['Lead_Time'] + (1.645 * std_dev_lt)
+        # BUG 1 FIX: Replace simplistic statistical formula with full OrderEngine intelligence.
+        engine = ShadowFastOrderEngine(self.data_dir)
+        engine.load_local_databases() # Pre-load sync
         
-        scorecard['Reorder_Point'] = scorecard['ADS'] * scorecard['Effective_Lead_Time']
+        # We must run the async intelligence layer:
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        # The AI's mathematical intent can use the provided shadow_budget (default 250M)
         
-        # Net Requirement includes SOH and In-Transit (Pending) orders
-        scorecard['Shadow_Order_Qty'] = (scorecard['Reorder_Point'] - (scorecard['SOH'] + scorecard['In_Transit'])).clip(lower=0).astype(int)
+        recommendations = loop.run_until_complete(
+            engine.run_intelligent_analysis(
+                file_path=scorecard_path,
+                output_path="",
+                allocation_mode="replenishment",
+                total_budget=shadow_budget
+            )
+        )
+        loop.close()
         
-        scorecard['Shadow_Order_Value'] = scorecard['Shadow_Order_Qty'] * scorecard['Unit_Cost']
-        scorecard['Order_Reason'] = scorecard.apply(self._classify_reason, axis=1)
+        if not recommendations:
+            logger.warning("OrderEngine returned empty recommendations.")
+            self.shadow_po = pd.DataFrame()
+            return self.shadow_po
+            
+        # Convert engine output to shadow PO format
+        df = pd.DataFrame(recommendations)
+        
+        # Rename output fields to match shadow PO expected schema
+        col_map = {
+            'product_name': 'Item_Name',
+            'supplier_name': 'Supplier',
+            'department': 'Department',
+            'avg_daily_sales': 'ADS',
+            'current_stocks': 'SOH',
+            'cost_price': 'Unit_Cost',
+            'recommended_quantity': 'Shadow_Order_Qty',
+            'reasoning': 'Order_Reason'
+        }
+        df = df.rename(columns=col_map)
+        
+        # Ensure critical columns exist
+        if 'Unit_Cost' not in df.columns: df['Unit_Cost'] = 100.0
+        if 'Shadow_Order_Qty' not in df.columns: df['Shadow_Order_Qty'] = 0
+        
+        # Calculate values
+        df['Shadow_Order_Qty'] = pd.to_numeric(df['Shadow_Order_Qty'], errors='coerce').fillna(0).astype(int)
+        
+        # FINANCIAL ENRICHMENT (GRN CACHE)
+        grn_db = self._get_grn_db()
 
-        # Filter to items that actually need ordering
-        orders = scorecard[scorecard['Shadow_Order_Qty'] > 0].copy()
+        def enrich_initial_cost(row):
+            cost = pd.to_numeric(row.get('Unit_Cost'), errors='coerce')
+            if pd.notnull(cost) and cost > 0 and cost != 100.0:
+                return cost
+            
+            # Lookup in GRN DB
+            item_name = str(row.get('Item_Name', '')).strip().upper()
+            grn_stat = grn_db.get(item_name)
+            if grn_stat and isinstance(grn_stat, dict):
+                grn_cost = float(grn_stat.get('avg_cost', 0.0))
+                if grn_cost > 0: return grn_cost
+            return 100.0
 
-        self.shadow_po = orders[['Item_Name', 'Supplier', 'Department', 'ADS', 'SOH',
-                                  'Reorder_Point', 'Shadow_Order_Qty', 'Shadow_Order_Value',
-                                  'Order_Reason']].copy()
-        self.shadow_po['Date'] = datetime.now().strftime('%Y-%m-%d')
+        df['Unit_Cost'] = df.apply(enrich_initial_cost, axis=1)
+        df['Shadow_Order_Value'] = df['Shadow_Order_Qty'] * df['Unit_Cost']
+        df['Reorder_Point'] = 0  # Replaced by OASIS complex guards
+        df['Date'] = datetime.now().strftime('%Y-%m-%d')
+        
+        # Filter to actual orders
+        orders = df[df['Shadow_Order_Qty'] > 0].copy()
+            
+        cols_to_keep = ['Item_Name', 'Supplier', 'Department', 'ADS', 'SOH', 'Unit_Cost',
+                         'Reorder_Point', 'Shadow_Order_Qty', 'Shadow_Order_Value', 'Order_Reason', 'Date']
+        
+        # Keep only overlapping columns
+        available_cols = [c for c in cols_to_keep if c in orders.columns]
+        self.shadow_po = orders[available_cols].copy()
 
         # Save shadow log
         today_str = datetime.now().strftime('%Y%m%d')
-        log_path = os.path.join(self.shadow_log_dir, f'shadow_po_{today_str}.csv')
-        self.shadow_po.to_csv(log_path, index=False)
+        # BUG 9 FIX: Add intra-day timestamp to prevent overwrites
+        time_str = datetime.now().strftime('%H%M%S')
+        log_path = os.path.join(self.shadow_log_dir, f'shadow_po_{today_str}_{time_str}.csv')
+        tmp_path = log_path + '.tmp'
+        self.shadow_po.to_csv(tmp_path, index=False)
+        os.replace(tmp_path, log_path)
 
-        logger.info(f"Shadow PO generated: {len(self.shadow_po)} items, "
+        logger.info(f"Shadow PO generated via OrderEngine: {len(self.shadow_po)} items, "
                      f"KES {self.shadow_po['Shadow_Order_Value'].sum():,.2f} total value. "
                      f"Saved to {log_path}")
         return self.shadow_po
@@ -119,19 +170,36 @@ class ShadowModeEngine:
             return 'RESTOCK'
         return 'NO_ORDER'
 
-    def ingest_human_orders(self, human_po_path: str):
+    def ingest_human_orders(self, human_po_path):
         """
         Loads the client's actual PO (what the human buyer ordered).
+        Accepts a single path or a list of paths.
         Expects at minimum: Item_Name, Ordered_Qty columns.
         """
-        logger.info(f"Ingesting human PO from {human_po_path}...")
-        ext = human_po_path.lower()
-        if ext.endswith('.csv'):
-            self.human_po = pd.read_csv(human_po_path)
-        elif ext.endswith('.xlsx') or ext.endswith('.xls'):
-            self.human_po = pd.read_excel(human_po_path)
-        elif ext.endswith('.json'):
-            self.human_po = pd.read_json(human_po_path)
+        paths = [human_po_path] if isinstance(human_po_path, str) else human_po_path
+        dfs = []
+        for path in paths:
+            logger.info(f"Ingesting human PO from {path}...")
+            ext = path.lower()
+            try:
+                if ext.endswith('.csv'):
+                    df = pd.read_csv(path)
+                elif ext.endswith('.xlsx') or ext.endswith('.xls'):
+                    df = pd.read_excel(path)
+                elif ext.endswith('.json'):
+                    df = pd.read_json(path)
+                else:
+                    continue
+                dfs.append(df)
+            except Exception as e:
+                logger.error(f"Failed to load {path}: {e}")
+                
+        if not dfs:
+            logger.error("No valid human PO data loaded.")
+            self.human_po = pd.DataFrame()
+            return self.human_po
+            
+        self.human_po = pd.concat(dfs, ignore_index=True)
 
         # Normalize columns
         col_map = {}
@@ -160,8 +228,19 @@ class ShadowModeEngine:
             logger.error("No shadow PO generated yet. Run run_shadow_cycle() first.")
             return pd.DataFrame()
 
-        shadow = self.shadow_po[['Item_Name', 'Shadow_Order_Qty', 'Shadow_Order_Value', 
-                                  'Order_Reason', 'ADS', 'SOH', 'Unit_Cost']].copy()
+        cols_to_keep = ['Item_Name', 'Shadow_Order_Qty', 'Shadow_Order_Value', 
+                        'Order_Reason', 'ADS', 'SOH', 'Unit_Cost']
+        # Filter to columns that actually exist in the dataframe
+        available_cols = [c for c in cols_to_keep if c in self.shadow_po.columns]
+        shadow = self.shadow_po[available_cols].copy()
+        
+        # Fill missing columns with defaults to prevent downstream crashes
+        if 'Shadow_Order_Qty' not in shadow.columns: shadow['Shadow_Order_Qty'] = 0
+        if 'Shadow_Order_Value' not in shadow.columns: shadow['Shadow_Order_Value'] = 0.0
+        if 'Unit_Cost' not in shadow.columns: shadow['Unit_Cost'] = 100.0
+        if 'ADS' not in shadow.columns: shadow['ADS'] = 0.0
+        if 'SOH' not in shadow.columns: shadow['SOH'] = 0.0
+        if 'Order_Reason' not in shadow.columns: shadow['Order_Reason'] = 'UNKNOWN'
 
         if self.human_po.empty:
             # No human PO to compare — just return shadow with "human ordered nothing" annotation
@@ -170,6 +249,16 @@ class ShadowModeEngine:
             shadow['Divergence_Detail'] = 'O.A.S.I.S. identified a restock need. Human buyer did not order this item.'
             self.comparison = shadow
         else:
+            # Robust column check
+            if 'Item_Name' not in self.human_po.columns or 'Human_Order_Qty' not in self.human_po.columns:
+                logger.error(f"Human PO ingestion failed: Missing required columns. Found: {self.human_po.columns.tolist()}")
+                # Fallback to returning shadow-only comparison
+                shadow['Human_Order_Qty'] = 0
+                shadow['Divergence'] = 'HUMAN_MISSED'
+                shadow['Divergence_Detail'] = 'Human PO data invalid or missing item/qty columns.'
+                self.comparison = shadow
+                return self.comparison
+
             human = self.human_po[['Item_Name', 'Human_Order_Qty']].copy()
 
             # Merge on item name (fuzzy-tolerant: uppercase match)
@@ -178,9 +267,38 @@ class ShadowModeEngine:
             human_agg = human.groupby('_key').agg({'Human_Order_Qty': 'sum'}).reset_index()
 
             merged = shadow.merge(human_agg, on='_key', how='outer', suffixes=('', '_human'))
+            
+            # BUG 7 FIX: Items that were only in the human PO will have NaN Item_Name from the shadow df.
+            # Fill them from the _key used for the outer merge.
+            merged['Item_Name'] = merged['Item_Name'].fillna(merged['_key'])
+            
             merged['Shadow_Order_Qty'] = merged['Shadow_Order_Qty'].fillna(0).astype(int)
             merged['Human_Order_Qty'] = merged['Human_Order_Qty'].fillna(0).astype(int)
             merged['Shadow_Order_Value'] = merged['Shadow_Order_Value'].fillna(0)
+            merged['Unit_Cost'] = merged['Unit_Cost'].fillna(0.0)
+            merged['ADS'] = merged['ADS'].fillna(0.0)
+            merged['SOH'] = merged['SOH'].fillna(0.0)
+
+            # MAP TO GRN COST PRICES
+            grn_db = self._get_grn_db()
+                    
+            def get_enriched_cost(row):
+                if row['Unit_Cost'] > 0 and row['Unit_Cost'] != 100.0:
+                    return row['Unit_Cost']
+                
+                item_name = str(row['Item_Name']).strip().upper()
+                grn_stat = grn_db.get(item_name)
+                if grn_stat and isinstance(grn_stat, dict):
+                    cost = float(grn_stat.get('avg_cost', 0.0))
+                    if cost > 0:
+                        return cost
+                return 100.0
+                
+            merged['Unit_Cost'] = merged.apply(get_enriched_cost, axis=1)
+            merged['Human_Order_Value'] = merged['Human_Order_Qty'] * merged['Unit_Cost']
+            
+            # Recalculate Shadow Order Value to ensure consistency with newly mapped GRN prices
+            merged['Shadow_Order_Value'] = merged['Shadow_Order_Qty'] * merged['Unit_Cost']
 
             # Classify divergence
             merged['Divergence'] = merged.apply(self._classify_divergence, axis=1)
@@ -188,10 +306,12 @@ class ShadowModeEngine:
 
             self.comparison = merged.drop(columns=['_key'], errors='ignore')
 
-        # Save comparison
+        # Save comparison atomically
         today_str = datetime.now().strftime('%Y%m%d')
         comp_path = os.path.join(self.shadow_log_dir, f'shadow_comparison_{today_str}.csv')
-        self.comparison.to_csv(comp_path, index=False)
+        tmp_comp_path = comp_path + '.tmp'
+        self.comparison.to_csv(tmp_comp_path, index=False)
+        os.replace(tmp_comp_path, comp_path)
         logger.info(f"Shadow comparison saved: {comp_path}")
         return self.comparison
 
@@ -231,6 +351,8 @@ class ShadowModeEngine:
         aligned = len(self.comparison[self.comparison['Divergence'] == 'ALIGNED'])
 
         shadow_total = self.comparison['Shadow_Order_Value'].sum()
+        human_total = self.comparison['Human_Order_Value'].sum() if 'Human_Order_Value' in self.comparison.columns else 0.0
+
         # Risk weighting: Human over-ordering is taxed at the 17% retail holding cost
         over_ordered_df = self.comparison[self.comparison['Divergence'] == 'HUMAN_OVER_ORDERED']
         over_order_waste_risk = (over_ordered_df['Human_Order_Qty'] - over_ordered_df['Shadow_Order_Qty']) * over_ordered_df['Unit_Cost'] * 0.17
@@ -242,6 +364,7 @@ class ShadowModeEngine:
             'human_under_ordered': under,
             'aligned': aligned,
             'oasis_total_value': shadow_total,
+            'human_total_value': human_total,
             'over_order_waste_risk': over_order_waste_risk.sum(),
             'accuracy_pct': (aligned / max(total_items, 1)) * 100,
         }

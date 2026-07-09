@@ -1,12 +1,9 @@
 
 import os
-import calendar
-from datetime import datetime, date, timedelta
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import A4, landscape
-from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, PageBreak, Frame, PageTemplate
+from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, PageBreak
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-from reportlab.lib.units import inch
 
 import sys
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
@@ -171,5 +168,5 @@ def get_ordinal(n):
     return suffix
 
 if __name__ == "__main__":
-    out_file = os.path.join(os.getcwd(), f"Supplier_Master_Schedule_V2_2026.pdf")
+    out_file = os.path.join(os.getcwd(), "Supplier_Master_Schedule_V2_2026.pdf")
     generate_calendar_pdf(out_file)

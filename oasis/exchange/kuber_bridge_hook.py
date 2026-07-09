@@ -1,5 +1,3 @@
-import json
-import os
 import logging
 from typing import List, Dict, Any
 from .exchange_registry import ExchangeRegistry
@@ -53,7 +51,7 @@ class KuberIntegrationHook:
             # Positions wait in LISTED status for manual/investor review.
             
         self.registry.save()
-        logger.info(f"KUBER-HOOK: Batch listing complete. Registry updated.")
+        logger.info("KUBER-HOOK: Batch listing complete. Registry updated.")
 
 def push_to_kuber(data_dir: str, recommendations: List[Dict[str, Any]]):
     """Entry point for standalone OASIS scripts."""

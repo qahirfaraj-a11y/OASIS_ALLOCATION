@@ -2,7 +2,8 @@
 Quick integration test for the consolidated transfer layer.
 Includes pending-order awareness tests.
 """
-import sys, os
+import sys
+import os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 from oasis.logic.transfer_state import TransferStateTracker, TransferRecord

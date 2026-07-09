@@ -17,8 +17,7 @@ Usage:
 import logging
 import sqlite3
 import json
-import os
-from datetime import datetime, timedelta
+from datetime import datetime
 from typing import Dict, Any, Optional, List
 
 logger = logging.getLogger("OasisScheduler")
@@ -87,6 +86,26 @@ JOB_DEFINITIONS = {
         "Aggregate daily sales and calculate ADS",
         "0 22 * * *", True, _run_evening_summary_job
     )
+}
+
+# ── Cycle Presets ─────────────────────────────────────────────────────
+# Clients select one preset; the scheduler auto-configures all cron jobs.
+CYCLE_PRESETS = {
+    "LIVE": {
+        "morning_po":      "0 8 * * *",
+        "hourly_monitor":  "*/15 * * * *",    # Every 15 minutes for live clients
+        "evening_summary": "0 22 * * *",
+    },
+    "8_HOUR": {
+        "morning_po":      "0 6 * * *",
+        "hourly_monitor":  "0 6,14,22 * * *", # 3x daily refresh
+        "evening_summary": "0 22 * * *",
+    },
+    "24_HOUR": {
+        "morning_po":      "0 6 * * *",
+        "hourly_monitor":  "0 * * * *",       # Standard hourly
+        "evening_summary": "0 22 * * *",
+    },
 }
 
 
@@ -218,6 +237,34 @@ class OasisScheduler:
 
     def is_running(self) -> bool:
         return self._running
+
+    def apply_cycle(self, cycle_name: str):
+        """
+        Apply a cycle preset (LIVE, 8_HOUR, 24_HOUR).
+        Reconfigures all job crons from the preset and restarts if running.
+        """
+        cycle_name = cycle_name.upper()
+        if cycle_name not in CYCLE_PRESETS:
+            logger.error(f"Unknown cycle preset: {cycle_name}. Valid: {list(CYCLE_PRESETS.keys())}")
+            return
+
+        preset = CYCLE_PRESETS[cycle_name]
+        was_running = self._running
+
+        if was_running:
+            self.stop()
+
+        for job_id, new_cron in preset.items():
+            if job_id in self.jobs:
+                self.jobs[job_id].cron = new_cron
+                logger.info(f"Cycle {cycle_name}: {job_id} → {new_cron}")
+
+        self._save_job_configs()
+
+        if was_running:
+            self.start()
+
+        logger.info(f"Cycle preset '{cycle_name}' applied successfully.")
 
     def get_job_status(self) -> List[Dict[str, Any]]:
         """Get status of all jobs."""

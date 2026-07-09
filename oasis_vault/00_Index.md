@@ -13,6 +13,7 @@ Welcome to the operational headquarters for the **Optimized Acquisition & Stock 
 - [[Logic/Golden_State_replenishment| replenishment Logic]] — The v9.1 Stable engine rules.
 - [[Logic/Discontinued_Items| Discontinued Items]] — Aging & delisting rules.
 - [[Schemas/Excel_Report_Template| Excel Report Schema]] — The 15-column standard.
+- [[Schemas/Bootstrap_Data_Ingestion_Pipeline| Bootstrap Ingestion Pipeline]] — Day-0 data standards.
 
 ## 📜 History & Decisions
 - [[Decisions/Log| Decision Log]] — Tracking the evolution of the engine.

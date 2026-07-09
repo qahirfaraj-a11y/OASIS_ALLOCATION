@@ -375,6 +375,15 @@ def store_to_features(store: dict) -> List[float]:
     features.append((lat + 1.5) * 10)
     features.append((lon - 36.5) * 10)
     
+    # 4. Dynamic feature placeholders [6]
+    # [24] stockout_ratio_signal
+    # [25] critical_ratio_signal
+    # [26] sin_mo
+    # [27] cos_mo
+    # [28] rain
+    # [29] salary_hit
+    features.extend([0.0] * 6)
+    
     return features
 
 

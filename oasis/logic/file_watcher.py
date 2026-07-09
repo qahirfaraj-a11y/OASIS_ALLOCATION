@@ -57,6 +57,17 @@ class ERPExtractionHandler(FileSystemEventHandler):
         """Validates the CSV and triggers the pipeline."""
         df = pd.read_csv(file_path)
         
+        # Auto-normalize production scorecard column names to standard schema
+        # This handles the real Chandarana format (Product/Current_Stock/etc.)
+        normalize_map = {
+            "Product": "Item_Name",
+            "Current_Stock": "SOH",
+            "Avg_Daily_Sales": "ADS",
+            "Unit_Price": "Unit_Cost",
+            "Lead_Time_Days": "Lead_Time",
+        }
+        df = df.rename(columns={k: v for k, v in normalize_map.items() if k in df.columns})
+        
         # 1. Strict Validation
         missing_cols = [c for c in self.required_columns if c not in df.columns]
         if missing_cols:

@@ -34,9 +34,9 @@ class StoreProfileManager:
             {
                 "budget": 1_000_000, 
                 "tier_name": "Mini-Mart (Small)",
-                "depth_days": 14,
+                "depth_days": 18,
                 "price_ceiling": 2500.0,
-                "max_packs": 20,
+                "max_packs": 32,
                 "min_display_qty": 4,
                 "allow_c_class": True,
                 "stale_stock_allowed": False,
@@ -46,9 +46,9 @@ class StoreProfileManager:
             {
                 "budget": 10_000_000, 
                 "tier_name": "Standard (Supermarket)",
-                "depth_days": 21,
+                "depth_days": 30,
                 "price_ceiling": 20000.0,
-                "max_packs": 36,
+                "max_packs": 72,
                 "min_display_qty": 6,
                 "allow_c_class": True,
                 "stale_stock_allowed": False,
@@ -58,7 +58,7 @@ class StoreProfileManager:
             {
                 "budget": 50_000_000, 
                 "tier_name": "Mega",
-                "depth_days": 45,
+                "depth_days": 60,
                 "price_ceiling": 1000000.0, # Unlimited proxy
                 "max_packs": 999,
                 "min_display_qty": 12,
@@ -124,7 +124,9 @@ class StoreProfileManager:
                 
         # Non-numeric fields: Take lower bound (conservative) until threshold hit
         profile["allow_c_class"] = f_budget >= 1_000_000.0  # Allow variety above 1M (Mini-Mart)
-        profile["stale_stock_allowed"] = bool(lower["stale_stock_allowed"])
+        # BUG 11 FIX: Lowered from 50M to 30M to smooth the cliff-edge.
+        # Large supermarkets (30M+) can handle slow-moving items without spoilage risk.
+        profile["stale_stock_allowed"] = f_budget >= 30_000_000.0
         profile["tier_name"] = f"{str(lower['tier_name'])} (Scaled)"
         profile["is_small"] = f_budget < 10_000_000.0  # Small (Mini-Mart) is < 10M KES
         

@@ -546,6 +546,9 @@ def main():
     parser.add_argument("--file", default=None, help="restore: backup file to restore")
     parser.add_argument("--username", default=None, help="set-password: user to update")
     parser.add_argument("--password", default=None, help="set-password: new password")
+    # Release packaging
+    parser.add_argument("--bundle-runtime", action="store_true",
+                        help="package-release: include embedded Python + wheels for offline install")
     # Pre-flight diagnostics toggle
     parser.add_argument("--skip-diag", action="store_true",
                         help="Skip production_diagnostic.py preflight")
@@ -834,10 +837,13 @@ def main():
     elif args.mode == "package-release":
         from oasis.logic.release_packager import build_release
         root = os.path.dirname(os.path.abspath(__file__))
-        res = build_release(root)
+        res = build_release(root, bundle_runtime=args.bundle_runtime)
         print(f"Release packaged: {res['zip']}")
         print(f"  v{res['version']} | {res['files_shipped']:,} files shipped, "
               f"{res['files_skipped']:,} excluded | {res['size_mb']} MB")
+        if args.bundle_runtime:
+            print(f"  Runtime: {res.get('runtime_files', 0)} files, "
+                  f"{res.get('runtime_mb', 0)} MB (offline-ready)")
     elif args.mode == "backup":
         from oasis.logic.backup_util import backup_db
         root = os.path.dirname(__file__)

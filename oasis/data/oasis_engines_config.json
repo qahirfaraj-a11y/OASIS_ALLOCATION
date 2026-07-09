@@ -1,70 +1,207 @@
 {
-    "global_settings": {
-        "strict_mathematical_mode": false,
-        "simulation_correction_multiplier": 1.15,
-        "default_safety_buffer_days": 2,
-        "default_lead_time_days": 7
+  "global_settings": {
+    "strict_mathematical_mode": false,
+    "simulation_correction_multiplier": 1.15,
+    "default_safety_buffer_days": 2,
+    "default_lead_time_days": 7
+  },
+  "engines": {
+    "mop_up": {
+      "enabled": true,
+      "description": "Post-allocation Knapsack Mop-Up & K-Core Pruning",
+      "activation_budget_ceiling": 500000,
+      "prune_isolated_singles": true,
+      "prioritize_metric": "avg_daily_sales"
     },
-    "engines": {
-        "amit": {
-            "enabled": true,
-            "description": "Assortment & Margin Integration Tool \u00e2\u20ac\u201d One-In-One-Out GMROI gatekeeper",
-            "cache_file": "amit_enforcement.json"
-        },
-        "lata": {
-            "enabled": true,
-            "description": "Lead-Time & Allocation Shield \u00e2\u20ac\u201d Dynamic safety stock from GRN variance",
-            "cache_file": "supplier_patterns_2025.json",
-            "min_records_for_variance": 2,
-            "max_variance_multiplier": 2.0,
-            "min_variance_multiplier": 0.8
-        },
-        "dharam": {
-            "enabled": true,
-            "description": "Demand, Halo & Revenue Analytics \u00e2\u20ac\u201d Ghost Demand correction from neural graph",
-            "cache_file": "dharam_demand_patch.json",
-            "brand_loyalty_factor": 0.5,
-            "stockout_fill_rate_threshold": 0.5,
-            "max_recovery_multiplier": 2.5
-        },
-        "mande": {
-            "enabled": false,
-            "description": "Market, Network & Distribution Efficiency \u00e2\u20ac\u201d Quarterly Supplier Purge Reports",
-            "cache_file": "mande_purge_report.csv",
-            "trapped_capital_days": 30.0
-        }
+    "amit": {
+      "enabled": true,
+      "description": "Assortment & Margin Integration Tool \u00e2\u20ac\u201d One-In-One-Out GMROI gatekeeper",
+      "cache_file": "amit_enforcement.json",
+      "baseline_budget": 10000000,
+      "min_dept_cap_floor": 5,
+      "default_dept_caps_baseline": {
+        "WINES": 120,
+        "SPIRITS": 80,
+        "BEER": 100,
+        "DIWALI ITEMS": 30,
+        "PARTY ITEMS": 40,
+        "AIR FRESHNERS": 50,
+        "BISCUITS": 80,
+        "SNACKS": 100,
+        "CONFECTIONERY": 120,
+        "BEVERAGES": 150,
+        "CEREALS": 60,
+        "COOKING OIL": 40,
+        "RICE": 30,
+        "SUGAR": 20,
+        "FLOUR": 30,
+        "FRESH MILK": 40,
+        "DAIRY": 60,
+        "BREAD": 30,
+        "BAKERY": 50,
+        "HOUSEHOLD": 150,
+        "TOILETRIES": 150,
+        "DETERGENT": 80,
+        "BABY CARE": 60,
+        "STATIONERY": 50,
+        "COSMETICS": 100,
+        "PET FOOD": 30
+      }
     },
-    "category_rules": {
-        "BAKERY": {
-            "boost": 2.0,
-            "reason": "High-velocity perishable bread"
-        },
-        "FRESH MILK": {
-            "boost": 1.5,
-            "reason": "Fresh dairy cycle protection"
-        },
-        "DAIRY": {
-            "boost": 1.5
-        },
-        "CONFECTIONERY": {
-            "boost": 2.5,
-            "reason": "Impulse item stockout risk"
-        },
-        "CANDY": {
-            "boost": 2.5
-        },
-        "STAPLES": {
-            "boost": 1.4,
-            "reason": "High-velocity basic commodity"
-        },
-        "BEVERAGES": {
-            "boost": 1.5,
-            "reason": "Bulk demand variance"
-        },
-        "BAKING": {
-            "boost": 1.3
-        }
+    "lata": {
+      "enabled": true,
+      "description": "Lead-Time & Allocation Shield \u00e2\u20ac\u201d Dynamic safety stock from GRN variance",
+      "cache_file": "supplier_patterns_2025.json",
+      "min_records_for_variance": 5,
+      "max_variance_multiplier": 2.0,
+      "min_variance_multiplier": 0.8,
+      "default_stated_lead_time": 7,
+      "return_penalty_cap": 0.5,
+      "return_penalty_rate_multiplier": 1.5,
+      "pitch_sti_failure_weight": 0.6,
+      "pitch_sti_variance_weight": 0.25,
+      "pitch_sti_return_penalty_cap": 0.3
     },
-    "neural_network_path": "neutral_network_export",
-    "notes": "Strict Mode (global_settings) disables all category_rules and engine multipliers."
+    "dharam": {
+      "enabled": true,
+      "description": "Demand, Halo & Revenue Analytics \u00e2\u20ac\u201d Ghost Demand correction from neural graph",
+      "cache_file": "dharam_demand_patch.json",
+      "brand_loyalty_factor": 0.5,
+      "stockout_fill_rate_threshold": 0.5,
+      "max_recovery_multiplier": 2.5,
+      "max_recovery_window_days": 90,
+      "ghost_demand_ads_floor": 2.0,
+      "min_affinity_core_count": 5,
+      "min_anchor_ads": 0.5,
+      "substitution_density_discount": 0.8
+    },
+    "mande": {
+      "enabled": true,
+      "description": "Market, Network & Distribution Efficiency \u00e2\u20ac\u201d Quarterly Supplier Purge Reports",
+      "cache_file": "mande_purge_report.csv",
+      "trapped_capital_days": 30.0,
+      "sei_high_risk_threshold": 0.5,
+      "sei_medium_risk_threshold": 1.0,
+      "substitution_high_threshold": 3.0,
+      "substitution_medium_threshold": 2.0,
+      "wastage_pattern": "expir|damage|spoil|broken|rotten|perish",
+      "friction_pattern": "short.?supply|wrongly.?entered|qty.?error|grn.?error|variance|mismatch"
+    },
+    "dead_stock": {
+      "days_default": 45,
+      "capital_floor": 500.0,
+      "fallback_unit_cost": 100,
+      "perishability_tiers": {
+        "BAKERY": 5,
+        "CAKES": 5,
+        "FRESH CREAM": 5,
+        "FRESH PASTA": 5,
+        "FRESH MILK": 7,
+        "YOGHURT": 7,
+        "FRESH JUICE": 7,
+        "FRESH GOURMET": 7,
+        "EGGS": 7,
+        "DELI PRODUCT": 7,
+        "DELI HAM": 7,
+        "DELI CHEESE": 7,
+        "EA FRESH VEG": 5,
+        "FRESH VEG CS": 5,
+        "FRESH FRUITS CS": 5,
+        "BAKERY BIGCOLD": 5,
+        "BAKERY CHEERS": 5,
+        "BAKERY ENNSVALLEY": 5,
+        "BAKERY FOODPLUS": 5,
+        "BUTTER": 21,
+        "CHEESE": 21,
+        "MARGARINE": 21,
+        "FROZEN FISH/SEAFOOD": 30,
+        "FROZEN FRUITS": 30,
+        "FROZEN GOURMET": 30,
+        "FROZEN VEGETABLE": 30,
+        "ICE-CREAM": 30,
+        "DAIRY": 21,
+        "SOYA & OTHER MILK": 21,
+        "BABY MILK": 30,
+        "BABY FOODS": 30,
+        "BISCUITS": 45,
+        "SNACKS": 45,
+        "CRISPS": 45,
+        "CHOCOLATES": 45,
+        "CONFECTIONERY": 45,
+        "SWEETS": 45,
+        "CHEWING GUM": 60,
+        "CEREALS": 60,
+        "BREAKFAST CEREALS": 60,
+        "OATS": 60,
+        "MUESLI": 60,
+        "TEA": 60,
+        "COFFEE": 60,
+        "BEVERAGES": 45,
+        "CANNED FOOD": 90,
+        "CANNED MEAT": 90,
+        "CANNED DRINKS": 90,
+        "CANNED FRUITS": 90,
+        "CANNED MILK": 90,
+        "CANNED SODA": 90,
+        "RICE": 90,
+        "FLOUR": 90,
+        "SUGAR": 90,
+        "SALT": 90,
+        "PASTA": 90,
+        "COOKING OIL": 90,
+        "COOKING FAT": 90,
+        "GHEE": 90,
+        "SPICES": 120,
+        "DRIED FRUITS/NUTS": 90,
+        "WINES": 120,
+        "SPIRITS": 180,
+        "BEER": 60,
+        "CIDERS": 60,
+        "DETERGENTS": 120,
+        "ALL CLEANERS": 120,
+        "BLEACHES": 120,
+        "COSMETICS": 120,
+        "TOILETRIES": 120,
+        "HOUSEHOLD ITEMS": 120,
+        "STATIONERIES": 180,
+        "TOYS": 180,
+        "HARDWARE": 180,
+        "ELECTRICAL ITEMS": 180,
+        "HOME APPLIANCES ELEC": 180
+      }
+    }
+  },
+  "category_rules": {
+    "BAKERY": {
+      "boost": 2.0,
+      "reason": "High-velocity perishable bread"
+    },
+    "FRESH MILK": {
+      "boost": 1.5,
+      "reason": "Fresh dairy cycle protection"
+    },
+    "DAIRY": {
+      "boost": 1.5
+    },
+    "CONFECTIONERY": {
+      "boost": 2.5,
+      "reason": "Impulse item stockout risk"
+    },
+    "CANDY": {
+      "boost": 2.5
+    },
+    "STAPLES": {
+      "boost": 1.4,
+      "reason": "High-velocity basic commodity"
+    },
+    "BEVERAGES": {
+      "boost": 1.5,
+      "reason": "Bulk demand variance"
+    },
+    "BAKING": {
+      "boost": 1.3
+    }
+  },
+  "neural_network_path": "neutral_network_export",
+  "notes": "Strict Mode (global_settings) disables all category_rules and engine multipliers."
 }

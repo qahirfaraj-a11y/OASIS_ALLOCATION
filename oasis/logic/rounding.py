@@ -1,6 +1,6 @@
 
 import math
-from typing import Dict, Any, List
+from typing import Dict, Any
 
 def apply_pack_rounding(
     base_qty: float,
@@ -49,24 +49,13 @@ def apply_pack_rounding(
 
     # Edge case: if base is zero or tiny but we want at least one pack for key SKUs / high risk
     if base_qty <= 0:
-        # Check stockout_risk == "high" OR is_key_sku
-        if is_key_sku:
-            rounded = pack_size
-            return {
-                "rounded_qty": rounded,
-                "rounding_direction": "up",
-                "rounding_reason": "Base qty <= 0 but SKU is critical; order minimum one pack.",
-                "overage_units": int(max(0.0, float(rounded) - base_qty)),
-                "shortage_units": 0,
-            }
-        else:
-            return {
-                "rounded_qty": 0,
-                "rounding_direction": "down",
-                "rounding_reason": "Base qty <= 0 and not a key SKU; no order.",
-                "overage_units": 0,
-                "shortage_units": 0,
-            }
+        return {
+            "rounded_qty": 0,
+            "rounding_direction": "none",
+            "rounding_reason": "Base qty <= 0; no order required.",
+            "overage_units": 0,
+            "shortage_units": 0,
+        }
 
     # If already aligned to a pack, no rounding change
     if abs(packs_exact - round(packs_exact)) < 1e-9:

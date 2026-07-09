@@ -3,7 +3,7 @@ import os
 import logging
 import uuid
 from datetime import datetime
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any
 
 logger = logging.getLogger("KUBER.Registry")
 
@@ -38,6 +38,14 @@ class ExchangeRegistry:
                 }
                 for k, v in defaults.items():
                     ledger.setdefault(k, v)
+                    
+                # MIGRATION: Ensure all investors have necessary fields (Schema Evolution)
+                for inv_id, inv in reg.get("investors", {}).items():
+                    inv.setdefault("total_cash_in", 0.0)
+                    inv.setdefault("cash_flow_log", [])
+                    inv.setdefault("kyc_verified", True)
+                    inv.setdefault("yield_generated", 0.0)
+                    inv.setdefault("active_positions", [])
                     
                 return reg
             except Exception as e:

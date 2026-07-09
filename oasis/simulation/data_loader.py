@@ -3,7 +3,7 @@ import os
 import json
 import pandas as pd
 import logging
-from typing import Dict, Any
+from typing import Dict
 
 logger = logging.getLogger("SimulationDataLoader")
 
@@ -21,7 +21,8 @@ class HistoricalDataLoader:
         Reads jan_cash.xlsx ... oct_cash.xlsx to calculate relative volume.
         Returns: {'JAN': 0.9, 'DEC': 1.2, ...}
         """
-        months = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct']
+        # BUG 9 FIX: Include Nov and Dec in the scan (were hardcoded to 1.0)
+        months = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec']
         monthly_totals = {}
         
         logger.info("Loading monthly cash files for seasonality...")
@@ -108,9 +109,10 @@ class HistoricalDataLoader:
              else:
                  indices[m.upper()] = 1.0 # Default to Average if missing or noise
         
-        # Default missing months to 1.0 (Nov, Dec)
-        indices['NOV'] = 1.0
-        indices['DEC'] = 1.0 
+        # BUG 9 FIX: Kenyan festive season fallbacks (only when cash files are missing)
+        # December is consistently 20-30% above average due to bonuses and festivities.
+        if 'NOV' not in indices: indices['NOV'] = 1.0
+        if 'DEC' not in indices: indices['DEC'] = 1.25
         
         logger.info(f"Calculated Seasonality Indices: {json.dumps({k: round(v,2) for k,v in indices.items()})}")
         return indices

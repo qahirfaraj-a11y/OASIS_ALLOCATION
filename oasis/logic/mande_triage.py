@@ -19,7 +19,7 @@ import os
 import logging
 import argparse
 from collections import defaultdict
-from typing import Dict, List, Any, Set
+from typing import Dict, List, Any
 
 logger = logging.getLogger("OASIS.MANDE")
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(name)s] %(levelname)s: %(message)s")
@@ -34,7 +34,13 @@ def _load_mande_config(data_dir: str) -> Dict[str, Any]:
             return config.get('engines', {}).get('mande', {})
         except Exception as e:
             logger.warning(f"Failed to load MANDE config: {e}")
-    return {"trapped_capital_days": 30.0}
+    return {
+        "trapped_capital_days": 30.0,
+        "sei_high_risk_threshold": 0.5,
+        "sei_medium_risk_threshold": 1.0,
+        "substitution_high_threshold": 3.0,
+        "substitution_medium_threshold": 2.0
+    }
 
 def load_nodes_by_supplier(nn_path: str) -> Dict[str, List[Dict[str, Any]]]:
     """Load all SKU nodes grouped by supplier."""
@@ -91,7 +97,8 @@ def calculate_supplier_efficiency_index(
     supplier: str,
     skus: List[Dict[str, Any]],
     sub_counts: Dict[str, int],
-    trapped_days: float = 30.0
+    trapped_days: float = 30.0,
+    config: Dict[str, Any] = None
 ) -> Dict[str, Any]:
     """
     Calculate the Supplier Efficiency Index (SEI) for MANDE.
@@ -108,6 +115,9 @@ def calculate_supplier_efficiency_index(
     
     A LOW SEI with HIGH Substitution Exposure = prime delisting candidate.
     """
+    if config is None:
+        config = {}
+        
     total_trapped_capital = 0.0
     total_revenue = 0.0
     total_gross_profit = 0.0
@@ -135,6 +145,12 @@ def calculate_supplier_efficiency_index(
 
     # Capital Efficiency Ratio
     sei = total_revenue / max(total_trapped_capital, 1.0)
+    
+    # Classification Logic (v1.2: Config-driven)
+    sei_high = config.get("sei_high_risk_threshold", 0.5)
+    sei_med = config.get("sei_medium_risk_threshold", 1.0)
+    sub_high = config.get("substitution_high_threshold", 3.0)
+    sub_med = config.get("substitution_medium_threshold", 2.0)
 
     # Net Capital Position improvement if delisted
     # Assumes volume can be moved to alternative suppliers
@@ -156,8 +172,8 @@ def calculate_supplier_efficiency_index(
         "sei": round(sei, 4),
         "capital_release_potential_kes": round(capital_release_potential, 2),
         "net_capital_position_improvement_days": round(days_improvement, 1),
-        "delisting_risk": "HIGH" if sei < 0.5 and avg_substitution > 3.0 else (
-            "MEDIUM" if sei < 1.0 and avg_substitution > 2.0 else "LOW"
+        "delisting_risk": "HIGH" if sei < sei_high and avg_substitution > sub_high else (
+            "MEDIUM" if sei < sei_med and avg_substitution > sub_med else "LOW"
         ),
     }
 
@@ -185,7 +201,7 @@ def run_mande(nn_path: str, data_dir: str) -> Dict[str, Any]:
     # Calculate SEI for each supplier
     all_sei = []
     for supplier, skus in supplier_skus.items():
-        sei_data = calculate_supplier_efficiency_index(supplier, skus, sub_counts, trapped_days=trapped_days)
+        sei_data = calculate_supplier_efficiency_index(supplier, skus, sub_counts, trapped_days=trapped_days, config=config)
         all_sei.append(sei_data)
 
     # Sort by SEI ascending (worst performers first)
@@ -227,7 +243,7 @@ def run_mande(nn_path: str, data_dir: str) -> Dict[str, Any]:
     logger.info(f"[MANDE] {len(purge_candidates)} purge candidates identified out of {len(all_sei)} suppliers.")
 
     if high_risk:
-        logger.info(f"\n[MANDE] === TOP HIGH-RISK SUPPLIERS ===")
+        logger.info("\n[MANDE] === TOP HIGH-RISK SUPPLIERS ===")
         for s in high_risk[:5]:
             logger.info(
                 f"  {s['supplier']}: SEI={s['sei']:.4f}, "
@@ -246,7 +262,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     result = run_mande(args.nn_path, args.data_dir)
-    print(f"\n=== MANDE COMPLETE ===")
+    print("\n=== MANDE COMPLETE ===")
     print(f"Suppliers Analyzed: {result['summary']['total_suppliers_analyzed']}")
     print(f"High-Risk Purge Candidates: {result['summary']['purge_candidates_high']}")
     print(f"Total Capital Release Potential: {result['summary']['total_capital_release_potential']:,.0f} KES")

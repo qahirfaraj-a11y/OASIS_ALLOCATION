@@ -9,7 +9,7 @@ import os
 import json
 import logging
 from datetime import datetime
-from typing import Dict, Any, Optional
+from typing import Dict, Any
 
 logger = logging.getLogger("OASIS.Pipeline")
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(name)s] %(levelname)s: %(message)s")
@@ -124,7 +124,16 @@ class DailyPipeline:
             scorecard_path = self.config.get('scorecard_path')
             if not scorecard_path or not os.path.exists(scorecard_path):
                 raise FileNotFoundError(f"Scorecard not found: {scorecard_path}")
-            self._log_step('DATA_VALIDATION', 'OK', f'Scorecard: {scorecard_path}')
+            
+            import pandas as pd
+            from .data_validator import DataValidator
+            
+            df = pd.read_csv(scorecard_path)
+            validator = DataValidator()
+            valid_df = validator.validate_stock_dataframe(df)
+            valid_df.to_csv(scorecard_path, index=False)
+            
+            self._log_step('DATA_VALIDATION', 'OK', f'Scorecard validated: {len(valid_df)} rows')
         except Exception as e:
             self._log_step('DATA_VALIDATION', 'FAILED', str(e))
             self.run_log['status'] = 'FAILED'
@@ -151,11 +160,27 @@ class DailyPipeline:
             try:
                 from .lata_shield import run_lata
                 lata_result = run_lata(self.data_dir, self.config.get('nn_path'))
-                self._log_step('LATA_PREFLIGHT', 'OK', f'Supplier risk scores updated')
+                self._log_step('LATA_PREFLIGHT', 'OK', 'Supplier risk scores updated')
             except Exception as e:
                 self._log_step('LATA_PREFLIGHT', 'WARNING', f'LATA failed: {e}. Using default safety factors.')
         else:
             self._log_step('LATA_PREFLIGHT', 'SKIPPED', 'LATA disabled in config')
+
+        # BUG 5 FIX: Add DHARAM Pre-Flight (if enabled)
+        # This crucial step was missing from the pipeline, causing Ghost Demand Recovery to never execute
+        if self.config.get('dharam_enabled', True):
+            try:
+                from .dharam_revenue import run_dharam
+                nn_path = self.config.get('nn_path')
+                if not nn_path:
+                    nn_path = os.path.abspath(os.path.join(self.data_dir, '..', '..', 'neutral_network_export'))
+                dharam_result = run_dharam(nn_path, self.data_dir)
+                patches = dharam_result.get('stats', {}).get('total_demand_patches', 0)
+                self._log_step('DHARAM_PREFLIGHT', 'OK', f'Generated {patches} ghost demand patches')
+            except Exception as e:
+                self._log_step('DHARAM_PREFLIGHT', 'WARNING', f'DHARAM failed: {e}.')
+        else:
+            self._log_step('DHARAM_PREFLIGHT', 'SKIPPED', 'DHARAM disabled in config')
 
         # Step 4: Shadow or Live PO Generation
         shadow_mode = self.config.get('shadow_mode', True)
@@ -204,5 +229,6 @@ class DailyPipeline:
 
     def _save_log(self):
         log_path = os.path.join(self.pipeline_log_dir, f'pipeline_run_{self.run_log["run_id"]}.json')
-        with open(log_path, 'w') as f:
+        # BUG 12 FIX: Force UTF-8 encoding so Kenyan products with special characters (e.g. ™) don't crash the log
+        with open(log_path, 'w', encoding='utf-8') as f:
             json.dump(self.run_log, f, indent=2)

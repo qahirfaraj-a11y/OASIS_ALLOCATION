@@ -2,7 +2,7 @@
 import random
 import math
 import logging
-from typing import List, Dict, Any, Tuple
+from typing import List, Dict, Any
 
 logger = logging.getLogger("SimulationEngine")
 
@@ -239,7 +239,7 @@ class RiskModel:
     Now integrates with black_swan_events module for comprehensive risk modeling.
     """
     def __init__(self):
-        from .black_swan_events import SupplierRiskAnalyzer, SupplierFailureEvent, CompetitiveEvent, FailureMode
+        from .black_swan_events import SupplierRiskAnalyzer
         self.risk_analyzer = SupplierRiskAnalyzer()
         self.active_supplier_failures: Dict[str, Dict] = {}  # {supplier: {event, original_lead_times}}
         self.competitive_event: Any = None

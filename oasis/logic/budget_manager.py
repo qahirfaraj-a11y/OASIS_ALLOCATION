@@ -2,7 +2,7 @@ import json
 import csv
 import logging
 import os
-from typing import Dict, List, Any
+from typing import Dict, Any
 from .department_constants import ESSENTIAL_DEPARTMENTS
 
 logger = logging.getLogger("BudgetManager")
@@ -83,38 +83,46 @@ class BudgetManager:
         # Count departments with zero weight for dynamic minimum calculation
         zero_weight_count = sum(1 for w in self.scaling_ratios.values() if w == 0.0)
         
+        # v10.9 Enhancement: Dynamic Capital Rebalancing
+        # If budget > 20M, we auto-expand the spillover pools to allow for greater 
+        # assortment depth in non-staple categories.
+        is_large_scale = total_budget >= 20_000_000
+        
         # Reserve 2.5% for Liquidity / Flex Pool (Pass 2B) [v10.0 Parity]
         LIQUIDITY_RESERVE_PCT = 0.025
-        liquidity_pool = total_budget * LIQUIDITY_RESERVE_PCT
+        liquidity_pool = round(total_budget * LIQUIDITY_RESERVE_PCT, 4)
         
-        # Reserve 2% of budget for zero-weight departments (split among them)
-        ORPHAN_RESERVE_PCT = 0.02
-        orphan_min = (total_budget * ORPHAN_RESERVE_PCT / max(1, zero_weight_count)) if zero_weight_count > 0 else 0
+        # Reserve for zero-weight departments (split among them)
+        # v3.11: Dynamic Orphan Scaling - increase pool for large store builds
+        ORPHAN_RESERVE_PCT = 0.05 if is_large_scale else 0.02
+        orphan_pool = round(total_budget * ORPHAN_RESERVE_PCT, 4)
+        orphan_min = (orphan_pool / max(1, zero_weight_count)) if zero_weight_count > 0 else 0
         
         # Calculate Base Department Pot from Scaling Ratios
         for dept, weight in self.scaling_ratios.items():
             if weight > 0:
-                allocated = total_budget * weight
+                allocated = round(total_budget * weight, 4)
             else:
                 # v3.2 FIX (GAP 4): Orphan departments get minimum allocation
                 allocated = orphan_min
-                logger.debug(f"Orphan dept {dept} allocated minimum: ${allocated:.2f}")
             
             wallets[dept] = {
                 'allocated_budget': allocated,
-                'max_budget': allocated * (1.0 + buffer_pct),
+                'max_budget': round(allocated * (1.0 + buffer_pct), 4),
                 'spent': 0.0,
-                'remaining': allocated * (1.0 + buffer_pct) # Start with max available including buffer
+                # BUG 6 FIX: Start at allocated_budget, not max_budget.
+                # The buffer is an overdraft allowance, not starting capital.
+                'remaining': allocated
             }
             
-        # FIX 8: Enlarged GENERAL wallet to serve as a spillover pool for department overflow.
-        # When a department wallet exhausts, procurement_mixin routes spending to GENERAL.
-        # Previously 5%/10% was too small to absorb meaningful spillover.
+        # FIX 8: Dynamic General Pool
+        # For large budgets, General serves as the primary absorption layer for depth.
+        general_allocated = round(total_budget * (0.20 if is_large_scale else 0.10), 4)
         wallets['GENERAL'] = {
-            'allocated_budget': total_budget * 0.10,
-            'max_budget': total_budget * 0.20,
+            'allocated_budget': general_allocated,
+            'max_budget': round(general_allocated * 2.0, 4),
             'spent': 0.0,
-            'remaining': total_budget * 0.20
+            'remaining': round(general_allocated * 2.0, 4)
         }
         
         # Explicit Flex Pool Wallet
@@ -144,8 +152,8 @@ class BudgetManager:
             dept = 'GENERAL'
             
         wallet = wallets[dept]
-        wallet['spent'] += cost
-        wallet['remaining'] -= cost
+        wallet['spent'] = round(float(wallet['spent']) + float(cost), 2)
+        wallet['remaining'] = round(float(wallet['remaining']) - float(cost), 2)
         
         # FIX H3: Warn if wallet goes negative (indicates upstream check was skipped)
         if wallet['remaining'] < 0:

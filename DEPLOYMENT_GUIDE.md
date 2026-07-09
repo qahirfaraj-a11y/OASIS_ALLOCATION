@@ -145,6 +145,18 @@ These standalone apps remain available for independent testing:
 
 ---
 
+## Final Pre-Flight Checklist
+
+Before switching the system to LIVE production, verify the following:
+
+1. **Database Sync**: Ensure `oasis/data/mock_pos_erp.db` is populated. Run `python -m oasis.logic.mock_pos_erp` if missing.
+2. **Environment Mode**: Check `.env` contains `production_mode=true`.
+3. **API Connectivity**: If using AI Strategic Analysis, ensure `ANTHROPIC_API_KEY` is set.
+4. **Port Clearance**: Ensure port `8501` is not blocked by a previous instance.
+5. **Intelligence Cache**: Verify `oasis/data/oasis_engines_config.json` is present and engines are `enabled: true`.
+
+---
+
 ## Troubleshooting
 
 ### "Mock DB not found"

@@ -1,120 +1,55 @@
-# .dockerignore for OASIS Retail Solution
-# ----------------------------------------
-
-# Version control
-.git
-.gitignore
-
-# Python garbage
+# Python
 __pycache__/
 *.py[cod]
 *$py.class
-.pytest_cache/
-.mypy_cache/
+*.pyc
+
+# Virtual Environments
+venv/
 .venv/
 .oasis_venv/
+env/
 
-# Build and IDE artifacts
-build/
-dist/
-*.spec
+# IDE
 .vscode/
 .idea/
-.devcontainer/
+*.swp
+
+# Git
+.git/
+.gitignore
+
+# Large files not needed in image
+*.gguf
+*.log
+OASIS_Offline_App.zip
+
+# Docker
+Dockerfile
+docker-compose.yml
+.dockerignore
+
+# Documentation & Artifacts
+*.md
+docs/
 .gemini/
 
-# LARGE BINARIES (MUST EXCLUDE)
-*.zip
-*.7z
-*.rar
-OASIS_Offline_App.zip
+# OS
+Thumbs.db
+.DS_Store
+desktop.ini
 
-# Large Data (Redundant)
-*.diff
-*.txt
-!requirements.txt
-recent_changes*
-py_diff.txt
-zip_contents.txt
+# Build artifacts
+dist/
+build/
+*.egg-info/
 
-# Generated simulation/allocation results (Huge)
-simulation_results_*.xlsx
-allocation_gap_analysis_*.xlsx
-orders_*.csv
-simulation_metrics_*.csv
-allocation_scaled_demand_*.xlsx
-powerbi_item_analysis.csv
-Full_Product_Allocation_Scorecard.csv
-Full_Product_Allocation_Scorecard_v[1-6].csv
-
-# Separate/Internal Projects
-vj_canvas/
-payslip_generator/
-hayat_analysis/
-mock_dir/
-Import/
-
-# Documentation (Commercial docs kept in brain/)
-*.docx
-*.pdf
-*.md
-!USER_GUIDE.md
-!DEPLOYMENT_GUIDE.md
-
-# Large Network/Model data (Uncomment if not needed in image)
-# stores_network.json
-# st_gat_v2.pt
-
-# Source code exclusions (keep only necessary)
-tests/
-test_*.py
-verify_*.py
-debug_*.py
-analyze_*.py
-inspect_*.py
-check_*.py
+# Batch launchers (not needed in container)
 run_*.bat
-*.bat
-convert_*.py
-generate_*.py
-!generate_showcase_scenario.py
-extract_*.py
-find_*.py
-fix_*.py
-patch_*.py
-build_*.py
-export_*.py
-calculate_*.py
-compare_*.py
-diagnose_*.py
-dump_*.py
-explore_*.py
-root_cause_*.py
-reverse_*.py
-simulate_*.py
-backtest_*.py
-validate_*.py
-recover_*.py
-match_*.py
-recalculate_*.py
-reclassify_*.py
-inject_*.py
-ingest_*.py
-indent_*.py
-shrink_*.py
-patch_order_engine.py
-rewrite_dashboard.py
-rebuild_lite_db.py
-add_priority_score.py
-Integrated_App.spec
-Integrated_App.zip
-OASIS_Offline.spec
-OASIS_Offline_App.zip
-OASIS_Vault.zip
-OASIS_Vault_App.zip
-OASIS_Vault_Offline.zip
-OASIS_Vault_Offline_App.zip
-OASIS_Vault_Standalone.zip
-OASIS_Vault_Standalone_App.zip
-OASIS_Vault_Standalone_Offline.zip
-OASIS_Vault_Standalone_Offline_App.zip
+Run_*.bat
+install_oasis.bat
+update_oasis.bat
+
+# Test/scratch
+scratch/
+tests/

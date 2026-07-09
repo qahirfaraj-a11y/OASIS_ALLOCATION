@@ -106,49 +106,155 @@ class GeospatialExpansionEngine:
         self.stores_data = stores_data
         self.competitor_file = competitor_file
         self.competitors = pd.DataFrame()
+        
+        # Load Model
+        self.model_path = "expansion_model.joblib"
+        self.model = None
+        if os.path.exists(self.model_path):
+            import joblib
+            try:
+                self.model = joblib.load(self.model_path)
+                print("Expansion Engine: ML Model loaded successfully.")
+            except Exception as e:
+                print(f"Expansion Engine: Model load failed: {e}")
+        
         if os.path.exists(competitor_file):
             self.competitors = pd.read_csv(competitor_file)
             print(f"Expansion Engine: Loaded {len(self.competitors)} competitors.")
         else:
             print("Expansion Engine: Competitor file not found. Competitive friction will be 0.")
 
-    def calculate_gap_index(self, lat, lon, internal_radius_km=3.0, competitor_radius_km=2.0):
+    def estimate_travel_time(self, lat1, lon1, lat2, lon2, hour=12):
         """
-        Calculates a 'Gap Score' (0.0 to 1.0) for a given coordinate.
-        High Score = High Opportunity.
+        Estimates travel time in minutes based on traffic friction.
+        Isochrone Proxy Logic.
         """
-        # 1. Internal Cannibalization Penalty
-        cannibal_penalty = 0.0
+        dist_km = haversine_km(lat1, lon1, lat2, lon2)
+        
+        # Get friction from Traffic Service proxy
+        # We use a dummy src/dst dict for the service
+        src = {'latitude': lat1, 'longitude': lon1}
+        dst = {'latitude': lat2, 'longitude': lon2}
+        
+        # Use existing TRAFFIC_SVC for friction
+        friction = TRAFFIC_SVC.get_traffic_friction(src, dst, hour)
+        
+        # Base speed 40km/h (1.5 min per km)
+        base_time = dist_km * 1.5
+        
+        # Friction scales time non-linearly (up to 3x)
+        total_time = base_time * (1.0 + friction * 2.0)
+        
+        return total_time
+
+    def calculate_huff_probability(self, lat, lon, target_size_sqft=10000):
+        """
+        Huff Gravity Model implementation.
+        P(i,j) = (S_j / D_ij^2) / sum(S_k / D_ik^2)
+        """
+        # Attractiveness (S)
+        def get_attractiveness(size_sqft, chain="Unknown"):
+            weight = 1.0
+            if "Naivas" in chain or "Carrefour" in chain:
+                weight = 1.5
+            return (size_sqft / 1000.0) * weight
+
+        # Potential Stores (Target + Internal + Competitors)
+        candidates = []
+        
+        # 1. The hypothetical target store
+        candidates.append({'S': get_attractiveness(target_size_sqft), 'dist': 0.1}) # min dist
+        
+        # 2. Internal Stores (Chandarana)
         for s in self.stores_data:
             dist = haversine_km(lat, lon, s['latitude'], s['longitude'])
-            if dist < internal_radius_km:
-                # Quadratic decay
-                penalty = (1.0 - (dist / internal_radius_km)) ** 2
-                cannibal_penalty = max(cannibal_penalty, penalty)
+            if dist < 10.0: # 10km catchment
+                candidates.append({
+                    'S': get_attractiveness(s.get('floor_area_sqft', 10000)),
+                    'dist': max(dist, 0.1)
+                })
         
-        # 2. Competitor Proximity Penalty
-        competitor_friction = 0.0
+        # 3. Competitors
         if not self.competitors.empty:
-            # We filter competitors in the general bounding box for speed
             nearby = self.competitors[
-                (self.competitors['Latitude'].between(lat - 0.05, lat + 0.05)) &
-                (self.competitors['Longitude'].between(lon - 0.05, lon + 0.05))
-            ].copy()
-            
-            if not nearby.empty:
-                for _, comp in nearby.iterrows():
-                    dist = haversine_km(lat, lon, comp['Latitude'], comp['Longitude'])
-                    if dist < competitor_radius_km:
-                        penalty = (1.0 - (dist / competitor_radius_km))
-                        competitor_friction = max(competitor_friction, penalty)
-
-        # 3. Baseline Potential (Mocking based on cluster logic if available or just 1.0)
-        # In a real system, we'd look up a population density heatmap cell here.
-        base_potential = 0.8 # Assume moderate-high baseline for cities
+                (self.competitors['Latitude'].between(lat - 0.1, lat + 0.1)) &
+                (self.competitors['Longitude'].between(lon - 0.1, lon + 0.1))
+            ]
+            for _, comp in nearby.iterrows():
+                dist = haversine_km(lat, lon, comp['Latitude'], comp['Longitude'])
+                if dist < 10.0:
+                    candidates.append({
+                        'S': get_attractiveness(15000, comp.get('Chain', 'Unknown')), # Assume 15k sqft for big chains
+                        'dist': max(dist, 0.1)
+                    })
         
-        # Final Score Logic
-        score = base_potential * (1.0 - cannibal_penalty) * (1.0 - competitor_friction * 0.7)
-        return max(0.0, min(1.0, score))
+        # Calculate utility: S / D^2
+        total_utility = 0
+        target_utility = 0
+        
+        for i, c in enumerate(candidates):
+            utility = c['S'] / (c['dist'] ** 2)
+            total_utility += utility
+            if i == 0: target_utility = utility
+            
+        if total_utility == 0: return 0.0
+        return target_utility / total_utility
+
+    def calculate_gap_index(self, lat, lon, internal_radius_km=3.0, competitor_radius_km=2.0):
+        """
+        Advanced ML-driven Gap Index.
+        Combines Huff Probability, Traffic-Aware Friction, and RandomForest prediction.
+        """
+        # 1. Huff Probability
+        huff_prob = self.calculate_huff_probability(lat, lon)
+        
+        # 2. Competitor Context (for ML features)
+        min_dist_comp = 10.0
+        comp_density = 0
+        if not self.competitors.empty:
+             nearby = self.competitors[
+                (self.competitors['Latitude'].between(lat - 0.1, lat + 0.1)) &
+                (self.competitors['Longitude'].between(lon - 0.1, lon + 0.1))
+            ]
+             for _, comp in nearby.iterrows():
+                dist = haversine_km(lat, lon, comp['Latitude'], comp['Longitude'])
+                if dist < 5.0: comp_density += 1
+                if dist < min_dist_comp: min_dist_comp = dist
+
+        # 3. Traffic Friction Proxy
+        src = {'latitude': lat, 'longitude': lon}
+        dst = {'latitude': lat + 0.01, 'longitude': lon + 0.01} # Nearby probe
+        traffic_friction = TRAFFIC_SVC.get_traffic_friction(src, dst, 12) # Peak-ish
+        
+        # 4. Affluence (Dynamic based on nearest existing store)
+        min_dist = 999.0
+        affluence = 3.5
+        for s in self.stores_data:
+            d = haversine_km(lat, lon, s['latitude'], s['longitude'])
+            if d < min_dist:
+                min_dist = d
+                affluence = s.get('catchment_affluence_index', 3.5)
+        
+        # 5. ML Prediction (Random Forest)
+        if self.model is not None:
+            # Feature Vector: [huff_prob, comp_density, min_dist_comp, affluence, traffic_friction, store_type]
+            cols = ['huff_prob', 'comp_density', 'min_dist_comp', 'affluence', 'traffic_friction', 'store_type']
+            
+            features_express = pd.DataFrame([[huff_prob, comp_density, min_dist_comp, affluence, traffic_friction, 0]], columns=cols)
+            features_medium = pd.DataFrame([[huff_prob, comp_density, min_dist_comp, affluence, traffic_friction, 1]], columns=cols)
+            features_hyper = pd.DataFrame([[huff_prob, comp_density, min_dist_comp, affluence, traffic_friction, 2]], columns=cols)
+            
+            score_express = float(self.model.predict(features_express)[0])
+            score_medium = float(self.model.predict(features_medium)[0])
+            score_hyper = float(self.model.predict(features_hyper)[0])
+            
+            # Select the highest predicted success score across the candidate types
+            ml_score = max(score_express, score_medium, score_hyper)
+        else:
+            # Fallback to deterministic if no model
+            ml_score = huff_prob * 0.8
+            
+        return max(0.0, min(1.0, ml_score))
 
     def recommend_store_type(self, score, affluence=3.0):
         """
@@ -167,6 +273,84 @@ class GeospatialExpansionEngine:
                 return "Express / Neighborhood"
         else:
             return "Gas Station Mini-Mart"
+
+    def get_detailed_analysis(self, lat, lon, score, affluence=3.5):
+        """
+        Returns a structured report for site selection.
+        - Nearby stores (10km) and their impact.
+        - Strategic Rationale.
+        - Capital Allocation range (KES).
+        """
+        # 1. Nearby Stores & Impact (Internal + Competitors)
+        nearby = []
+        # Internal Stores
+        for s in self.stores_data:
+            dist = haversine_km(lat, lon, s['latitude'], s['longitude'])
+            if dist < 10.0:
+                impact = "Neutral"
+                if dist < 3.0: impact = "🚨 High Cannibalization"
+                elif dist < 5.0: impact = "⚠️ Moderate Cannibalization"
+                elif dist < 8.0: impact = "🤝 Strategic Synergy"
+                else: impact = "🌐 Network Expansion"
+                
+                nearby.append({
+                    'id': s['store_id'],
+                    'distance_km': round(dist, 2),
+                    'impact': impact,
+                    'type': 'INTERNAL'
+                })
+        
+        # Competitors (within 5km for impact analysis)
+        if not self.competitors.empty:
+            nearby_comp = self.competitors[
+                (self.competitors['Latitude'].between(lat - 0.05, lat + 0.05)) &
+                (self.competitors['Longitude'].between(lon - 0.05, lon + 0.05))
+            ]
+            for _, comp in nearby_comp.iterrows():
+                dist = haversine_km(lat, lon, comp['Latitude'], comp['Longitude'])
+                if dist < 5.0:
+                    nearby.append({
+                        'id': comp.get('Store_Name', 'Unknown Competitor'),
+                        'distance_km': round(dist, 2),
+                        'impact': "🥊 Competitive Friction",
+                        'type': 'COMPETITOR'
+                    })
+        
+        # Sort by distance
+        nearby = sorted(nearby, key=lambda x: x['distance_km'])
+
+        # 2. Capital Allocation Logic (KES)
+        rec_type = self.recommend_store_type(score, affluence)
+        
+        if rec_type == "Hyper / Flagship": lower, upper, step = 80_000_000, 150_000_000, 5_000_000
+        elif rec_type == "Medium Anchor": lower, upper, step = 10_000_000, 35_000_000, 1_000_000
+        elif rec_type == "Express / Neighborhood": lower, upper, step = 1_000_000, 8_000_000, 500_000
+        elif rec_type == "Gas Station Mini-Mart": lower, upper, step = 200_000, 950_000, 50_000
+        else: lower, upper, step = 0, 0, 100_000
+
+        # Apply score-based scaling within the range
+        mid = lower + (upper - lower) * score
+        
+        # Fine-grained rounding based on step
+        final_low = round((mid * 0.85) / step) * step
+        final_high = round((mid * 1.15) / step) * step
+        
+        capital_str = f"KES {final_low:,.0f} - {final_high:,.0f}"
+
+        # 3. Strategic Rationale
+        if score > 0.7:
+            rationale = "High-potential 'Blue Ocean' found. Low competitor density relative to catchment power suggests high ROI."
+        elif score > 0.4:
+            rationale = "Solid neighborhood play. Good capture probability (Huff Model) with manageable internal overlap."
+        else:
+            rationale = "High friction zone. Location may suffer from over-saturation or extreme cannibalization."
+        
+        return {
+            'nearby': nearby,
+            'capital': capital_str,
+            'rationale': rationale,
+            'store_type': rec_type
+        }
 
 
 
@@ -381,32 +565,18 @@ class NetworkSimulator:
             # Dynamic Update: Payday Signal (Multi-Frequency)
             t = self.current_day
             
-            # 1. Continuous Wave (Indices 20-23)
+            # 1. Continuous Wave (Indices 26-27)
             sin_mo = math.sin(2 * math.pi * t / 30)
             cos_mo = math.cos(2 * math.pi * t / 30)
-            sin_wk = math.sin(2 * math.pi * t / 7)
-            cos_wk = math.cos(2 * math.pi * t / 7)
             
-            f_vec[20] = sin_mo
-            f_vec[21] = cos_mo
-            f_vec[22] = sin_wk
-            f_vec[23] = cos_wk
+            f_vec[26] = sin_mo
+            f_vec[27] = cos_mo
             
             # --- FEATURE 28: RAIN ---
-            # We need to ensure we are targeting Index 28.
-            # store_to_features returns 29 items usually (0-28)? 
-            # If len < 28, pad.
-            while len(f_vec) < 28:
-                f_vec.append(0.0)
-                
-            # Weather (Index 28)
             # Dashboard scnearios might override this in x_t directly, but we set baseline here.
             # Mock Service returns 0.0 or high value.
             rain = WEATHER_SVC.get_current_weather(store.get('region', 'Nairobi'), t)
-            if len(f_vec) == 28:
-                f_vec.append(rain) # Index 28
-            else:
-                f_vec[28] = rain
+            f_vec[28] = rain
             
             # --- FEATURE 29: SALARY HIT ---
             # "Explosion of bulk buying" between 28th and 5th
@@ -414,10 +584,7 @@ class NetworkSimulator:
             is_payday_window = (day_mod >= 28) or (day_mod <= 5)
             salary_hit = 1.0 if is_payday_window else 0.0
             
-            if len(f_vec) == 29:
-                f_vec.append(salary_hit) # Index 29
-            else:
-                f_vec[29] = salary_hit
+            f_vec[29] = salary_hit
 
             
             feats_list.append(f_vec)

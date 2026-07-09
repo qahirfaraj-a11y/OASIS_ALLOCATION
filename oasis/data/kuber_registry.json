@@ -3,13 +3,56 @@
         "INV_4AE6AAC3": {
             "name": "Alice",
             "total_capital": 10000.0,
-            "available_capital": 6500.0,
+            "available_capital": 176500.0,
             "locked_capital": 13500.0,
             "yield_generated": 180.0,
             "active_positions": [
                 "POS_F43E99C2"
             ],
-            "kyc_verified": true
+            "kyc_verified": true,
+            "total_cash_in": 170000.0,
+            "cash_flow_log": [
+                {
+                    "timestamp": "2026-05-02T19:14:05.946131",
+                    "amount": 10000.0,
+                    "type": "CASH_IN"
+                },
+                {
+                    "timestamp": "2026-05-02T19:14:34.599570",
+                    "amount": 10000.0,
+                    "type": "CASH_IN"
+                },
+                {
+                    "timestamp": "2026-05-02T19:14:36.217686",
+                    "amount": 10000.0,
+                    "type": "CASH_IN"
+                },
+                {
+                    "timestamp": "2026-05-02T19:14:50.768909",
+                    "amount": 10000.0,
+                    "type": "CASH_IN"
+                },
+                {
+                    "timestamp": "2026-05-02T19:14:51.293476",
+                    "amount": 10000.0,
+                    "type": "CASH_IN"
+                },
+                {
+                    "timestamp": "2026-05-02T19:14:52.323146",
+                    "amount": 10000.0,
+                    "type": "CASH_IN"
+                },
+                {
+                    "timestamp": "2026-05-02T19:15:25.825055",
+                    "amount": 10000.0,
+                    "type": "CASH_IN"
+                },
+                {
+                    "timestamp": "2026-05-02T19:15:55.813429",
+                    "amount": 100000.0,
+                    "type": "CASH_IN"
+                }
+            ]
         }
     },
     "active_positions": {
@@ -36,6 +79,9 @@
         "platform_fees": 15.0,
         "levy_pct": 0.005,
         "total_trades": 1,
-        "total_volume": 1800.0
+        "total_volume": 1800.0,
+        "gpp_liquidity_fund": 0.0,
+        "gpp_insurance_fund": 0.0,
+        "exchange_fee_pct": 0.001
     }
 }

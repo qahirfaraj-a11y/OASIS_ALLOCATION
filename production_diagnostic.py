@@ -71,8 +71,10 @@ def run_diagnostics():
         if check_port(port):
             print(f"    [OK] Port {port} ({app}) is available.")
         else:
-            print(f"    [ERR] Port {port} is BLOCKED.")
-            errors += 1
+            # v1.2: All ports are now Warnings. Launchers (BAT files) have internal
+            # Port Hunting logic to find the next available slot automatically.
+            print(f"    [WARNING] Port {port} ({app}) is busy. Launchers will auto-hunt for the next open port.")
+            warnings += 1
 
     print("\n" + "="*50)
     if errors == 0:

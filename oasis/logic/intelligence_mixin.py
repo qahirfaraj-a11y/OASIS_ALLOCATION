@@ -1,19 +1,14 @@
 import json
 import logging
 import statistics
-import math
-import textwrap
 from datetime import datetime
 from typing import List, Dict, Optional, Any, Tuple
 from anthropic import AsyncAnthropic
 from textwrap import dedent
-try:
-    from .order_logic_guards import apply_safety_guards
-except ImportError:
-    # Fallback for direct testing
-    def apply_safety_guards(recs, products_map, mode="replenishment"): return recs
+
 
 from .department_constants import ESSENTIAL_DEPARTMENTS, FAST_FIVE_DEPARTMENTS, FRESH_DEPARTMENTS
+from .order_logic_guards import apply_safety_guards
 
 logger = logging.getLogger("OrderEngine.Intelligence")
 
@@ -102,7 +97,12 @@ class IntelligenceMixin:
                      val = float(data.get('avg_daily_sales', 0.0))
                      if val > 0: self._brand_index_cache[brand].append(val)
 
-        brand = product_name.split()[0].strip().upper()
+        # v10.9: Hardened safety for malformed names
+        tokens = str(product_name).split()
+        if not tokens:
+            return 0.0
+            
+        brand = tokens[0].strip().upper()
         similar_sales = self._brand_index_cache.get(brand, [])
         return float(statistics.median(similar_sales)) if similar_sales else 0.0
 
@@ -184,54 +184,55 @@ class IntelligenceMixin:
         p_name_upper = str(product.get('product_name', '')).upper()
 
         if is_fresh:
-            # v10.1: Leaner cover for High-Volume Stores (Rhapta logic)
-            cycle_days = self.get_grn_cycle_days(str(product.get('product_name', '')), is_fresh=True)
-            
-            store_budget = tier_profile.get('budget', 0)
-            buffer_days = 0.5 if store_budget >= 1_000_000 else 1.2
-            target_days = cycle_days + buffer_days
-
-            # Simulation Feedback for Fresh Items
-            sim_feedback = self.databases.get('simulation_feedback', {})
-            sku_feedback = sim_feedback.get('sku_feedback', {})
-            p_name_key = product.get('product_name', '')
-            
-            if p_name_key in sku_feedback:
-                fb = sku_feedback[p_name_key]
-                if fb.get('stockout_days', 0) > 0:
-                    target_days *= 1.2  # +20% buffer
-            
-            if 'UHT' in p_name_upper or 'ESL' in p_name_upper or 'LONG LIFE' in p_name_upper:
-                target_days = max(7.0, target_days)
-                       
-            return float(target_days)
+            # v10.12: Fresh items now use the unified DDoS pipeline but with tighter safety
+            # to prevent spoilage while respecting the ordering rhythm.
+            pass
              
-        # 2. Base Coverage Calculation (Standard Dry Goods)
-        base_safety = 2.0
-        cycle_stock = 3.0
+        # === CHAPTER 12: Dynamic Days of Stock (DDoS) ===
+        # v10.12: This replaces hardcoded caps with rhythm-aware replenishment targets.
+        # Formula: Target = Next_Order_Interval + Lead_Time + Safety_Buffer
         
-        # === CHAPTER 11: LATA Variance Multiplier ===
-        # If LATA engine is enabled, apply the pre-computed variance multiplier
-        # to the safety buffer. Unreliable suppliers get inflated safety stock,
-        # reliable suppliers get reduced safety stock to release working capital.
-        # FIX C2: Gated behind feature flag — previously always active if data existed.
+        # 1. Determine Next Order Interval (Cycle)
         supplier_name = str(product.get('supplier_name', 'UNKNOWN')).upper().strip()
-        lata_multiplier = 1.0
-        lata_enabled = getattr(self, 'is_engine_enabled', lambda x: False)('lata')
-        if lata_enabled:
-            supplier_patterns = self.databases.get('supplier_patterns', {})
-            sp = supplier_patterns.get(supplier_name, {})
-            if isinstance(sp, dict) and 'lata_variance_multiplier' in sp:
-                lata_multiplier = float(sp['lata_variance_multiplier'])
-                product['lata_multiplier'] = lata_multiplier
-                product['lata_confidence'] = sp.get('lata_confidence', 'LOW')
+        rhythm_db = getattr(self, 'rhythm_db', {})
+        s_rhythm = rhythm_db.get(supplier_name, {})
         
-        adjusted_safety = base_safety * lata_multiplier
+        # Default cycle is 7 days (Weekly) unless history proves otherwise
+        order_cycle = float(s_rhythm.get('median_gap', 7.0))
         
-        # Formula: (Lead Time + Safety Buffer + Cycle Stock) x Demand Correction (1.15x)
-        base_days = (lead_time + adjusted_safety + cycle_stock) * 1.15
+        # 2. Safety Buffer (LATA & Simulation Aware)
+        # Fresh items get a lean 1.2-day TOTAL BASE if supplied daily, 
+        # otherwise Dry goods get 3.0 days safety buffer.
         
-        # 3. Velocity-Based Depth Scaling (v10.0 authoritative)
+        if is_fresh and order_cycle <= 1.5:
+            # v10.12: Strict 1.2 Day Total Coverage for Daily Fresh (Bread/Milk)
+            # This covers the immediate 24h gap + 0.2 morning rush buffer.
+            target_days = 1.2
+            trace_tag = "DAILY_FRESH_JIT"
+        else:
+            base_safety = 3.0
+            # Apply LATA Variance Multiplier
+            lata_multiplier = 1.0
+            if getattr(self, 'is_engine_enabled', lambda x: False)('lata'):
+                supplier_patterns = self.databases.get('supplier_patterns', {})
+                sp = supplier_patterns.get(supplier_name, {})
+                lata_multiplier = float(sp.get('lata_variance_multiplier', 1.0))
+            
+            safety_buffer = base_safety * lata_multiplier
+            target_days = (order_cycle + lead_time + safety_buffer)
+            trace_tag = "STANDARD_REPLENISHMENT"
+
+        # Apply Simulation Feedback Multiplier (v10.12: Unified)
+        sim_multiplier = 1.0
+        sim_feedback = self.databases.get('simulation_feedback', {}).get('sku_feedback', {})
+        if p_name_upper in sim_feedback or product.get('product_name') in sim_feedback:
+            fb = sim_feedback.get(product.get('product_name')) or sim_feedback.get(p_name_upper)
+            if fb.get('stockout_days', 0) > 0:
+                sim_multiplier = 1.2
+        
+        target_days *= sim_multiplier
+        
+        # Apply Velocity-Based Depth Scaling (v10.0 authoritative)
         if avg_sales > 10:
             velocity_multiplier = 1.4  # Very high velocity
         elif avg_sales > 5:
@@ -243,15 +244,26 @@ class IntelligenceMixin:
         else:
             velocity_multiplier = 0.8  # Low velocity (reduce overstocking)
         
-        target_days = base_days * velocity_multiplier
+        target_days *= velocity_multiplier
         
-        # 4. Golden Logic Strategic Caps (v10.0 Parity)
+        # 4. Strategic Guardrails & Department Caps
         if any(x in p_name_upper for x in ['UHT', 'ESL', 'LONG LIFE']):
-            target_days = min(target_days, 7.0)
+            target_days = min(target_days, max(7.0, order_cycle + lead_time))
+        elif is_fresh:
+            # Fresh cap is tighter to prevent spoilage
+            # v10.12: Strict 1.2 Day Total Coverage for Daily Fresh items
+            if order_cycle <= 1.5:
+                target_days = min(target_days, 1.2)
+                target_days = max(target_days, 1.0)
+            else:
+                target_days = min(target_days, order_cycle + lead_time + 1.2)
+                target_days = max(target_days, 2.0)
         else:
-            target_days = min(target_days, 25.0)
+            # Dynamic Cap for dry goods: Cycle + 14 days (or max 60)
+            dynamic_cap = min(60.0, order_cycle + lead_time + 14.0)
+            target_days = min(target_days, dynamic_cap)
              
-        return float(target_days)
+        return float(round(target_days, 2))
 
 
     def extract_brand(self, name: str) -> str:
@@ -314,6 +326,7 @@ class IntelligenceMixin:
                 
                 # v6.3 FIX: Data-Driven Freshness
                 median_gap = pattern.get('median_gap_days', 7)
+                p['median_gap_days'] = median_gap
                 if median_gap <= 2 or p['supplier_frequency'] == 'daily':
                      p['supplier_frequency'] = 'daily' 
                      p['is_fresh'] = True
@@ -321,21 +334,32 @@ class IntelligenceMixin:
                 p['estimated_delivery_days'] = 7.0
                 p['supplier_reliability'] = 0.9
                 p['supplier_frequency'] = 'weekly'
+                p['median_gap_days'] = 7
 
             # 2.5 GRN Intelligence (Move to start of loop for anchoring)
             grn_stat = self.grn_db.get(p_barcode) or self.grn_db.get(self.normalize_product_name(p_name))
             last_delivery_days = 0
             if grn_stat and isinstance(grn_stat, dict):
-                if grn_stat.get('count', 0) > 0:
-                    p['historical_avg_order_qty'] = int(round(float(grn_stat['total'] / grn_stat['count'])))
-                    p['confidence_grn'] = 'HIGH' if grn_stat['count'] >= 100 else 'MEDIUM'
-                    p['order_cycle_count'] = grn_stat['count']  # R3: Golden Parity
+                # v10.10: Handle both 'total/count' and 'avg_cost/frequency' cache formats
+                cnt = self._safe_int(grn_stat.get('count') or grn_stat.get('frequency') or 0)
+                tot = self._safe_float(grn_stat.get('total') or 0.0)
+                
+                if cnt > 0:
+                    if tot > 0:
+                        p['historical_avg_order_qty'] = int(round(tot / cnt))
+                    else:
+                        # Fallback: if we only have frequency, use a derived estimate
+                        # Golden Logic: Default to 14 days of current ADS as historical baseline
+                        p['historical_avg_order_qty'] = 0 # Will be patched after ADS enrichment
+                    
+                    p['confidence_grn'] = 'HIGH' if cnt >= 100 else 'MEDIUM'
+                    p['order_cycle_count'] = cnt
                 
                 # Aging Check (v9.1 Discontinued Logic)
                 last_delivery_days = float(grn_stat.get('days_since_last_grn', 0))
             else:
                 p['historical_avg_order_qty'] = 0
-                p['order_cycle_count'] = 0  # R3: Golden Parity
+                p['order_cycle_count'] = 0 
                 last_delivery_days = float(p.get('last_days_since_last_delivery', 0))
 
             # Cost Price Tracking
@@ -398,10 +422,20 @@ class IntelligenceMixin:
             if not sales_data: sales_data = self.find_best_match(p_code, p_barcode, p_name, sales_forecasting)
 
             if sales_data:
-                p['avg_daily_sales'] = float(round(float(sales_data.get('avg_daily_sales', 0.1)), 3))
+                hist_ads = float(round(float(sales_data.get('avg_daily_sales', 0.1)), 3))
                 p['sales_trend'] = sales_data.get('trend', 'stable')
                 p['sales_trend_pct'] = float(sales_data.get('trend_pct', 0.0))
                 p['months_active'] = sales_data.get('months_active', 6)  # R14: Golden Parity
+                
+                # v10.10: Blended Velocity (Prefer Live Ingestion if available)
+                live_ads = p.get('live_ads_30d', 0.0)
+                if live_ads > 0:
+                     # 70/30 Blend: Favor recent volatility but anchor with history
+                     p['avg_daily_sales'] = round((0.7 * live_ads) + (0.3 * hist_ads), 3)
+                     p['is_velocity_blended'] = True
+                else:
+                     p['avg_daily_sales'] = hist_ads
+
                 p['demand_cv'] = self._calculate_cv(sales_data.get('monthly_sales', {}))
                 monthly_sales = sales_data.get('monthly_sales', {})
                 if monthly_sales:
@@ -464,14 +498,27 @@ class IntelligenceMixin:
             p['current_stock'] = p.get('current_stocks', 0)
             p['days_since_delivery'] = p.get('last_days_since_last_delivery', 0)
             
-            # GOLDEN PARITY: sales_velocity is HISTORICAL (Monthly / 30), not forecasted ADS
+            # v10.10: Correct Velocity Ingestion (Golden Parity)
+            # Use units_sold_last_month if available (Picking list), otherwise fallback to ADS
             units_last_month = float(p.get('units_sold_last_month', 0.0))
-            p['sales_velocity'] = float(round(units_last_month / 30.0, 2))
+            if units_last_month > 0:
+                p['sales_velocity'] = float(round(units_last_month / 30.0, 2))
+            else:
+                p['sales_velocity'] = float(round(p.get('avg_daily_sales', 0.0), 2))
+            
+            # Patch Historical Avg if it was missing from GRN Cache
+            if p.get('historical_avg_order_qty', 0) == 0:
+                # Golden Logic Fallback: Standard replenishment cycle (14 days)
+                p['historical_avg_order_qty'] = int(round(p['sales_velocity'] * 14))
+
             is_fresh = bool(p['is_fresh'])
             
             # GOLDEN PARITY: reliability_score field (Regression #8)
             p['reliability_score'] = p.get('supplier_reliability', 0.9) * 100
             p['supplier_frequency_days'] = p.get('estimated_delivery_days', 7)
+            
+            # GAP 1 FIX: explicitly set lead_time_days
+            p['lead_time_days'] = 1 if is_fresh else p.get('estimated_delivery_days', 3)
             
             # GOLDEN PARITY: Category branching with safety_stock_pct (Regression #2, #3)
             # Use department map first, then keyword fallback
@@ -504,7 +551,14 @@ class IntelligenceMixin:
             p['min_presentation_stock'] = 0
             p['is_key_sku'] = p.get('is_top_sku', False)
             p['shelf_life_days'] = 7 if is_fresh else 365
-            p['upper_coverage_days'] = 3 if is_fresh else 45
+            if is_fresh and p.get('supplier_frequency') == 'daily':
+                p['upper_coverage_days'] = 1.2
+            elif is_fresh:
+                p['upper_coverage_days'] = 3.0
+            elif any(x in p_upper for x in ['UHT', 'ESL', 'LONG LIFE']):
+                p['upper_coverage_days'] = 7.0
+            else:
+                p['upper_coverage_days'] = 45.0
             
             # GOLDEN PARITY: last_delivery_quantity (Regression #11)
             if p.get('historical_avg_order_qty', 0) > 0:
@@ -535,11 +589,10 @@ class IntelligenceMixin:
                     p['category_boost'] = 2.0
                     p['category_boost_reason'] = 'Bread/bakery high-velocity perishable'
             
-            # Dairy/Fresh Milk: 1.5x boost
+            # Dairy/Fresh Milk: Strict 1.2 day cap (no boost)
             elif any(x in p_upper for x in ['DAIMA', 'BIO ', 'FRESH MILK', 'MAZIWA']):
-                p['target_coverage_days'] = int(base_coverage * 1.5)
-                p['category_boost'] = 1.5
-                p['category_boost_reason'] = 'Fresh dairy perishable'
+                p['category_boost'] = 1.0
+                p['category_boost_reason'] = 'Strict 1.2 day cap for dairy'
             
             # High-velocity staples: 1.3x boost (identified from feedback)
             elif any(x in p_upper for x in ['GOLD 500ML', 'CROWN TFA', 'MACCOFFEE', 'INDOMIE']):
@@ -621,14 +674,20 @@ class IntelligenceMixin:
             boosted_floor = float(base_coverage * category_boost_applied) if category_boost_applied > 1.0 else 0.0
             
             if is_fresh:
-                # FIX 6: Fresh cap raised to 3.0 days for all fresh items (daily or not)
-                # Guide spec: Cycle + 0.5 Days + weekend buffer = 2.5-3.0 days
-                cap = 3.0
-                effective_cap = max(cap, boosted_floor)  # FIX 7: Honor category boost as floor
+                # User directive: strict 1.2 day cap, relaxable to 1.5 with sim feedback
+                cap = 1.2
+                if p.get('sim_stockout_frequency', 0) > 0.3:
+                    cap = 1.5
+                
+                is_dairy = any(x in p_upper for x in ['DAIMA', 'BIO ', 'FRESH MILK', 'MAZIWA'])
+                
+                # For dairy, enforce strict cap (ignore boosted_floor)
+                effective_cap = cap if is_dairy else max(cap, boosted_floor)
+                
                 if target_days > effective_cap:
                     p['target_coverage_days'] = effective_cap
                     p['cap_applied'] = True
-                    p['cap_reason'] = f'Fresh Ceiling ({effective_cap:.1f}d, boost floor: {boosted_floor:.1f}d)'
+                    p['cap_reason'] = f'Fresh Ceiling ({effective_cap:.1f}d)'
             elif any(x in p_upper for x in ['UHT', 'ESL', 'LONG LIFE']):
                 p['target_coverage_days'] = min(target_days, 7.0)
             else:
@@ -637,8 +696,13 @@ class IntelligenceMixin:
 
             # Re-calculate ROP/Safety after ALL boosts and caps
             # R4: Golden Parity — ROP uses sales_velocity (historical), safety_stock uses avg_daily_sales (forecasted)
-            p['reorder_point'] = float(round(float(p['sales_velocity'] * p['target_coverage_days']), 2))
-            p['safety_stock'] = float(round(float(p['target_coverage_days'] * p.get('avg_daily_sales', 0)), 2))
+            # ROP should only cover lead time + safety, NOT the full order cycle
+            _lead_time = p.get('estimated_delivery_days', 7)
+            # safety_stock in units is (target_coverage_days - _lead_time - 7) roughly, but we can just use safety_stock_pct
+            _safety_days = 3.0 if not is_fresh else 1.2
+            p['reorder_point'] = float(round(float(p['sales_velocity'] * (_lead_time + _safety_days)), 2))
+            p['target_stock'] = float(round(float(p['sales_velocity'] * p['target_coverage_days']), 2))
+            p['safety_stock'] = float(round(float(_safety_days * p.get('avg_daily_sales', 0)), 2))
 
             # 5. Finalize Statistics
             p['confidence'] = "HIGH" if p.get('historical_avg_order_qty', 0) > 0 else "MEDIUM"
@@ -692,6 +756,41 @@ class IntelligenceMixin:
                 p['ABC_Class'] = 'B'
 
             if p_name.upper().startswith('CFB '): p['exclude_from_allocation'] = True
+            
+            # Injection 4 / Asymmetric Service Levels
+            p['velocity_weekly'] = float(p.get('avg_daily_sales', 0)) * 7.0
+            vel = p['velocity_weekly']
+            cost = p.get('cost_price', 0)
+            high_cost_threshold = 5000.0
+            if vel >= 10.0:
+                p['target_sl'] = 0.98
+                p['z_score'] = 2.05
+            elif vel < 2.0 and cost > high_cost_threshold:
+                p['target_sl'] = 0.85
+                p['z_score'] = 1.04
+            else:
+                p['target_sl'] = 0.95
+                p['z_score'] = 1.64
+            
+            # Use dynamic Z-score for safety stock calculation if demand_cv is present
+            cv = float(p.get('demand_cv', 0.5))
+            # Fallback reorder point / safety stock
+            if p.get('reorder_point', 0) == 0:
+                _lt = p.get('lead_time_days', 3)
+                _sd = 3.0 if not is_fresh else 1.2
+                p['reorder_point'] = float(round(float(p.get('avg_daily_sales', 0) * (_lt + _sd)), 2))
+
+        # GAP 1 FIX: Compute missing sales_rank
+        missing_rank = [p for p in products if p.get('sales_rank', 999) == 999]
+        if missing_rank:
+            sorted_by_ads = sorted(missing_rank, key=lambda x: float(x.get('avg_daily_sales', 0)), reverse=True)
+            for idx, p in enumerate(sorted_by_ads):
+                # Only give meaningful rank if it has sales
+                if float(p.get('avg_daily_sales', 0)) > 0:
+                    p['sales_rank'] = idx + 1
+                    if p['sales_rank'] < 500:
+                        p['is_top_sku'] = True
+                        p['is_key_sku'] = True
 
         return products
 

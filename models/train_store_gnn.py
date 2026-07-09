@@ -118,12 +118,17 @@ def generate_risk_labels(stores: List[dict]) -> torch.Tensor:
         footfall = store.get("footfall_rank", 5.0)
         footfall_risk = 1.0 - (footfall / 10.0)
         
+        # New normalization: Stock vulnerability based on SKU count
+        sku_count = len(store.get("stock_profile", []))
+        sku_risk = max(0.0, 1.0 - (sku_count / 500.0))
+        
         # Weighted combination
         risk = (
-            0.35 * supplier_risk +
-            0.25 * size_risk +
-            0.20 * category_risk +
-            0.20 * footfall_risk
+            0.25 * supplier_risk +
+            0.20 * size_risk +
+            0.15 * category_risk +
+            0.20 * footfall_risk +
+            0.20 * sku_risk
         )
         
         risks.append(min(1.0, max(0.0, risk)))
@@ -151,25 +156,26 @@ def generate_transfer_labels(stores: List[dict]) -> torch.Tensor:
             if i == j:
                 continue
             
-            # Same cluster bonus
+            # Same cluster bonus (1.0 if same, 0.1 if diff)
             same_cluster = stores[i].get("region", "") == stores[j].get("region", "")
-            cluster_score = 0.4 if same_cluster else 0.1
+            cluster_score = 1.0 if same_cluster else 0.1
             
             # Size differential (larger -> smaller = more feasible)
-            budget_i = stores[i].get("monthly_budget", 1e6)
-            budget_j = stores[j].get("monthly_budget", 1e6)
-            size_diff = max(0, math.log10(budget_i / max(budget_j, 1))) / 3
+            budget_i = float(stores[i].get("monthly_budget", 1e6))
+            budget_j = float(stores[j].get("monthly_budget", 1e6))
+            size_diff = min(1.0, max(0.0, math.log10(budget_i / max(budget_j, 1)) / 1.5))
             
-            # Product overlap (simplified: both have stock profiles)
+            # Product overlap
             depts_i = set(item.get("department", "") for item in stores[i].get("stock_profile", []))
             depts_j = set(item.get("department", "") for item in stores[j].get("stock_profile", []))
             
             if depts_i and depts_j:
                 overlap = len(depts_i & depts_j) / max(len(depts_i | depts_j), 1)
             else:
-                overlap = 0.3  # Default moderate overlap
+                overlap = 0.3
             
-            score = 0.3 * cluster_score + 0.3 * size_diff + 0.4 * overlap
+            # Aggressive weights to ensure dynamic range
+            score = 0.45 * cluster_score + 0.40 * size_diff + 0.15 * overlap
             labels[i, j] = min(1.0, max(0.0, score))
     
     return labels
@@ -281,8 +287,8 @@ def train(network_path: str = "stores_network.json",
     
     # 6. Save checkpoint
     if save_checkpoint:
-        checkpoint_dir = os.path.dirname(os.path.abspath(__file__))
-        checkpoint_path = os.path.join(checkpoint_dir, "store_gnn_checkpoint.pt")
+        checkpoint_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        checkpoint_path = os.path.join(checkpoint_dir, "st_gat_v2.pt")
         
         torch.save({
             'model_state_dict': model.state_dict(),

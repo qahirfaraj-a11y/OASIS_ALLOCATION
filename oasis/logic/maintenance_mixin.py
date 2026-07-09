@@ -24,7 +24,18 @@ class MaintenanceMixin:
         except Exception as e:
             logger.error(f"Maintenance failed: {e}")
 
-    def cleanup_temp_exports(self, export_dir: str):
+    def cleanup_temp_exports(self, export_dir: str, keep_days: int = 7):
         """Cleanup temporary Excel/CSV exports."""
-        # Standard maintenance logic from Golden State v3
-        pass
+        logger.info(f"Maintenance: Cleaning temp exports in {export_dir} (Retention: {keep_days} days)")
+        threshold = datetime.now() - timedelta(days=keep_days)
+        
+        try:
+            for ext in ("*.csv", "*.xlsx", "*.tmp"):
+                for export_file in glob.glob(os.path.join(export_dir, ext)):
+                    if not os.path.isfile(export_file): continue
+                    mtime = datetime.fromtimestamp(os.path.getmtime(export_file))
+                    if mtime < threshold:
+                        os.remove(export_file)
+                        logger.info(f"Deleted old export: {os.path.basename(export_file)}")
+        except Exception as e:
+            logger.error(f"Maintenance failed during temp export cleanup: {e}")

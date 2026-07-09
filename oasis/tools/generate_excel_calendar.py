@@ -1,10 +1,8 @@
 
 import os
-import calendar
-from datetime import datetime, date, timedelta
+from datetime import date, timedelta
 from openpyxl import Workbook
 from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
-from openpyxl.utils import get_column_letter
 
 import sys
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
@@ -163,5 +161,5 @@ def generate_excel_calendar(output_path: str, year: int = 2026):
     print(f"Excel Calendar generated at: {output_path}")
 
 if __name__ == "__main__":
-    out_file = os.path.join(os.getcwd(), f"Supplier_Order_Calendar_2026.xlsx")
+    out_file = os.path.join(os.getcwd(), "Supplier_Order_Calendar_2026.xlsx")
     generate_excel_calendar(out_file)

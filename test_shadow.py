@@ -4,11 +4,18 @@ import os
 
 base_dir = os.path.dirname(os.path.abspath(__file__))
 sc_path = os.path.join(base_dir, 'Full_Product_Allocation_Scorecard_v7.csv')
-hum_path = os.path.join(base_dir, 'mock_human_po.csv')
+hum_paths = [
+    os.path.join(base_dir, 'oasis', 'data', 'po_3-4.xlsx'),
+    os.path.join(base_dir, 'oasis', 'data', 'po_5-6.xlsx'),
+    os.path.join(base_dir, 'oasis', 'data', 'po_7-8.xlsx'),
+    os.path.join(base_dir, 'oasis', 'data', 'po_9-10.xlsx'),
+    os.path.join(base_dir, 'oasis', 'data', 'po_1-2.xlsx'),
+    os.path.join(base_dir, 'oasis', 'data', 'po_1-11.xlsx')
+]
 
 engine = ShadowModeEngine(base_dir)
 engine.run_shadow_cycle(sc_path)
-engine.ingest_human_orders(hum_path)
+engine.ingest_human_orders(hum_paths)
 comp = engine.generate_comparison()
 stats = engine.get_summary_stats()
 

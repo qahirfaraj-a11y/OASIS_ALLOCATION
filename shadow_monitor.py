@@ -15,6 +15,7 @@ from logging.handlers import RotatingFileHandler
 
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 from oasis.logic.shadow_mode import ShadowModeEngine
+from oasis.logic.simulation_pipeline import SimulationEngine
 from shadow_report_generator import generate_shadow_report
 
 # Create logs directory if not exists
@@ -56,7 +57,7 @@ class ShadowDropHandler(FileSystemEventHandler):
             try:
                 # Try to open the file exclusively
                 # On Windows, this will fail if another process is writing
-                with open(path, 'rb+') as f:
+                with open(path, 'rb') as f:
                     current_size = os.path.getsize(path)
                     if current_size == last_size and current_size > 0:
                         return True
@@ -114,11 +115,33 @@ class ShadowDropHandler(FileSystemEventHandler):
             self.engine.generate_comparison()
             stats = self.engine.get_summary_stats()
             
-            # 4. Generate Report
+            # 4. Auto-Simulation (7-Day Backtest Context)
+            logger.info(f"Triggering Auto-Simulation for Store {store_id} (7-Day Backtest)...")
+            try:
+                # Calculate dates for the last 7 days
+                end_date = datetime.now()
+                start_date = end_date - timedelta(days=7)
+                
+                sim_config = {
+                    'data_dir': self.root_dir, # Or adjust if needed
+                    'store_id': store_id,
+                    'shadow_mode': True
+                }
+                sim_engine = SimulationEngine(sim_config)
+                sim_report = sim_engine.run_simulation(start_date.strftime("%Y-%m-%d"), end_date.strftime("%Y-%m-%d"))
+                
+                # Add sim stats to the main stats for the report generator
+                stats['simulation_summary'] = sim_report.get('summary', {})
+                logger.info(f"Auto-Simulation Complete: KES {stats['simulation_summary'].get('cumulative_holding_risk', 0):,.2f} savings opportunity identified.")
+            except Exception as sim_e:
+                logger.error(f"Auto-Simulation failed: {sim_e}")
+
+            # 5. Generate Report
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
             report_name = f"Shadow_Report_Store{store_id}_{timestamp}.docx"
             report_path = os.path.join(self.output_dir, report_name)
             
+            # Note: generate_shadow_report might need an update to handle stats['simulation_summary']
             report_data = generate_shadow_report(self.engine.comparison, stats)
             with open(report_path, "wb") as f:
                 f.write(report_data.getbuffer())

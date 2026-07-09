@@ -1,6 +1,6 @@
 from typing import List, Dict, Any
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime
 
 logger = logging.getLogger("OasisAlertMonitor")
 
@@ -12,7 +12,7 @@ class AlertMonitor:
     def __init__(self, spike_threshold_pct: float = 300.0):
         self.spike_threshold_pct = spike_threshold_pct # e.g. 300% of normal
 
-    def check_velocity_spikes(self, realtime_sales: List[Dict[str, Any]], historical_stats: Dict[str, Any]) -> List[Dict[str, Any]]:
+    def check_velocity_spikes(self, realtime_sales: List[Dict[str, Any]], historical_stats: Dict[str, Any], elapsed_hours: float = 1.0) -> List[Dict[str, Any]]:
         """
         Compares real-time sales velocity (e.g., last 3 hours) vs. historical average.
         """
@@ -36,14 +36,12 @@ class AlertMonitor:
             if avg_daily <= 0:
                 continue
 
-            # Normalize: "Hourly" rate approximation (Assuming 12h trading day)
-            avg_hourly = avg_daily / 12.0
+            # Calculate expected cumulative sales for the elapsed time
+            expected_cumulative = (avg_daily / 14.0) * elapsed_hours
+            if expected_cumulative <= 0.1:
+                expected_cumulative = 0.1 # avoid div zero
             
-            # Simple Heuristic: If we sold > 3x daily avg in a short window? 
-            # Or just check if current_qty (which might be a batch) is huge.
-            # Let's assume input 'realtime_sales' is a batch from the last Hour.
-            
-            deviation = (current_qty / avg_hourly) * 100
+            deviation = (current_qty / expected_cumulative) * 100
             
             if deviation > self.spike_threshold_pct:
                 alert = {
@@ -51,7 +49,7 @@ class AlertMonitor:
                     "severity": "high",
                     "product_id": pid,
                     "product_name": stats.get('product_name', 'Unknown'),
-                    "message": f"Velocity Spike! Sold {current_qty} units in last hour (Avg: {avg_hourly:.1f}/hr). Deviation: {deviation:.0f}%",
+                    "message": f"Velocity Spike! Sold {current_qty} units in {elapsed_hours:.1f}h (Expected: {expected_cumulative:.1f}). Deviation: {deviation:.0f}%",
                     "timestamp": datetime.now().isoformat(),
                     "recommended_action": "Check Shelf & Depot Stock immediately."
                 }

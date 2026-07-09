@@ -11,8 +11,9 @@ per-store OASIS engine logic.
 """
 
 import logging
+import math
 from dataclasses import dataclass
-from typing import Dict, List, Optional, Tuple, Any
+from typing import Dict, List, Optional, Any
 
 logger = logging.getLogger("FulfillmentDecider")
 
@@ -61,6 +62,7 @@ class StoreSkuState:
     department: str = ""
     days_since_delivery: int = 0
     velocity_ratio: float = 1.0
+    uom: str = "EA"         # EA (each) or KG (weight-based)
     last_search_score: float = 0.0
     last_search_dist: float = 0.0
 
@@ -75,16 +77,27 @@ class NetworkAvailabilityMap:
         # itm_cd -> List[StoreSkuState]
         self._index: Dict[str, List[StoreSkuState]] = {}
 
-    def add(self, state: StoreSkuState):
-        if state.itm_cd not in self._index:
-            self._index[state.itm_cd] = []
-        self._index[state.itm_cd].append(state)
+    def add(self, state: StoreSkuState, bcode: str = ''):
+        keys = {state.itm_cd, state.product_name}
+        # Also index by normalised lower-case name for case-insensitive fallback
+        if state.product_name:
+            keys.add(state.product_name.strip().lower())
+        if bcode:
+            keys.add(bcode)
+        for k in keys:
+            if k:
+                if k not in self._index:
+                    self._index[k] = []
+                # avoid duplicates
+                if not any(x.org_cd == state.org_cd for x in self._index[k]):
+                    self._index[k].append(state)
 
     def find_donors(self, itm_cd: str, recipient_org: str,
                     min_excess_ratio: float = 2.0,
                     distance_calc: Optional[Any] = None,
                     use_dynamic_ratio: bool = True,
-                    warehouse_hubs: Optional[List[str]] = None) -> List[StoreSkuState]:
+                    warehouse_hubs: Optional[List[str]] = None,
+                    product_name: str = '') -> List[StoreSkuState]:
         """
         Find stores that have excess stock for this item, prioritized by proximity and volume.
         
@@ -112,6 +125,13 @@ class NetworkAvailabilityMap:
             warehouse_hubs = []
 
         candidates = self._index.get(itm_cd, [])
+        # Fallback 1: try product_name key if itm_cd found nothing
+        if not candidates and product_name:
+            candidates = self._index.get(product_name, [])
+        # Fallback 2: try normalised lower-case product name
+        if not candidates and product_name:
+            candidates = self._index.get(product_name.strip().lower(), [])
+
         donors = []
         for s in candidates:
             if s.org_cd == recipient_org:
@@ -173,7 +193,7 @@ class NetworkAvailabilityMap:
 # ---------------------------------------------------------------------------
 
 # Default logistics cost per transfer (KES)
-DEFAULT_TRANSFER_COST_KES = 500.0
+DEFAULT_TRANSFER_COST_KES = 200.0
 
 # G9 Fix: Distance-based cost rate (KES per km)
 DEFAULT_PER_KM_RATE = 50.0
@@ -184,8 +204,39 @@ MAX_DONOR_DRAIN = 0.5
 # Transfer is only worthwhile if it saves at least this much vs ordering
 MIN_SAVINGS_RATIO = 0.3
 
+# Fresh departments that should NOT be auto-transferred
+FRESH_DEPARTMENTS = {'MILK', 'DAIRY', 'FRESH', 'MEAT', 'BREAD', 'BAKERY',
+                     'SEAFOOD', 'FISH', 'POULTRY', 'PRODUCE', 'FRUITS', 'VEGETABLES'}
 
-import math
+# Departments typically sold by weight (KG) — keep decimal precision
+KG_DEPARTMENTS = {'MEAT', 'SEAFOOD', 'FISH', 'CHEESE', 'SPICES', 'DELI',
+                  'FRUITS', 'VEGETABLES', 'PRODUCE', 'BUTCHERY'}
+
+
+def _is_kg_item(department: str) -> bool:
+    """Check if an item's department indicates it is sold by weight (KG)."""
+    dept_upper = department.upper().strip()
+    return any(kd in dept_upper for kd in KG_DEPARTMENTS)
+
+
+def _round_transfer_qty(qty: float, department: str = "") -> float:
+    """Round transfer quantity based on UOM.
+    
+    - KG items (meat, cheese, spices, seafood): round to 1 decimal place
+    - EA items (everything else): ceil to whole units
+    """
+    if qty <= 0:
+        return 0.0
+    if _is_kg_item(department):
+        return round(qty, 1)
+    return float(math.ceil(qty))
+
+
+def _is_fresh_department(department: str) -> bool:
+    """Check if a department is a fresh/perishable category."""
+    dept_upper = department.upper().strip()
+    return any(fd in dept_upper for fd in FRESH_DEPARTMENTS)
+
 
 class FulfillmentDecider:
     """
@@ -199,7 +250,7 @@ class FulfillmentDecider:
                  max_donor_drain: float = MAX_DONOR_DRAIN,
                  fresh_transfer_max_hours: float = 6.0,
                  distance_map: Optional[Dict[str, Dict[str, float]]] = None,
-                 risk_threshold: float = 0.6,
+                 risk_threshold: float = 0.40,
                  warehouse_hubs: Optional[List[str]] = None):
         self.transfer_cost_kes = transfer_cost_kes
         self.per_km_rate = per_km_rate  # G9 Fix
@@ -244,7 +295,8 @@ class FulfillmentDecider:
                pending_order_eta_days: float = 999.0,
                current_stock: float = 0.0,
                avg_daily_sales: float = 0.0,
-               risk_score: float = 0.0) -> FulfillmentDecision:
+               risk_score: float = 0.0,
+               department: str = "") -> FulfillmentDecision:
         """
         Make a fulfillment decision for a single shortfall.
         
@@ -273,10 +325,11 @@ class FulfillmentDecider:
 
         # Find potential donors with distance ranking + warehouse hub priority
         donors = network_map.find_donors(
-            itm_cd, 
-            recipient_org=recipient_org, 
+            itm_cd,
+            recipient_org=recipient_org,
             distance_calc=self._calculate_distance_km,
             warehouse_hubs=self.warehouse_hubs,
+            product_name=product_name,  # enables multi-key fallback
         )
 
         # Cost estimates
@@ -300,6 +353,21 @@ class FulfillmentDecider:
             estimated_transfer_cost=transfer_cost,
             order_eta_days=lead_time_days,
         )
+
+        # ── FRESH ITEM RULE: No auto-transfers for perishables ──
+        # Fresh items (milk, dairy, meat, bread, bakery, seafood, etc.) must
+        # NOT be auto-transferred. Each store orders fresh stock calibrated
+        # to their own sell-through; transferring adds transit time and
+        # shortens shelf life, increasing waste/returns.
+        if is_fresh or _is_fresh_department(department):
+            decision.decision = "ORDER"
+            decision.order_qty = shortfall_qty
+            decision.reasoning = (
+                f"[FRESH ITEM — NO AUTO-TRANSFER] "
+                f"{product_name} is perishable ({department}). "
+                f"Standard supplier order only. Transfer available for manual dispatch by ground team."
+            )
+            return decision
 
         # ── GAP-PLUG PHILOSOPHY ──
         # Transfers are a temporary plug to avoid stockout while waiting for
@@ -383,36 +451,39 @@ class FulfillmentDecider:
             if not is_ordering_day:
                 decision.decision = "BACKLOG"
                 decision.reasoning += (
-                    f"No network donor available. "
-                    f"Not supplier's ordering day. Backlogged for next order cycle."
+                    "No network donor available. "
+                    "Not supplier's ordering day. Backlogged for next order cycle."
                 )
             else:
                 decision.reasoning += (
-                    f"No network donor available. Standard supplier order."
+                    "No network donor available. Standard supplier order."
                 )
             return decision
 
         # Best donor
         best = donors[0]
-        
-        # GAP-PLUG: Transfer only what's needed to cover the gap, not full shortfall
-        # When gap_qty is 0 (e.g. ADS=0), no transfer is needed
-        if gap_qty < 1.0 and gap_days > 0:
-            # Gap exists in time but no units needed (ADS=0 or very low)
-            transfer_target = 0.0
+
+        # GAP-PLUG: Transfer only what's needed to cover the gap, not full shortfall.
+        # IMPORTANT FIX: When ADS=0 (gap_qty≈0) but shortfall_qty>0, the ordering engine
+        # has detected a real need — use shortfall_qty directly as the transfer target.
+        # Zeroing transfer_target here would silently block all transfers for ~53% of items.
+        if gap_qty < 0.1 and gap_days > 0:
+            # ADS=0 or very low velocity: engine-computed shortfall is our best signal
+            transfer_target = shortfall_qty if shortfall_qty > 0 else 0.0
         elif gap_qty > 0:
             transfer_target = min(gap_qty, shortfall_qty)
         else:
             transfer_target = shortfall_qty
+
         max_transferable = min(
             best.excess * self.max_donor_drain,
             transfer_target
         )
 
-        # Fresh items: only transfer if donor is nearby (< 6 hours)
-        if is_fresh and best.is_fresh:
-            # For fresh, transfers are actually preferred (faster than waiting for supplier)
-            max_transferable = min(max_transferable, best.excess * 0.3)  # Be conservative
+        # NOTE: Fresh items are already blocked above and will never reach here.
+        # This is a safety net in case the check is bypassed.
+        if is_fresh or _is_fresh_department(department):
+            max_transferable = 0.0
 
         decision.donor_org = best.org_cd
         decision.donor_name = org_names.get(best.org_cd, best.org_cd)
@@ -431,8 +502,8 @@ class FulfillmentDecider:
         if is_high_risk and max_transferable >= 1.0:
             # GNN Risk Trigger: High volatility → Transfer now AND order for safety
             decision.decision = "BOTH"
-            decision.transfer_qty = float(round(float(max_transferable), 1))
-            decision.order_qty = float(round(float(shortfall_qty), 1))
+            decision.transfer_qty = _round_transfer_qty(max_transferable, department)
+            decision.order_qty = _round_transfer_qty(shortfall_qty, department)
             decision.reasoning += (
                 f"[GNN HIGH RISK: Score {risk_score:.2f}] "
                 f"Aggressive replenishment: Transfer {decision.transfer_qty:.0f} from "
@@ -443,7 +514,7 @@ class FulfillmentDecider:
         if not is_ordering_day:
             # Can't order today → TRANSFER if possible
             decision.decision = "TRANSFER"
-            decision.transfer_qty = float(round(float(max_transferable), 1))
+            decision.transfer_qty = _round_transfer_qty(max_transferable, department)
             remaining = shortfall_qty - max_transferable
             if remaining > 0:
                 decision.order_qty = remaining
@@ -464,10 +535,10 @@ class FulfillmentDecider:
         # Transfer: immediate (4h) to plug the gap
         # Order: full replenishment for the store's ongoing needs
         if gap_days > 0 and max_transferable >= 1.0:
-            xfer = float(round(float(max_transferable), 1))
+            xfer = _round_transfer_qty(max_transferable, department)
             decision.decision = "BOTH"
             decision.transfer_qty = xfer
-            decision.order_qty = float(round(float(shortfall_qty), 1))  # full order for replenishment
+            decision.order_qty = _round_transfer_qty(shortfall_qty, department)  # full order for replenishment
             is_from_hub = best.org_cd in self.warehouse_hubs
             hub_tag = " [WAREHOUSE HUB]" if is_from_hub else ""
             decision.reasoning += (
@@ -475,10 +546,12 @@ class FulfillmentDecider:
                 f"Transfer {xfer:.0f} units from {decision.donor_name}{hub_tag} "
                 f"to bridge gap. Full supplier order ({shortfall_qty:.0f}) kept for replenishment."
             )
-        elif max_transferable >= shortfall_qty:            # Cost check: Is transfer significantly cheaper than order?
-            if transfer_cost < order_cost * 0.4:
+        elif max_transferable >= shortfall_qty:
+            # Cost check: Is transfer significantly cheaper than order? Or is it a micro-order that would fail MOQ?
+            is_small_order = (shortfall_qty < 2.0) or (order_cost < 200.0)
+            if is_small_order or (transfer_cost < order_cost * 0.4):
                 decision.decision = "TRANSFER"
-                decision.transfer_qty = float(round(float(max_transferable), 1))
+                decision.transfer_qty = _round_transfer_qty(max_transferable, department)
                 decision.order_qty = 0.0
                 decision.reasoning += (
                     f"Selected TRANSFER: Cost {transfer_cost} vs Order {order_cost:.0f}. "
@@ -525,8 +598,12 @@ class FulfillmentDecider:
         if risk_scores is None:
             risk_scores = {}
             
+        # PROPORTIONAL ROUTING: Sort shortfalls by average daily sales (descending) 
+        # so high-velocity/critical branches receive priority on donor excess.
+        sorted_shortfalls = sorted(shortfalls, key=lambda x: x.get('avg_daily_sales', 0.0), reverse=True)
+            
         decisions = []
-        for sf in shortfalls:
+        for sf in sorted_shortfalls:
             org_cd = sf['recipient_org']
             d = self.decide(
                 itm_cd=sf['itm_cd'],
@@ -544,7 +621,77 @@ class FulfillmentDecider:
                 current_stock=sf.get('current_stock', 0.0),
                 avg_daily_sales=sf.get('avg_daily_sales', 0.0),
                 risk_score=risk_scores.get(org_cd, 0.0),
+                department=sf.get('original_rec', {}).get('department', ''),
             )
+            
+            # PREVENT DUPLICATION: Decrement donor stock to avoid pledging the same excess multiple times
+            if d.decision in ("TRANSFER", "BOTH") and d.transfer_qty > 0 and d.donor_org:
+                donor_state = network_map.get_store_state(d.donor_org, d.itm_cd)
+                if donor_state:
+                    donor_state.current_stock -= d.transfer_qty
+                    donor_state.excess = max(0.0, donor_state.excess - d.transfer_qty)
+                    
             decisions.append(d)
         return decisions
 
+
+
+class ProactiveRebalancer:
+    """Proactively pushes dead stock from cold nodes to hot nodes."""
+    def __init__(self, cold_node_days=60, hot_node_days=14):
+        self.cold_node_days = cold_node_days
+        self.hot_node_days = hot_node_days
+
+    def find_proactive_transfers(self, network_map: NetworkAvailabilityMap) -> List[FulfillmentDecision]:
+        transfers = []
+        for itm_cd, states in network_map._index.items():
+            # Skip fresh/perishable items — no proactive transfers
+            if states and (states[0].is_fresh or _is_fresh_department(states[0].department)):
+                continue
+
+            cold_nodes = []
+            hot_nodes = []
+            for s in states:
+                ads = s.avg_daily_sales
+                coverage = s.current_stock / ads if ads > 0 else 999.0
+                if coverage > self.cold_node_days and s.current_stock > s.safety_stock * 2:
+                    cold_nodes.append(s)
+                elif ads > 0.1 and coverage < self.hot_node_days:
+                    hot_nodes.append(s)
+            
+            cold_nodes.sort(key=lambda x: -(x.current_stock - x.safety_stock))
+            hot_nodes.sort(key=lambda x: (x.current_stock / x.avg_daily_sales if x.avg_daily_sales > 0 else 0))
+            
+            for hot in hot_nodes:
+                target_stock = hot.avg_daily_sales * 30 # Target 30 days coverage
+                shortfall = max(0, target_stock - hot.current_stock)
+                if shortfall <= 0: continue
+                
+                for cold in cold_nodes:
+                    avail = cold.current_stock - (cold.safety_stock * 2)
+                    if avail <= 0: continue
+                    
+                    xfer_qty = _round_transfer_qty(min(shortfall, avail), hot.department)
+                    if xfer_qty < 1.0:
+                        continue
+                    
+                    d = FulfillmentDecision(
+                        itm_cd=itm_cd,
+                        product_name=hot.product_name,
+                        recipient_org=hot.org_cd,
+                        shortfall_qty=shortfall,
+                        decision="TRANSFER",
+                        transfer_qty=xfer_qty,
+                        donor_org=cold.org_cd,
+                        donor_name=cold.org_cd,
+                        reasoning=f"PROACTIVE: Rebalancing {xfer_qty:.0f} units from cold node ({cold.org_cd}) to hot node ({hot.org_cd})."
+                    )
+                    transfers.append(d)
+                    
+                    # Update local states to prevent double-spending
+                    cold.current_stock -= xfer_qty
+                    hot.current_stock += xfer_qty
+                    shortfall -= xfer_qty
+                    if shortfall <= 0: break
+                    
+        return transfers

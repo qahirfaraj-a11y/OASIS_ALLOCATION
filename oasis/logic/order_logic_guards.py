@@ -19,21 +19,22 @@ def apply_safety_guards(recommendations: List[dict], products_map: Dict[str, dic
         dept_upper = str(p.get('product_category', '')).upper()
         days_since_delivery = int(p.get('last_days_since_last_delivery', 0))
         
-        # v10.0 Freshness Parity
-        from .department_constants import FRESH_DEPARTMENTS
-        is_fresh_dept = any(x in dept_upper for x in FRESH_DEPARTMENTS)
-        is_fresh_token = any(x in p_upper for x in ['BREAD', 'MILK', 'YOGHURT', 'YOGURT', 'EGGS', 'CREAM'])
-        is_fresh = is_fresh_dept or is_fresh_token or p.get('is_fresh', False)
+        # v10.5 Greenfield Trust: Use the engine's 'is_fresh' determination
+        # The engine already carefully excludes UHT/Longlife from 'is_fresh'
+        is_fresh = p.get('is_fresh', False)
         
         current_stock = int(p.get('current_stocks', 0))
         pack_size = int(p.get('pack_size', 1))
         
-        # Sales metrics (v10.0 Blended Velocity)
-        avg_daily_sales = float(p.get('avg_daily_sales', 0.1))
-        avg_daily_sales_last_30d = float(p.get('avg_daily_sales_last_30d', 0.0))
+        # Sales metrics (v10.9 Context Parity: Use seasonally scaled engine demand if provided)
+        avg_daily_sales = float(rec.get('avg_daily_sales', p.get('avg_daily_sales', 0.1)))
+        avg_daily_sales_last_30d = float(rec.get('avg_daily_sales_last_30d', p.get('avg_daily_sales_last_30d', 0.0)))
         
-        # Formula: 70% Recent (30d) + 30% Historical (Total Avg)
-        if avg_daily_sales_last_30d > 0:
+        # v10.5: In Greenfield mode, we lack 30d recents for New Stores. 
+        # MUST use 100% historical ADS to avoid 70% capital suppression.
+        if allocation_mode == "initial_load":
+            effective_daily_sales = avg_daily_sales
+        elif avg_daily_sales_last_30d > 0:
             effective_daily_sales = (0.7 * avg_daily_sales_last_30d) + (0.3 * avg_daily_sales)
         else:
             effective_daily_sales = avg_daily_sales
@@ -48,28 +49,39 @@ def apply_safety_guards(recommendations: List[dict], products_map: Dict[str, dic
         
         # GREENFIELD BYPASS (Day 1 Allocation)
         if allocation_mode == "initial_load":
-            # Skip aging checks, but enforce MDQ (Minimum Display Quantity)
             base_rec = rec.get('recommended_quantity', 0)
             
-            # FIX H5: Fresh items in greenfield still need a spoilage ceiling
+            # User Directive: Maintain strict fresh ceiling
             if is_fresh and base_rec > 0:
-                max_fresh_greenfield = max(pack_size, int(effective_daily_sales * 3.0))
-                if base_rec > max_fresh_greenfield:
-                    rec['recommended_quantity'] = max_fresh_greenfield
-                    rec['reasoning'] = reason + f" [GREENFIELD: Fresh Spoilage Cap ({max_fresh_greenfield})]"
+                # BUG 7 FIX: Skip if engine already applied a safety clamp in Pass 1
+                # to avoid wasting Pass 2 depth cycles on items that will be re-capped.
+                already_clamped = "SAFETY CLAMP" in reason or "JIT FRESH" in reason
+                is_uht = any(x in p_upper for x in ["UHT", "LONG LIFE", "ESL"])
+                # 1 Day + Buffer (3.0d total) for daily [Sync with Engine], 7d for Long-Life
+                fresh_limit = 7.0 if is_uht else 3.0
+                max_fresh_greenfield = float(effective_daily_sales * fresh_limit)
+                
+                if base_rec > max_fresh_greenfield and not already_clamped:
+                    # v10.9: Ensure we never round to 0 in Greenfield if the engine recommended stock
+                    final_q = max(1, int(round(max_fresh_greenfield)))
+                    rec['recommended_quantity'] = final_q
+                    rec['reasoning'] = reason + f" [GREENFIELD: Strict Fresh Cap ({max_fresh_greenfield:.1f} -> {final_q})]"
             
-            # v10.1: Only upgrade to pack size if it's a key SKU or if base_rec is substantial
-            base_rec = rec.get('recommended_quantity', 0)  # Re-read after potential fresh cap
-            if base_rec > 0 and base_rec < pack_size:
-                is_key = p.get('is_key_sku', False) or p.get('is_staple', False)
-                # If it's a key SKU, we always want at least one pack
-                # If not, we only upgrade if it's at least 25% of a pack
-                if is_key or (base_rec / pack_size >= 0.25):
-                    rec['recommended_quantity'] = pack_size
-                    rec['reasoning'] = reason + " [GREENFIELD: Enforced MDQ (1 Pack)]"
-                else:
-                    # Keep the small allocation (Break Bulk)
-                    rec['reasoning'] = reason + " [GREENFIELD: Small Allocation Maintained (No MDQ Upgrade)]"
+            # v10.9: DRY GOODS SYNC (90d to 120d Relief)
+            # If the engine specifically requested stock beyond 90d (due to stranded capital),
+            # we allow up to 120d before hard clamping.
+            elif not is_fresh and base_rec > (effective_daily_sales * 90.0):
+                max_dry_greenfield = float(effective_daily_sales * 120.0)
+                if base_rec > max_dry_greenfield:
+                    final_q = int(round(max_dry_greenfield))
+                    rec['recommended_quantity'] = final_q
+                    rec['reasoning'] = reason + f" [GREENFIELD: Hard 120d Ceiling ({base_rec} -> {final_q})]"
+            
+            # v10.4: Removed Pack-Size force for Greenfield
+            # (Matches user directive: "let us not implement pack rounding")
+            if rec.get('recommended_quantity', 0) > 0:
+                if "[PASS" not in rec.get('reasoning', ''):
+                    rec['reasoning'] = reason + " [GREENFIELD: Precision Quantity Maintained]"
         else:
             # 1. Tiered Fresh Logic (Golden State Request 2 Parity)
             if is_fresh:
@@ -104,7 +116,7 @@ def apply_safety_guards(recommendations: List[dict], products_map: Dict[str, dic
                 if current_rec > 0:
                     new_qty = int(current_rec * 0.8)
                     rec['recommended_quantity'] = new_qty
-                    rec['reasoning'] = reason + " [GUARD: Buffer Zone 160-200d, reduced 20%]"
+                    rec['reasoning'] = reason + f" [GUARD: Buffer Zone 160-200d, reduced 20% ({current_rec} -> {new_qty})]"
 
         # Apply Hard Caps
         if cap_qty is not None:
@@ -129,22 +141,36 @@ def apply_safety_guards(recommendations: List[dict], products_map: Dict[str, dic
                 rec['reasoning'] += f" [GUARD: Global {cap_multiplier:.0f}x Cap ({current_rec} -> {max_safe_order:.0f})]"
         
         # --- PACK ROUNDING (Final Step) ---
-        base_qty = rec.get('recommended_quantity', 0)
-        coverage_days = current_stock / effective_daily_sales if effective_daily_sales > 0 else 999
-        risk_level = "high" if (current_stock <= 0 or coverage_days < 3) else ("low" if coverage_days > 20 else "medium")
-            
-        rounding_info = apply_pack_rounding(
-            base_qty=base_qty,
-            pack_size=pack_size,
-            is_key_sku=p.get('is_key_sku', False),
-            stockout_risk=risk_level,
-            max_overage_ratio=0.25,
-            abc_rank=str(p.get('abc_rank', 'B')).strip().upper()
-        )
+        # v10.4: NO PACK ROUNDING in Initial Load mode (Break Bulk allowed for 100% spend)
+        if allocation_mode == "initial_load":
+                # v10.9: Ensure we never round to zero in Greenfield if the engine intended to buy the SKU
+                raw_q = rec.get('recommended_quantity', 0)
+                rounded_q = int(round(raw_q))
+                if raw_q > 0 and rounded_q == 0:
+                    rounded_q = 1
+                
+                rounding_info = {
+                    "rounded_qty": rounded_q,
+                    "rounding_direction": "none",
+                    "rounding_reason": "Greenfield Mode: Integer Precision (Min-1 Floor)"
+                }
+        else:
+            base_qty = rec.get('recommended_quantity', 0)
+            coverage_days = current_stock / effective_daily_sales if effective_daily_sales > 0 else 999
+            risk_level = "high" if (current_stock <= 0 or coverage_days < 3) else ("low" if coverage_days > 20 else "medium")
+                
+            rounding_info = apply_pack_rounding(
+                base_qty=base_qty,
+                pack_size=pack_size,
+                is_key_sku=p.get('is_key_sku', False),
+                stockout_risk=risk_level,
+                max_overage_ratio=0.25,
+                abc_rank=str(p.get('abc_rank', 'B')).strip().upper()
+            )
         
-        rec['recommended_quantity'] = rounding_info['rounded_qty']
+        rec['recommended_quantity'] = rounding_info.get('rounded_qty', rec.get('recommended_quantity', 0))
         rec['pack_rounding'] = rounding_info
-        if rounding_info['rounding_direction'] != 'none':
+        if rounding_info.get('rounding_direction', 'none') != 'none':
             rec['reasoning'] += f" [Pack Rounding: {rounding_info['rounding_direction'].upper()} ({rounding_info['rounding_reason']})]"
                 
     return recommendations

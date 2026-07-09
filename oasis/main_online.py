@@ -2,8 +2,6 @@ import flet as ft
 from oasis.logic.order_engine import OrderEngine
 import asyncio
 import os
-from pyngrok import ngrok
-import time
 
 # Create a temporary upload directory
 UPLOAD_DIR = os.path.join(os.path.dirname(__file__), 'uploads')
@@ -175,11 +173,11 @@ if __name__ == "__main__":
     port = 8550
     local_ip = get_local_ip()
     
-    print(f"==================================================")
-    print(f"  OASIS IS ONLINE ON YOUR LOCAL NETWORK!  ")
-    print(f"  To access from your phone or another computer:  ")
+    print("==================================================")
+    print("  OASIS IS ONLINE ON YOUR LOCAL NETWORK!  ")
+    print("  To access from your phone or another computer:  ")
     print(f"  Go to http://{local_ip}:{port}  ")
-    print(f"==================================================")
+    print("==================================================")
     
     ft.app(
         target=main, 

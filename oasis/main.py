@@ -1,13 +1,13 @@
 import flet as ft
 import os
-import asyncio
 import time
 from oasis.logic.order_engine import OrderEngine
 from oasis.llm.inference import RuleBasedLLM, LocalLLM
 
-# Configure Logging
+# Configure Logging (centralized — honors OASIS_LOG_LEVEL/FORMAT/FILE)
 import logging
-logging.basicConfig(level=logging.INFO)
+from oasis.logging_config import configure_logging
+configure_logging()
 logger = logging.getLogger("App")
 
 def main(page: ft.Page):
@@ -64,6 +64,17 @@ def main(page: ft.Page):
     
     selected_file_text = ft.Text("No file selected")
     
+    # BUG 2 FIX: Mode selection via UI dropdown (was unreachable title-based detection)
+    mode_dropdown = ft.Dropdown(
+        label="Order Mode",
+        value="replenishment",
+        width=250,
+        options=[
+            ft.dropdown.Option("replenishment", "Replenishment (Reorder)"),
+            ft.dropdown.Option("initial_load", "Initial Load (Greenfield)"),
+        ]
+    )
+    
     results_table = ft.DataTable(
         columns=[
             ft.DataColumn(ft.Text("Product")),
@@ -80,10 +91,8 @@ def main(page: ft.Page):
         progress_ring.visible = True
         page.update()
         
-        # Determine Mode (v9.1 Parity)
-        allocation_mode = "replenishment"
-        if "INITIAL LOAD" in str(page.title).upper():
-            allocation_mode = "initial_load"
+        # BUG 2 FIX: Read mode from UI dropdown instead of unreachable title check
+        allocation_mode = mode_dropdown.value or "replenishment"
 
         all_recommendations = []
         total_products = 0
@@ -150,9 +159,14 @@ def main(page: ft.Page):
                 ft.ElevatedButton(
                     "Upload Picking List", 
                     icon="upload_file", 
-                    on_click=lambda _: file_picker.pick_files(allow_multiple=True)
+                    # BUG 12 FIX: Filter to inventory file types only
+                    on_click=lambda _: file_picker.pick_files(
+                        allow_multiple=True,
+                        allowed_extensions=["xlsx", "xls", "csv"]
+                    )
                 ),
-                selected_file_text
+                selected_file_text,
+                mode_dropdown
             ]),
             ft.Row([process_btn, progress_ring]),
             status_text,

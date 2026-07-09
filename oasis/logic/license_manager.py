@@ -75,6 +75,11 @@ class OfflineLicenseManager:
         self.key_path = key_path or _default_key_path()
         self.state_path = state_path or _default_state_path()
         self._salt = os.getenv("OASIS_LICENSE_SALT", "")
+        # External anchors (registry + AppData) are only used when running with
+        # the default state path — i.e., a real install. When tests pass a
+        # custom state_path (tmp_path), we honour only the legacy file anchor
+        # to avoid polluting global state and breaking test isolation.
+        self._use_external_anchors = (state_path is None)
 
     # ── signing ──────────────────────────────────────────────────────────
     def _fingerprint(self, tenant_id: str, module: str, expiry: str) -> str:
@@ -105,20 +110,173 @@ class OfflineLicenseManager:
         return {"tenant_id": tenant_id, "modules": modules,
                 "expiry_date": expiry_date, "path": path}
 
-    # ── trial stamp ──────────────────────────────────────────────────────
-    def _first_run(self) -> date:
+    # ── trial stamp (hardened: dual-anchor + HMAC integrity) ────────────
+    #
+    # The trial stamp is stored in THREE locations:
+    #   1. Legacy file:   oasis/data/.oasis_install_state.json (backward compat)
+    #   2. AppData file:  %APPDATA%/OASIS/.oasis_telemetry_cache (survives reinstall)
+    #   3. Registry key:  HKCU\Software\OASIS\InstallState (survives file deletion)
+    #
+    # Each anchor stores a first_run date + HMAC signature. The earliest valid
+    # date across all anchors wins (prevents reset by deleting one anchor).
+    # HMAC uses a machine fingerprint so stamps can't be copied between machines.
+
+    _TRIAL_HMAC_KEY = b"oasis_trial_integrity_2026"
+
+    def _hmac_sign(self, first_run_iso: str) -> str:
+        """HMAC-SHA256 of the first-run date bound to this machine."""
+        import hmac as _hmac
+        from .machine_fingerprint import machine_id
+        mid = machine_id()
+        msg = f"{first_run_iso}:{mid}".encode("utf-8")
+        return _hmac.new(self._TRIAL_HMAC_KEY, msg, hashlib.sha256).hexdigest()
+
+    def _verify_hmac(self, first_run_iso: str, signature: str) -> bool:
+        """Return True if the HMAC signature matches for this machine."""
+        try:
+            return self._hmac_sign(first_run_iso) == signature
+        except Exception:
+            return False
+
+    # ── anchor readers ───────────────────────────────────────────────────
+
+    def _read_legacy_anchor(self) -> Optional[date]:
+        """Read from the original oasis/data/.oasis_install_state.json."""
         try:
             with open(self.state_path, "r", encoding="utf-8") as f:
-                return date.fromisoformat(json.load(f)["first_run"])
+                data = json.load(f)
+            d = date.fromisoformat(data["first_run"])
+            sig = data.get("sig", "")
+            if sig and not self._verify_hmac(d.isoformat(), sig):
+                logger.warning("Legacy trial stamp HMAC mismatch — date may be tampered")
+                return None
+            return d
         except Exception:
+            return None
+
+    def _read_appdata_anchor(self) -> Optional[date]:
+        """Read from %APPDATA%/OASIS/.oasis_telemetry_cache."""
+        path = self._appdata_path()
+        if not path:
+            return None
+        try:
+            with open(path, "r", encoding="utf-8") as f:
+                data = json.load(f)
+            d = date.fromisoformat(data.get("tc_init", ""))
+            sig = data.get("tc_sig", "")
+            if not self._verify_hmac(d.isoformat(), sig):
+                logger.warning("AppData trial anchor HMAC mismatch")
+                return None
+            return d
+        except Exception:
+            return None
+
+    def _read_registry_anchor(self) -> Optional[date]:
+        """Read from HKCU\\Software\\OASIS\\InstallState."""
+        try:
+            import winreg
+            key = winreg.OpenKey(winreg.HKEY_CURRENT_USER,
+                                r"Software\OASIS\InstallState", 0,
+                                winreg.KEY_READ)
+            val, _ = winreg.QueryValueEx(key, "FirstRun")
+            sig, _ = winreg.QueryValueEx(key, "Signature")
+            winreg.CloseKey(key)
+            d = date.fromisoformat(str(val))
+            if not self._verify_hmac(d.isoformat(), str(sig)):
+                logger.warning("Registry trial anchor HMAC mismatch")
+                return None
+            return d
+        except Exception:
+            return None
+
+    # ── anchor writers ───────────────────────────────────────────────────
+
+    def _write_legacy_anchor(self, first: date) -> None:
+        try:
+            os.makedirs(os.path.dirname(self.state_path), exist_ok=True)
+            with open(self.state_path, "w", encoding="utf-8") as f:
+                json.dump({
+                    "first_run": first.isoformat(),
+                    "sig": self._hmac_sign(first.isoformat()),
+                }, f)
+        except OSError as e:
+            logger.warning("Could not write legacy trial stamp: %s", e)
+
+    def _appdata_path(self) -> Optional[str]:
+        appdata = os.environ.get("APPDATA")
+        if not appdata:
+            return None
+        return os.path.join(appdata, "OASIS", ".oasis_telemetry_cache")
+
+    def _write_appdata_anchor(self, first: date) -> None:
+        path = self._appdata_path()
+        if not path:
+            return
+        try:
+            os.makedirs(os.path.dirname(path), exist_ok=True)
+            with open(path, "w", encoding="utf-8") as f:
+                json.dump({
+                    "tc_init": first.isoformat(),
+                    "tc_sig": self._hmac_sign(first.isoformat()),
+                }, f)
+        except OSError as e:
+            logger.warning("Could not write AppData trial anchor: %s", e)
+
+    def _write_registry_anchor(self, first: date) -> None:
+        try:
+            import winreg
+            key = winreg.CreateKey(winreg.HKEY_CURRENT_USER,
+                                   r"Software\OASIS\InstallState")
+            winreg.SetValueEx(key, "FirstRun", 0, winreg.REG_SZ,
+                              first.isoformat())
+            winreg.SetValueEx(key, "Signature", 0, winreg.REG_SZ,
+                              self._hmac_sign(first.isoformat()))
+            winreg.CloseKey(key)
+        except Exception as e:
+            logger.debug("Could not write registry trial anchor: %s", e)
+
+    # ── composite first-run resolver ─────────────────────────────────────
+
+    def _first_run(self) -> date:
+        """Earliest valid first-run date across all anchors.
+
+        If no anchor exists, this is a genuine first run: stamp all anchors.
+        If some anchors are missing or tampered, re-stamp them from the
+        earliest surviving anchor (self-healing).
+        """
+        candidates = []
+        legacy = self._read_legacy_anchor()
+        if legacy:
+            candidates.append(legacy)
+
+        # External anchors (AppData + Registry) are only checked for real
+        # installs, not when running with a custom state_path (e.g., tests).
+        appdata = registry = None
+        if self._use_external_anchors:
+            appdata = self._read_appdata_anchor()
+            if appdata:
+                candidates.append(appdata)
+            registry = self._read_registry_anchor()
+            if registry:
+                candidates.append(registry)
+
+        if candidates:
+            first = min(candidates)
+        else:
+            # Genuine first run — no surviving anchors
             first = date.today()
-            try:
-                os.makedirs(os.path.dirname(self.state_path), exist_ok=True)
-                with open(self.state_path, "w", encoding="utf-8") as f:
-                    json.dump({"first_run": first.isoformat()}, f)
-            except OSError as e:
-                logger.warning("Could not persist first-run stamp: %s", e)
-            return first
+            logger.info("Trial started: %s", first.isoformat())
+
+        # Self-heal: re-stamp any missing/invalid anchors
+        if not legacy or legacy != first:
+            self._write_legacy_anchor(first)
+        if self._use_external_anchors:
+            if not appdata or appdata != first:
+                self._write_appdata_anchor(first)
+            if not registry or registry != first:
+                self._write_registry_anchor(first)
+
+        return first
 
     def _trial_days_left(self) -> int:
         trial_days = int(os.getenv("OASIS_TRIAL_DAYS", "14"))

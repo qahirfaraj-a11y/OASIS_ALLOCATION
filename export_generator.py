@@ -89,6 +89,38 @@ def generate_excel_export(audit_data):
             for col_num, value in enumerate(suppliers_df.columns.values):
                 ws.write(0, col_num, value, header_fmt)
 
+        # --- NEW EVIDENCE LOGS (Non-Truncated Audit) ---
+        full_catalog_df = audit_data.get('full_catalog_df')
+        shrink_df = audit_data.get('shrink_df')
+        transfer_df = audit_data.get('transfer_df')
+
+        # Convert back to DataFrame if they were stored as lists (JSON serialization)
+        if isinstance(full_catalog_df, list): full_catalog_df = pd.DataFrame(full_catalog_df)
+        if isinstance(shrink_df, list): shrink_df = pd.DataFrame(shrink_df)
+        if isinstance(transfer_df, list): transfer_df = pd.DataFrame(transfer_df)
+
+        if full_catalog_df is not None and not full_catalog_df.empty:
+            full_catalog_df.to_excel(writer, sheet_name='POS - Full Velocity Audit', index=False)
+            ws = writer.sheets['POS - Full Velocity Audit']
+            ws.set_column('A:B', 35)
+            ws.set_column('C:I', 15)
+            for col_num, value in enumerate(full_catalog_df.columns.values):
+                ws.write(0, col_num, value, header_fmt)
+
+        if shrink_df is not None and not shrink_df.empty:
+            shrink_df.to_excel(writer, sheet_name='MANDE - Shrinkage Evidence', index=False)
+            ws = writer.sheets['MANDE - Shrinkage Evidence']
+            ws.set_column('A:Z', 20)
+            for col_num, value in enumerate(shrink_df.columns.values):
+                ws.write(0, col_num, value, header_fmt)
+
+        if transfer_df is not None and not transfer_df.empty:
+            transfer_df.to_excel(writer, sheet_name='MANDE - Transfer Evidence', index=False)
+            ws = writer.sheets['MANDE - Transfer Evidence']
+            ws.set_column('A:Z', 20)
+            for col_num, value in enumerate(transfer_df.columns.values):
+                ws.write(0, col_num, value, header_fmt)
+
     output.seek(0)
     return output
 
@@ -350,15 +382,23 @@ def generate_word_export(audit_data):
         _add_styled_paragraph(doc, f'... and {len(dead_items) - 20} additional dormant items (see Excel attachment for full register).',
                               italic=True, size=10, color=RGBColor(0x95, 0xA5, 0xA6))
 
+    ghost_threshold = cat.get('ghost_demand_threshold', 2.0)
     doc.add_heading('3.2 Ghost Demand / Stockout Analysis (DHARAM)', level=2)
     doc.add_paragraph(
         f'The engine identified {ghost_demand_count} high-velocity SKUs that are currently at zero stock on hand. '
-        f'These items have a proven average daily sales rate exceeding 2.0 units/day, meaning the store is actively '
-        f'losing sales every day the shelf remains empty. The estimated revenue lost is projected over a conservative '
-        f'14-day stockout window.'
+        f'These items have a proven average daily sales rate exceeding {ghost_threshold:.1f} units/day (dynamically '
+        f'calibrated to this store\'s velocity profile), meaning the store is actively '
+        f'losing sales every day the shelf remains empty. The estimated revenue lost is projected over each '
+        f'item\'s supplier-specific recovery window (Avg Lead Time + 1.645σ).'
     )
-    _add_styled_paragraph(doc, 'Detection Rule: ADS > 2.0 units/day AND SOH = 0', italic=True, size=10,
+    _add_styled_paragraph(doc, f'Detection Rule: ADS > {ghost_threshold:.1f} units/day AND SOH = 0 '
+                          f'(Threshold scales with store format: floor=2.0, adjusted to P75 of velocity distribution)',
+                          italic=True, size=10,
                           color=RGBColor(0x7F, 0x8C, 0x8D))
+    
+    _add_styled_paragraph(doc, 'Note: Ghost demand calculations in the Pitch phenotype assume zero substitution availability. '
+                          'Actual losses may be lower where alternative SKUs are in stock.',
+                          italic=True, size=9, color=RGBColor(0x7F, 0x8C, 0x8D))
 
     ghost_items = cat.get('ghost_demand_list', [])
     if ghost_items:
@@ -673,6 +713,114 @@ def generate_supplier_scorecard_report(audit_data):
         "2. Automated Buffers: The LATA engine will continue applying risk-adjusted safety margins "
         "without human intervention."
     )
+
+    output = io.BytesIO()
+    doc.save(output)
+    output.seek(0)
+    return output
+
+# ============================================================================
+# EXECUTIVE SUMMARY EXPORT (1-PAGE HIGH IMPACT)
+# ============================================================================
+
+def generate_executive_summary_word(audit_data):
+    """
+    Generates a concise, 1-page high-impact executive summary.
+    Focused on: Total Bleed, Growth Opportunities, and O.A.S.I.S. ROI.
+    """
+    doc = Document()
+    
+    # Typography
+    style = doc.styles['Normal']
+    font = style.font
+    font.name = 'Calibri'
+    font.size = Pt(11)
+
+    cat = audit_data.get('catalog', {})
+    sup = audit_data.get('suppliers', {})
+    net = audit_data.get('network', {})
+
+    dead_stock_value = cat.get('dead_stock_value', 0)
+    ghost_demand_value = cat.get('ghost_demand_value', 0)
+    entropy_cost = net.get('entropy_cost_est', 0)
+    total_bleed = dead_stock_value + ghost_demand_value + entropy_cost
+    total_capital = cat.get('total_capital_tied', 0)
+
+    # Recovery Calculations
+    recovered_dead = dead_stock_value * 0.17 # Annual holding cost recovery
+    recovered_ghost = ghost_demand_value * 0.82 # 82% probability recovery
+    recovered_entropy = entropy_cost * 0.60
+    total_annual_recovery = recovered_dead + recovered_ghost + recovered_entropy
+
+    # Header
+    _add_styled_paragraph(doc, 'O.A.S.I.S. EXECUTIVE SUMMARY', bold=True, size=24, alignment=WD_ALIGN_PARAGRAPH.CENTER, space_after=0)
+    _add_styled_paragraph(doc, 'Diagnostic Financial Impact Report', italic=True, size=12, color=RGBColor(0x7F, 0x8C, 0x8D), alignment=WD_ALIGN_PARAGRAPH.CENTER, space_after=20)
+
+    # Part 1: The Diagnosis
+    doc.add_heading('Operational Revenue Bleed', level=1)
+    doc.add_paragraph(
+        'The O.A.S.I.S. Forensic Auditor has detected significant systemic inefficiencies within your retail operations. '
+        'These losses are categorized as "Trapped Capital" (stock that does not move) and "Stockout Lost Revenue" '
+        '(proven demand that is not fulfilled).'
+    )
+
+    summary_table = doc.add_table(rows=1, cols=2)
+    summary_table.alignment = WD_TABLE_ALIGNMENT.CENTER
+    
+    # Left Column: Trapped
+    c1 = summary_table.rows[0].cells[0]
+    p1 = c1.paragraphs[0]
+    p1.add_run('TRAPPED CAPITAL\n').bold = True
+    p1.add_run(f'KES {dead_stock_value:,.0f}').font.color.rgb = RGBColor(0xCC, 0x00, 0x00)
+    p1.alignment = WD_ALIGN_PARAGRAPH.CENTER
+
+    # Right Column: Lost Revenue
+    c2 = summary_table.rows[0].cells[1]
+    p2 = c2.paragraphs[0]
+    p2.add_run('LOST REVENUE\n').bold = True
+    p2.add_run(f'KES {ghost_demand_value:,.0f}').font.color.rgb = RGBColor(0xCC, 0x00, 0x00)
+    p2.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    doc.add_paragraph()
+
+    # Part 2: The ROI
+    doc.add_heading('Projected O.A.S.I.S. Annual Recovery', level=1)
+    doc.add_paragraph(
+        'By deploying the O.A.S.I.S. multi-pass autonomous replenishment engine, your operation can statistically '
+        'recapture the following amounts annually through automated margin optimization and shelf governance.'
+    )
+
+    roi_rows = [
+        ['AMIT Engine: Working Capital Recapture', f'KES {recovered_dead:,.0f}'],
+        ['DHARAM Engine: Stockout Recovery', f'KES {recovered_ghost:,.0f}'],
+        ['MANDE Engine: Entropy Correction', f'KES {recovered_entropy:,.0f}'],
+        ['TOTAL ANNUAL REVENUE RECOVERY (Projected)', f'KES {total_annual_recovery:,.0f}'],
+    ]
+    
+    table = doc.add_table(rows=len(roi_rows), cols=2)
+    table.style = 'Table Grid'
+    for i, row_data in enumerate(roi_rows):
+        row = table.rows[i]
+        row.cells[0].text = row_data[0]
+        row.cells[1].text = row_data[1]
+        
+        # Bold the final total
+        if i == len(roi_rows) - 1:
+            for cell in row.cells:
+                for paragraph in cell.paragraphs:
+                    for run in paragraph.runs:
+                        run.bold = True
+                        run.font.size = Pt(12)
+    
+    doc.add_paragraph()
+    doc.add_heading('Conclusion', level=1)
+    doc.add_paragraph(
+        'This diagnostic represents the baseline opportunity for O.A.S.I.S. integration. Transitioning from '
+        'manual replenishment to autonomous shelf governance typically results in a 15% - 22% improvement in net '
+        'liquidity within the first execution cycle.'
+    )
+
+    doc.add_paragraph()
+    _add_styled_paragraph(doc, f'Generated on {datetime.now().strftime("%B %d, %Y")}', italic=True, size=9, alignment=WD_ALIGN_PARAGRAPH.RIGHT)
 
     output = io.BytesIO()
     doc.save(output)

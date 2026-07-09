@@ -18,6 +18,7 @@ import logging
 import argparse
 import statistics
 import csv
+import glob
 from collections import defaultdict
 from typing import Dict, Any, List
 
@@ -132,6 +133,62 @@ def load_supplier_fill_rates(nn_path: str) -> Dict[str, float]:
     return avg_rates
 
 
+def load_prts_return_rates(data_dir: str) -> Dict[str, Dict[str, Any]]:
+    """
+    Load PRTS (Purchase Returns to Supplier) data and calculate per-supplier return rates.
+    Specifically tracks 'Short Supply' events as supplier-failure indicators.
+    
+    Returns: { supplier_name_upper: { 'return_count': int, 'total_returns': int } }
+    """
+    prts_files = sorted(glob.glob(os.path.join(data_dir, 'prts_*.xlsx')))
+    if not prts_files:
+        logger.info("No PRTS files found. Return penalty will not be applied.")
+        return {}
+    
+    try:
+        import pandas as pd
+    except ImportError:
+        logger.warning("pandas not available. PRTS loading skipped.")
+        return {}
+    
+    all_frames = []
+    for f in prts_files:
+        try:
+            df = pd.read_excel(f)
+            all_frames.append(df)
+        except Exception as e:
+            logger.warning(f"Failed to read PRTS file {f}: {e}")
+    
+    if not all_frames:
+        return {}
+    
+    raw_prts = pd.concat(all_frames, ignore_index=True)
+    
+    # Extract vendor name and reason
+    vendor_col = next((c for c in raw_prts.columns if 'ven' in c.lower() and 'code' in c.lower()), None)
+    reason_col = next((c for c in raw_prts.columns if 'reason' in c.lower()), None)
+    
+    if not vendor_col:
+        logger.warning("No vendor column found in PRTS data.")
+        return {}
+    
+    supplier_returns = defaultdict(lambda: {'short_supply_count': 0, 'total_returns': 0})
+    
+    for _, row in raw_prts.iterrows():
+        supplier = str(row[vendor_col]).strip().upper()
+        # Normalize: strip vendor code prefix (e.g., 'SA0015 - ALISON PRODUCTS LTD' → 'ALISON PRODUCTS LTD')
+        if ' - ' in supplier:
+            supplier = supplier.split(' - ', 1)[1].strip()
+        
+        supplier_returns[supplier]['total_returns'] += 1
+        
+        if reason_col and 'short' in str(row.get(reason_col, '')).lower():
+            supplier_returns[supplier]['short_supply_count'] += 1
+    
+    logger.info(f"Loaded PRTS return data for {len(supplier_returns)} suppliers from {len(prts_files)} files.")
+    return dict(supplier_returns)
+
+
 def run_lata(data_dir: str, nn_path: str = None) -> Dict[str, Any]:
     """
     Execute the LATA Shield logic.
@@ -161,10 +218,12 @@ def run_lata(data_dir: str, nn_path: str = None) -> Dict[str, Any]:
     # Load fulfillment data if path provided
     fill_rates = {}
     if nn_path:
-        from collections import defaultdict
         fill_rates = load_supplier_fill_rates(nn_path)
 
-    stats = {"updated": 0, "inflated": 0, "deflated": 0, "neutral": 0, "actual_data": 0, "synthetic_fallback": 0}
+    # Load PRTS return data (Convergence with Pitch STI)
+    prts_returns = load_prts_return_rates(data_dir)
+
+    stats = {"updated": 0, "inflated": 0, "deflated": 0, "neutral": 0, "actual_data": 0, "synthetic_fallback": 0, "return_penalized": 0}
 
     # Load raw delivery gaps if available (v1.1 Upgrade)
     gaps_path = os.path.join(data_dir, "supplier_delivery_gaps.json")
@@ -180,6 +239,7 @@ def run_lata(data_dir: str, nn_path: str = None) -> Dict[str, Any]:
     # Load LATA config
     lata_cfg = _load_lata_config(data_dir)
     min_records = lata_cfg.get("min_records_for_variance", 2)
+    max_multiplier = lata_cfg.get("max_variance_multiplier", 2.0)
 
     for supplier, data in patterns.items():
         if not isinstance(data, dict):
@@ -189,7 +249,7 @@ def run_lata(data_dir: str, nn_path: str = None) -> Dict[str, Any]:
         median_gap = data.get("median_gap_days")
         avg_gap = data.get("average_gap_days") or data.get("avg_gap_days")
         total_orders = data.get("total_orders_2025") or data.get("total_orders", 0)
-        stated_lt = float(data.get("estimated_delivery_days", 7))
+        stated_lt = float(data.get("estimated_delivery_days", lata_cfg.get("default_stated_lead_time", 7)))
 
         # v1.1 Upgrade: Prioritize actual gap data for variance calculation
         actual_gaps = raw_gaps_db.get(supplier)
@@ -227,6 +287,35 @@ def run_lata(data_dir: str, nn_path: str = None) -> Dict[str, Any]:
         else:
             data["lata_fulfillment_penalty"] = 1.0
 
+        # v2.0 UPGRADE: PRTS Return Penalty (Convergence with Pitch STI)
+        # Short-supply returns indicate vendor reliability issues not captured by delivery gap variance
+        supplier_upper = supplier.upper()
+        prts_data = prts_returns.get(supplier_upper, {})
+        short_supply_count = prts_data.get('short_supply_count', 0)
+        total_returns_count = prts_data.get('total_returns', 0)
+        
+        if total_orders and total_orders > 0 and short_supply_count > 0:
+            return_rate = short_supply_count / total_orders
+            
+            # Return penalty: Scaled by config rate and capped by config cap
+            ret_cap = lata_cfg.get("return_penalty_cap", 0.50)
+            ret_mult = lata_cfg.get("return_penalty_rate_multiplier", 1.5)
+            
+            return_mult_penalty = min(ret_cap, return_rate * ret_mult)
+            data["lata_variance_multiplier"] = round(data["lata_variance_multiplier"] + return_mult_penalty, 3)
+            data["lata_return_rate"] = round(return_rate, 4)
+            data["lata_return_penalty"] = round(return_mult_penalty, 4)
+            data["lata_short_supply_returns"] = short_supply_count
+            data["lata_reason"] += f" [PRTS Return Penalty: +{return_mult_penalty:.3f} (rate={return_rate:.2%})]"
+            stats["return_penalized"] += 1
+        else:
+            data["lata_return_rate"] = 0.0
+            data["lata_return_penalty"] = 0.0
+            data["lata_short_supply_returns"] = 0
+
+        # Enforce global max multiplier cap
+        data["lata_variance_multiplier"] = min(max_multiplier + 1.0, data["lata_variance_multiplier"])
+
         stats["updated"] += 1
         mult = lata_result["lata_variance_multiplier"]
         if mult > 1.0:
@@ -240,7 +329,7 @@ def run_lata(data_dir: str, nn_path: str = None) -> Dict[str, Any]:
     with open(patterns_path, "w", encoding="utf-8") as f:
         json.dump(patterns, f, indent=2)
 
-    logger.info(f"[LATA] Updated {stats['updated']} suppliers. Actual Used: {stats['actual_data']}, Synthetic: {stats['synthetic_fallback']}")
+    logger.info(f"[LATA] Updated {stats['updated']} suppliers. Actual Used: {stats['actual_data']}, Synthetic: {stats['synthetic_fallback']}, Return-Penalized: {stats['return_penalized']}")
     logger.info(f"[LATA] Multipliers -> Inflated: {stats['inflated']}, Deflated: {stats['deflated']}, Neutral: {stats['neutral']}")
 
     return stats
@@ -253,7 +342,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     result = run_lata(args.data_dir, nn_path=args.nn_path)
-    print(f"\n=== LATA COMPLETE ===")
+    print("\n=== LATA COMPLETE ===")
     print(f"Suppliers Updated: {result['updated']}")
     print(f"Safety Inflated (unreliable): {result['inflated']}")
     print(f"Capital Released (reliable): {result['deflated']}")

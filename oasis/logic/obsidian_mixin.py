@@ -1,8 +1,7 @@
 import os
-import json
 from datetime import datetime
 import logging
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any
 
 logger = logging.getLogger(__name__)
 
@@ -13,7 +12,7 @@ class ObsidianMixin:
     """
     
     def __init__(self, vault_path: str = None):
-        self.vault_path = vault_path or r"C:\Users\iLink\.gemini\antigravity\scratch\oasis\Oasis"
+        self.vault_path = vault_path or os.path.join(os.getcwd(), "Oasis")
         # Ensure relational directories exist
         for folder in ["Runs", "Entities/Stores", "Entities/Suppliers", "Entities/Products", "Neural_Archive", "Simulations"]:
             os.makedirs(os.path.join(self.vault_path, folder), exist_ok=True)

@@ -10,7 +10,7 @@ Adds:
 
 import logging
 import pandas as pd
-from typing import Optional, Dict, Any, List
+from typing import Optional
 
 logger = logging.getLogger("MssqlConnector")
 

@@ -1,6 +1,6 @@
 import math
 import logging
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any
 from ..logic.department_constants import FRESH_DEPARTMENTS, FAST_FIVE_DEPARTMENTS
 
 logger = logging.getLogger("KUBER.RiskProtocol")

@@ -24,43 +24,33 @@ logger = logging.getLogger("OASIS.AMIT")
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(name)s] %(levelname)s: %(message)s")
 
 # Default department SKU caps (can be overridden via config)
-# These represent the maximum healthy assortment width per department
-# at a "Standard Supermarket" baseline (10M KES)
 DEFAULT_DEPT_CAPS_BASELINE = {
-    "WINES": 120,
-    "SPIRITS": 80,
-    "BEER": 100,
-    "DIWALI ITEMS": 30,
-    "PARTY ITEMS": 40,
-    "AIR FRESHNERS": 50,
-    "BISCUITS": 80,
-    "SNACKS": 100,
-    "CONFECTIONERY": 120,
-    "BEVERAGES": 150,
-    "CEREALS": 60,
-    "COOKING OIL": 40,
-    "RICE": 30,
-    "SUGAR": 20,
-    "FLOUR": 30,
-    "FRESH MILK": 40,
-    "DAIRY": 60,
-    "BREAD": 30,
-    "BAKERY": 50,
-    "HOUSEHOLD": 150,
-    "TOILETRIES": 150,
-    "DETERGENT": 80,
-    "BABY CARE": 60,
-    "STATIONERY": 50,
-    "COSMETICS": 100,
+    "WINES": 120, "SPIRITS": 80, "BEER": 100, "DIWALI ITEMS": 30,
+    "PARTY ITEMS": 40, "AIR FRESHNERS": 50, "BISCUITS": 80, "SNACKS": 100,
+    "CONFECTIONERY": 120, "BEVERAGES": 150, "CEREALS": 60, "COOKING OIL": 40,
+    "RICE": 30, "SUGAR": 20, "FLOUR": 30, "FRESH MILK": 40, "DAIRY": 60,
+    "BREAD": 30, "BAKERY": 50, "HOUSEHOLD": 150, "TOILETRIES": 150,
+    "DETERGENT": 80, "BABY CARE": 60, "STATIONERY": 50, "COSMETICS": 100,
     "PET FOOD": 30,
 }
 
-# Fallback cap for departments not explicitly listed
-DEFAULT_CAP_FALLBACK_BASELINE = 50
-# Minimum floor cap to prevent total category erasure
-MIN_DEPT_CAP_FLOOR = 5
-# Reference budget for baseline caps (10M KES)
+# Reference constants (will be updated from config in run_amit)
 BASELINE_BUDGET = 10_000_000
+MIN_DEPT_CAP_FLOOR = 5
+DEFAULT_CAP_FALLBACK_BASELINE = 50
+
+
+def _load_amit_config(data_dir: str) -> Dict[str, Any]:
+    """Helper to load AMIT parameters from the central config."""
+    path = os.path.join(data_dir, 'oasis_engines_config.json')
+    if os.path.exists(path):
+        try:
+            with open(path, 'r', encoding='utf-8') as f:
+                config = json.load(f)
+            return config
+        except Exception as e:
+            logger.warning(f"Failed to load AMIT config: {e}")
+    return {}
 
 
 def load_nodes(nn_path: str) -> List[Dict[str, Any]]:
@@ -98,103 +88,89 @@ def load_nodes(nn_path: str) -> List[Dict[str, Any]]:
 
 
 def load_lata_patterns(data_dir: str) -> Dict[str, float]:
-    """
-    Search for and load LATA supplier patterns from all available versions.
-    Returns: Mapping of { Supplier Name: lata_variance_multiplier }
-    """
-    patterns_files = [f for f in os.listdir(data_dir) if "supplier_patterns" in f and f.endswith(".json")]
-    if not patterns_files:
-        logger.warning("No LATA patterns found in data directory.")
+    """Load LATA safety multipliers to adjust GMROI rankings."""
+    path = os.path.join(data_dir, "supplier_patterns_2025.json")
+    if not os.path.exists(path):
+        logger.warning("supplier_patterns_2025.json not found. LATA weighting disabled.")
         return {}
 
-    # Sort files so we process them in a predictable order (e.g. (2) after (1))
-    patterns_files.sort()
-    
-    multipliers = {}
-    for fname in patterns_files:
-        path = os.path.join(data_dir, fname)
-        try:
-            with open(path, "r", encoding="utf-8") as f:
-                data = json.load(f)
-            
-            count = 0
-            for supplier, info in data.items():
-                if isinstance(info, dict):
-                    # Prioritize the LATA-specific multiplier if present
-                    if "lata_variance_multiplier" in info:
-                        multipliers[supplier.upper()] = float(info["lata_variance_multiplier"])
-                        count += 1
-            if count > 0:
-                logger.info(f"Loaded {count} LATA multipliers from {fname}")
-        except Exception as e:
-            logger.error(f"Failed to load {fname}: {e}")
-    
-    return multipliers
+    with open(path, "r", encoding="utf-8") as f:
+        patterns = json.load(f)
+
+    return {s: d.get("lata_variance_multiplier", 1.0) for s, d in patterns.items() if isinstance(d, dict)}
 
 
 def calculate_gmroi(node: Dict[str, Any], lata_multiplier: float = 1.0) -> float:
     """
-    GMROI = Gross Margin Return on Inventory Investment
-    Formula: Gross Profit / (30-day Average Inventory Cost * LATA Reliability Multiplier)
+    Calculate the reliability-adjusted GMROI for a SKU.
+    Formula: GMROI = GrossProfit / (Avg Inventory Value * LATA Risk Penalty)
     
-    If gross_profit is zero but we have margin_pct and revenue,
-    we derive it: gross_profit = revenue * (margin_pct / 100)
+    Since we don't have per-SKU inventory cost, we use a proxy based on velocity:
+    Avg Inventory Value = Price * (Velocity ADS * 30 days coverage)
     """
     gross_profit = node["gross_profit"]
-    if gross_profit <= 0 and node["revenue"] > 0 and node["margin_pct"] > 0:
-        gross_profit = node["revenue"] * (node["margin_pct"] / 100.0)
-
-    # Average inventory cost proxy (30-day holding cost)
-    # LATA Integration: Unreliable suppliers (multiplier > 1.0) increase the cost debt.
-    avg_inventory_cost = (node["price"] * max(node["velocity_ads"], 0.001) * 30.0) * lata_multiplier
-
-    if avg_inventory_cost <= 0:
+    ads = node["velocity_ads"]
+    price = node["price"]
+    
+    # 30-day stock turn coverage as denominator proxy
+    avg_inventory_value = price * ads * 30
+    
+    # Penalty: If a supplier is erratic (LATA > 1.0), it 'traps' more capital 
+    # to maintain the same service level, effectively lowering its GMROI.
+    risk_adjusted_denom = avg_inventory_value * lata_multiplier
+    
+    if risk_adjusted_denom == 0:
         return 0.0
+        
+    return gross_profit / risk_adjusted_denom
 
-    return gross_profit / avg_inventory_cost
 
-
-def calculate_dynamic_caps(base_caps: Dict[str, int], total_budget: float) -> Dict[str, int]:
-    """
-    Scale department caps based on the total budget.
-    Formula: Base Cap * sqrt(Total Budget / Baseline Budget)
-    Using sqrt ensures caps don't grow/shrink too aggressively.
-    """
-    scaling_factor = (total_budget / BASELINE_BUDGET) ** 0.5
-    logger.info(f"[AMIT] Scaling caps with factor: {scaling_factor:.3f} (Budget: {total_budget:,.0f} KES)")
+def calculate_dynamic_caps(baseline_caps: Dict[str, int], total_budget: float, baseline_budget: float, min_floor: int) -> Dict[str, int]:
+    """Scale department caps based on total budget vs baseline budget."""
+    scaling_factor = (total_budget / baseline_budget) ** 0.5  # Sub-linear scaling
     
     dynamic_caps = {}
-    for dept, base_cap in base_caps.items():
-        scaled_cap = int(base_cap * scaling_factor)
-        dynamic_caps[dept] = max(MIN_DEPT_CAP_FLOOR, scaled_cap)
+    for dept, cap in baseline_caps.items():
+        dynamic_caps[dept] = max(min_floor, int(cap * scaling_factor))
         
     return dynamic_caps
 
 
 def run_amit(nn_path: str, data_dir: str, dept_caps: Dict[str, int] = None, total_budget: float = None) -> Dict[str, Any]:
-    """
-    Execute the AMIT Gatekeeper logic.
-    """
+    """Execute the AMIT Gatekeeper logic."""
     nodes = load_nodes(nn_path)
     if not nodes:
-        logger.warning("No nodes loaded. AMIT cannot execute.")
-        return {"blacklist": [], "department_caps": {}, "lowest_gmroi": {}, "stats": {}}
+        return {"stats": {"total_blacklisted": 0, "departments_over_cap": 0}}
 
-    # LATA Loop Closure: Load supplier reliability multipliers
     lata_multipliers = load_lata_patterns(data_dir)
+    logger.info(f"Loaded {len(lata_multipliers)} LATA patterns for risk-weighting.")
 
-    # Determine the caps to use
+    # Load Central Config for AMIT settings
+    config = _load_amit_config(data_dir)
+    amit_conf = config.get("engines", {}).get("amit", {})
+    
+    baseline_budget = amit_conf.get("baseline_budget", BASELINE_BUDGET)
+    min_floor = amit_conf.get("min_dept_cap_floor", MIN_DEPT_CAP_FLOOR)
+    base_caps = amit_conf.get("default_dept_caps_baseline", DEFAULT_DEPT_CAPS_BASELINE).copy()
+
+    category_rules = config.get('category_rules', {})
+    for dept, rule in category_rules.items():
+        if dept in base_caps:
+            boost = rule.get("boost", 1.0)
+            base_caps[dept] = int(base_caps[dept] * boost)
+            logger.info(f"[AMIT] Config: Boosting {dept} cap by {boost}x.")
+
     if dept_caps:
         caps = dept_caps
     elif total_budget:
-        caps = calculate_dynamic_caps(DEFAULT_DEPT_CAPS_BASELINE, total_budget)
+        caps = calculate_dynamic_caps(base_caps, total_budget, baseline_budget, min_floor)
     else:
-        caps = DEFAULT_DEPT_CAPS_BASELINE
+        caps = base_caps
 
     fallback_cap = DEFAULT_CAP_FALLBACK_BASELINE
     if total_budget:
-        scaling_factor = (total_budget / BASELINE_BUDGET) ** 0.5
-        fallback_cap = max(MIN_DEPT_CAP_FLOOR, int(DEFAULT_CAP_FALLBACK_BASELINE * scaling_factor))
+        scaling_factor = (total_budget / baseline_budget) ** 0.5
+        fallback_cap = max(min_floor, int(DEFAULT_CAP_FALLBACK_BASELINE * scaling_factor))
     
     dept_skus: Dict[str, List[Dict]] = defaultdict(list)
     for node in nodes:
@@ -249,7 +225,7 @@ def run_amit(nn_path: str, data_dir: str, dept_caps: Dict[str, int] = None, tota
                     "reason": reason,
                 })
 
-            logger.info(f"[AMIT] {dept}: {len(skus)} SKUs → Cap {cap} → Blacklisted {len(rejects)} items.")
+            logger.info(f"[AMIT] {dept}: {len(skus)} SKUs -> Cap {cap} -> Blacklisted {len(rejects)} items.")
         else:
             logger.debug(f"[AMIT] {dept}: {len(skus)} SKUs within cap ({cap}).")
 
@@ -298,6 +274,6 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     result = run_amit(args.nn_path, args.data_dir, total_budget=args.budget)
-    print(f"\n=== AMIT COMPLETE ===")
+    print("\n=== AMIT COMPLETE ===")
     print(f"Total Blacklisted: {result['stats']['total_blacklisted']}")
     print(f"Departments Over Cap: {result['stats']['departments_over_cap']}")

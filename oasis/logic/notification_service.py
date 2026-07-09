@@ -91,7 +91,6 @@ class NotificationService:
         
     def _get_pending_transfers_count(self, org_cd: Optional[str]) -> int:
         from oasis.logic.pos_erp_adapter import PosErpAdapter
-        import pandas as pd
         adapter = PosErpAdapter(self.db_connector)
         df = adapter.fetch_transfers(None) # get all
         # Count transfers INCOMING to this org that are IN_TRANSIT or REQUESTED
