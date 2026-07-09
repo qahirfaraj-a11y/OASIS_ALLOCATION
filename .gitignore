@@ -64,3 +64,59 @@ OASIS_Offline_App.zip
 
 # Exceptions — small config/reference files that must ship with the repo
 !stores_network.json
+
+# ── Post-2026-07 hygiene pass ────────────────────────────────────────────
+# Ephemeral derived data (regenerate from --mode ...)
+runtime/
+scratch/
+backups/
+reports/
+dist/
+Pitch_Mock_Data_v2/
+Pitch_Mock_Ingestion/
+*.joblib
+*.pt
+*.pth
+*.gguf
+kapa_*.json
+shadow_health.json
+supplier_rhythm_analysis.json
+supplier_weekly_schedule.json
+supplier_predictive_analysis.json
+supplier_schedule*.json
+rhapta_demo_preloaded.json
+prospect_pos_sales.csv
+
+# Client config: template is versioned, real values are not
+oasis_client_config.json
+
+# Sales collateral (Kapa deep-dive family, OASIS marketing docs) — authored
+# assets belong in a separate "collateral" repo/drive, not the app tree
+Kapa_*.docx
+OASIS_Strategy_*.docx
+OASIS_*_Guide.docx
+OASIS_*_Catalog.docx
+OASIS_*_Index_Report.docx
+OASIS_Deep_System_Analysis.md
+OASIS_Brochure.html
+OASIS_Journey_Brochure.html
+OASIS_Neural_Affinities_Catalog.docx
+OASIS_Substitution_Rivals_Guide.docx
+OASIS_Advanced_Assortment_Guide.docx
+
+# Side projects — different apps, don't ship in the OASIS release
+oasis-portal/
+TouchDesigner_Vibe/
+oasis/Entities/
+oasis/Neural_Archive/
+oasis/Runs/
+oasis/Oasis/
+oasis_checkpoint_before_refactor/
+
+# Legacy overlapping app (superseded by app.py + app_intel.py + ops_dashboard.py)
+pages/
+api/
+
+# Old release zips
+OASIS_Allocation_Engine_*.zip
+OASIS_Protected_Release.zip
