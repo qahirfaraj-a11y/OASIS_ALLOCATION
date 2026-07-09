@@ -55,3 +55,60 @@ class TestBuildRelease:
         assert not any(".env" in n or ".key" in n or ".git" in n
                        or n.endswith(".db") for n in names)
         assert res["files_shipped"] == 3 and res["files_skipped"] >= 2
+
+
+class TestShouldShipClean:
+    """Whitelist mode — the client-release contract."""
+
+    def test_root_whitelist_ships(self):
+        from oasis.logic.release_packager import should_ship_clean
+        for f in ("entrypoint.py", "app.py", "ops_dashboard.py",
+                  "home_app.py", "install.bat", "VERSION",
+                  "requirements.txt", "alembic.ini",
+                  "run_oasis_home.bat", "branding.example.json"):
+            assert should_ship_clean(f)[0], f
+
+    def test_root_ad_hoc_scripts_dropped(self):
+        from oasis.logic.release_packager import should_ship_clean
+        for f in ("find_cost_mismatch.py", "inspect_db.py",
+                  "audit_barcodes.py", "generate_kapa_docx.py",
+                  "kuber_terminal.py", "pitch_app.py",
+                  "compare_engines.py", "extract_scorecards.py"):
+            assert not should_ship_clean(f)[0], f
+
+    def test_oasis_logic_and_ui_ship(self):
+        from oasis.logic.release_packager import should_ship_clean
+        for f in ("oasis/logic/order_engine.py", "oasis/ui/theme.py",
+                  "oasis/api/bridge.py", "oasis/simulation/scenarios.py"):
+            assert should_ship_clean(f)[0], f
+
+    def test_oasis_data_only_schema(self):
+        from oasis.logic.release_packager import should_ship_clean
+        # schema modules ship
+        assert should_ship_clean("oasis/data/supplier_calendar.py")[0]
+        # payload does NOT
+        for f in ("oasis/data/mock_pos_erp.db",
+                  "oasis/data/product_department_map.json",
+                  "oasis/data/rhapta_pos.db",
+                  "oasis/data/outputs/aneek_analysis.json"):
+            assert not should_ship_clean(f)[0], f
+
+    def test_oasis_vault_and_side_projects_dropped(self):
+        from oasis.logic.release_packager import should_ship_clean
+        for f in ("oasis/Oasis/Nodes/x.md",
+                  "oasis/Runs/2026-01/x.md",
+                  "oasis/Neural_Archive/x.md",
+                  "oasis/exchange/kuber_bridge_hook.py",
+                  "pages/1_Phase_1.py", "sandbox/x.py"):
+            assert not should_ship_clean(f)[0], f
+
+    def test_tests_and_dev_dropped(self):
+        from oasis.logic.release_packager import should_ship_clean
+        for f in ("tests/test_x.py", "tests/conftest.py",
+                  ".env.example", ".gitignore", ".dockerignore"):
+            assert not should_ship_clean(f)[0], f
+
+    def test_migrations_ship(self):
+        from oasis.logic.release_packager import should_ship_clean
+        assert should_ship_clean("migrations/env.py")[0]
+        assert should_ship_clean("migrations/versions/001_baseline.py")[0]

@@ -62,10 +62,41 @@ class TestReleaseZipContract:
                 f"DEV STATE LEAK: {n}"
 
     def test_release_stays_lean(self, zip_info):
+        # Whitelist mode is the default; a shipping release must be tiny.
         _, _, size = zip_info
-        cap_mb = 50
+        cap_mb = 5
         assert size < cap_mb * 1024 * 1024, \
             f"release bloat: {size / 1e6:.1f} MB > {cap_mb} MB cap"
+
+    def test_no_ad_hoc_root_scripts(self, zip_info):
+        """The whitelist packager must stop the 191-root-scripts problem —
+        ad-hoc find_*/inspect_*/generate_* etc. at repo ROOT (only). Under
+        oasis/ these prefixes are legitimate library modules and stay."""
+        _, names, _ = zip_info
+        forbidden = (
+            "find_", "inspect_", "check_", "analyze_", "extract_",
+            "compare_", "calculate_", "hayat_", "kapa_", "peek_",
+            "cleanup_", "recover_",
+        )
+        for n in names:
+            # zip entries look like "OASIS_v.../<rel>"; keep only root-level rel
+            rel = n.split("/", 1)[-1]
+            if "/" in rel:
+                continue           # nested — under oasis/, tests/, etc.
+            for p in forbidden:
+                assert not rel.startswith(p), \
+                    f"ad-hoc script leaked into release root: {n}"
+
+    def test_no_tests_or_side_projects(self, zip_info):
+        _, names, _ = zip_info
+        for n in names:
+            rel = n.split("/", 1)[-1]
+            assert not rel.startswith("tests/"), f"tests/ leaked: {n}"
+            for bad in ("scripts/archive/", "sandbox/", "scratch/",
+                        "pages/", "pipeline_logs/", "hayat_analysis/",
+                        "oasis-portal/", "TouchDesigner_Vibe/",
+                        "oasis/Oasis/", "oasis/Runs/", "oasis/Neural_Archive/"):
+                assert bad not in n, f"junk tree leaked: {n}"
 
     def test_no_oversized_files_inside(self, zip_info):
         z_path, _, _ = zip_info

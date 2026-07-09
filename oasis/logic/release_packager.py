@@ -72,6 +72,97 @@ _EXCLUDE_GLOBS = (
 _MAX_FILE_MB = 20.0
 
 
+# ── STRICT WHITELIST MODE (client releases) ──────────────────────────────
+# The blacklist above is a "keep everything unless" filter — great for CI, but
+# a working tree accumulates hundreds of exploration scripts a client should
+# never see. For client releases we ship exactly the files below and nothing
+# else.
+
+#: exact root files that ARE the shipping application
+_ROOT_WHITELIST = {
+    # entry points
+    "entrypoint.py", "app.py", "app_intel.py", "ops_dashboard.py",
+    "home_app.py", "st_gat_dashboard.py", "allocation_app.py",
+    "intraday_sim.py",
+    # install + config
+    "install.bat", "VERSION", "requirements.txt", "alembic.ini",
+    "branding.example.json", "oasis_client_config.template.json",
+    # launchers the client actually runs
+    "run_oasis_home.bat",
+    "run_oasis_live.bat", "run_oasis_intel_live.bat", "run_command_center_live.bat",
+    "run_multi_pos.bat", "run_mock_pos.bat", "run_command_center_multi.bat",
+    "run_market_intelligence_tool.bat",
+    # doc
+    "README.md",
+}
+
+#: oasis/ sub-packages that ship (schema modules only from oasis/data)
+_OASIS_WHITELIST_SUBPKGS = {
+    "__init__.py", "logging_config.py", "models.py",
+    "api/", "logic/", "ui/", "simulation/", "analytics/",
+    "tools/", "data_validation/",
+}
+
+#: exact files from oasis/data that ship (schema code, not data files)
+_OASIS_DATA_WHITELIST = {
+    "supplier_calendar.py", "__init__.py",
+}
+
+#: everything in migrations/ ships (alembic run-time)
+_MIGRATIONS_ROOT = "migrations/"
+
+
+def should_ship_clean(relpath: str, size_bytes: int = 0) -> Tuple[bool, str]:
+    """Whitelist decision for client releases. Pure.
+
+    Only files explicitly named in the whitelists ship; everything else is
+    dropped by default. This ends the "191 root scripts by accident" problem.
+    """
+    rel = relpath.replace("\\", "/")
+    name = rel.rsplit("/", 1)[-1]
+
+    # 1. Root files: exact whitelist only
+    if "/" not in rel:
+        if rel in _ROOT_WHITELIST:
+            return True, "root whitelist"
+        return False, "root file not on whitelist"
+
+    # 2. migrations/ — the alembic tree ships whole
+    if rel.startswith(_MIGRATIONS_ROOT):
+        if "__pycache__" in rel or name.endswith(".pyc"):
+            return False, "migration cache"
+        return True, "migration"
+
+    # 3. oasis/ — sub-package whitelist
+    if rel.startswith("oasis/"):
+        sub = rel[len("oasis/"):]
+        if "__pycache__" in sub or name.endswith(".pyc"):
+            return False, "pycache"
+        # allow the top-level files (logging_config.py etc.)
+        top = sub.split("/", 1)[0]
+        if "/" not in sub:  # oasis/<file>
+            return (top in _OASIS_WHITELIST_SUBPKGS,
+                    "oasis root file " + ("ok" if top in _OASIS_WHITELIST_SUBPKGS else "not on whitelist"))
+        # oasis/data — schema modules only
+        if top == "data":
+            leaf = sub[len("data/"):]
+            if "/" not in leaf and leaf in _OASIS_DATA_WHITELIST:
+                return True, "oasis/data schema"
+            return False, "oasis/data payload"
+        # oasis/<pkg>/... — allowed if pkg is whitelisted
+        if (top + "/") in _OASIS_WHITELIST_SUBPKGS:
+            # apply the general size cap; no .db/.xlsx/etc even within allowed pkgs
+            ext = os.path.splitext(name)[1].lower()
+            if ext in _EXCLUDE_EXTS:
+                return False, f"excluded extension in oasis/{top}"
+            if size_bytes > _MAX_FILE_MB * 1e6:
+                return False, "size cap in oasis pkg"
+            return True, f"oasis/{top}"
+        return False, f"oasis/{top} not on whitelist"
+
+    return False, "not on whitelist"
+
+
 def should_ship(relpath: str, size_bytes: int = 0) -> Tuple[bool, str]:
     """(ship?, reason) for a repo-relative path. Pure."""
     import fnmatch
@@ -142,7 +233,8 @@ def _add_runtime_bundle(zf: zipfile.ZipFile, root: str,
 
 def build_release(root: str, out_dir: Optional[str] = None,
                   version: Optional[str] = None,
-                  bundle_runtime: bool = False) -> dict:
+                  bundle_runtime: bool = False,
+                  clean: bool = True) -> dict:
     """Zip the shippable subset of `root` into dist/OASIS_v<version>.zip.
 
     Args:
@@ -151,6 +243,9 @@ def build_release(root: str, out_dir: Optional[str] = None,
         version: Version string (default: read from VERSION file).
         bundle_runtime: If True, include the embedded Python runtime and
             pre-downloaded dependency wheels for fully offline installation.
+        clean: If True (default), use the STRICT WHITELIST (client-ready
+            release — root_whitelist + oasis subpackages + migrations). If
+            False, fall back to the legacy blacklist mode.
     """
     if version is None:
         try:
@@ -175,7 +270,10 @@ def build_release(root: str, out_dir: Optional[str] = None,
                     size = os.path.getsize(full)
                 except OSError:
                     size = 0
-                ship, _ = should_ship(rel, size)
+                if clean:
+                    ship, _ = should_ship_clean(rel, size)
+                else:
+                    ship, _ = should_ship(rel, size)
                 if not ship:
                     skipped += 1
                     continue

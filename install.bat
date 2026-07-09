@@ -1,54 +1,94 @@
 @echo off
-setlocal
+setlocal EnableDelayedExpansion
 title O.A.S.I.S. Installer
 cd /d "%~dp0"
-echo ==========================================================
-echo   O.A.S.I.S. - Installation
-echo ==========================================================
 
-echo [1/5] Creating Python environment...
-python -m venv .oasis_venv
+REM Get VERSION for the welcome banner
+set "OASIS_VER=?"
+if exist VERSION (for /f "usebackq delims=" %%v in ("VERSION") do set "OASIS_VER=%%v")
+
+cls
+echo.
+echo  ============================================================
+echo    [ AUDITED LOGIC_ENGINE_V!OASIS_VER! ]
+echo.
+echo         O . A . S . I . S .   Installation
+echo         Algorithmic Retail Systems ^& Logic
+echo  ============================================================
+echo.
+
+REM 1. Tenant name -> branding.json seed
+if not exist branding.json (
+    set /p "CLIENT_NAME=  Company / store name (blank = OASIS default): "
+    if not "!CLIENT_NAME!"=="" (
+        > branding.json (
+            echo {
+            echo   "tenant_name": "!CLIENT_NAME!",
+            echo   "product_name": "OASIS",
+            echo   "primary_color": "#00F5D4",
+            echo   "accent_color":  "#00C4AB"
+            echo }
+        )
+        echo   [OK] Branding saved to branding.json
+    )
+) else (
+    echo   [OK] Existing branding.json preserved
+)
+echo.
+
+REM 2. Install password
+if "%OASIS_SEED_PASSWORD%"=="" (
+    set /p "OASIS_SEED_PASSWORD=  Admin password (blank = oasis2026): "
+    if "!OASIS_SEED_PASSWORD!"=="" set "OASIS_SEED_PASSWORD=oasis2026"
+)
+echo.
+
+REM 3. Store topology
+set "OASIS_PROFILE="
+set /p "OASIS_PROFILE=  Single store or multi-store network? [single/multi] (default single): "
+if "!OASIS_PROFILE!"=="" set "OASIS_PROFILE=single"
+if /I not "!OASIS_PROFILE!"=="multi" set "OASIS_PROFILE=single"
+echo.
+
+REM 4. Python venv
+echo  [1/4] Creating Python environment...
+python -m venv .oasis_venv >nul 2>&1
 if errorlevel 1 (
-    echo ERROR: Python 3.10+ is required on PATH. Install it and re-run.
-    pause & exit /b 1
+    echo.
+    echo   ERROR: Python 3.10+ was not found on PATH.
+    echo   Install it from https://python.org and re-run install.bat
+    pause
+    exit /b 1
 )
 
-echo [2/5] Installing dependencies...
+echo  [2/4] Installing dependencies...
 .oasis_venv\Scripts\python.exe -m pip install --upgrade pip -q
 .oasis_venv\Scripts\python.exe -m pip install -r requirements.txt -q
 if errorlevel 1 (
-    echo ERROR: dependency installation failed. Check network / proxy.
+    echo   ERROR: dependency install failed. Check network / proxy and re-run.
     pause & exit /b 1
 )
 
-REM Seed a stable install password BEFORE preflight seeds the user table.
-REM The installer prompts the operator interactively; blank keeps the demo
-REM default (oasis2026), safe for evaluation.
-if "%OASIS_SEED_PASSWORD%"=="" (
+echo  [3/4] Initialising OASIS for !OASIS_PROFILE! store profile...
+.oasis_venv\Scripts\python.exe entrypoint.py --mode init --profile !OASIS_PROFILE!
+if errorlevel 1 (
     echo.
-    echo [3/5] Set the install password for OASIS admin users
-    set /p OASIS_SEED_PASSWORD="  Password (blank = oasis2026 for evaluation): "
-    if "%OASIS_SEED_PASSWORD%"=="" set OASIS_SEED_PASSWORD=oasis2026
-) else (
-    echo [3/5] OASIS_SEED_PASSWORD already set from environment
+    echo   Note: init reported a warning. If this is a first install without
+    echo   catalog exports yet, that's expected. Proceeding.
 )
 
-echo [4/5] Version + license status
-.oasis_venv\Scripts\python.exe entrypoint.py --mode version
+echo  [4/4] License status:
 .oasis_venv\Scripts\python.exe entrypoint.py --mode license-status
 
-echo [5/5] Preflight check (missing tables are expected on a fresh install)
-.oasis_venv\Scripts\python.exe entrypoint.py --mode preflight
-
 echo.
-echo ==========================================================
-echo   Installed. Next steps:
-echo   1. Place your license key as oasis_license.key here
-echo      (without it, a 14-day evaluation starts on first run).
-echo   2. Onboard your data:
-echo        --mode build-pos-db      (single store from Excel exports)
-echo        --mode build-multi-store-db   (multi-store network)
-echo        --mode build-views       (live ERP views)
-echo   3. Launch: run_oasis_home.bat
-echo ==========================================================
+echo  ============================================================
+echo    Installation complete.
+echo.
+echo    Log in:      admin password shown above (change with --mode set-password)
+echo    Launch:      double-click  run_oasis_home.bat
+echo    License key: drop it beside install.bat as  oasis_license.key
+echo                 (without one, the 14-day evaluation trial is active)
+echo.
+echo    Support: contact iLink
+echo  ============================================================
 pause
