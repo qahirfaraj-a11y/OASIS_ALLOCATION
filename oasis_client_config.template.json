@@ -1,0 +1,100 @@
+{
+    "_comment": "O.A.S.I.S. Client Configuration Template — Copy this file to oasis_client_config.json and fill in your values.",
+
+    "client": {
+        "client_id": "CHANGE_ME",
+        "client_name": "Your Retail Network Name",
+        "deployment_date": "2026-01-01",
+        "oasis_version": "2.1.0",
+        "license_tier": "enterprise",
+        "timezone": "Africa/Nairobi",
+        "currency": "KES"
+    },
+
+    "data_pathway": "file",
+    "ingestion_cycle": "24_HOUR",
+
+    "sql_connection": {
+        "enabled": false,
+        "server": "localhost\\IRETAIL",
+        "database": "iRetailDB",
+        "port": 1433,
+        "trusted_connection": true,
+        "username": null,
+        "password": null,
+        "driver_override": null,
+        "pool_size": 5,
+        "pool_recycle_seconds": 3600
+    },
+
+    "file_dump": {
+        "watch_dir": "inbound_drops",
+        "bootstrap_dir": "inbound_drops\\bootstrap",
+        "required_columns": ["Item_Name", "SOH", "ADS", "Unit_Cost"],
+        "optional_columns": ["Barcode", "Department", "Supplier", "Lead_Time", "Pack_Size", "Selling_Price"],
+        "archive_retention_days": 90,
+        "encoding": "utf-8"
+    },
+
+    "stores": [
+        {
+            "org_cd": "ORG001",
+            "name": "Main Branch",
+            "store_type": "retail",
+            "is_warehouse_hub": false,
+            "latitude": null,
+            "longitude": null,
+            "sql_store_id": null
+        }
+    ],
+
+    "engines": {
+        "amit": {"enabled": true, "baseline_budget_kes": 10000000},
+        "lata": {"enabled": true, "min_records_for_variance": 5},
+        "dharam": {"enabled": true},
+        "mande": {"enabled": true},
+        "shadow_mode": true,
+        "gnn_model_path": null,
+        "revenue_core_only": false
+    },
+
+    "scheduler": {
+        "cycle": "24_HOUR",
+        "custom_crons": {},
+        "morning_po_hour": 6,
+        "evening_summary_hour": 22
+    },
+
+    "budget": {
+        "default_total_kes": 10000000,
+        "auto_approve_below_kes": 50000,
+        "dept_cap_strategy": "proportional"
+    },
+
+    "heartbeat": {
+        "enabled": false,
+        "endpoint_url": null,
+        "interval_hours": 6,
+        "webhook_type": "slack",
+        "webhook_url": null
+    },
+
+    "ui": {
+        "flet_desktop": true,
+        "streamlit_dashboards": true,
+        "ops_dashboard_port": 8501,
+        "shadow_dashboard_port": 8502,
+        "approval_dashboard_port": 8503,
+        "command_center_port": 8504,
+        "st_gat_dashboard_port": 8505
+    },
+
+    "_path_note": "Paths are relative to the installation directory. Use absolute paths to override.",
+    "paths": {
+        "data_dir": "oasis\\data",
+        "scorecard_path": null,
+        "nn_export_dir": "neutral_network_export",
+        "log_dir": "logs",
+        "db_path": "oasis.db"
+    }
+}
