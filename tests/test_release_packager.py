@@ -108,6 +108,14 @@ class TestShouldShipClean:
                   ".env.example", ".gitignore", ".dockerignore"):
             assert not should_ship_clean(f)[0], f
 
+    def test_cloud_hub_never_ships(self):
+        """The hub holds the license salt server-side — it must NEVER be in a
+        client release, or the salt-issuing surface leaks to customers."""
+        from oasis.logic.release_packager import should_ship_clean
+        for f in ("oasis_hub/app.py", "oasis_hub/licensing.py",
+                  "oasis_hub/models.py", "oasis_hub/routers/admin.py"):
+            assert not should_ship_clean(f)[0], f
+
     def test_migrations_ship(self):
         from oasis.logic.release_packager import should_ship_clean
         assert should_ship_clean("migrations/env.py")[0]

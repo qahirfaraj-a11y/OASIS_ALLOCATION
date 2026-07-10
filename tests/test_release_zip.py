@@ -94,7 +94,7 @@ class TestReleaseZipContract:
             assert not rel.startswith("tests/"), f"tests/ leaked: {n}"
             for bad in ("scripts/archive/", "sandbox/", "scratch/",
                         "pages/", "pipeline_logs/", "hayat_analysis/",
-                        "oasis-portal/", "TouchDesigner_Vibe/",
+                        "oasis-portal/", "TouchDesigner_Vibe/", "oasis_hub/",
                         "oasis/Oasis/", "oasis/Runs/", "oasis/Neural_Archive/"):
                 assert bad not in n, f"junk tree leaked: {n}"
 

@@ -202,6 +202,25 @@ def run_bridge(port: int = 8600):
     logger.info("Manager Bridge stopped.")
 
 
+def run_hub(port: int = 8700):
+    """Start the OASIS Cloud Hub (oasis_hub.app) under uvicorn.
+
+    Server-side only — licensing issuer, opt-in ingestion, and the supplier
+    Retail Central Intelligence portal. Requires OASIS_LICENSE_SALT (to issue),
+    OASIS_HUB_ADMIN_KEY (provisioning), and OASIS_HUB_TOKEN_SECRET (sessions).
+    """
+    logger.info(f"Starting O.A.S.I.S. Cloud Hub on port {port}...")
+    cmd = [
+        sys.executable, "-m", "uvicorn", "oasis_hub.app:app",
+        "--host", "0.0.0.0", "--port", str(port),
+    ]
+    proc = subprocess.Popen(cmd)
+    _shutdown.wait()
+    proc.terminate()
+    proc.wait(timeout=10)
+    logger.info("Cloud Hub stopped.")
+
+
 # ── Mode: Migrate (Alembic) ──────────────────────────────────────────
 
 def _require_module(module: str) -> None:
@@ -488,7 +507,7 @@ def main():
     parser.add_argument("--mode",
                         choices=["full", "engine", "dashboard", "showcase",
                                  "shadow", "simulation", "desktop", "bootstrap",
-                                 "api", "bridge", "migrate", "shell", "intel",
+                                 "api", "bridge", "hub", "migrate", "shell", "intel",
                                  "preflight", "build-views", "bootstrap-intel",
                                  "bootstrap-governance", "build-graph",
                                  "build-store-graph", "build-baskets", "build-prior",
@@ -604,6 +623,8 @@ def main():
         run_api(args.port if args.port else 8550)
     elif args.mode == "bridge":
         run_bridge(args.port if args.port else 8600)
+    elif args.mode == "hub":
+        run_hub(args.port if args.port else 8700)
     elif args.mode == "migrate":
         run_migrate()
     elif args.mode == "shell":

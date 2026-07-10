@@ -1,0 +1,69 @@
+"""
+Ingestion API — stores push opt-in stock-movement telemetry.
+
+Authenticated by a per-store ingest token (Authorization: Bearer). A store only
+ever writes to its OWN store_id — the token resolves the store server-side, so a
+compromised token cannot impersonate another outlet. Idempotent on
+(store_id, source_ref): re-sending the same batch is safe.
+"""
+
+import logging
+from datetime import datetime
+
+from fastapi import APIRouter, Depends
+from sqlalchemy.exc import IntegrityError
+from sqlalchemy.orm import Session
+
+from ..db import get_session
+from ..security import require_ingest
+from ..models import HubStore, HubStockMovement
+from ..schemas import IngestBatchIn, IngestResult
+
+logger = logging.getLogger("OASIS.Hub.Ingest")
+
+router = APIRouter(prefix="/ingest", tags=["ingest"])
+
+
+@router.post("/movements", response_model=IngestResult)
+def push_movements(
+    batch: IngestBatchIn,
+    identity: dict = Depends(require_ingest),
+    db: Session = Depends(get_session),
+):
+    store_id = identity["store_id"]
+    store = db.query(HubStore).filter(HubStore.id == store_id).first()
+    tenant_pk_to_tenant_id = store.tenant.tenant_id if store and store.tenant else None
+
+    # existing source_refs for this store → skip duplicates cheaply
+    seen = {
+        r[0] for r in db.query(HubStockMovement.source_ref)
+        .filter(HubStockMovement.store_id == store_id,
+                HubStockMovement.source_ref.isnot(None)).all()
+    }
+    accepted = duplicates = 0
+    batch_refs: set = set()
+    for m in batch.movements:
+        if m.source_ref and (m.source_ref in seen or m.source_ref in batch_refs):
+            duplicates += 1
+            continue
+        db.add(HubStockMovement(
+            store_id=store_id,
+            tenant_id=tenant_pk_to_tenant_id or "unknown",
+            sku_code=m.sku_code, sku_name=m.sku_name,
+            supplier_cd=m.supplier_cd, brand=m.brand, department=m.department,
+            movement_type=m.movement_type, qty=m.qty, unit_price=m.unit_price,
+            on_hand=m.on_hand, occurred_at=m.occurred_at,
+            ingested_at=datetime.utcnow(), source_ref=m.source_ref,
+        ))
+        if m.source_ref:
+            batch_refs.add(m.source_ref)
+        accepted += 1
+
+    try:
+        db.flush()
+    except IntegrityError:
+        # racing writer inserted a matching source_ref between our read and flush
+        db.rollback()
+        logger.warning("Ingest race for store %s — retrying dedup", store_id)
+        raise
+    return IngestResult(accepted=accepted, duplicates=duplicates, store_id=store_id)

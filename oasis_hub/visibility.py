@@ -1,0 +1,178 @@
+"""
+The privacy backbone of the Retail Central Intelligence portal.
+
+A supplier may see a stock movement **iff** BOTH hold:
+  1. OWNERSHIP  — the movement matches one of the supplier's ownership rules
+                  (hub_supplier_brand: by supplier_cd / brand / department / sku).
+  2. CONSENT    — the movement's store granted this supplier consent
+                  (hub_store_consent.status == 'granted').
+
+When a consenting store has reveal_identity=False, the store's name and city are
+masked to a stable opaque handle so the supplier can still track a distinct
+outlet over time without learning which physical store it is.
+
+Everything in this module is default-deny: no ownership rules → sees nothing;
+no granted consent → sees nothing. All portal reads MUST go through here — never
+query hub_stock_movement directly from a request handler.
+"""
+
+import hashlib
+from dataclasses import dataclass
+from datetime import datetime
+from typing import List, Optional
+
+from sqlalchemy import or_
+from sqlalchemy.orm import Session
+
+from .models import (
+    HubStockMovement, HubStoreConsent, HubStore, HubSupplierBrand,
+)
+
+_MASK_SALT = "oasis_hub_store_masking_v1"
+
+# ownership match_type → the movement column it constrains
+_OWNERSHIP_COLUMN = {
+    "supplier_cd": HubStockMovement.supplier_cd,
+    "brand": HubStockMovement.brand,
+    "department": HubStockMovement.department,
+    "sku": HubStockMovement.sku_code,
+}
+
+
+@dataclass
+class VisibleMovement:
+    """A movement as a supplier is permitted to see it (identity already resolved)."""
+    movement_id: str
+    store_handle: str          # real name, or "Store ####" when masked
+    store_masked: bool
+    city: Optional[str]
+    sku_code: str
+    sku_name: Optional[str]
+    department: Optional[str]
+    brand: Optional[str]
+    movement_type: str
+    qty: float
+    unit_price: Optional[float]
+    on_hand: Optional[float]
+    occurred_at: datetime
+
+
+def _mask_handle(store_id: str) -> str:
+    """Stable opaque label for an identity-withheld store."""
+    digest = hashlib.sha256((_MASK_SALT + store_id).encode()).hexdigest()
+    return "Store #" + digest[:8].upper()
+
+
+def _ownership_filter(rules: List[HubSupplierBrand]):
+    """Build an OR-clause matching any of the supplier's ownership rules.
+
+    Returns None when the supplier has no (recognised) rules — the caller must
+    treat that as "sees nothing" rather than "matches everything".
+    """
+    clauses = []
+    for r in rules:
+        col = _OWNERSHIP_COLUMN.get(r.match_type)
+        if col is not None and r.match_value:
+            clauses.append(col == r.match_value)
+    if not clauses:
+        return None
+    return or_(*clauses)
+
+
+def _consent_map(db: Session, supplier_id: str) -> dict:
+    """store_id → reveal_identity for every store that granted this supplier."""
+    rows = (db.query(HubStoreConsent)
+              .filter(HubStoreConsent.supplier_id == supplier_id,
+                      HubStoreConsent.status == "granted")
+              .all())
+    return {c.store_id: bool(c.reveal_identity) for c in rows}
+
+
+def visible_movements(
+    db: Session,
+    supplier_id: str,
+    *,
+    since: Optional[datetime] = None,
+    until: Optional[datetime] = None,
+    department: Optional[str] = None,
+    limit: int = 500,
+) -> List[VisibleMovement]:
+    """All movements a supplier is entitled to see, identity resolved per consent.
+
+    Default-deny: returns [] if the supplier has no ownership rules or no granted
+    consent. `department` is an optional *narrowing* filter applied on top of the
+    ownership+consent gate — it can never widen visibility.
+    """
+    rules = (db.query(HubSupplierBrand)
+               .filter(HubSupplierBrand.supplier_id == supplier_id)
+               .all())
+    ownership = _ownership_filter(rules)
+    if ownership is None:
+        return []
+
+    consent = _consent_map(db, supplier_id)
+    if not consent:
+        return []
+    consented_store_ids = list(consent.keys())
+
+    q = (db.query(HubStockMovement, HubStore)
+           .join(HubStore, HubStore.id == HubStockMovement.store_id)
+           .filter(HubStockMovement.store_id.in_(consented_store_ids))
+           .filter(ownership))
+    if since is not None:
+        q = q.filter(HubStockMovement.occurred_at >= since)
+    if until is not None:
+        q = q.filter(HubStockMovement.occurred_at <= until)
+    if department:
+        q = q.filter(HubStockMovement.department == department)
+    q = q.order_by(HubStockMovement.occurred_at.desc()).limit(limit)
+
+    out: List[VisibleMovement] = []
+    for mv, store in q.all():
+        reveal = consent.get(mv.store_id, False)
+        out.append(VisibleMovement(
+            movement_id=mv.id,
+            store_handle=store.store_name if reveal else _mask_handle(mv.store_id),
+            store_masked=not reveal,
+            city=store.city if reveal else None,
+            sku_code=mv.sku_code,
+            sku_name=mv.sku_name,
+            department=mv.department,
+            brand=mv.brand,
+            movement_type=mv.movement_type,
+            qty=mv.qty,
+            unit_price=mv.unit_price,
+            on_hand=mv.on_hand,
+            occurred_at=mv.occurred_at,
+        ))
+    return out
+
+
+def supplier_store_summary(db: Session, supplier_id: str) -> List[dict]:
+    """Per-store rollup a supplier may see: unit velocity + outlet handle.
+
+    Same ownership+consent gate as visible_movements. Aggregation is done in
+    Python (small result sets per supplier) to keep identity-masking in one place.
+    """
+    movements = visible_movements(db, supplier_id, limit=100_000)
+    by_store: dict = {}
+    for m in movements:
+        agg = by_store.setdefault(m.store_handle, {
+            "store_handle": m.store_handle,
+            "store_masked": m.store_masked,
+            "city": m.city,
+            "units_sold": 0.0,
+            "skus": set(),
+            "last_seen": m.occurred_at,
+        })
+        if m.movement_type == "sale":
+            agg["units_sold"] += m.qty or 0.0
+        agg["skus"].add(m.sku_code)
+        if m.occurred_at > agg["last_seen"]:
+            agg["last_seen"] = m.occurred_at
+    result = []
+    for agg in by_store.values():
+        agg["distinct_skus"] = len(agg.pop("skus"))
+        result.append(agg)
+    result.sort(key=lambda a: a["units_sold"], reverse=True)
+    return result

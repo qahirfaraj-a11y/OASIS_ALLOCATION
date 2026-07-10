@@ -87,13 +87,17 @@ class OfflineLicenseManager:
         return hashlib.sha256(raw.encode()).hexdigest()
 
     # ── issuing (vendor side) ────────────────────────────────────────────
-    def issue(self, tenant_id: str, modules: List[str], expiry_date: str,
-              out_path: Optional[str] = None) -> dict:
-        """Create and write a signed key file. Requires OASIS_LICENSE_SALT."""
+    def build_key(self, tenant_id: str, modules: List[str],
+                  expiry_date: str) -> dict:
+        """Build a signed key dict in memory (no disk write). Requires the salt.
+
+        This is the in-memory core of :meth:`issue`; the online hub issuer uses
+        it to mint keys it stores in its own ledger instead of a local file.
+        """
         if not self._salt:
             raise RuntimeError("OASIS_LICENSE_SALT must be set to issue licenses")
         datetime.strptime(expiry_date, "%Y-%m-%d")   # validate format
-        key = {
+        return {
             "tenant_id": tenant_id,
             "issued": date.today().isoformat(),
             "expiry_date": expiry_date,
@@ -102,6 +106,11 @@ class OfflineLicenseManager:
                 for m in modules
             },
         }
+
+    def issue(self, tenant_id: str, modules: List[str], expiry_date: str,
+              out_path: Optional[str] = None) -> dict:
+        """Create and write a signed key file. Requires OASIS_LICENSE_SALT."""
+        key = self.build_key(tenant_id, modules, expiry_date)
         path = out_path or self.key_path
         with open(path, "w", encoding="utf-8") as f:
             json.dump(key, f, indent=2)
