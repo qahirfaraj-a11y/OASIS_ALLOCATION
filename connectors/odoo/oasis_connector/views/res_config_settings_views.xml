@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="res_config_settings_view_form_oasis" model="ir.ui.view">
+        <field name="name">res.config.settings.view.form.inherit.oasis</field>
+        <field name="model">res.config.settings</field>
+        <field name="inherit_id" ref="base.res_config_settings_view_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//form" position="inside">
+                <app data-string="OASIS Connector" string="OASIS Connector"
+                     name="oasis_connector">
+                    <block title="OASIS Retail Intelligence"
+                           name="oasis_settings_block">
+                        <setting id="oasis_enable_setting"
+                                 title="Nothing is sent until this is enabled.">
+                            <field name="oasis_enabled"/>
+                            <div class="text-muted">
+                                Stream opt-in stock movement to OASIS.
+                            </div>
+                        </setting>
+                        <setting string="Connection" company_dependent="1">
+                            <div class="content-group">
+                                <div class="mt16">
+                                    <label for="oasis_hub_url" string="Hub URL"/>
+                                    <field name="oasis_hub_url"
+                                           placeholder="https://hub.oasis-systems.example"/>
+                                </div>
+                                <div class="mt16">
+                                    <label for="oasis_ingest_token" string="Store Ingest Token"/>
+                                    <field name="oasis_ingest_token" password="True"/>
+                                </div>
+                                <div class="mt16">
+                                    <label for="oasis_store_code" string="Store Code"/>
+                                    <field name="oasis_store_code"/>
+                                </div>
+                            </div>
+                        </setting>
+                        <setting string="What to stream">
+                            <field name="oasis_send_sales"/>
+                            <label for="oasis_send_sales" string="POS sales"/><br/>
+                            <field name="oasis_send_receipts"/>
+                            <label for="oasis_send_receipts" string="Goods receipts"/><br/>
+                            <field name="oasis_send_on_hand"/>
+                            <label for="oasis_send_on_hand" string="Stock-on-hand snapshots"/>
+                        </setting>
+                        <setting string="Sync now">
+                            <button name="action_oasis_sync_now" type="object"
+                                    string="Sync now" class="btn-primary"/>
+                        </setting>
+                    </block>
+                </app>
+            </xpath>
+        </field>
+    </record>
+</odoo>

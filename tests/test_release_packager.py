@@ -116,6 +116,15 @@ class TestShouldShipClean:
                   "oasis_hub/models.py", "oasis_hub/routers/admin.py"):
             assert not should_ship_clean(f)[0], f
 
+    def test_erp_connectors_never_ship(self):
+        """Connectors ship to the customer's ERP (Odoo etc.), not inside the
+        OASIS on-prem client install — keep them out of the client zip."""
+        from oasis.logic.release_packager import should_ship_clean
+        for f in ("connectors/odoo/xmlrpc_sync.py",
+                  "connectors/odoo/oasis_connector/mapping.py",
+                  "connectors/odoo/oasis_connector/__manifest__.py"):
+            assert not should_ship_clean(f)[0], f
+
     def test_migrations_ship(self):
         from oasis.logic.release_packager import should_ship_clean
         assert should_ship_clean("migrations/env.py")[0]
