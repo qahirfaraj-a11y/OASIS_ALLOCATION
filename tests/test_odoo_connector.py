@@ -65,6 +65,13 @@ def test_map_stock_move_vendor_is_receipt():
     assert m["source_ref"] == "odoo:stock.move:7"
 
 
+def test_map_stock_move_to_customer_is_sale():
+    move = {"id": 9, "product_qty": 3, "date": "2026-07-02 10:00:00",
+            "location_usage": "internal", "location_dest_usage": "customer"}
+    m = mapping.map_stock_move(move, _coke_product())
+    assert m["movement_type"] == "sale"       # sell-through, POS or not
+
+
 def test_map_stock_move_internal_is_adjustment():
     move = {"id": 8, "product_qty": -3, "date": "2026-07-02 09:00:00",
             "location_usage": "internal", "location_dest_usage": "inventory"}

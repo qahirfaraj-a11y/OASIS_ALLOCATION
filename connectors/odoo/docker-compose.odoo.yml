@@ -1,0 +1,88 @@
+# ============================================================
+# OASIS ⇄ Odoo — full integration stack (evaluation / demo)
+# ============================================================
+# Brings up everything needed to see OASIS live against a real Odoo:
+#   odoo-db     PostgreSQL for Odoo
+#   odoo-init   one-shot: creates the 'oasis' DB and installs the connector
+#   odoo        Odoo 16 server (with the OASIS connector addon mounted)
+#   oasis-hub   OASIS Cloud Hub (licensing + ingestion + supplier portal)
+#
+# Run from this directory (connectors/odoo/):
+#   docker compose -f docker-compose.odoo.yml up -d --build
+#   python bootstrap_hub.py            # provision hub, prints the ingest token
+#   python configure_and_sync.py       # point Odoo at the hub, seed + sync
+# Then open the portal:  http://localhost:8700/portal-app/   (COKE / demo123)
+#
+# Odoo reaches the hub in-network at http://oasis-hub:8700.
+# Secrets default to demo values; override via a .env next to this file.
+# ============================================================
+
+name: oasis-odoo
+
+services:
+  odoo-db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: postgres
+      POSTGRES_USER: odoo
+      POSTGRES_PASSWORD: odoo
+    volumes:
+      - odoo-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U odoo"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+
+  # One-shot: create the 'oasis' DB (with demo data) and install the connector.
+  odoo-init:
+    image: odoo:16
+    depends_on:
+      odoo-db:
+        condition: service_healthy
+    volumes:
+      - ./oasis_connector:/mnt/extra-addons/oasis_connector:ro
+      - odoo-web-data:/var/lib/odoo
+    command: >
+      odoo -i oasis_connector -d oasis
+      --db_host=odoo-db --db_user=odoo --db_password=odoo
+      --stop-after-init
+    restart: "no"
+
+  odoo:
+    image: odoo:16
+    depends_on:
+      odoo-db:
+        condition: service_healthy
+      odoo-init:
+        condition: service_completed_successfully
+    volumes:
+      - ./oasis_connector:/mnt/extra-addons/oasis_connector:ro
+      - odoo-web-data:/var/lib/odoo
+    command: >
+      odoo -d oasis
+      --db_host=odoo-db --db_user=odoo --db_password=odoo
+      --db-filter=^oasis$$
+    ports:
+      - "8069:8069"
+    restart: unless-stopped
+
+  oasis-hub:
+    build:
+      context: ../..
+      dockerfile: oasis_hub/Dockerfile
+    environment:
+      OASIS_HUB_DB_URL: sqlite:////data/oasis_hub.db
+      OASIS_LICENSE_SALT: ${OASIS_LICENSE_SALT:-demo-salt}
+      OASIS_HUB_ADMIN_KEY: ${OASIS_HUB_ADMIN_KEY:-demo-admin}
+      OASIS_HUB_TOKEN_SECRET: ${OASIS_HUB_TOKEN_SECRET:-demo-secret}
+    volumes:
+      - oasis-hub-data:/data
+    ports:
+      - "8700:8700"
+    restart: unless-stopped
+
+volumes:
+  odoo-db-data:
+  odoo-web-data:
+  oasis-hub-data:

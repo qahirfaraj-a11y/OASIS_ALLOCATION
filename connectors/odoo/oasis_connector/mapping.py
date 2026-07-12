@@ -110,17 +110,22 @@ def map_pos_order_line(line: dict, product: dict, *, order_date=None) -> dict:
 
 
 def map_stock_move(move: dict, product: dict) -> dict:
-    """stock.move → hub 'receipt' or 'adjustment' movement.
+    """stock.move → hub 'sale', 'receipt', or 'adjustment' movement.
 
-    Type is inferred from usage of source/dest locations: goods arriving from a
-    'supplier' location are receipts; everything else internal is an adjustment.
+    Type is inferred from source/dest location usage:
+      * → customer            → 'sale'     (sell-through; POS deliveries land here
+                                            too, so this covers POS and non-POS Odoo)
+      * supplier → internal   → 'receipt'  (goods in)
+      * anything else internal→ 'adjustment'(counts, wastage, internal transfer)
     move: {id, product_qty, date, location_id, location_dest_id,
            location_usage, location_dest_usage, price_unit?}
     """
     info = product_info(product)
     src_usage = move.get("location_usage")
     dest_usage = move.get("location_dest_usage")
-    if src_usage == "supplier" and dest_usage in ("internal", None):
+    if dest_usage == "customer":
+        mtype = SALE
+    elif src_usage == "supplier" and dest_usage in ("internal", None):
         mtype = RECEIPT
     else:
         mtype = ADJUSTMENT
