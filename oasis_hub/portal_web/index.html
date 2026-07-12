@@ -1,0 +1,356 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>OASIS · Retail Central Intelligence</title>
+<style>
+  :root{
+    --deep:#0B1020; --deep-2:#111834; --system:#00F5D4; --system-dim:#0a8f80;
+    --platform:#FFFFFF; --neutral:#E0E0E0; --muted:#8792ad; --line:#222c4d;
+    --danger:#ff6b6b; --warn:#ffcf5c;
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0; background:var(--deep); color:var(--neutral);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    -webkit-font-smoothing:antialiased;
+  }
+  .mono{font-family:"SF Mono",ui-monospace,Menlo,Consolas,monospace}
+  a{color:var(--system)}
+  .tag{
+    font-family:"SF Mono",ui-monospace,Menlo,Consolas,monospace; font-size:11px;
+    letter-spacing:.14em; color:var(--system); border:1px solid var(--system-dim);
+    padding:3px 9px; border-radius:4px; text-transform:uppercase; white-space:nowrap;
+  }
+  .ticker{font-family:"SF Mono",ui-monospace,monospace; font-size:11px;
+    letter-spacing:.12em; color:var(--muted); text-transform:uppercase}
+  .dot{color:var(--system)}
+
+  /* ── login ── */
+  #login{min-height:100vh; display:flex; align-items:center; justify-content:center; padding:24px}
+  .card{
+    width:100%; max-width:420px; background:linear-gradient(180deg,#0e1530,#0b1020);
+    border:1px solid var(--line); border-radius:16px; padding:34px;
+    box-shadow:0 24px 70px rgba(0,0,0,.55);
+  }
+  .brand{display:flex; align-items:center; gap:12px; margin-bottom:6px}
+  .brand h1{font-size:20px; margin:0; color:var(--platform); letter-spacing:.04em}
+  .sub{color:var(--muted); font-size:13px; margin:2px 0 26px}
+  label{display:block; font-size:12px; letter-spacing:.06em; text-transform:uppercase;
+    color:var(--muted); margin:16px 0 6px}
+  input{
+    width:100%; background:#0a0f24; border:1px solid var(--line); color:var(--platform);
+    padding:12px 14px; border-radius:9px; font-size:15px; outline:none;
+  }
+  input:focus{border-color:var(--system); box-shadow:0 0 0 3px rgba(0,245,212,.13)}
+  button.primary{
+    width:100%; margin-top:24px; background:var(--system); color:#04231f; border:0;
+    padding:13px; border-radius:9px; font-weight:700; font-size:15px; cursor:pointer;
+    letter-spacing:.03em;
+  }
+  button.primary:hover{filter:brightness(1.07)}
+  button.primary:disabled{opacity:.6; cursor:default}
+  .err{color:var(--danger); font-size:13px; margin-top:14px; min-height:18px}
+  .foot{margin-top:22px; color:var(--muted); font-size:11.5px; line-height:1.6}
+
+  /* ── app shell ── */
+  #app{display:none}
+  header.bar{
+    position:sticky; top:0; z-index:5; display:flex; align-items:center; gap:16px;
+    padding:14px 22px; background:rgba(11,16,32,.92); backdrop-filter:blur(8px);
+    border-bottom:1px solid var(--line);
+  }
+  header.bar .who{margin-left:auto; text-align:right}
+  header.bar .who b{color:var(--platform); font-size:14px}
+  header.bar .who div{color:var(--muted); font-size:11.5px}
+  .ghost{background:transparent; border:1px solid var(--line); color:var(--neutral);
+    padding:8px 14px; border-radius:8px; cursor:pointer; font-size:13px}
+  .ghost:hover{border-color:var(--system); color:var(--system)}
+  main{max-width:1180px; margin:0 auto; padding:22px}
+
+  .stripe{display:flex; align-items:center; gap:14px; flex-wrap:wrap; margin:4px 2px 20px}
+  .own{display:flex; gap:6px; flex-wrap:wrap}
+  .chip{font-size:11px; color:var(--neutral); background:#0e1530; border:1px solid var(--line);
+    padding:4px 9px; border-radius:20px}
+
+  .kpis{display:grid; grid-template-columns:repeat(4,1fr); gap:14px; margin-bottom:22px}
+  .kpi{background:linear-gradient(180deg,#0e1530,#0b1020); border:1px solid var(--line);
+    border-radius:13px; padding:18px}
+  .kpi .k{font-size:11px; letter-spacing:.09em; text-transform:uppercase; color:var(--muted)}
+  .kpi .v{font-size:30px; color:var(--platform); font-weight:700; margin-top:8px; line-height:1}
+  .kpi .u{font-size:12px; color:var(--system); margin-top:6px}
+
+  .panel{background:#0c1128; border:1px solid var(--line); border-radius:13px; margin-bottom:22px; overflow:hidden}
+  .panel .head{display:flex; align-items:center; gap:12px; padding:15px 18px; border-bottom:1px solid var(--line)}
+  .panel .head h2{font-size:14px; margin:0; color:var(--platform); letter-spacing:.03em}
+  .panel .head .count{margin-left:auto; color:var(--muted); font-size:12px}
+  .filters{display:flex; gap:12px; align-items:end; padding:14px 18px; border-bottom:1px solid var(--line); flex-wrap:wrap}
+  .filters .f{display:flex; flex-direction:column}
+  .filters label{margin:0 0 5px}
+  .filters select,.filters input{padding:9px 11px; font-size:13px; min-width:150px}
+  table{width:100%; border-collapse:collapse; font-size:13px}
+  th{ text-align:left; padding:11px 18px; color:var(--muted); font-weight:600; font-size:11px;
+    letter-spacing:.06em; text-transform:uppercase; border-bottom:1px solid var(--line); position:sticky}
+  td{padding:11px 18px; border-bottom:1px solid #161d3a; color:var(--neutral)}
+  tr:last-child td{border-bottom:0}
+  tr:hover td{background:#0e1530}
+  .num{text-align:right; font-variant-numeric:tabular-nums}
+  .masked{color:var(--warn); font-size:11px; border:1px solid #4a3d1a; background:#231d0c;
+    padding:2px 7px; border-radius:5px; margin-left:8px}
+  .badge-sale{color:#7effc8}.badge-receipt{color:#7ec8ff}
+  .badge-adjustment{color:#ffb37e}.badge-stock_on_hand{color:#c8a2ff}
+  .empty{padding:34px 18px; text-align:center; color:var(--muted)}
+  .scroll{max-height:52vh; overflow:auto}
+  .tablewrap{overflow-x:auto}
+  @media(max-width:820px){ .kpis{grid-template-columns:repeat(2,1fr)} }
+</style>
+</head>
+<body>
+
+<!-- ── LOGIN ─────────────────────────────────────────────── -->
+<section id="login">
+  <div class="card">
+    <div class="brand">
+      <span class="tag">RETAIL_CENTRAL_INTELLIGENCE</span>
+    </div>
+    <h1 style="color:var(--platform);font-size:22px;margin:12px 0 0">Supplier Portal</h1>
+    <div class="sub">Live sell-through for your products — powered by O.A.S.I.S.</div>
+
+    <form id="loginForm" autocomplete="off">
+      <label for="code">Supplier code</label>
+      <input id="code" name="code" required autocapitalize="off" spellcheck="false"/>
+      <label for="pw">Password</label>
+      <input id="pw" name="pw" type="password" required/>
+      <button class="primary" type="submit" id="loginBtn">Sign in</button>
+      <div class="err" id="loginErr"></div>
+    </form>
+    <div class="foot">
+      You will only ever see movement of <b>your own products</b>, and only in
+      stores that have chosen to share with you. Store identity is hidden unless
+      the store reveals it.
+    </div>
+  </div>
+</section>
+
+<!-- ── APP ───────────────────────────────────────────────── -->
+<div id="app">
+  <header class="bar">
+    <span class="tag">RETAIL_CENTRAL_INTELLIGENCE</span>
+    <span class="ticker" id="ticker"><span class="dot">●</span> LIVE</span>
+    <div class="who">
+      <b id="whoName">—</b>
+      <div id="whoCode" class="mono"></div>
+    </div>
+    <button class="ghost" id="logoutBtn">Sign out</button>
+  </header>
+
+  <main>
+    <div class="stripe">
+      <span class="ticker">Your products:</span>
+      <div class="own" id="ownChips"></div>
+    </div>
+
+    <div class="kpis" id="kpis"></div>
+
+    <div class="panel">
+      <div class="head">
+        <span class="tag">STORES</span>
+        <h2>Where your products are moving</h2>
+        <span class="count" id="storesCount"></span>
+      </div>
+      <div class="tablewrap">
+        <table>
+          <thead><tr>
+            <th>Store</th><th>Location</th>
+            <th class="num">Units sold</th><th class="num">SKUs</th><th>Last seen</th>
+          </tr></thead>
+          <tbody id="storesBody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="head">
+        <span class="tag">MOVEMENT</span>
+        <h2>Recent stock movement</h2>
+        <span class="count" id="movCount"></span>
+      </div>
+      <div class="filters">
+        <div class="f">
+          <label for="deptFilter">Department</label>
+          <select id="deptFilter"><option value="">All departments</option></select>
+        </div>
+        <div class="f">
+          <label for="sinceFilter">Since</label>
+          <input id="sinceFilter" type="date"/>
+        </div>
+        <div class="f">
+          <button class="ghost" id="applyBtn">Apply</button>
+        </div>
+      </div>
+      <div class="scroll tablewrap">
+        <table>
+          <thead><tr>
+            <th>When</th><th>Store</th><th>SKU</th><th>Dept</th>
+            <th>Type</th><th class="num">Qty</th><th class="num">Unit price</th>
+          </tr></thead>
+          <tbody id="movBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </main>
+</div>
+
+<script>
+(function(){
+  "use strict";
+  var API = "";                                   // same-origin: served by the hub
+  var TKEY = "oasis_portal_token";
+  var $ = function(id){ return document.getElementById(id); };
+
+  function token(){ return localStorage.getItem(TKEY); }
+  function setToken(t){ if(t){ localStorage.setItem(TKEY,t);} else { localStorage.removeItem(TKEY);} }
+
+  function authFetch(path, opts){
+    opts = opts || {};
+    opts.headers = Object.assign({}, opts.headers, {
+      "Authorization": "Bearer " + token()
+    });
+    return fetch(API + path, opts).then(function(r){
+      if(r.status === 401){ signOut(); throw new Error("session expired"); }
+      return r;
+    });
+  }
+
+  function fmt(n){
+    if(n === null || n === undefined) return "—";
+    return Number(n).toLocaleString(undefined,{maximumFractionDigits:2});
+  }
+  function money(n){ return (n===null||n===undefined) ? "—" : Number(n).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2}); }
+  function when(iso){
+    if(!iso) return "—";
+    var d = new Date(iso);
+    if(isNaN(d)) return iso;
+    return d.toLocaleString(undefined,{month:"short",day:"numeric",hour:"2-digit",minute:"2-digit"});
+  }
+  function esc(s){ return String(s==null?"":s).replace(/[&<>"]/g,function(c){
+    return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]; }); }
+
+  // ── login ──
+  $("loginForm").addEventListener("submit", function(e){
+    e.preventDefault();
+    var btn = $("loginBtn"); btn.disabled = true;
+    $("loginErr").textContent = "";
+    fetch(API + "/portal/login", {
+      method:"POST", headers:{"Content-Type":"application/json"},
+      body: JSON.stringify({ supplier_code: $("code").value.trim(), password: $("pw").value })
+    }).then(function(r){
+      if(!r.ok) return r.json().then(function(j){ throw new Error(j.detail || "Sign in failed"); });
+      return r.json();
+    }).then(function(j){
+      setToken(j.token); $("pw").value = ""; showApp();
+    }).catch(function(err){
+      $("loginErr").textContent = err.message || "Sign in failed";
+    }).finally(function(){ btn.disabled = false; });
+  });
+
+  $("logoutBtn").addEventListener("click", signOut);
+  function signOut(){ setToken(null); $("app").style.display="none"; $("login").style.display="flex"; }
+
+  // ── app ──
+  function showApp(){
+    $("login").style.display="none"; $("app").style.display="block";
+    loadMe(); loadStores(); loadMovements();
+  }
+
+  function loadMe(){
+    authFetch("/portal/me").then(function(r){ return r.json(); }).then(function(me){
+      $("whoName").textContent = me.name || me.supplier_code;
+      $("whoCode").textContent = me.supplier_code;
+      var chips = (me.ownership_rules || []).map(function(r){
+        return '<span class="chip">'+esc(r.match_type)+': '+esc(r.match_value)+'</span>';
+      }).join("");
+      $("ownChips").innerHTML = chips || '<span class="chip">no ownership rules yet</span>';
+    }).catch(function(){});
+  }
+
+  function loadStores(){
+    authFetch("/portal/stores").then(function(r){ return r.json(); }).then(function(rows){
+      $("storesCount").textContent = rows.length + " store(s)";
+      var tb = $("storesBody");
+      if(!rows.length){ tb.innerHTML = '<tr><td colspan="5" class="empty">No stores are sharing your products yet.</td></tr>'; return; }
+      tb.innerHTML = rows.map(function(s){
+        var mask = s.store_masked ? '<span class="masked">identity hidden</span>' : '';
+        return '<tr><td><b>'+esc(s.store_handle)+'</b>'+mask+'</td>'+
+               '<td>'+esc(s.city||"—")+'</td>'+
+               '<td class="num">'+fmt(s.units_sold)+'</td>'+
+               '<td class="num">'+fmt(s.distinct_skus)+'</td>'+
+               '<td>'+when(s.last_seen)+'</td></tr>';
+      }).join("");
+    }).catch(function(){});
+  }
+
+  function loadMovements(){
+    var q = [];
+    var dept = $("deptFilter").value, since = $("sinceFilter").value;
+    if(dept) q.push("department="+encodeURIComponent(dept));
+    if(since) q.push("since="+encodeURIComponent(since+"T00:00:00"));
+    q.push("limit=1000");
+    authFetch("/portal/movements?"+q.join("&")).then(function(r){ return r.json(); }).then(function(rows){
+      renderKPIs(rows); renderDeptOptions(rows); renderMovements(rows);
+    }).catch(function(){});
+  }
+
+  function renderKPIs(rows){
+    var unitsSold = 0, skus = {}, stores = {};
+    rows.forEach(function(m){
+      if(m.movement_type === "sale") unitsSold += (m.qty||0);
+      skus[m.sku_code] = 1; stores[m.store_handle] = 1;
+    });
+    var tiles = [
+      {k:"Units sold", v:fmt(unitsSold), u:"across shared stores"},
+      {k:"Distinct SKUs", v:fmt(Object.keys(skus).length), u:"of your products moving"},
+      {k:"Stores sharing", v:fmt(Object.keys(stores).length), u:"consenting outlets"},
+      {k:"Movements", v:fmt(rows.length), u:"in current view"}
+    ];
+    $("kpis").innerHTML = tiles.map(function(t){
+      return '<div class="kpi"><div class="k">'+t.k+'</div><div class="v">'+t.v+'</div><div class="u">'+t.u+'</div></div>';
+    }).join("");
+  }
+
+  var _deptsFilled = false;
+  function renderDeptOptions(rows){
+    if(_deptsFilled) return;
+    var depts = {}; rows.forEach(function(m){ if(m.department) depts[m.department]=1; });
+    var sel = $("deptFilter");
+    Object.keys(depts).sort().forEach(function(d){
+      var o = document.createElement("option"); o.value=d; o.textContent=d; sel.appendChild(o);
+    });
+    _deptsFilled = true;
+  }
+
+  function renderMovements(rows){
+    $("movCount").textContent = rows.length + " row(s)";
+    var tb = $("movBody");
+    if(!rows.length){ tb.innerHTML = '<tr><td colspan="7" class="empty">No movement matches this view.</td></tr>'; return; }
+    tb.innerHTML = rows.map(function(m){
+      var mask = m.store_masked ? '<span class="masked">hidden</span>' : '';
+      return '<tr><td>'+when(m.occurred_at)+'</td>'+
+             '<td>'+esc(m.store_handle)+mask+'</td>'+
+             '<td><b>'+esc(m.sku_code)+'</b><div style="color:var(--muted);font-size:11px">'+esc(m.sku_name||"")+'</div></td>'+
+             '<td>'+esc(m.department||"—")+'</td>'+
+             '<td class="badge-'+esc(m.movement_type)+'">'+esc(m.movement_type)+'</td>'+
+             '<td class="num">'+fmt(m.qty)+'</td>'+
+             '<td class="num">'+money(m.unit_price)+'</td></tr>';
+    }).join("");
+  }
+
+  $("applyBtn").addEventListener("click", loadMovements);
+
+  // boot
+  if(token()){ showApp(); } else { $("login").style.display="flex"; }
+})();
+</script>
+</body>
+</html>

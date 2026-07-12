@@ -139,6 +139,19 @@ def test_portal_rejects_no_session(client):
     assert client.get("/portal/movements").status_code == 401
 
 
+def test_portal_web_app_is_served(client):
+    r = client.get("/portal-app/")
+    assert r.status_code == 200
+    assert "RETAIL_CENTRAL_INTELLIGENCE" in r.text
+    assert "/portal/login" in r.text          # the app talks to the real API
+
+
+def test_root_redirects_to_portal(client):
+    r = client.get("/", follow_redirects=False)
+    assert r.status_code in (307, 308)
+    assert "/portal-app/" in r.headers.get("location", "")
+
+
 def test_portal_rejects_bad_password(client):
     _provision(client)
     r = client.post("/portal/login",

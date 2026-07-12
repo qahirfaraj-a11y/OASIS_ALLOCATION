@@ -13,9 +13,13 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import RedirectResponse
+from fastapi.staticfiles import StaticFiles
 
 from .db import init_db
 from .routers import admin, ingest, portal
+
+_PORTAL_WEB = os.path.join(os.path.dirname(__file__), "portal_web")
 
 try:
     from oasis.logging_config import configure_logging
@@ -61,6 +65,12 @@ app.include_router(admin.router)
 app.include_router(ingest.router)
 app.include_router(portal.router)
 
+# The supplier-facing Retail Central Intelligence web app. Served same-origin as
+# the /portal API (so no CORS in play) — suppliers visit /portal-app/.
+if os.path.isdir(_PORTAL_WEB):
+    app.mount("/portal-app", StaticFiles(directory=_PORTAL_WEB, html=True),
+              name="portal-app")
+
 
 @app.get("/health")
 def health():
@@ -69,4 +79,12 @@ def health():
 
 @app.get("/")
 def root():
+    # Send humans to the supplier portal; keep the JSON descriptor at /info.
+    if os.path.isdir(_PORTAL_WEB):
+        return RedirectResponse(url="/portal-app/")
     return {"service": "OASIS Cloud Hub", "docs": "/docs"}
+
+
+@app.get("/info")
+def info():
+    return {"service": "OASIS Cloud Hub", "version": app.version, "docs": "/docs"}
