@@ -7,10 +7,18 @@ Intelligence portal and watching their own products move, sourced from Odoo.
 ```
    Odoo (POS + stock)  ──addon push──▶  OASIS Cloud Hub  ──▶  Supplier Portal
    :8069                                 :8700                  :8700/portal-app
-        ▲                                   ▲
+        ▲  │                                 ▲
+        │  └── OASIS app menu (iframe) ──▶ Intelligence :8510 / Operations :8500
+        │                                    / Command Center :8501
         │ configure_and_sync.py             │ bootstrap_hub.py
         └── ir.config_parameter + seed      └── tenant/store/token/consent
 ```
+
+Two things are live inside/around Odoo once this is set up: **data flows out**
+(Odoo → hub → supplier portal, above) and **OASIS surfaces in** — an "OASIS"
+app appears in Odoo's own app switcher with three menu entries (Intelligence,
+Operations, Command Center) that open the real OASIS consoles live, embedded in
+Odoo's content pane.
 
 ## The workflow at a glance
 
@@ -19,10 +27,12 @@ Intelligence portal and watching their own products move, sourced from Odoo.
 | 1 | Start the stack | `docker compose -f docker-compose.odoo.yml up -d --build` | Postgres, Odoo (+connector installed), and the hub are running |
 | 2 | Provision the hub | `python bootstrap_hub.py` | tenant, store, **ingest token**, supplier, ownership, consent |
 | 3 | Wire + seed Odoo | `python configure_and_sync.py` | addon pointed at hub, sample Odoo movement created, first sync pushed |
-| 4 | See it live | open `http://localhost:8700/portal-app/` | log in **COKE / demo123** → live Odoo movement |
+| 4 | See it live (portal) | open `http://localhost:8700/portal-app/` | log in **COKE / demo123** → live Odoo movement |
+| 5 | See it live (in Odoo) | log into Odoo, click the **OASIS** app | Intelligence / Operations / Command Center open embedded, live |
 
 That's the whole loop. Steps 2–3 are one-time; after that the addon's 30-minute
-cron keeps the hub current on its own.
+cron keeps the hub current on its own. Step 5 needs the OASIS consoles running
+and reachable from your browser — see "OASIS inside Odoo" below.
 
 ---
 
@@ -87,6 +97,31 @@ You'll see KPI tiles (units sold, SKUs, stores, movements), a stores panel, and
 a movement table — every row sourced from Odoo. The privacy contract is live: a
 supplier sees only their own SKUs, only in consenting stores, identity masked
 unless revealed.
+
+## Step 5 — OASIS inside Odoo (Intelligence / Operations / Command Center)
+
+The `oasis_connector` addon adds an **OASIS** app to Odoo's own app switcher
+with three menu entries. Each opens its console live, embedded in an iframe in
+Odoo's content pane — an Odoo user never leaves Odoo.
+
+1. Start the three consoles so the iframes have something to load:
+   ```bash
+   python entrypoint.py --mode intel                    # :8510 Intelligence
+   python entrypoint.py --mode shell                     # :8500 Operations
+   python entrypoint.py --mode dashboard --dashboard command   # :8501 Command Center
+   ```
+2. (Only if they run somewhere other than `localhost`) set the URLs in Odoo:
+   **Settings → OASIS Connector → Consoles**, or via API:
+   ```python
+   env["ir.config_parameter"].sudo().set_param("oasis.console_intel_url", "http://<host>:8510")
+   ```
+3. Log into Odoo and click the **OASIS** app tile (or **Home Menu → OASIS**).
+   Pick Intelligence, Operations, or Command Center — the real console renders
+   inside Odoo, branded, live.
+
+The iframe URL resolves in the **user's browser**, not inside the Odoo
+container — so the consoles can run on the host, in a separate container, or on
+another server entirely; Odoo just needs to be told where to point.
 
 ## Verify / troubleshoot
 
