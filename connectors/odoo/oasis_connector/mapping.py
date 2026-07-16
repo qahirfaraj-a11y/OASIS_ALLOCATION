@@ -137,7 +137,9 @@ def map_stock_move(move: dict, product: dict) -> dict:
         "department": info["department"],
         "movement_type": mtype,
         "qty": _num(move.get("product_qty"), 0.0),
-        "unit_price": _num(move.get("price_unit"), info["list_price"]),
+        # price_unit == 0 on a stock.move means "not costed", not "free" —
+        # fall back to the product's list price so suppliers see real value
+        "unit_price": _num(move.get("price_unit")) or info["list_price"],
         "occurred_at": _to_iso(move.get("date")),
         "source_ref": f"odoo:stock.move:{move['id']}",
     }

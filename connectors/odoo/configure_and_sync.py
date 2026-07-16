@@ -4,7 +4,7 @@ the first sync — so the supplier portal shows live Odoo-sourced movement.
 
 Runs on the HOST against Odoo's XML-RPC API (localhost:8069). It:
   1. writes the addon settings (hub URL, ingest token, store code, enable) as
-     ir.config_parameter — the same values the Settings → OASIS Connector UI sets;
+     ir.config_parameter — the same values the Settings -> OASIS Connector UI sets;
   2. seeds a Coca-Cola supplier + a few products and posts real done stock.moves
      to a customer location (sell-through) over the last two weeks;
   3. triggers oasis.sync.run_sync() inside Odoo, which maps + pushes to the hub.
@@ -68,7 +68,7 @@ def set_addon_config(ex, token, store_code):
     }
     for k, v in params.items():
         ex("ir.config_parameter", "set_param", [k, v])
-    print(f"  addon configured → hub {HUB_URL_IN_NETWORK}, store {store_code}")
+    print(f"  addon configured -> hub {HUB_URL_IN_NETWORK}, store {store_code}")
 
 
 def seed_movements(ex):
@@ -78,7 +78,7 @@ def seed_movements(ex):
                                "supplier_rank": 1})
     categ = _find_or_create(ex, "product.category", [["name", "=", DEPARTMENT]],
                             {"name": DEPARTMENT})
-    # locations: internal stock → customer (a sale / sell-through)
+    # locations: internal stock -> customer (a sale / sell-through)
     src = ex("stock.location", "search", [[["usage", "=", "internal"]]], {"limit": 1})
     dst = ex("stock.location", "search", [[["usage", "=", "customer"]]], {"limit": 1})
     if not src or not dst:
@@ -136,7 +136,7 @@ def main(argv=None):
     state = json.load(open(STATE))
     token, store_code = state["ingest_token"], state["store_code"]
 
-    print(f"→ connecting to Odoo at {args.odoo} (db={args.db})")
+    print(f"-> connecting to Odoo at {args.odoo} (db={args.db})")
     ex, uid = connect(args.odoo, args.db, args.user, args.password)
     print(f"  authenticated as uid {uid}")
 
@@ -144,7 +144,7 @@ def main(argv=None):
     if not args.no_seed:
         seed_movements(ex)
 
-    print("→ running oasis.sync inside Odoo…")
+    print("-> running oasis.sync inside Odoo…")
     result = ex("oasis.sync", "run_sync", [])
     print(f"  sync result: {result}")
 

@@ -28,19 +28,19 @@ Odoo (POS + stock) ──addon/XML-RPC──▶ OASIS CLOUD HUB ──▶ Suppli
                               (salt lives HERE only)
 ```
 
-Every piece is **built, tested, and committed**. The Odoo→hub→portal pipeline is
-proven end-to-end **in-process** (real mapper → real push client → real hub app
-→ real visibility filter → supplier sees only their own products), and the
-portal is proven **live in a real browser** against a natively-running hub with
-seeded data. The one thing that has **not** happened is the full
-containerised bring-up — a real Odoo server container pushing to the hub
-container — because the development machine's Docker Desktop is in a crash loop
-(§6, environment fault, not OASIS). The harness for that run is finished and
-committed; it is a three-command procedure once any healthy Docker (or a hosted
-Odoo trial) is available.
+Every piece is **built, tested, committed — and now proven at full stack (L4)**.
+On 2026-07-16, after the Docker Desktop fault was cleared (§6), the complete
+containerised run executed successfully: a **real Odoo 16 server** (fresh DB,
+connector addon installed by `odoo-init`) was configured over XML-RPC, seeded
+with 56 customer-bound stock moves, and its **addon pushed 79 movements from
+inside the Odoo container to the hub container** (`accepted: 79, duplicates: 0`).
+The Coca-Cola supplier then logged into the portal in a real browser and saw
+exactly **56 movements / 1,210 units / 4 SKUs** — their own products only; the
+23 movements belonging to other products (Odoo demo data) were correctly
+invisible. The privacy contract held with real-world noise in the pipe.
 
-We are at: **"the online product exists and demonstrably works; the
-containerised live demo is one healthy Docker engine away."**
+We are at: **"the online product exists and is demonstrated end-to-end,
+container to browser."**
 
 ---
 
@@ -102,8 +102,8 @@ temp DB) · **L3** live process + real browser · **L4** full containerised stac
 | Odoo → hub → supplier (full slice) | **L2** | fabricated Odoo POS lines → real mapper → real push client → hub TestClient → supplier login sees ONLY owned SKU, masked per consent |
 | XML-RPC backfill (no-addon path) | **L2** | same slice through `xmlrpc_sync.backfill` against a fake `execute_kw` |
 | Supplier portal web app | **L3** | logged in via real browser against live hub: KPIs (2,340 units / 4 SKUs / 2 stores / 112 movements), named + masked stores, filters working |
-| Odoo addon (manifest, settings UI, cron, ACL) | **L1 (static) / ✗ (runtime)** | manifest well-formed + data files exist; **never installed into a running Odoo** — models/*.py imports `odoo`, so it is exercised only by the L4 run |
-| Containerised bring-up (`docker-compose.odoo.yml`) | **✗ (blocked)** | compose config validates; never executed — Docker Desktop crash loop (§6). This is the only ✗ in the chapter. |
+| Odoo addon (manifest, settings UI, cron, ACL) | **L4** | installed by `odoo-init` into a real Odoo 16; `oasis.sync.run_sync()` executed in-container and pushed to the hub |
+| Containerised bring-up (`docker-compose.odoo.yml`) | **L4** | executed 2026-07-16: postgres + odoo-init + odoo + hub all healthy; 79 movements Odoo→hub; supplier saw exactly the 56 owned ones in the browser. (Two fixes surfaced: Odoo image needs `HOST/USER/PASSWORD` env — CLI `--db_host` alone fails its entrypoint wait; scripts' `→` chars crash cp1252 consoles — now ASCII.) |
 | Client release (whitelist zip) | cold-start proven | 8/8 stages on the 145-file / 0.5 MB zip; copy on the Desktop |
 
 **Test ledger:** new-surface suite (hub api 9 · hub visibility 14 · odoo
@@ -162,7 +162,12 @@ Odoo. After that the addon's 30-minute cron keeps the hub current unattended.
 
 ---
 
-## 6. The Docker blocker — diagnosis and state
+## 6. The Docker blocker — diagnosis and resolution
+
+> **RESOLVED 2026-07-16.** After a Windows reboot cleared the kernel-held socket
+> and Docker Desktop was updated/restarted (engine came back as 29.6.1), the
+> engine stayed up and the full L4 run in §5 executed successfully. The
+> diagnosis below is kept for the record in case the fault recurs.
 
 **Symptom:** Docker Desktop engine crash-loops at startup with
 `initializing Inference manager: … remove …\Docker\run\dockerInference: The
@@ -201,9 +206,7 @@ Odoo (the compose stack, or a customer's server).
 
 ## 7. Remaining work, ranked
 
-1. **Execute the L4 live bring-up** (§5) once Docker is healthy — the only
-   unproven piece is the addon running inside a real Odoo (`odoo-init` installs
-   it; its runtime code paths mirror the tested XML-RPC collectors).
+1. ~~Execute the L4 live bring-up~~ — **done 2026-07-16** (§1, §3).
 2. **Odoo Apps store submission** — the addon is in submission shape; swap
    `static/description/banner.png` placeholder art, register the vendor
    account, submit. (OPL-1 license declared in the manifest.)
@@ -267,14 +270,14 @@ chapter; `MEMORY.md` indexes it.
 
 ## 9. Bottom line
 
-The online expansion is **architecturally complete and functionally proven** at
-every level our environment allowed: the privacy model is enforced in one
-audited chokepoint and demonstrated through a real browser; licensing is now a
-server capability with the salt properly caged; the Odoo connector exists in
-both marketplace-addon and zero-install forms sharing one tested core; and the
-supplier-facing product — Retail Central Intelligence — is a real website a
-supplier can log into today. The single outstanding proof, the containerised
-real-Odoo run, is blocked by a machine-local Docker fault with a written,
-committed, three-command procedure waiting on the other side. Sell it as: *the
-online platform works; the last demo is an ops errand, not an engineering
-risk.*
+The online expansion is **complete and proven end-to-end at full stack**: a
+real Odoo server, with the OASIS connector installed the way a customer would
+install it, streamed real records to the Cloud Hub, and a supplier logged into
+the Retail Central Intelligence portal in a browser and saw exactly — and only
+— their own products, with real Odoo demo-data noise correctly filtered out.
+The privacy model is enforced in one audited chokepoint; licensing is a server
+capability with the salt properly caged; the connector ships in both
+marketplace-addon and zero-install forms over one tested core. Sell it as:
+*the online platform works, demonstrated container-to-browser; what remains is
+distribution (Apps-store submission, more ERPs) and production hardening — not
+proof.*

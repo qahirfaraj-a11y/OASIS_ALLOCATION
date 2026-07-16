@@ -57,7 +57,7 @@ def main(argv=None):
     args = p.parse_args(argv)
     hub, admin = args.hub.rstrip("/"), args.admin
 
-    print(f"→ provisioning hub at {hub}")
+    print(f"-> provisioning hub at {hub}")
     st, _ = _post(hub, admin, "/admin/tenants", TENANT)
     if not _ok(st):
         print(f"  ! tenant failed ({st}) — is the hub up? try: curl {hub}/health")

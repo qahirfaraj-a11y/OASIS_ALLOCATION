@@ -72,6 +72,15 @@ def test_map_stock_move_to_customer_is_sale():
     assert m["movement_type"] == "sale"       # sell-through, POS or not
 
 
+def test_map_stock_move_zero_price_falls_back_to_list_price():
+    """price_unit=0 on a stock.move means 'not costed' — use list price."""
+    move = {"id": 10, "product_qty": 3, "date": "2026-07-02 10:00:00",
+            "location_usage": "internal", "location_dest_usage": "customer",
+            "price_unit": 0.0}
+    m = mapping.map_stock_move(move, _coke_product())
+    assert m["unit_price"] == 55.0
+
+
 def test_map_stock_move_internal_is_adjustment():
     move = {"id": 8, "product_qty": -3, "date": "2026-07-02 09:00:00",
             "location_usage": "internal", "location_dest_usage": "inventory"}

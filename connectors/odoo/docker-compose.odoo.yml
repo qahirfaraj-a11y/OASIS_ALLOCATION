@@ -40,6 +40,10 @@ services:
     depends_on:
       odoo-db:
         condition: service_healthy
+    environment:              # the image's entrypoint waits on HOST (default "db")
+      HOST: odoo-db
+      USER: odoo
+      PASSWORD: odoo
     volumes:
       - ./oasis_connector:/mnt/extra-addons/oasis_connector:ro
       - odoo-web-data:/var/lib/odoo
@@ -56,6 +60,10 @@ services:
         condition: service_healthy
       odoo-init:
         condition: service_completed_successfully
+    environment:
+      HOST: odoo-db
+      USER: odoo
+      PASSWORD: odoo
     volumes:
       - ./oasis_connector:/mnt/extra-addons/oasis_connector:ro
       - odoo-web-data:/var/lib/odoo
