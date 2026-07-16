@@ -31,6 +31,17 @@ class ResConfigSettings(models.TransientModel):
     oasis_send_on_hand = fields.Boolean(
         string="Send stock-on-hand snapshots",
         config_parameter="oasis.send_on_hand", default=False)
+    oasis_console_intel_url = fields.Char(
+        string="Intelligence Console URL",
+        config_parameter="oasis.console_intel_url",
+        help="Where the OASIS Intelligence console is served "
+             "(reachable from the USER'S browser).")
+    oasis_console_ops_url = fields.Char(
+        string="Operations Console URL",
+        config_parameter="oasis.console_ops_url")
+    oasis_console_command_url = fields.Char(
+        string="Command Center URL",
+        config_parameter="oasis.console_command_url")
 
     def action_oasis_sync_now(self):
         """Manual 'Sync now' button — runs one incremental push immediately."""

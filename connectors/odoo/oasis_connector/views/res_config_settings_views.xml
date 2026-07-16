@@ -42,6 +42,25 @@
                             <field name="oasis_send_on_hand"/>
                             <label for="oasis_send_on_hand" string="Stock-on-hand snapshots"/>
                         </setting>
+                        <setting string="Consoles (OASIS menu)">
+                            <div class="content-group">
+                                <div class="mt16">
+                                    <label for="oasis_console_intel_url" string="Intelligence URL"/>
+                                    <field name="oasis_console_intel_url"
+                                           placeholder="http://localhost:8510"/>
+                                </div>
+                                <div class="mt16">
+                                    <label for="oasis_console_ops_url" string="Operations URL"/>
+                                    <field name="oasis_console_ops_url"
+                                           placeholder="http://localhost:8500"/>
+                                </div>
+                                <div class="mt16">
+                                    <label for="oasis_console_command_url" string="Command Center URL"/>
+                                    <field name="oasis_console_command_url"
+                                           placeholder="http://localhost:8501"/>
+                                </div>
+                            </div>
+                        </setting>
                         <setting string="Sync now">
                             <button name="action_oasis_sync_now" type="object"
                                     string="Sync now" class="btn-primary"/>

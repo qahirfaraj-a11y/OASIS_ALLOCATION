@@ -159,3 +159,35 @@ class OasisSync(models.AbstractModel):
             self.run_sync()
         except Exception:                       # never let a push error break the cron
             _logger.exception("OASIS scheduled sync failed")
+
+    # ── consoles inside Odoo ─────────────────────────────────────────────
+    _CONSOLES = {
+        "intel": ("OASIS Intelligence", "oasis.console_intel_url",
+                  "http://localhost:8510"),
+        "ops": ("OASIS Operations", "oasis.console_ops_url",
+                "http://localhost:8500"),
+        "command": ("OASIS Command Center", "oasis.console_command_url",
+                    "http://localhost:8501"),
+    }
+
+    @api.model
+    def open_console(self, kind):
+        """Client action embedding an OASIS console (Streamlit) in Odoo.
+
+        The iframe URL resolves in the USER'S BROWSER, so the console just has
+        to be reachable from the user's machine — it can run beside Odoo on the
+        host, in a container, or on another server.
+
+        Note: ir.model.access.csv grants base.group_user WRITE (not just read)
+        on this AbstractModel — Odoo's 'code' server actions require model
+        write access to execute at all, even though oasis.sync stores no
+        records, so there's nothing a write grant actually exposes.
+        """
+        name, param, default = self._CONSOLES[kind]
+        base = (self._param(param) or default).rstrip("/")
+        return {
+            "type": "ir.actions.client",
+            "tag": "oasis_embed",
+            "name": name,
+            "params": {"url": base + "/?embed=true"},
+        }

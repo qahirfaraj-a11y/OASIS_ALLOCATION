@@ -1,6 +1,6 @@
 {
     "name": "OASIS Retail Intelligence Connector",
-    "version": "16.0.1.0.0",
+    "version": "16.0.1.1.0",
     "summary": "Stream stock movement to OASIS — algorithmic retail intelligence.",
     "description": """
 OASIS Retail Intelligence Connector
@@ -25,8 +25,15 @@ Configure under Settings → OASIS Connector.
         "security/ir.model.access.csv",
         "data/ir_cron.xml",
         "views/res_config_settings_views.xml",
+        "views/oasis_menus.xml",
     ],
+    "assets": {
+        "web.assets_backend": [
+            "oasis_connector/static/src/js/oasis_embed.js",
+            "oasis_connector/static/src/xml/oasis_embed.xml",
+        ],
+    },
     "images": ["static/description/banner.png"],
     "installable": True,
-    "application": False,
+    "application": True,
 }

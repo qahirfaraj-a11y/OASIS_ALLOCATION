@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Server actions resolve the configured console URL at click time -->
+    <record id="action_oasis_intel" model="ir.actions.server">
+        <field name="name">OASIS Intelligence</field>
+        <field name="model_id" ref="model_oasis_sync"/>
+        <field name="state">code</field>
+        <field name="code">action = env["oasis.sync"].open_console("intel")</field>
+    </record>
+    <record id="action_oasis_ops" model="ir.actions.server">
+        <field name="name">OASIS Operations</field>
+        <field name="model_id" ref="model_oasis_sync"/>
+        <field name="state">code</field>
+        <field name="code">action = env["oasis.sync"].open_console("ops")</field>
+    </record>
+    <record id="action_oasis_command" model="ir.actions.server">
+        <field name="name">OASIS Command Center</field>
+        <field name="model_id" ref="model_oasis_sync"/>
+        <field name="state">code</field>
+        <field name="code">action = env["oasis.sync"].open_console("command")</field>
+    </record>
+
+    <!-- The OASIS app: one top-level menu, three consoles -->
+    <menuitem id="menu_oasis_root" name="OASIS" sequence="60"
+              web_icon="oasis_connector,static/description/icon.png"/>
+    <menuitem id="menu_oasis_intel" name="Intelligence"
+              parent="menu_oasis_root" action="action_oasis_intel" sequence="10"/>
+    <menuitem id="menu_oasis_ops" name="Operations"
+              parent="menu_oasis_root" action="action_oasis_ops" sequence="20"/>
+    <menuitem id="menu_oasis_command" name="Command Center"
+              parent="menu_oasis_root" action="action_oasis_command" sequence="30"/>
+</odoo>
