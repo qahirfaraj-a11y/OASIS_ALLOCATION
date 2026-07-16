@@ -138,3 +138,6 @@ kapa_sku_intelligence_report.md
 Supplier_Master_Intelligence_Report.docx
 Supplier_Rhythm_Master.docx
 Unique_SKU_Ecosystem_Analysis.docx
+
+# Hub demo provisioning state (contains a live ingest token)
+connectors/odoo/.hub_state.json
