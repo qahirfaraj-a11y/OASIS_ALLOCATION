@@ -249,7 +249,12 @@ def confirm_button(label: str, key: str, confirm_label: str = "Confirm",
 
 
 # ── internals ────────────────────────────────────────────────────────────
-def _st():
+def _st(st_module=None):
+    # Return the caller's streamlit module if supplied (spec_tag/status_ticker
+    # pass it through); otherwise import the global one. Accepting the optional
+    # arg keeps _st(st_module) and the `st_module or _st()` idiom both valid.
+    if st_module is not None:
+        return st_module
     import streamlit as st
     return st
 

@@ -80,6 +80,23 @@ class TestComponentHtml:
         h = C._html_metric_card("X", "1", status="danger")
         assert theme.PALETTE.danger in h
 
+    def test_spec_tag_and_ticker_accept_st_module(self):
+        # Regression: spec_tag/status_ticker call _st(st_module); _st must accept
+        # the optional module or the first-run onboarding wizard crashes at render
+        # (TypeError: _st() takes 0 positional arguments but 1 was given).
+        class FakeSt:
+            def __init__(self):
+                self.html = []
+
+            def markdown(self, h, **kw):
+                self.html.append(h)
+
+        st = FakeSt()
+        C.spec_tag("FIRST-RUN SETUP", hot=True, st_module=st)
+        C.status_ticker([{"label": "A", "value": "B"}], st_module=st)
+        assert len(st.html) == 2
+        assert "FIRST-RUN SETUP" in st.html[0]
+
     def test_supplier_chip_maps_classification(self):
         assert "Reliable" in C._html_supplier_status_chip("RELIABLE")
         assert "Hostile" in C._html_supplier_status_chip("hostile")
