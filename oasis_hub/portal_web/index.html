@@ -103,6 +103,18 @@
   .empty{padding:34px 18px; text-align:center; color:var(--muted)}
   .scroll{max-height:52vh; overflow:auto}
   .tablewrap{overflow-x:auto}
+  .riskgrid{display:grid; grid-template-columns:repeat(auto-fill,minmax(240px,1fr));
+    gap:12px; padding:16px 18px}
+  .riskcard{background:#231216; border:1px solid #5a2530; border-radius:11px; padding:14px 16px}
+  .riskcard.ok{background:#0e1f16; border-color:#1f4a34}
+  .riskcard .sku{color:var(--platform); font-weight:700; font-size:14px}
+  .riskcard .store{color:var(--muted); font-size:11.5px; margin-top:2px}
+  .riskcard .cover{font-size:26px; font-weight:700; margin-top:8px; color:#ff8a8a}
+  .riskcard .cover small{font-size:12px; color:var(--muted); font-weight:400}
+  .riskcard .rate{font-size:11.5px; color:var(--neutral); margin-top:4px}
+  .allclear{padding:22px 18px; color:#7effc8; font-size:13px}
+  .trend-up{color:#7effc8}.trend-down{color:#ff8a8a}.trend-flat{color:var(--muted)}
+  .trend-new{color:var(--system)}
   @media(max-width:820px){ .kpis{grid-template-columns:repeat(2,1fr)} }
 </style>
 </head>
@@ -152,6 +164,33 @@
     </div>
 
     <div class="kpis" id="kpis"></div>
+
+    <!-- OVERVIEW (hub-native): stockout risk + velocity — the reason to log in -->
+    <div class="panel" id="riskWrap">
+      <div class="head">
+        <span class="tag" style="border-color:#6b2a2a;color:#ff9a9a">STOCKOUT RISK</span>
+        <h2>Your products about to run dry</h2>
+        <span class="count" id="riskCount"></span>
+      </div>
+      <div id="riskBody" class="riskgrid"></div>
+    </div>
+
+    <div class="panel">
+      <div class="head">
+        <span class="tag">VELOCITY</span>
+        <h2>Your top movers · last <span id="ovWindow">28</span> days</h2>
+        <span class="count" id="moversCount"></span>
+      </div>
+      <div class="tablewrap">
+        <table>
+          <thead><tr>
+            <th>SKU</th><th>Dept</th>
+            <th class="num">Units/day</th><th class="num">Units</th><th>Trend (7d)</th>
+          </tr></thead>
+          <tbody id="moversBody"></tbody>
+        </table>
+      </div>
+    </div>
 
     <div class="panel">
       <div class="head">
@@ -261,7 +300,68 @@
   // ── app ──
   function showApp(){
     $("login").style.display="none"; $("app").style.display="block";
-    loadMe(); loadStores(); loadMovements();
+    loadMe(); loadOverview(); loadStores(); loadMovements();
+  }
+
+  function loadOverview(){
+    authFetch("/portal/overview").then(function(r){ return r.json(); }).then(function(o){
+      var k = o.kpis || {};
+      $("ovWindow").textContent = o.window_days;
+      renderKpiTiles([
+        {k:"Avg units / day", v:fmt(k.avg_daily_units), u:"across shared stores"},
+        {k:"SKUs moving", v:fmt(k.skus), u:"of your products"},
+        {k:"Stores sharing", v:fmt(k.stores), u:"consenting outlets"},
+        {k:"At stockout risk", v:fmt(k.at_risk), u:"SKU · store lines"}
+      ]);
+      renderRisk(o.stockout_risk || []);
+      renderMovers(o.top_movers || []);
+    }).catch(function(){});
+  }
+
+  function renderRisk(rows){
+    $("riskCount").textContent = rows.length + " alert(s)";
+    var b = $("riskBody");
+    if(!rows.length){
+      b.innerHTML = '<div class="riskcard ok"><div class="allclear">✓ No stockout '
+        + 'risk right now — every shared store has healthy cover of your SKUs.</div></div>';
+      return;
+    }
+    b.innerHTML = rows.map(function(r){
+      var mask = r.store_masked ? ' · hidden' : '';
+      return '<div class="riskcard">'
+        + '<div class="sku">'+esc(r.sku_code)+'</div>'
+        + '<div class="store">'+esc(r.store_handle)+mask+'</div>'
+        + '<div class="cover">'+fmt(r.days_of_cover)+' <small>days of cover</small></div>'
+        + '<div class="rate">'+fmt(r.on_hand)+' on hand · selling '+fmt(r.ads)+'/day</div>'
+        + '</div>';
+    }).join("");
+  }
+
+  function renderMovers(rows){
+    $("moversCount").textContent = rows.length + " SKU(s)";
+    var tb = $("moversBody");
+    if(!rows.length){ tb.innerHTML = '<tr><td colspan="5" class="empty">No sales in this window yet.</td></tr>'; return; }
+    tb.innerHTML = rows.slice(0,25).map(function(m){
+      return '<tr><td><b>'+esc(m.sku_code)+'</b><div style="color:var(--muted);font-size:11px">'
+        + esc(m.sku_name||"")+'</div></td>'
+        + '<td>'+esc(m.department||"—")+'</td>'
+        + '<td class="num">'+fmt(m.ads)+'</td>'
+        + '<td class="num">'+fmt(m.units)+'</td>'
+        + '<td>'+trendHtml(m.trend_pct)+'</td></tr>';
+    }).join("");
+  }
+
+  function trendHtml(t){
+    if(t === null || t === undefined) return '<span class="trend-new">● new</span>';
+    if(t > 2) return '<span class="trend-up">▲ '+fmt(t)+'%</span>';
+    if(t < -2) return '<span class="trend-down">▼ '+fmt(Math.abs(t))+'%</span>';
+    return '<span class="trend-flat">— flat</span>';
+  }
+
+  function renderKpiTiles(tiles){
+    $("kpis").innerHTML = tiles.map(function(t){
+      return '<div class="kpi"><div class="k">'+t.k+'</div><div class="v">'+t.v+'</div><div class="u">'+t.u+'</div></div>';
+    }).join("");
   }
 
   function loadMe(){
@@ -298,25 +398,8 @@
     if(since) q.push("since="+encodeURIComponent(since+"T00:00:00"));
     q.push("limit=1000");
     authFetch("/portal/movements?"+q.join("&")).then(function(r){ return r.json(); }).then(function(rows){
-      renderKPIs(rows); renderDeptOptions(rows); renderMovements(rows);
+      renderDeptOptions(rows); renderMovements(rows);
     }).catch(function(){});
-  }
-
-  function renderKPIs(rows){
-    var unitsSold = 0, skus = {}, stores = {};
-    rows.forEach(function(m){
-      if(m.movement_type === "sale") unitsSold += (m.qty||0);
-      skus[m.sku_code] = 1; stores[m.store_handle] = 1;
-    });
-    var tiles = [
-      {k:"Units sold", v:fmt(unitsSold), u:"across shared stores"},
-      {k:"Distinct SKUs", v:fmt(Object.keys(skus).length), u:"of your products moving"},
-      {k:"Stores sharing", v:fmt(Object.keys(stores).length), u:"consenting outlets"},
-      {k:"Movements", v:fmt(rows.length), u:"in current view"}
-    ];
-    $("kpis").innerHTML = tiles.map(function(t){
-      return '<div class="kpi"><div class="k">'+t.k+'</div><div class="v">'+t.v+'</div><div class="u">'+t.u+'</div></div>';
-    }).join("");
   }
 
   var _deptsFilled = false;

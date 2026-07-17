@@ -148,6 +148,19 @@ def visible_movements(
     return out
 
 
+def supplier_overview(db: Session, supplier_id: str, *,
+                      window_days: int = 28, risk_days: float = 7.0) -> dict:
+    """Hub-native Overview signals (velocity, days-of-cover, stockout risk).
+
+    Runs the same ownership+consent gate as everything else, then hands the
+    permitted movements to the pure ``analytics`` layer. No on-prem data needed.
+    """
+    from . import analytics
+    movements = visible_movements(db, supplier_id, limit=200_000)
+    return analytics.compute_overview(movements, window_days=window_days,
+                                      risk_days=risk_days)
+
+
 def supplier_store_summary(db: Session, supplier_id: str) -> List[dict]:
     """Per-store rollup a supplier may see: unit velocity + outlet handle.
 

@@ -10,7 +10,7 @@ Exercises the whole vertical slice against a temp SQLite hub DB:
 import os
 import sys
 import importlib
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 import pytest
 
@@ -97,6 +97,39 @@ def test_full_flow_supplier_sees_only_owned(client):
     assert skus == {"COKE_500"}, "supplier saw a non-owned SKU"
     assert rows[0]["store_masked"] is True
     assert rows[0]["store_handle"].startswith("Store #")
+
+
+def test_portal_overview_velocity_and_stockout_risk(client):
+    store, tok = _provision(client)
+    h = {"Authorization": f"Bearer {tok}"}
+    # 7 daily sales of 4 units (owned) + a low on-hand snapshot → stockout risk;
+    # plus a rival SKU that must never appear in the supplier's overview.
+    movs = []
+    for d in range(7):
+        occurred = (datetime.now(timezone.utc) - timedelta(days=d)).isoformat()
+        movs.append({"sku_code": "COKE_500", "movement_type": "sale", "qty": 4,
+                     "occurred_at": occurred, "supplier_cd": "SUP_COKE",
+                     "department": "Beverages", "source_ref": f"s{d}"})
+    movs.append({"sku_code": "COKE_500", "movement_type": "stock_on_hand",
+                 "qty": 0, "on_hand": 3, "supplier_cd": "SUP_COKE",
+                 "occurred_at": datetime.now(timezone.utc).isoformat(),
+                 "department": "Beverages", "source_ref": "oh1"})
+    movs.append({"sku_code": "PEPSI_500", "movement_type": "sale", "qty": 99,
+                 "occurred_at": datetime.now(timezone.utc).isoformat(),
+                 "supplier_cd": "SUP_PEPSI", "source_ref": "rival"})
+    client.post("/ingest/movements", json={"movements": movs}, headers=h).raise_for_status()
+
+    session = client.post("/portal/login",
+                          json={"supplier_code": "COKE", "password": "s3cret"}).json()["token"]
+    o = client.get("/portal/overview",
+                   headers={"Authorization": f"Bearer {session}"}).json()
+
+    # only the owned SKU is in the overview
+    assert {m["sku_code"] for m in o["top_movers"]} == {"COKE_500"}
+    assert o["kpis"]["at_risk"] == 1
+    risk = o["stockout_risk"][0]
+    assert risk["sku_code"] == "COKE_500" and risk["on_hand"] == 3
+    assert risk["days_of_cover"] > 0
 
 
 def test_ingest_is_idempotent(client):

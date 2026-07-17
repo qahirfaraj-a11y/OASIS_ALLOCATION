@@ -61,6 +61,18 @@ def movements(
     return [MovementOut(**vars(m)) for m in rows]
 
 
+@router.get("/overview")
+def overview(
+    identity: dict = Depends(require_supplier),
+    db: Session = Depends(get_session),
+    window_days: int = Query(28, ge=7, le=180),
+    risk_days: float = Query(7.0, ge=1, le=60),
+):
+    """Hub-native velocity / days-of-cover / stockout-risk for this supplier."""
+    return visibility.supplier_overview(
+        db, identity["supplier_id"], window_days=window_days, risk_days=risk_days)
+
+
 @router.get("/stores", response_model=List[StoreSummaryOut])
 def stores(
     identity: dict = Depends(require_supplier),
