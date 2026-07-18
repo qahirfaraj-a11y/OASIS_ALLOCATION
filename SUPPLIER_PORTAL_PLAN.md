@@ -197,7 +197,7 @@ The connector stays free (LGPL, the funnel); the money is at the hub, as designe
 | Phase | Ships | Powered by | New surface |
 |---|---|---|---|
 | **P0 — Hub-native signal** ✅ SHIPPED (commit 9ed50e2) | velocity (ADS) + 7d trend, days-of-cover, stockout-risk alerts — from the movement stream, zero on-prem coupling. (Reliability badge deferred to P1: needs the on-prem scorecard.) Live-verified against real Odoo data. | hub only | Overview (`oasis_hub/analytics.py`, `/portal/overview`) |
-| **P1 — Insight Push channel** | `hub_supplier_insight` + `hub_insight_exposure` tables, `/ingest/insights`, `/portal/insights` (gated), on-prem "insight card" emitter reusing `mande_triage`/`supplier_scorecard`/`basket_affinity` | on-prem + hub | wire, no new UI yet |
+| **P1 — Insight Push channel** ✅ SHIPPED (commit 4089a02) | `hub_supplier_insight` + `hub_insight_exposure`, `POST /ingest/insights`, `POST /admin/insight-exposure` (the Flex switch), gated `GET /portal/insights`; on-prem `oasis/logic/insight_emitter.py` shapes supplier-safe cards (allow-list + forbidden-field guard: GRN/cost/credit can't cross). Double default-deny (consent AND per-kind exposure), live-verified. | on-prem + hub | wire only — UI lands in P2 |
 | **P2 — Performance tab** | GMROI, halo Confidence/Lift, broken-halo, archetype mix | `basket_affinity`, `halo_pricing` via P1 | Performance tab |
 | **P3 — Scorecard + Actions (the Flex + marketplace)** | SEI, NCP, Q_s, cannibalization behind retailer exposure toggles; supplier offer → retailer routing | `mande_triage` via P1; new admin toggles | Scorecard + Actions tabs, premium gating |
 
