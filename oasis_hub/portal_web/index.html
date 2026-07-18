@@ -113,6 +113,17 @@
   .riskcard .cover small{font-size:12px; color:var(--muted); font-weight:400}
   .riskcard .rate{font-size:11.5px; color:var(--neutral); margin-top:4px}
   .allclear{padding:22px 18px; color:#7effc8; font-size:13px}
+  .icard{background:linear-gradient(180deg,#0e1530,#0b1020); border:1px solid var(--line);
+    border-radius:11px; padding:14px 16px}
+  .icard .ikind{font-family:"SF Mono",ui-monospace,monospace; font-size:10.5px;
+    letter-spacing:.12em; text-transform:uppercase; color:var(--system)}
+  .icard .istore{color:var(--muted); font-size:11.5px; margin-top:3px}
+  .icard .ibody{margin-top:10px; font-size:13px; color:var(--neutral); line-height:1.6}
+  .icard .ibig{font-size:24px; font-weight:700; color:var(--platform); line-height:1.1}
+  .cls-RELIABLE{color:#7effc8}.cls-WATCH{color:var(--warn)}.cls-HOSTILE{color:var(--danger)}
+  .ipair{display:flex; justify-content:space-between; gap:10px; border-bottom:1px solid #161d3a;
+    padding:4px 0}
+  .ipair:last-child{border-bottom:0}
   .trend-up{color:#7effc8}.trend-down{color:#ff8a8a}.trend-flat{color:var(--muted)}
   .trend-new{color:var(--system)}
   @media(max-width:820px){ .kpis{grid-template-columns:repeat(2,1fr)} }
@@ -190,6 +201,16 @@
           <tbody id="moversBody"></tbody>
         </table>
       </div>
+    </div>
+
+    <!-- INTELLIGENCE: insight cards a retail partner has chosen to share (P1/P2) -->
+    <div class="panel">
+      <div class="head">
+        <span class="tag">INTELLIGENCE</span>
+        <h2>Shared by your retail partners</h2>
+        <span class="count" id="insightsCount"></span>
+      </div>
+      <div id="insightsBody" class="riskgrid"></div>
     </div>
 
     <div class="panel">
@@ -300,7 +321,72 @@
   // ── app ──
   function showApp(){
     $("login").style.display="none"; $("app").style.display="block";
-    loadMe(); loadOverview(); loadStores(); loadMovements();
+    loadMe(); loadOverview(); loadInsights(); loadStores(); loadMovements();
+  }
+
+  function loadInsights(){
+    authFetch("/portal/insights").then(function(r){ return r.json(); }).then(function(rows){
+      $("insightsCount").textContent = rows.length + " card(s)";
+      var b = $("insightsBody");
+      if(!rows.length){
+        b.innerHTML = '<div class="icard"><div class="ibody" style="color:var(--muted)">'
+          + 'No additional intelligence has been shared with you yet. Retail partners '
+          + 'choose which metrics to share — velocity and stockout risk above are always on.'
+          + '</div></div>';
+        return;
+      }
+      b.innerHTML = rows.map(function(c){
+        var mask = c.store_masked ? ' · hidden' : '';
+        return '<div class="icard">'
+          + '<div class="ikind">'+esc(c.kind)+'</div>'
+          + '<div class="istore">'+esc(c.store_handle)+mask+'</div>'
+          + '<div class="ibody">'+insightBody(c.kind, c.payload||{})+'</div>'
+          + '</div>';
+      }).join("");
+    }).catch(function(){});
+  }
+
+  function insightBody(kind, p){
+    if(kind === "reliability"){
+      var cls = esc(p.reliability_class||"—");
+      var h = '<div class="ibig cls-'+cls+'">'+cls+'</div>';
+      if(p.lead_time_days != null) h += 'Lead time '+fmt(p.lead_time_days)+' days';
+      if(p.on_time_rate != null) h += ' · '+fmt(p.on_time_rate*100)+'% on time';
+      if(p.orders_observed != null) h += '<br/><span style="color:var(--muted)">'
+        + fmt(p.orders_observed)+' orders observed</span>';
+      return h;
+    }
+    if(kind === "sei"){
+      var s = '<div class="ibig">'+fmt(p.sei)+'</div>Supplier Efficiency Index';
+      if(p.classification) s += '<br/>'+esc(p.classification);
+      if(p.sku_count != null) s += ' · '+fmt(p.sku_count)+' SKUs';
+      return s;
+    }
+    if(kind === "halo" && p.pairs){
+      return p.pairs.slice(0,6).map(function(x){
+        return '<div class="ipair"><span>'+esc(x.anchor_sku)+' → '+esc(x.attachment_sku)
+          + '</span><span class="trend-up">×'+fmt(x.lift)+'</span></div>';
+      }).join("") || "—";
+    }
+    if(kind === "reorder" && p.lines){
+      return p.lines.slice(0,6).map(function(x){
+        return '<div class="ipair"><span>'+esc(x.sku_code)+'</span><span>ship '
+          + fmt(x.suggested_units)+(x.needed_by?' by '+esc(String(x.needed_by).slice(0,10)):'')
+          + '</span></div>';
+      }).join("") || "—";
+    }
+    if(kind === "velocity" && p.items){
+      return p.items.slice(0,6).map(function(x){
+        return '<div class="ipair"><span>'+esc(x.sku_code)+'</span><span>'
+          + fmt(x.ads)+'/day</span></div>';
+      }).join("") || "—";
+    }
+    // generic fallback so a new kind still renders something useful
+    return Object.keys(p).slice(0,6).map(function(k){
+      var v = p[k];
+      if(v && typeof v === "object") v = Array.isArray(v) ? v.length+" item(s)" : "—";
+      return '<div class="ipair"><span>'+esc(k)+'</span><span>'+esc(String(v))+'</span></div>';
+    }).join("") || "—";
   }
 
   function loadOverview(){

@@ -522,7 +522,8 @@ def main():
                                  "value-report", "metering-report", "home",
                                  "version", "upgrade", "assess",
                                  "supplier-scorecard", "category-report",
-                                 "inject-grn-costs", "sku-deepdive"],
+                                 "inject-grn-costs", "sku-deepdive",
+                                 "push-insights"],
                         default="full", help="Run mode")
     parser.add_argument("--dashboard", choices=list(DASHBOARD_MAP.keys()),
                         default="ops", help="Dashboard to launch (dashboard mode)")
@@ -842,6 +843,22 @@ def main():
         res = write_scorecard(data_dir, out_dir, tenant=args.tenant or "")
         print(f"Supplier scorecard written: {res['markdown']} "
               f"({res['suppliers']} suppliers, {res['unreliable']} unreliable)")
+    elif args.mode == "push-insights":
+        from datetime import datetime as _now
+        from oasis.logic.insight_push import run as push_insights_run
+        root = os.path.dirname(__file__)
+        data_dir = os.getenv("OASIS_DATA_DIR", os.path.join(root, "oasis", "data"))
+        period = _now.now().strftime("%Y-%m-%d")
+        dry = not os.getenv("OASIS_HUB_INGEST_TOKEN")
+        res = push_insights_run(data_dir, period=period, dry_run=dry)
+        if dry:
+            print(f"[push-insights] built {res['built']} card(s) — DRY RUN "
+                  "(set OASIS_HUB_URL + OASIS_HUB_INGEST_TOKEN to push).")
+        else:
+            print(f"[push-insights] built {res['built']}, accepted "
+                  f"{res['accepted']}, duplicate {res['duplicates']}.")
+            print("  Cards stay hidden from suppliers until the retailer "
+                  "exposes each kind in the hub.")
     elif args.mode == "value-report":
         from oasis.logic.value_report import write_value_report
         root = os.path.dirname(__file__)
