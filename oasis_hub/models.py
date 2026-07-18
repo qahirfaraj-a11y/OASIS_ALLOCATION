@@ -169,6 +169,66 @@ class HubStockMovement(Base):
     source_ref = Column(Text)           # store-side idempotency key (dedup)
 
 
+#: insight kinds the on-prem engine may push. Each is a DERIVED, supplier-safe
+#: score — never raw GRN lines, cost prices, or credit terms (those stay in the
+#: store and are not modelled here at all, so they cannot leak by accident).
+INSIGHT_KINDS = (
+    "velocity",         # sell-through summary for the supplier's own SKUs
+    "reliability",      # RELIABLE / WATCH / HOSTILE class + lead-time days
+    "halo",             # attachment Confidence / Lift for their anchors
+    "reorder",          # forward "ship X to store Y by Z" suggestion
+    "sei",              # Supplier Efficiency Index (retailer-gated)
+    "quality",          # fill/quality score Q_s (retailer-gated)
+    "cannibalization",  # substitution/redundancy signal (retailer-gated)
+)
+
+
+class HubSupplierInsight(Base):
+    """A derived, supplier-scoped intelligence card pushed by a store.
+
+    The store's on-prem OASIS computes these (MANDE / scorecard / affinity) and
+    pushes ONLY the supplier-relevant derived numbers. The hub stores the card
+    verbatim and gates who may read it — it never receives the underlying GRN,
+    cost, or credit data those numbers were computed from.
+    """
+    __tablename__ = "hub_supplier_insight"
+    __table_args__ = (
+        UniqueConstraint("store_id", "supplier_id", "kind", "source_ref",
+                         name="uq_insight_source_ref"),
+        Index("ix_insight_lookup", "supplier_id", "kind"),
+    )
+    id = Column(Text, primary_key=True, default=_uuid)
+    store_id = Column(Text, ForeignKey("hub_store.id"), nullable=False)
+    supplier_id = Column(Text, ForeignKey("hub_supplier.id"), nullable=False)
+    kind = Column(Text, nullable=False)
+    payload_json = Column(Text, nullable=False)     # the derived card body
+    period_start = Column(DateTime)
+    period_end = Column(DateTime)
+    computed_at = Column(DateTime)                  # when the store computed it
+    ingested_at = Column(DateTime, default=datetime.utcnow)
+    source_ref = Column(Text)                       # store-side idempotency key
+
+
+class HubInsightExposure(Base):
+    """The retailer's per-(store, supplier, kind) visibility switch.
+
+    DEFAULT-DENY: with no row — or visible=False — the supplier sees nothing of
+    that kind. The store stages insights privately and flips a kind on when it
+    chooses to (the deliberate "Negotiation Flex" of the methodology).
+    """
+    __tablename__ = "hub_insight_exposure"
+    __table_args__ = (
+        UniqueConstraint("store_id", "supplier_id", "kind",
+                         name="uq_insight_exposure"),
+    )
+    id = Column(Text, primary_key=True, default=_uuid)
+    store_id = Column(Text, ForeignKey("hub_store.id"), nullable=False)
+    supplier_id = Column(Text, ForeignKey("hub_supplier.id"), nullable=False)
+    kind = Column(Text, nullable=False)
+    visible = Column(Boolean, default=False, nullable=False)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
 class HubIngestToken(Base):
     """A per-store push credential. Only the bcrypt hash is stored."""
     __tablename__ = "hub_ingest_token"

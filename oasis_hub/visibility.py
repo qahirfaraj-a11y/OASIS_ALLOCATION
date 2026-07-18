@@ -148,6 +148,67 @@ def visible_movements(
     return out
 
 
+def visible_insights(db: Session, supplier_id: str, *,
+                     kind: Optional[str] = None, limit: int = 500) -> List[dict]:
+    """Derived insight cards a supplier may read — DOUBLE default-deny.
+
+    Two independent gates, both must pass:
+      1. CONSENT  — the store granted this supplier (same gate as movements).
+      2. EXPOSURE — the store set hub_insight_exposure.visible = True for that
+                    (store, supplier, kind). No row → hidden.
+
+    Store identity is masked exactly as it is for movements. The card body is
+    whatever the store's engine derived; the hub never holds the GRN/cost/credit
+    data behind it, so there is nothing raw here to leak.
+    """
+    import json as _json
+
+    from .models import HubInsightExposure, HubSupplierInsight
+
+    consent = _consent_map(db, supplier_id)          # granted stores only
+    if not consent:
+        return []
+
+    exposed = {
+        (e.store_id, e.kind)
+        for e in db.query(HubInsightExposure)
+        .filter(HubInsightExposure.supplier_id == supplier_id,
+                HubInsightExposure.visible.is_(True))
+        .all()
+    }
+    if not exposed:
+        return []
+
+    q = (db.query(HubSupplierInsight, HubStore)
+           .join(HubStore, HubStore.id == HubSupplierInsight.store_id)
+           .filter(HubSupplierInsight.supplier_id == supplier_id,
+                   HubSupplierInsight.store_id.in_(list(consent.keys()))))
+    if kind:
+        q = q.filter(HubSupplierInsight.kind == kind)
+    q = q.order_by(HubSupplierInsight.ingested_at.desc()).limit(limit)
+
+    out: List[dict] = []
+    for card, store in q.all():
+        if (card.store_id, card.kind) not in exposed:
+            continue                                  # not flipped on → hidden
+        reveal = consent.get(card.store_id, False)
+        try:
+            payload = _json.loads(card.payload_json)
+        except ValueError:
+            payload = {}
+        out.append({
+            "insight_id": card.id,
+            "kind": card.kind,
+            "store_handle": store.store_name if reveal else _mask_handle(card.store_id),
+            "store_masked": not reveal,
+            "payload": payload,
+            "period_start": card.period_start,
+            "period_end": card.period_end,
+            "computed_at": card.computed_at,
+        })
+    return out
+
+
 def supplier_overview(db: Session, supplier_id: str, *,
                       window_days: int = 28, risk_days: float = 7.0) -> dict:
     """Hub-native Overview signals (velocity, days-of-cover, stockout risk).

@@ -96,6 +96,41 @@ class IngestResult(BaseModel):
     store_id: str
 
 
+# ── insights (P1: the Insight Push rail) ─────────────────────────────────
+class InsightIn(BaseModel):
+    supplier_code: str
+    kind: str = Field(..., description="velocity|reliability|halo|reorder|sei|"
+                                       "quality|cannibalization")
+    payload: dict = Field(..., description="DERIVED, supplier-safe numbers only "
+                                           "— never GRN lines, cost, or credit terms.")
+    period_start: Optional[datetime] = None
+    period_end: Optional[datetime] = None
+    computed_at: Optional[datetime] = None
+    source_ref: Optional[str] = Field(None, description="Store-side idempotency key.")
+
+
+class InsightBatchIn(BaseModel):
+    insights: List[InsightIn]
+
+
+class InsightExposureIn(BaseModel):
+    store_id: str
+    supplier_code: str
+    kind: str
+    visible: bool = False
+
+
+class InsightOut(BaseModel):
+    insight_id: str
+    kind: str
+    store_handle: str
+    store_masked: bool
+    payload: dict
+    period_start: Optional[datetime] = None
+    period_end: Optional[datetime] = None
+    computed_at: Optional[datetime] = None
+
+
 # ── portal ───────────────────────────────────────────────────────────────
 class SupplierLoginIn(BaseModel):
     supplier_code: str

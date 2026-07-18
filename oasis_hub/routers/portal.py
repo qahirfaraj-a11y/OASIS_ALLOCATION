@@ -19,7 +19,7 @@ from ..security import require_supplier, verify_password
 from .. import tokens, visibility
 from ..models import HubSupplier
 from ..schemas import (
-    SupplierLoginIn, SupplierTokenOut, MovementOut, StoreSummaryOut,
+    SupplierLoginIn, SupplierTokenOut, MovementOut, StoreSummaryOut, InsightOut,
 )
 
 logger = logging.getLogger("OASIS.Hub.Portal")
@@ -71,6 +71,23 @@ def overview(
     """Hub-native velocity / days-of-cover / stockout-risk for this supplier."""
     return visibility.supplier_overview(
         db, identity["supplier_id"], window_days=window_days, risk_days=risk_days)
+
+
+@router.get("/insights", response_model=List[InsightOut])
+def insights(
+    identity: dict = Depends(require_supplier),
+    db: Session = Depends(get_session),
+    kind: Optional[str] = Query(None),
+    limit: int = Query(200, le=1000),
+):
+    """Derived insight cards this supplier is permitted to see.
+
+    Double default-deny: the store must have granted consent AND flipped this
+    kind visible. Everything else returns nothing.
+    """
+    return [InsightOut(**row) for row in
+            visibility.visible_insights(db, identity["supplier_id"],
+                                        kind=kind, limit=limit)]
 
 
 @router.get("/stores", response_model=List[StoreSummaryOut])

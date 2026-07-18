@@ -19,11 +19,11 @@ from ..security import (
 from ..licensing import issue_license, revoke_tenant, LicensingError
 from ..models import (
     HubTenant, HubStore, HubSupplier, HubSupplierBrand, HubStoreConsent,
-    HubIngestToken,
+    HubIngestToken, HubInsightExposure, INSIGHT_KINDS,
 )
 from ..schemas import (
     TenantIn, StoreIn, StoreOut, IngestTokenOut, SupplierIn, OwnershipRuleIn,
-    ConsentIn, LicenseIssueIn, LicenseOut,
+    ConsentIn, LicenseIssueIn, LicenseOut, InsightExposureIn,
 )
 
 router = APIRouter(prefix="/admin", tags=["admin"],
@@ -140,6 +140,36 @@ def set_consent(body: ConsentIn, db: Session = Depends(get_session)):
     db.flush()
     return {"id": row.id, "status": row.status,
             "reveal_identity": row.reveal_identity}
+
+
+@router.post("/insight-exposure")
+def set_insight_exposure(body: InsightExposureIn, db: Session = Depends(get_session)):
+    """Flip an insight kind on/off for one supplier at one store — the Flex.
+
+    Default-deny: insights stay hidden until a row here says visible=True, so a
+    store can compute and stage intelligence privately, then reveal exactly the
+    metric it wants, exactly when it wants (e.g. before a negotiation).
+    """
+    if body.kind not in INSIGHT_KINDS:
+        raise HTTPException(422, f"kind must be one of {list(INSIGHT_KINDS)}")
+    store = db.query(HubStore).filter(HubStore.id == body.store_id).first()
+    if not store:
+        raise HTTPException(404, f"unknown store id '{body.store_id}'")
+    supplier = _get_supplier(db, body.supplier_code)
+
+    row = (db.query(HubInsightExposure)
+             .filter(HubInsightExposure.store_id == body.store_id,
+                     HubInsightExposure.supplier_id == supplier.id,
+                     HubInsightExposure.kind == body.kind)
+             .first())
+    if not row:
+        row = HubInsightExposure(store_id=body.store_id, supplier_id=supplier.id,
+                                 kind=body.kind)
+        db.add(row)
+    row.visible = bool(body.visible)
+    db.flush()
+    return {"store_id": body.store_id, "supplier_code": body.supplier_code,
+            "kind": body.kind, "visible": row.visible}
 
 
 # ── licensing ────────────────────────────────────────────────────────────
