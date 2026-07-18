@@ -201,7 +201,7 @@ The connector stays free (LGPL, the funnel); the money is at the hub, as designe
 | **P2 — Intelligence panel + push runner** ✅ SHIPPED (commit bc1f8f8) | Portal INTELLIGENCE panel renders exposed cards per-kind (reliability badge, SEI, halo pairs w/ lift, reorder, velocity) + generic fallback + empty state; on-prem `insight_push.py` and `--mode push-insights` build from `supplier_scorecard`/`mande_purge_report` and ship on a schedule (idempotent per period, auto dry-run without a token). | on-prem + hub | Intelligence panel |
 | **P2b — remaining Performance metrics** ✅ SHIPPED (commit 803d48b) | `broken_halo`, `archetype`, and `capital_efficiency` card kinds. **GMROI deliberately does NOT ship** — it is margin-over-cost, so only a RELATIVE index + band ("1.3×, top quartile vs category median") crosses, never absolute margin. | `halo_pricing`, DHARAM | extends the panel |
 | **P3 — Actions (offers)** ✅ SHIPPED (commit 1968b0b) | `hub_supplier_offer` + `POST/GET /portal/offers` + `GET /admin/offers` & `/respond`; ACTIONS panel with offer form and status table. Slotting / rebate / consignment / price-support as an auditable path. Suppliers address stores only by shown handle, only among consenting stores; masked stores stay masked while transacting; cross-supplier isolation enforced. | hub | Actions panel |
-| **P4 — remaining Flex metrics + monetization** | NCP and cannibalization card kinds (SEI + Q_s already ride the rail); premium-tier gating and a take-rate on accepted offers | `mande_triage` via P1 | extends Scorecard/Actions |
+| **P4 — remaining Flex metrics + monetization** ✅ SHIPPED (commit f247340) | `ncp` + `cannibalization` kinds (guard gained a narrow, justified `allow` exemption for the supplier's OWN credit/DIO terms); supplier tiers gating **value** kinds only — Flex kinds are tier-exempt so a negotiation is never paywalled; commission recorded on accepted offers at a configurable `OASIS_HUB_COMMISSION_RATE` (recording only, no money moves, percentage offers defer the amount). | `mande_triage` via P1 | Scorecard/Actions |
 
 P0 is genuinely small and high-signal — it makes the portal feel like a product
 using only data we already ingest, with zero on-prem coupling. Recommend starting
@@ -224,6 +224,22 @@ there.
   the rail without touching the sensitive negotiation layer.
 
 ---
+
+## 9a. Status — roadmap complete (July 2026)
+
+P0 → P4 are all shipped and live-verified. What remains is **commercial policy
+and operations, not engineering**:
+
+1. **Set the numbers.** `OASIS_HUB_COMMISSION_RATE` is 0 (disabled) and the
+   premium tier has no price attached. Both are deliberate — they are your
+   decisions, and the mechanism reads them from configuration.
+2. **Terms & agreement.** An accepted offer is currently a recorded handshake.
+   Before money changes hands you need supplier T&Cs covering the take-rate, and
+   a settlement path for percentage offers (they deliberately defer the amount).
+3. **Invoicing.** `hub_supplier_offer.commission_*` is the billing feed; nothing
+   generates an invoice yet, by design — no payment credentials live in the hub.
+4. **Tier assignment.** `POST /admin/suppliers/tier` is manual; a self-serve
+   upgrade flow would need the payment story above first.
 
 ## 10. Recommended first slice
 
