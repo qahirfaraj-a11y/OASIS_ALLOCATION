@@ -176,6 +176,9 @@ INSIGHT_KINDS = (
     "velocity",         # sell-through summary for the supplier's own SKUs
     "reliability",      # RELIABLE / WATCH / HOSTILE class + lead-time days
     "halo",             # attachment Confidence / Lift for their anchors
+    "broken_halo",      # an anchor's attachment pull has decayed (DHARAM)
+    "archetype",        # demand-shape archetype mix of their own SKUs
+    "capital_efficiency",  # RELATIVE index only — never absolute margin/GMROI
     "reorder",          # forward "ship X to store Y by Z" suggestion
     "sei",              # Supplier Efficiency Index (retailer-gated)
     "quality",          # fill/quality score Q_s (retailer-gated)

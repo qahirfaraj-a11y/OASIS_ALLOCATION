@@ -26,6 +26,9 @@ from typing import Any, Dict, List, Optional
 KIND_VELOCITY = "velocity"
 KIND_RELIABILITY = "reliability"
 KIND_HALO = "halo"
+KIND_BROKEN_HALO = "broken_halo"
+KIND_ARCHETYPE = "archetype"
+KIND_CAPITAL_EFFICIENCY = "capital_efficiency"
 KIND_REORDER = "reorder"
 KIND_SEI = "sei"
 KIND_QUALITY = "quality"
@@ -123,6 +126,80 @@ def reorder_card(supplier_code: str, lines: List[Dict[str, Any]],
         "days_of_cover": ln.get("days_of_cover"),
     } for ln in lines]
     return _card(supplier_code, KIND_REORDER, {"lines": items}, source_ref)
+
+
+def broken_halo_card(supplier_code: str, breaks: List[Dict[str, Any]],
+                     source_ref: Optional[str] = None) -> Dict[str, Any]:
+    """DHARAM detect_broken_halo() → 'your anchor stopped pulling its attachment'.
+
+    Genuinely actionable for the supplier (their anchor is losing network effect,
+    often an availability or placement problem) and carries no commercial data —
+    just the pair, the confidence drop, and how long it has been decaying.
+    """
+    items = [{
+        "anchor_sku": b.get("anchor_sku") or b.get("anchor"),
+        "attachment_sku": b.get("attachment_sku") or b.get("attachment"),
+        "confidence_before": b.get("confidence_before") or b.get("baseline_confidence"),
+        "confidence_now": b.get("confidence_now") or b.get("current_confidence"),
+        "drop_pct": b.get("drop_pct"),
+        "days_broken": b.get("days_broken"),
+    } for b in breaks]
+    return _card(supplier_code, KIND_BROKEN_HALO, {"breaks": items}, source_ref)
+
+
+def archetype_card(supplier_code: str, mix: List[Dict[str, Any]],
+                   source_ref: Optional[str] = None) -> Dict[str, Any]:
+    """Demand-shape archetype mix across the supplier's own SKUs.
+
+    Tells a supplier what KIND of demand their portfolio actually has (steady
+    staple vs spiky impulse vs seasonal), which shapes how they should ship —
+    without exposing anything about the store's economics.
+    """
+    items = [{
+        "archetype": m.get("archetype") or m.get("name"),
+        "sku_count": m.get("sku_count") or m.get("count"),
+        "share_pct": m.get("share_pct"),
+        "example_sku": m.get("example_sku"),
+    } for m in mix]
+    return _card(supplier_code, KIND_ARCHETYPE, {"mix": items}, source_ref)
+
+
+def capital_efficiency_card(supplier_code: str, stats: Dict[str, Any],
+                            source_ref: Optional[str] = None) -> Dict[str, Any]:
+    """Capital efficiency as a RELATIVE index — deliberately not GMROI itself.
+
+    GMROI is gross-margin-over-inventory-cost: shipping it would hand the
+    supplier the retailer's markup, which is exactly the store-private data this
+    module exists to keep in. Instead we emit only where the supplier's products
+    stand RELATIVE to their category (an index around 1.0 plus a band), which is
+    what a supplier can actually act on — argue for more facings, fix a slow
+    line — while the absolute margin never leaves the store.
+
+    Callers must pass a pre-computed ratio; ``_assert_supplier_safe`` will reject
+    any attempt to smuggle raw margin/cost fields alongside it.
+    """
+    payload = {
+        "efficiency_index": stats.get("efficiency_index"),   # e.g. 1.3 = 1.3× median
+        "band": stats.get("band"),                            # e.g. "top quartile"
+        "category": stats.get("category"),
+        "skus_compared": stats.get("skus_compared"),
+        "basis": "relative to category median — absolute margin not shared",
+    }
+    payload = {k: v for k, v in payload.items() if v is not None}
+    return _card(supplier_code, KIND_CAPITAL_EFFICIENCY, payload, source_ref)
+
+
+def efficiency_band(index: Optional[float]) -> Optional[str]:
+    """Plain-English band for an efficiency index (keeps UI and tests aligned)."""
+    if index is None:
+        return None
+    if index >= 1.25:
+        return "top quartile"
+    if index >= 1.0:
+        return "above median"
+    if index >= 0.75:
+        return "below median"
+    return "bottom quartile"
 
 
 def sei_card(supplier_code: str, mande: Dict[str, Any],

@@ -140,6 +140,57 @@ def test_sei_card_keeps_only_aggregate_scores():
     assert "trapped_capital_kes" not in card["payload"]
 
 
+def test_capital_efficiency_ships_index_not_margin():
+    """GMROI itself would expose the retailer's markup — only the RELATIVE
+    index may cross the wire."""
+    card = IE.capital_efficiency_card("COKE", {
+        "efficiency_index": 1.3, "band": "top quartile",
+        "category": "Beverages", "skus_compared": 36,
+    })
+    p = card["payload"]
+    assert p["efficiency_index"] == 1.3 and p["band"] == "top quartile"
+    # No commercial VALUE may be carried: check the keys, which are the actual
+    # leak surface. ('basis' deliberately mentions margin as a disclaimer.)
+    for key in p:
+        if key == "basis":
+            continue
+        low = key.lower()
+        assert not any(leak in low for leak in ("gmroi", "margin", "cost", "cogs"))
+    assert isinstance(p["basis"], str) and "not shared" in p["basis"]
+    # and no raw numeric margin snuck in under a friendly name
+    assert set(p) <= {"efficiency_index", "band", "category", "skus_compared", "basis"}
+
+
+def test_capital_efficiency_rejects_smuggled_margin():
+    with pytest.raises(ValueError):
+        IE._card("COKE", IE.KIND_CAPITAL_EFFICIENCY,
+                 {"efficiency_index": 1.3, "gross_margin_pct": 31.0})
+
+
+def test_efficiency_band_thresholds():
+    assert IE.efficiency_band(1.4) == "top quartile"
+    assert IE.efficiency_band(1.05) == "above median"
+    assert IE.efficiency_band(0.8) == "below median"
+    assert IE.efficiency_band(0.5) == "bottom quartile"
+    assert IE.efficiency_band(None) is None
+
+
+def test_broken_halo_and_archetype_cards_are_commercial_free():
+    bh = IE.broken_halo_card("COKE", [{
+        "anchor_sku": "COKE_500", "attachment_sku": "CRISPS",
+        "confidence_before": 0.44, "confidence_now": 0.19,
+        "drop_pct": 56.8, "days_broken": 12,
+        "lost_margin_kes": 40000,          # store-private → dropped
+    }])
+    b = bh["payload"]["breaks"][0]
+    assert b["drop_pct"] == 56.8 and b["days_broken"] == 12
+    assert "lost_margin_kes" not in b
+
+    ar = IE.archetype_card("COKE", [{"archetype": "Steady Staple", "sku_count": 12,
+                                     "share_pct": 33.3, "example_sku": "COKE_1L"}])
+    assert ar["payload"]["mix"][0]["archetype"] == "Steady Staple"
+
+
 def test_guard_rejects_grn_cost_and_credit_fields():
     for bad in ({"grn_lines": [1]}, {"unit_cost": 12.5}, {"credit_days": 30},
                 {"cogs_total": 1000}, {"margin_pct": 22}):

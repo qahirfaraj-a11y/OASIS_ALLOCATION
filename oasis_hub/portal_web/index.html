@@ -368,6 +368,30 @@
           + '</span><span class="trend-up">×'+fmt(x.lift)+'</span></div>';
       }).join("") || "—";
     }
+    if(kind === "broken_halo" && p.breaks){
+      return p.breaks.slice(0,6).map(function(x){
+        var drop = (x.drop_pct != null) ? '<span class="trend-down">▼ '+fmt(x.drop_pct)+'%</span>' : '—';
+        var age = (x.days_broken != null) ? ' <span style="color:var(--muted)">('+fmt(x.days_broken)+'d)</span>' : '';
+        return '<div class="ipair"><span>'+esc(x.anchor_sku)+' ⇢ '+esc(x.attachment_sku)
+          + '</span><span>'+drop+age+'</span></div>';
+      }).join("") || "—";
+    }
+    if(kind === "archetype" && p.mix){
+      return p.mix.slice(0,6).map(function(x){
+        var share = (x.share_pct != null) ? fmt(x.share_pct)+'%' : fmt(x.sku_count)+' SKUs';
+        return '<div class="ipair"><span>'+esc(x.archetype)+'</span><span>'+share+'</span></div>';
+      }).join("") || "—";
+    }
+    if(kind === "capital_efficiency"){
+      var idx = (p.efficiency_index != null) ? fmt(p.efficiency_index)+'×' : '—';
+      var cls = (p.efficiency_index != null && p.efficiency_index >= 1) ? 'trend-up' : 'trend-down';
+      var h = '<div class="ibig '+cls+'">'+idx+'</div>';
+      if(p.band) h += esc(p.band);
+      if(p.category) h += ' · '+esc(p.category);
+      h += '<br/><span style="color:var(--muted);font-size:11.5px">vs category median'
+         + (p.skus_compared != null ? ' · '+fmt(p.skus_compared)+' SKUs' : '') + '</span>';
+      return h;
+    }
     if(kind === "reorder" && p.lines){
       return p.lines.slice(0,6).map(function(x){
         return '<div class="ipair"><span>'+esc(x.sku_code)+'</span><span>ship '
