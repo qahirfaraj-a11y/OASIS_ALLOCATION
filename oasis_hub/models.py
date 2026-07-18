@@ -232,6 +232,36 @@ class HubInsightExposure(Base):
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
 
+#: Non-margin-revenue instruments a supplier can propose (Ch.6 Module 3:
+#: slotting fees, backend volume rebates, consignment, price support).
+OFFER_TYPES = ("slotting", "rebate", "consignment", "price_support")
+OFFER_STATUSES = ("pending", "accepted", "declined", "withdrawn")
+
+
+class HubSupplierOffer(Base):
+    """A commercial proposal a supplier makes to one store, via the portal.
+
+    The reverse direction of the rail: intelligence flows out to the supplier,
+    and the supplier answers with a funded offer. The retailer accepts or
+    declines; nothing here moves money — it records the agreement so both sides
+    (and OASIS) have one auditable trail.
+    """
+    __tablename__ = "hub_supplier_offer"
+    __table_args__ = (
+        Index("ix_offer_lookup", "store_id", "status"),
+    )
+    id = Column(Text, primary_key=True, default=_uuid)
+    store_id = Column(Text, ForeignKey("hub_store.id"), nullable=False)
+    supplier_id = Column(Text, ForeignKey("hub_supplier.id"), nullable=False)
+    offer_type = Column(Text, nullable=False)
+    terms_json = Column(Text, nullable=False)      # the proposed terms
+    message = Column(Text)                          # supplier's covering note
+    status = Column(Text, nullable=False, default="pending")
+    retailer_note = Column(Text)                    # response reason
+    created_at = Column(DateTime, default=datetime.utcnow)
+    responded_at = Column(DateTime)
+
+
 class HubIngestToken(Base):
     """A per-store push credential. Only the bcrypt hash is stored."""
     __tablename__ = "hub_ingest_token"

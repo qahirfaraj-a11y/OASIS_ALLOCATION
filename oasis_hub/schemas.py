@@ -120,6 +120,39 @@ class InsightExposureIn(BaseModel):
     visible: bool = False
 
 
+# ── offers (P3: the non-margin-revenue rail) ─────────────────────────────
+class OfferIn(BaseModel):
+    store_handle: Optional[str] = Field(
+        None, description="Which shared store this is for. Omit when the "
+                          "supplier has exactly one consenting store.")
+    offer_type: str = Field(..., description="slotting|rebate|consignment|price_support")
+    terms: dict = Field(..., description="e.g. {'rebate_pct': 5, 'volume_units': 10000}")
+    message: Optional[str] = None
+
+
+class OfferRespondIn(BaseModel):
+    status: str = Field(..., description="accepted|declined")
+    retailer_note: Optional[str] = None
+
+
+class OfferOut(BaseModel):
+    offer_id: str
+    store_handle: str
+    store_masked: bool
+    offer_type: str
+    terms: dict
+    message: Optional[str] = None
+    status: str
+    retailer_note: Optional[str] = None
+    created_at: Optional[datetime] = None
+    responded_at: Optional[datetime] = None
+
+
+class AdminOfferOut(OfferOut):
+    supplier_code: str
+    supplier_name: Optional[str] = None
+
+
 class InsightOut(BaseModel):
     insight_id: str
     kind: str

@@ -7,6 +7,7 @@ token. Every read goes through ``visibility.visible_movements`` /
 exactly one place. There is no endpoint here that can bypass it.
 """
 
+import json
 import logging
 from datetime import datetime
 from typing import List, Optional
@@ -17,9 +18,10 @@ from sqlalchemy.orm import Session
 from ..db import get_session
 from ..security import require_supplier, verify_password
 from .. import tokens, visibility
-from ..models import HubSupplier
+from ..models import HubSupplier, HubStore, HubSupplierOffer, OFFER_TYPES
 from ..schemas import (
     SupplierLoginIn, SupplierTokenOut, MovementOut, StoreSummaryOut, InsightOut,
+    OfferIn, OfferOut,
 )
 
 logger = logging.getLogger("OASIS.Hub.Portal")
@@ -88,6 +90,43 @@ def insights(
     return [InsightOut(**row) for row in
             visibility.visible_insights(db, identity["supplier_id"],
                                         kind=kind, limit=limit)]
+
+
+@router.post("/offers", response_model=OfferOut)
+def create_offer(
+    body: OfferIn,
+    identity: dict = Depends(require_supplier),
+    db: Session = Depends(get_session),
+):
+    """Propose a commercial offer to a store that shares with this supplier.
+
+    The supplier addresses the store by the handle they were shown, so they can
+    never aim an offer at a store that has not consented.
+    """
+    if body.offer_type not in OFFER_TYPES:
+        raise HTTPException(422, f"offer_type must be one of {list(OFFER_TYPES)}")
+    supplier_id = identity["supplier_id"]
+    store_id = visibility.resolve_store_handle(db, supplier_id, body.store_handle)
+    if not store_id:
+        raise HTTPException(404, "unknown store — specify a store_handle you "
+                                 "have been shown")
+    offer = HubSupplierOffer(
+        store_id=store_id, supplier_id=supplier_id, offer_type=body.offer_type,
+        terms_json=json.dumps(body.terms), message=body.message, status="pending",
+    )
+    db.add(offer)
+    db.flush()
+    store = db.query(HubStore).filter(HubStore.id == store_id).first()
+    reveal = visibility._consent_map(db, supplier_id).get(store_id, False)
+    return OfferOut(**visibility._offer_row(offer, store, reveal))
+
+
+@router.get("/offers", response_model=List[OfferOut])
+def list_offers(identity: dict = Depends(require_supplier),
+                db: Session = Depends(get_session)):
+    """This supplier's own offers and where they stand."""
+    return [OfferOut(**row)
+            for row in visibility.supplier_offers(db, identity["supplier_id"])]
 
 
 @router.get("/stores", response_model=List[StoreSummaryOut])

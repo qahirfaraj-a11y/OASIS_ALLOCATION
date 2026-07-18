@@ -8,6 +8,7 @@ declare what each supplier owns, record store consent, and issue licenses.
 
 import json
 from datetime import datetime
+from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
@@ -19,11 +20,13 @@ from ..security import (
 from ..licensing import issue_license, revoke_tenant, LicensingError
 from ..models import (
     HubTenant, HubStore, HubSupplier, HubSupplierBrand, HubStoreConsent,
-    HubIngestToken, HubInsightExposure, INSIGHT_KINDS,
+    HubIngestToken, HubInsightExposure, HubSupplierOffer, INSIGHT_KINDS,
 )
+from .. import visibility
 from ..schemas import (
     TenantIn, StoreIn, StoreOut, IngestTokenOut, SupplierIn, OwnershipRuleIn,
     ConsentIn, LicenseIssueIn, LicenseOut, InsightExposureIn,
+    AdminOfferOut, OfferRespondIn,
 )
 
 router = APIRouter(prefix="/admin", tags=["admin"],
@@ -170,6 +173,53 @@ def set_insight_exposure(body: InsightExposureIn, db: Session = Depends(get_sess
     db.flush()
     return {"store_id": body.store_id, "supplier_code": body.supplier_code,
             "kind": body.kind, "visible": row.visible}
+
+
+@router.get("/offers", response_model=List[AdminOfferOut])
+def list_offers(db: Session = Depends(get_session),
+                store_id: Optional[str] = None,
+                status: Optional[str] = None):
+    """Offers suppliers have proposed — the retailer's review queue."""
+    q = (db.query(HubSupplierOffer, HubStore, HubSupplier)
+           .join(HubStore, HubStore.id == HubSupplierOffer.store_id)
+           .join(HubSupplier, HubSupplier.id == HubSupplierOffer.supplier_id))
+    if store_id:
+        q = q.filter(HubSupplierOffer.store_id == store_id)
+    if status:
+        q = q.filter(HubSupplierOffer.status == status)
+    out = []
+    for offer, store, supplier in q.order_by(HubSupplierOffer.created_at.desc()).all():
+        # the retailer always sees their own store named + who is proposing
+        row = visibility._offer_row(offer, store, reveal=True)
+        row.update({"supplier_code": supplier.supplier_code,
+                    "supplier_name": supplier.name})
+        out.append(AdminOfferOut(**row))
+    return out
+
+
+@router.post("/offers/{offer_id}/respond", response_model=AdminOfferOut)
+def respond_to_offer(offer_id: str, body: OfferRespondIn,
+                     db: Session = Depends(get_session)):
+    """Accept or decline a supplier's offer."""
+    if body.status not in ("accepted", "declined"):
+        raise HTTPException(422, "status must be 'accepted' or 'declined'")
+    offer = (db.query(HubSupplierOffer)
+               .filter(HubSupplierOffer.id == offer_id).first())
+    if not offer:
+        raise HTTPException(404, f"unknown offer '{offer_id}'")
+    if offer.status != "pending":
+        raise HTTPException(409, f"offer already {offer.status}")
+    offer.status = body.status
+    offer.retailer_note = body.retailer_note
+    offer.responded_at = datetime.utcnow()
+    db.flush()
+    store = db.query(HubStore).filter(HubStore.id == offer.store_id).first()
+    supplier = db.query(HubSupplier).filter(
+        HubSupplier.id == offer.supplier_id).first()
+    row = visibility._offer_row(offer, store, reveal=True)
+    row.update({"supplier_code": supplier.supplier_code,
+                "supplier_name": supplier.name})
+    return AdminOfferOut(**row)
 
 
 # ── licensing ────────────────────────────────────────────────────────────

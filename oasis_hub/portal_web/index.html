@@ -213,6 +213,51 @@
       <div id="insightsBody" class="riskgrid"></div>
     </div>
 
+    <!-- ACTIONS: the supplier answers with a funded offer (P3) -->
+    <div class="panel">
+      <div class="head">
+        <span class="tag">ACTIONS</span>
+        <h2>Propose an offer</h2>
+        <span class="count" id="offersCount"></span>
+      </div>
+      <div class="filters">
+        <div class="f">
+          <label for="offStore">Store</label>
+          <select id="offStore"></select>
+        </div>
+        <div class="f">
+          <label for="offType">Offer</label>
+          <select id="offType">
+            <option value="rebate">Volume rebate</option>
+            <option value="slotting">Slotting fee</option>
+            <option value="consignment">Consignment</option>
+            <option value="price_support">Price support</option>
+          </select>
+        </div>
+        <div class="f">
+          <label for="offValue">Value</label>
+          <input id="offValue" type="number" step="0.1" placeholder="e.g. 5"/>
+        </div>
+        <div class="f" style="flex:1; min-width:200px">
+          <label for="offMsg">Message</label>
+          <input id="offMsg" type="text" placeholder="optional note to the retailer"/>
+        </div>
+        <div class="f">
+          <button class="ghost" id="offSend">Send offer</button>
+        </div>
+      </div>
+      <div id="offerErr" class="err" style="padding:0 18px"></div>
+      <div class="tablewrap">
+        <table>
+          <thead><tr>
+            <th>Sent</th><th>Store</th><th>Offer</th><th>Terms</th>
+            <th>Status</th><th>Retailer note</th>
+          </tr></thead>
+          <tbody id="offersBody"></tbody>
+        </table>
+      </div>
+    </div>
+
     <div class="panel">
       <div class="head">
         <span class="tag">STORES</span>
@@ -321,8 +366,77 @@
   // ── app ──
   function showApp(){
     $("login").style.display="none"; $("app").style.display="block";
-    loadMe(); loadOverview(); loadInsights(); loadStores(); loadMovements();
+    loadMe(); loadOverview(); loadInsights(); loadOffers(); loadStores(); loadMovements();
   }
+
+  var OFFER_LABEL = {rebate:"Volume rebate", slotting:"Slotting fee",
+                     consignment:"Consignment", price_support:"Price support"};
+  var OFFER_UNIT  = {rebate:"rebate_pct", slotting:"fee_amount",
+                     consignment:"days", price_support:"support_pct"};
+
+  function loadOffers(){
+    authFetch("/portal/offers").then(function(r){ return r.json(); }).then(function(rows){
+      $("offersCount").textContent = rows.length + " offer(s)";
+      var tb = $("offersBody");
+      if(!rows.length){
+        tb.innerHTML = '<tr><td colspan="6" class="empty">No offers yet — propose '
+          + 'one above to fund placement or agree a rebate.</td></tr>';
+      } else {
+        tb.innerHTML = rows.map(function(o){
+          var terms = Object.keys(o.terms||{}).map(function(k){
+            return esc(k)+": "+esc(String(o.terms[k])); }).join(", ") || "—";
+          var mask = o.store_masked ? '<span class="masked">hidden</span>' : '';
+          return '<tr><td>'+when(o.created_at)+'</td>'
+            + '<td>'+esc(o.store_handle)+mask+'</td>'
+            + '<td>'+esc(OFFER_LABEL[o.offer_type]||o.offer_type)+'</td>'
+            + '<td>'+terms+'</td>'
+            + '<td>'+statusHtml(o.status)+'</td>'
+            + '<td>'+esc(o.retailer_note||"—")+'</td></tr>';
+        }).join("");
+      }
+      // store picker mirrors the handles the supplier is allowed to address
+      authFetch("/portal/stores").then(function(r){ return r.json(); }).then(function(ss){
+        var sel = $("offStore");
+        if(sel.options.length) return;
+        ss.forEach(function(s){
+          var o = document.createElement("option");
+          o.value = s.store_handle; o.textContent = s.store_handle; sel.appendChild(o);
+        });
+        // A store can share (and consent) before any movement data exists, so
+        // this list may be empty. Offer a blank value — the hub resolves it when
+        // exactly one store is sharing with this supplier.
+        if(!sel.options.length){
+          var o = document.createElement("option");
+          o.value = ""; o.textContent = "Your sharing store"; sel.appendChild(o);
+        }
+      }).catch(function(){});
+    }).catch(function(){});
+  }
+
+  function statusHtml(s){
+    if(s === "accepted") return '<span class="trend-up">✓ accepted</span>';
+    if(s === "declined") return '<span class="trend-down">✕ declined</span>';
+    if(s === "withdrawn") return '<span class="trend-flat">withdrawn</span>';
+    return '<span style="color:var(--warn)">● pending</span>';
+  }
+
+  $("offSend").addEventListener("click", function(){
+    var type = $("offType").value, val = $("offValue").value;
+    $("offerErr").textContent = "";
+    if(val === ""){ $("offerErr").textContent = "Enter a value for the offer."; return; }
+    var terms = {}; terms[OFFER_UNIT[type] || "value"] = Number(val);
+    authFetch("/portal/offers", {
+      method: "POST", headers: {"Content-Type":"application/json"},
+      body: JSON.stringify({store_handle: $("offStore").value || null,
+                            offer_type: type, terms: terms,
+                            message: $("offMsg").value || null})
+    }).then(function(r){
+      if(!r.ok) return r.json().then(function(j){ throw new Error(j.detail||"Could not send"); });
+      return r.json();
+    }).then(function(){
+      $("offValue").value = ""; $("offMsg").value = ""; loadOffers();
+    }).catch(function(e){ $("offerErr").textContent = e.message; });
+  });
 
   function loadInsights(){
     authFetch("/portal/insights").then(function(r){ return r.json(); }).then(function(rows){

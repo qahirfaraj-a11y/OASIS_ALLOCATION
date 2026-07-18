@@ -209,6 +209,67 @@ def visible_insights(db: Session, supplier_id: str, *,
     return out
 
 
+def resolve_store_handle(db: Session, supplier_id: str,
+                         handle: Optional[str]) -> Optional[str]:
+    """Map a handle the supplier can see back to a store_id — consenting only.
+
+    Suppliers address stores by the handle they were shown (a real name, or the
+    masked "Store #XXXX"), never by internal id. Unknown or non-consenting
+    handles resolve to None, so a supplier cannot aim an offer at a store that
+    has not shared with them. With exactly one consenting store, the handle may
+    be omitted.
+    """
+    consent = _consent_map(db, supplier_id)
+    if not consent:
+        return None
+    if not handle:
+        return list(consent)[0] if len(consent) == 1 else None
+    for store_id, reveal in consent.items():
+        store = db.query(HubStore).filter(HubStore.id == store_id).first()
+        if not store:
+            continue
+        shown = store.store_name if reveal else _mask_handle(store_id)
+        if shown == handle:
+            return store_id
+    return None
+
+
+def _offer_row(offer, store, reveal: bool) -> dict:
+    import json as _json
+    try:
+        terms = _json.loads(offer.terms_json)
+    except ValueError:
+        terms = {}
+    return {
+        "offer_id": offer.id,
+        "store_handle": store.store_name if reveal else _mask_handle(offer.store_id),
+        "store_masked": not reveal,
+        "offer_type": offer.offer_type,
+        "terms": terms,
+        "message": offer.message,
+        "status": offer.status,
+        "retailer_note": offer.retailer_note,
+        "created_at": offer.created_at,
+        "responded_at": offer.responded_at,
+    }
+
+
+def supplier_offers(db: Session, supplier_id: str, limit: int = 200) -> List[dict]:
+    """Offers this supplier has made — their own only, consenting stores only."""
+    from .models import HubSupplierOffer
+
+    consent = _consent_map(db, supplier_id)
+    if not consent:
+        return []
+    rows = (db.query(HubSupplierOffer, HubStore)
+              .join(HubStore, HubStore.id == HubSupplierOffer.store_id)
+              .filter(HubSupplierOffer.supplier_id == supplier_id,
+                      HubSupplierOffer.store_id.in_(list(consent)))
+              .order_by(HubSupplierOffer.created_at.desc())
+              .limit(limit).all())
+    return [_offer_row(o, s, consent.get(o.store_id, False)) for o, s in rows]
+
+
 def supplier_overview(db: Session, supplier_id: str, *,
                       window_days: int = 28, risk_days: float = 7.0) -> dict:
     """Hub-native Overview signals (velocity, days-of-cover, stockout risk).
