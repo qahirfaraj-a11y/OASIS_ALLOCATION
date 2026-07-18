@@ -31,6 +31,7 @@ KIND_ARCHETYPE = "archetype"
 KIND_CAPITAL_EFFICIENCY = "capital_efficiency"
 KIND_REORDER = "reorder"
 KIND_SEI = "sei"
+KIND_NCP = "ncp"
 KIND_QUALITY = "quality"
 KIND_CANNIBALIZATION = "cannibalization"
 
@@ -41,13 +42,21 @@ _FORBIDDEN_HINTS = (
 )
 
 
-def _assert_supplier_safe(payload: Dict[str, Any]) -> Dict[str, Any]:
+def _assert_supplier_safe(payload: Dict[str, Any],
+                          allow: frozenset = frozenset()) -> Dict[str, Any]:
     """Guard: refuse to emit a card carrying store-private commercial data.
 
     Defence in depth — the builders already allow-list their fields; this stops
     a hand-assembled or future card from smuggling GRN/cost/credit values.
+
+    ``allow`` is a narrow, per-builder exemption for fields that trip the
+    keyword screen but are legitimately the SUPPLIER'S OWN position (e.g. the
+    credit terms they themselves set). Every exemption must be justified in the
+    calling builder's docstring; the default stays strict.
     """
     for key in payload:
+        if key in allow:
+            continue
         low = key.lower()
         for bad in _FORBIDDEN_HINTS:
             if bad in low:
@@ -59,9 +68,10 @@ def _assert_supplier_safe(payload: Dict[str, Any]) -> Dict[str, Any]:
 
 
 def _card(supplier_code: str, kind: str, payload: Dict[str, Any],
-          source_ref: Optional[str] = None, **extra) -> Dict[str, Any]:
+          source_ref: Optional[str] = None, allow: frozenset = frozenset(),
+          **extra) -> Dict[str, Any]:
     card = {"supplier_code": supplier_code, "kind": kind,
-            "payload": _assert_supplier_safe(payload)}
+            "payload": _assert_supplier_safe(payload, allow=allow)}
     if source_ref:
         card["source_ref"] = source_ref
     card.update({k: v for k, v in extra.items() if v is not None})
@@ -200,6 +210,63 @@ def efficiency_band(index: Optional[float]) -> Optional[str]:
     if index >= 0.75:
         return "below median"
     return "bottom quartile"
+
+
+def ncp_card(supplier_code: str, ncp: Dict[str, Any],
+             source_ref: Optional[str] = None) -> Dict[str, Any]:
+    """Net Capital Position for THIS supplier's own account — the Flex (Ch.6.2).
+
+    NCP = their credit days − how long their goods take to sell (DIO). The
+    methodology's whole point is to put this in front of the supplier: "your
+    14-day terms against a 45-day DIO means you are financing nothing — fix the
+    terms." So it is meant to be shown, but only when the retailer chooses
+    (hub exposure is default-deny and this kind is retailer-gated).
+
+    Guard exemption, justified: ``credit_days`` and ``dio_days`` trip the
+    keyword screen, but the credit terms are the SUPPLIER'S OWN (they set them)
+    and the DIO is for their OWN products — both are their side of the account,
+    not the store's book. Nothing about other suppliers, margins, or the store's
+    overall liquidity is included.
+    """
+    payload = {
+        "ncp_days": ncp.get("ncp_days"),
+        "credit_days": ncp.get("credit_days"),
+        "dio_days": ncp.get("dio_days"),
+        "position": ncp.get("position"),          # "funding" | "neutral" | "draining"
+        "skus_considered": ncp.get("skus_considered"),
+    }
+    payload = {k: v for k, v in payload.items() if v is not None}
+    return _card(supplier_code, KIND_NCP, payload, source_ref,
+                 allow=frozenset({"credit_days", "dio_days"}))
+
+
+def ncp_position(ncp_days: Optional[float]) -> Optional[str]:
+    """Plain-English reading of an NCP figure (shared by UI and tests)."""
+    if ncp_days is None:
+        return None
+    if ncp_days > 0:
+        return "funding"        # supplier credit outlasts the sell-through
+    if ncp_days == 0:
+        return "neutral"
+    return "draining"           # goods outlive the credit — ties up store capital
+
+
+def cannibalization_card(supplier_code: str, rows: List[Dict[str, Any]],
+                         source_ref: Optional[str] = None) -> Dict[str, Any]:
+    """Substitution/redundancy within the supplier's own range (Ch.9).
+
+    Tells a supplier which of THEIR OWN SKUs are eating each other rather than
+    adding incremental volume — a line-extension reality check. Carries rates
+    and counts only, never the store's economics.
+    """
+    items = [{
+        "sku_code": r.get("sku_code"),
+        "cannibalization_rate": r.get("cannibalization_rate") or r.get("cr"),
+        "substitutes_sku": r.get("substitutes_sku") or r.get("victim_sku"),
+        "incremental_pct": r.get("incremental_pct"),
+        "substitution_edges": r.get("substitution_edges"),
+    } for r in rows]
+    return _card(supplier_code, KIND_CANNIBALIZATION, {"items": items}, source_ref)
 
 
 def sei_card(supplier_code: str, mande: Dict[str, Any],

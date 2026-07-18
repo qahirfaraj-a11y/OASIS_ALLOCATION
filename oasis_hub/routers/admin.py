@@ -18,9 +18,11 @@ from ..security import (
     require_admin, hash_password, new_ingest_token, hash_ingest_token,
 )
 from ..licensing import issue_license, revoke_tenant, LicensingError
+from ..billing import compute_commission
 from ..models import (
     HubTenant, HubStore, HubSupplier, HubSupplierBrand, HubStoreConsent,
     HubIngestToken, HubInsightExposure, HubSupplierOffer, INSIGHT_KINDS,
+    SUPPLIER_TIERS,
 )
 from .. import visibility
 from ..schemas import (
@@ -145,6 +147,23 @@ def set_consent(body: ConsentIn, db: Session = Depends(get_session)):
             "reveal_identity": row.reveal_identity}
 
 
+@router.post("/suppliers/tier")
+def set_supplier_tier(supplier_code: str, tier: str,
+                      db: Session = Depends(get_session)):
+    """Set a supplier's subscription tier (what OASIS bills them for).
+
+    Independent of the retailer's exposure switch: exposure decides what a store
+    is willing to share, tier decides what the supplier has paid to receive.
+    Retailer-gated Flex kinds ignore tier entirely.
+    """
+    if tier not in SUPPLIER_TIERS:
+        raise HTTPException(422, f"tier must be one of {list(SUPPLIER_TIERS)}")
+    supplier = _get_supplier(db, supplier_code)
+    supplier.tier = tier
+    db.flush()
+    return {"supplier_code": supplier_code, "tier": tier}
+
+
 @router.post("/insight-exposure")
 def set_insight_exposure(body: InsightExposureIn, db: Session = Depends(get_session)):
     """Flip an insight kind on/off for one supplier at one store — the Flex.
@@ -192,7 +211,10 @@ def list_offers(db: Session = Depends(get_session),
         # the retailer always sees their own store named + who is proposing
         row = visibility._offer_row(offer, store, reveal=True)
         row.update({"supplier_code": supplier.supplier_code,
-                    "supplier_name": supplier.name})
+                    "supplier_name": supplier.name,
+                    "commission_rate": offer.commission_rate,
+                    "commission_amount": offer.commission_amount,
+                    "commission_basis": offer.commission_basis})
         out.append(AdminOfferOut(**row))
     return out
 
@@ -212,13 +234,28 @@ def respond_to_offer(offer_id: str, body: OfferRespondIn,
     offer.status = body.status
     offer.retailer_note = body.retailer_note
     offer.responded_at = datetime.utcnow()
+    if body.status == "accepted":
+        # OASIS brokered this — record the take-rate for downstream invoicing.
+        # Recording only; no money moves through the hub.
+        try:
+            terms = json.loads(offer.terms_json)
+        except ValueError:
+            terms = {}
+        rate, amount, basis = compute_commission(terms)
+        if rate:
+            offer.commission_rate = rate
+            offer.commission_amount = amount
+            offer.commission_basis = basis
     db.flush()
     store = db.query(HubStore).filter(HubStore.id == offer.store_id).first()
     supplier = db.query(HubSupplier).filter(
         HubSupplier.id == offer.supplier_id).first()
     row = visibility._offer_row(offer, store, reveal=True)
     row.update({"supplier_code": supplier.supplier_code,
-                "supplier_name": supplier.name})
+                "supplier_name": supplier.name,
+                "commission_rate": offer.commission_rate,
+                "commission_amount": offer.commission_amount,
+                "commission_basis": offer.commission_basis})
     return AdminOfferOut(**row)
 
 

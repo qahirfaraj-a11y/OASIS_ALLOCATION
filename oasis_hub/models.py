@@ -90,6 +90,7 @@ class HubSupplier(Base):
     name = Column(Text, nullable=False)
     contact_email = Column(Text)
     password_hash = Column(Text)          # bcrypt; null until first set
+    tier = Column(Text, nullable=False, default="free")   # free | premium
     active = Column(Boolean, default=True)
     created_at = Column(DateTime, default=datetime.utcnow)
 
@@ -181,9 +182,37 @@ INSIGHT_KINDS = (
     "capital_efficiency",  # RELATIVE index only — never absolute margin/GMROI
     "reorder",          # forward "ship X to store Y by Z" suggestion
     "sei",              # Supplier Efficiency Index (retailer-gated)
+    "ncp",              # Net Capital Position — their own float (retailer-gated)
     "quality",          # fill/quality score Q_s (retailer-gated)
     "cannibalization",  # substitution/redundancy signal (retailer-gated)
 )
+
+#: Subscription tiers OASIS bills the supplier for. Orthogonal to the retailer's
+#: exposure switch: exposure is "will the store share this?", tier is "has the
+#: supplier subscribed to receive it?". Both must pass for value kinds.
+SUPPLIER_TIERS = ("free", "premium")
+
+#: Always available to any supplier — the funnel. A stockout alert has hard ROI
+#: and costs us nothing to give away; it is what makes the portal a daily habit.
+FREE_KINDS = frozenset({"velocity", "reliability"})
+
+#: Subscription value — the forward-looking / analytical kinds.
+PREMIUM_KINDS = frozenset({"halo", "broken_halo", "archetype",
+                           "capital_efficiency", "reorder"})
+
+#: The retailer's negotiation instruments. Deliberately TIER-EXEMPT: when a
+#: store chooses to put a scorecard in front of a supplier, a paywall must not
+#: sit in the way of that conversation. Exposure alone governs these.
+FLEX_KINDS = frozenset({"sei", "ncp", "quality", "cannibalization"})
+
+
+def kind_allowed_for_tier(kind: str, tier: str) -> bool:
+    """Is this insight kind included in the supplier's subscription tier?"""
+    if kind in FLEX_KINDS:
+        return True                      # never paywall a negotiation
+    if kind in FREE_KINDS:
+        return True
+    return (tier or "free") == "premium"
 
 
 class HubSupplierInsight(Base):
@@ -260,6 +289,12 @@ class HubSupplierOffer(Base):
     retailer_note = Column(Text)                    # response reason
     created_at = Column(DateTime, default=datetime.utcnow)
     responded_at = Column(DateTime)
+    # Commission recorded when an offer is ACCEPTED. OASIS brokered the
+    # agreement, so it books a take-rate — but this only RECORDS what is owed
+    # for downstream invoicing; no money moves through the hub.
+    commission_rate = Column(Float)                 # rate applied at acceptance
+    commission_amount = Column(Float)               # only when terms carry a sum
+    commission_basis = Column(Text)                 # which term it was taken on
 
 
 class HubIngestToken(Base):

@@ -163,11 +163,18 @@ def visible_insights(db: Session, supplier_id: str, *,
     """
     import json as _json
 
-    from .models import HubInsightExposure, HubSupplierInsight
+    from .models import (
+        HubInsightExposure, HubSupplier, HubSupplierInsight, kind_allowed_for_tier,
+    )
 
     consent = _consent_map(db, supplier_id)          # granted stores only
     if not consent:
         return []
+
+    # Subscription tier — orthogonal to the retailer's exposure switch.
+    # Retailer-gated Flex kinds are tier-exempt (never paywall a negotiation).
+    supplier = db.query(HubSupplier).filter(HubSupplier.id == supplier_id).first()
+    tier = (supplier.tier if supplier else "free") or "free"
 
     exposed = {
         (e.store_id, e.kind)
@@ -191,6 +198,8 @@ def visible_insights(db: Session, supplier_id: str, *,
     for card, store in q.all():
         if (card.store_id, card.kind) not in exposed:
             continue                                  # not flipped on → hidden
+        if not kind_allowed_for_tier(card.kind, tier):
+            continue                                  # not in their subscription
         reveal = consent.get(card.store_id, False)
         try:
             payload = _json.loads(card.payload_json)

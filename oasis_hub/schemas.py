@@ -151,6 +151,10 @@ class OfferOut(BaseModel):
 class AdminOfferOut(OfferOut):
     supplier_code: str
     supplier_name: Optional[str] = None
+    # Recorded on acceptance for downstream invoicing; no money moves here.
+    commission_rate: Optional[float] = None
+    commission_amount: Optional[float] = None
+    commission_basis: Optional[str] = None
 
 
 class InsightOut(BaseModel):
