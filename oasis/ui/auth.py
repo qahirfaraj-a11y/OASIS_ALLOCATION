@@ -22,7 +22,44 @@ from . import theme
 
 USER_KEY = "user"
 LAST_ACTIVE_KEY = "_oasis_last_active"
+SID_KEY = "_oasis_sid"
 DEFAULT_TTL_MIN = 480  # 8h idle timeout
+
+
+# ── suite single sign-on (audit F1) ──────────────────────────────────────
+def try_adopt_sso(st_module, db_path: str) -> Optional[dict]:
+    """Adopt a DB-backed session handed over from a sibling console.
+
+    Consoles link to each other with ``?sid=<session>``; if the sid validates
+    against OASIS_SESSIONS, the user is signed in here without retyping their
+    password. Localhost-only URLs by design; the sid is the same 24h token the
+    APIs already accept as a bearer.
+    """
+    try:
+        params = getattr(st_module, "query_params", {}) or {}
+        sid = params.get("sid")
+        if isinstance(sid, (list, tuple)):
+            sid = sid[0] if sid else None
+    except Exception:
+        sid = None
+    if not sid:
+        return None
+    try:
+        from ..logic.auth_manager import validate_session
+        user = validate_session(sid, db_path)
+    except Exception:
+        user = None
+    if not user:
+        return None
+    st_module.session_state[USER_KEY] = user
+    st_module.session_state[SID_KEY] = sid
+    st_module.session_state[LAST_ACTIVE_KEY] = datetime.now().isoformat()
+    _audit(db_path, user.get("username", ""), "SSO_ADOPT")
+    return user
+
+
+def current_sid(st_module) -> Optional[str]:
+    return st_module.session_state.get(SID_KEY)
 
 
 # ── pure helpers (testable) ──────────────────────────────────────────────
@@ -77,6 +114,12 @@ def render_login(st_module, db_path: str, app_title: str = "OASIS") -> None:
             if user:
                 st_module.session_state[USER_KEY] = user
                 st_module.session_state[LAST_ACTIVE_KEY] = datetime.now().isoformat()
+                try:                       # mint the suite SSO token (audit F1)
+                    from ..logic.auth_manager import create_session
+                    st_module.session_state[SID_KEY] = create_session(
+                        username, db_path)
+                except Exception:
+                    pass                   # login still works without SSO
                 _audit(db_path, username, "LOGIN")
                 st_module.rerun()
             else:
@@ -105,6 +148,8 @@ def require_login(st_module, db_path: str, app_title: str = "OASIS",
     """
     user = current_user(st_module)
 
+    if not user:
+        user = try_adopt_sso(st_module, db_path)   # sibling-console handoff
     if not user:
         render_login(st_module, db_path, app_title)
         st_module.stop()

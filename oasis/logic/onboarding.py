@@ -146,6 +146,22 @@ def apply_empty(store_name: str = "My Store",
     return summary
 
 
+def apply_multi_demo(root: Optional[str] = None) -> dict:
+    """Build the multi-store DEMO network and record the choice (audit B3).
+
+    This is explicitly a demo topology (source='demo' → the SAMPLE banner shows
+    everywhere, and the trial clock is untouched). Real multi-store rollouts are
+    an assisted onboarding — this card exists so a multi install still goes
+    through an explicit first-run choice instead of a silent eager build.
+    """
+    from .install_profile import init_install
+    summary = init_install(profile="multi", root=root)
+    _record("demo", root, db_path=summary.get("db_path"),
+            store_name="Multi-store demo network",
+            multi=True, detail=summary.get("catalog") or summary.get("catalog_error"))
+    return summary
+
+
 def apply_connect(db_url: str, root: Optional[str] = None) -> dict:
     """Record an external POS DB and verify it is reachable with a POS schema.
 

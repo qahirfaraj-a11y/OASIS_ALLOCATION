@@ -91,6 +91,18 @@ def render_onboarding(st, project_root: str) -> bool:
                 st.rerun()
 
     st.divider()
+    with st.expander("🏬 Running a multi-store network?"):
+        st.caption("Build the **multi-store demo network** to tour transfers, "
+                   "allocation and the Command Center across outlets. Clearly "
+                   "badged as sample data. Real multi-store rollouts are an "
+                   "assisted onboarding — contact OASIS.")
+        if st.button("Build multi-store demo network", key="ob_multi"):
+            with st.spinner("Building the network…"):
+                s = OB.apply_multi_demo()
+            st.success(f"Multi-store demo ready — "
+                       f"{s.get('catalog') or s.get('catalog_error', '')}")
+            st.rerun()
+
     st.caption("Odoo users: install the **OASIS Connector** in Odoo to stream "
                "your data — see the connector's INTEGRATION guide. Not sure? "
                "Start with the sample store; it commits to nothing.")

@@ -69,16 +69,11 @@ if errorlevel 1 (
     pause & exit /b 1
 )
 
-REM 3. Data setup is chosen on first launch (sample / empty / connect a POS),
-REM    so a fresh install never silently ships mock data. Multi-store networks
-REM    still build their topology here.
-if /I "!OASIS_PROFILE!"=="multi" (
-    echo  [3/4] Building multi-store network...
-    .oasis_venv\Scripts\python.exe entrypoint.py --mode init --profile multi
-) else (
-    echo  [3/4] Data setup will run on first launch.
-    echo        ^(You'll choose: sample store, empty store, or connect your POS.^)
-)
+REM 3. Data setup is chosen on first launch (sample / empty / connect a POS /
+REM    multi-store demo) — a fresh install NEVER silently builds mock data.
+echo  [3/4] Data setup will run on first launch.
+echo        ^(You'll choose: sample store, empty store, connect your POS,
+echo         or the multi-store demo network.^)
 
 echo  [4/4] License status:
 .oasis_venv\Scripts\python.exe entrypoint.py --mode license-status

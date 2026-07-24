@@ -87,13 +87,21 @@ def latest_file(directory: str, suffix: str = "") -> Optional[str]:
 
 
 def suite_links(st, current_key: str) -> None:
-    """Small sidebar block linking the current console to its siblings."""
+    """Small sidebar block linking the current console to its siblings.
+
+    Carries the suite SSO token (?sid=) so hopping consoles keeps you signed
+    in — one login for the whole suite (audit F1).
+    """
     try:
+        from .auth import current_sid
+        sid = current_sid(st)
         parts = []
         for c in CONSOLES:
             if c["key"] == current_key:
                 continue
             url = "http://localhost:%d" % c["port"]
+            if sid and c["key"] != "hub":     # hub has its own supplier auth
+                url += "/?sid=%s" % sid
             parts.append("[%s %s](%s)" % (c["icon"], c["title"].split()[0], url))
         st.sidebar.markdown("<small>O.A.S.I.S. suite: " + " · ".join(parts) + "</small>",
                             unsafe_allow_html=True)
