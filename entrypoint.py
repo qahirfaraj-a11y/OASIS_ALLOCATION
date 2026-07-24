@@ -543,7 +543,7 @@ def main():
                                  "version", "upgrade", "assess",
                                  "supplier-scorecard", "category-report",
                                  "inject-grn-costs", "sku-deepdive",
-                                 "push-insights"],
+                                 "push-insights", "serve"],
                         default="full", help="Run mode")
     parser.add_argument("--dashboard", choices=list(DASHBOARD_MAP.keys()),
                         default="ops", help="Dashboard to launch (dashboard mode)")
@@ -863,6 +863,9 @@ def main():
         res = write_scorecard(data_dir, out_dir, tenant=args.tenant or "")
         print(f"Supplier scorecard written: {res['markdown']} "
               f"({res['suppliers']} suppliers, {res['unreliable']} unreliable)")
+    elif args.mode == "serve":
+        from oasis.logic.supervisor import Supervisor
+        Supervisor().run_forever()
     elif args.mode == "push-insights":
         from datetime import datetime as _now
         from oasis.logic.insight_push import run as push_insights_run

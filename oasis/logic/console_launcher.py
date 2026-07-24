@@ -76,7 +76,7 @@ def port_live(port: int, host: str = "127.0.0.1", timeout: float = 0.4) -> bool:
 
 
 def start_console(key: str, db_path: Optional[str] = None,
-                  port: Optional[int] = None) -> Optional[int]:
+                  port: Optional[int] = None, return_proc: bool = False):
     """Launch a console as a detached subprocess. Returns PID or None on error.
 
     The child inherits the current env with ``OASIS_DB_PATH`` overridden to
@@ -117,7 +117,7 @@ def start_console(key: str, db_path: Optional[str] = None,
             creationflags=getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0),
         )
         logger.info("%s started (PID %d)", cdef.title, proc.pid)
-        return proc.pid
+        return proc if return_proc else proc.pid
     except Exception as e:
         logger.error("Failed to launch %s: %s", cdef.title, e)
         return None
