@@ -347,6 +347,29 @@ class OfflineLicenseManager:
         return self.status(module_name)["mode"] in ("licensed", "evaluation")
 
 
+def restart_trial(root: Optional[str] = None) -> date:
+    """Re-stamp every trial anchor to today — the evaluation starts over.
+
+    Exists for ONE moment (lifecycle audit D1): when an install that has only
+    ever held sample data onboards REAL data, the 14-day evaluation should
+    measure OASIS against their store, not against the week they spent
+    exploring the demo. Callers (oasis.logic.onboarding) guard that this fires
+    once per install; it is not a general-purpose reset.
+    """
+    if root is None:
+        mgr = OfflineLicenseManager()                 # real install: all anchors
+    else:
+        mgr = OfflineLicenseManager(state_path=os.path.join(
+            root, "oasis", "data", ".oasis_install_state.json"))
+    today = date.today()
+    mgr._write_legacy_anchor(today)
+    if mgr._use_external_anchors:
+        mgr._write_appdata_anchor(today)
+        mgr._write_registry_anchor(today)
+    logger.info("Trial restarted at real-data onboarding: %s", today.isoformat())
+    return today
+
+
 def verify_module_startup(module_name: str) -> bool:
     """Helper function to run on application startup (back-compat)."""
     return OfflineLicenseManager().verify_license(module_name)

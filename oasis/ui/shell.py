@@ -120,6 +120,8 @@ def run_console(st, *, registry: Sequence[Page], db_path: str,
 
     console_gate(st, license_module)   # locked installs stop here
     theme.inject_theme(st)
+    from .onboarding import data_source_badge
+    data_source_badge(st)              # provenance chip / SAMPLE banner (audit C1)
     ensure_seeded(db_path)
 
     from .home import suite_links
@@ -134,8 +136,7 @@ def run_console(st, *, registry: Sequence[Page], db_path: str,
             db_path, user.get("username", ""))
     if st.session_state["_default_pw"]:
         st.warning("🔐 This account still uses the default install password. "
-                   "Change it: `python entrypoint.py --mode set-password "
-                   f"--username {user.get('username','')}`")
+                   "Change it using the 🔑 Change Password form in the sidebar.")
 
     pages = visible_pages(registry, role)
     # Module gating: locked pages stay visible (marked 🔒) and render an
@@ -177,6 +178,39 @@ def run_console(st, *, registry: Sequence[Page], db_path: str,
         if st.button("Log out", use_container_width=True):
             logout(st, db_path)
             st.rerun()
+        with st.expander("🔑 Change Password"):
+            _old = st.text_input("Current password", type="password", key="_pw_old")
+            _new = st.text_input("New password", type="password", key="_pw_new")
+            _confirm = st.text_input("Confirm new password", type="password", key="_pw_confirm")
+            if st.button("Update password", key="_pw_submit"):
+                if not _old or not _new:
+                    st.error("Fill in all fields.")
+                elif _new != _confirm:
+                    st.error("New passwords do not match.")
+                elif len(_new) < 8:
+                    st.error("Password must be at least 8 characters.")
+                else:
+                    try:
+                        from ..logic.auth_manager import verify_password, hash_password
+                        import sqlite3
+                        conn = sqlite3.connect(db_path, timeout=10.0)
+                        try:
+                            row = conn.execute(
+                                "SELECT PASSWORD_HASH FROM OASIS_USERS WHERE USERNAME=?",
+                                (user.get("username", ""),)).fetchone()
+                            if not row or not verify_password(_old, row[0]):
+                                st.error("Current password is incorrect.")
+                            else:
+                                conn.execute(
+                                    "UPDATE OASIS_USERS SET PASSWORD_HASH=? WHERE USERNAME=?",
+                                    (hash_password(_new), user.get("username", "")))
+                                conn.commit()
+                                st.session_state["_default_pw"] = False
+                                st.success("Password updated.")
+                        finally:
+                            conn.close()
+                    except Exception as e:
+                        st.error(f"Error: {e}")
 
     ctx = {
         "st": st,
@@ -780,18 +814,28 @@ def render_settings(ctx) -> None:
     except Exception as e:
         C.error_panel("Could not load users.", str(e), st_module=st)
 
-    # Engine feature flags (read-only view)
+    # Engine feature flags (editable)
     st.markdown("#### Engine Flags")
     cfg_path = os.path.join(ctx["project_root"], "oasis", "data", "oasis_engines_config.json")
     if os.path.exists(cfg_path):
         try:
             with open(cfg_path, "r", encoding="utf-8") as f:
-                engines = json.load(f).get("engines", {})
-            rows = [{"Engine": k, "Enabled": bool(v.get("enabled"))}
-                    for k, v in engines.items()]
-            if rows:
-                import pandas as pd
-                st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True)
+                cfg = json.load(f)
+                engines = cfg.get("engines", {})
+            
+            changed = False
+            for k, v in engines.items():
+                is_enabled = bool(v.get("enabled"))
+                new_val = st.toggle(k, value=is_enabled, key=f"engine_{k}")
+                if new_val != is_enabled:
+                    engines[k]["enabled"] = new_val
+                    changed = True
+            
+            if changed:
+                with open(cfg_path, "w", encoding="utf-8") as f:
+                    json.dump(cfg, f, indent=2)
+                _log_action(ctx, "config_changed", {"file": "oasis_engines_config.json"})
+                st.success("Engine configuration updated.")
         except Exception:
             C.empty_state("Engine config unreadable", "Check oasis_engines_config.json.", st_module=st)
     else:
@@ -820,7 +864,6 @@ def render_diagnose(ctx) -> None:
     import os
     import glob
     st = ctx["st"]
-    from . import components as C
 
     st.markdown("### Forensic Diagnosis (operator)")
     root = ctx["project_root"]
@@ -830,12 +873,25 @@ def render_diagnose(ctx) -> None:
         st.success(f"{len(outputs)} forensic audit output(s) on disk:")
         for o in outputs[-5:]:
             st.caption("• " + os.path.basename(o))
-    C.empty_state(
-        "Run the full forensic audit in the ingestion tool",
-        "The Phase-1 audit (messy-data upload → ForensicOperationsIngestor → "
-        "AMIT/DHARAM/LATA/MANDE → Word + Excel) is operated via pitch_app_v2.py. "
-        "Outputs are handed to the prospect; this shell view tracks them.",
-        st_module=st)
+    from ..logic.console_launcher import start_console, port_live
+    if "_launched_pids" not in st.session_state:
+        st.session_state["_launched_pids"] = {}
+    _pids = st.session_state["_launched_pids"]
+    
+    st.markdown("#### Ingestion Tool")
+    st.write("The Phase-1 audit (messy-data upload → ForensicOperationsIngestor → AMIT/DHARAM/LATA/MANDE) is operated via the dedicated Diagnostic Tool.")
+    
+    if port_live(8504):
+        st.success("Diagnostic Tool is running.")
+        st.link_button("Open Diagnostic Tool", "http://localhost:8504", type="primary")
+    else:
+        if st.button("Launch Diagnostic Tool", type="primary"):
+            pid = start_console("pitch", db_path=ctx["db_path"])
+            if pid:
+                _pids["pitch"] = pid
+            import time
+            time.sleep(3)
+            st.rerun()
 
 # All journey pages are now native in the shell — the interim _bridge helper
 # (which pointed at legacy dashboards) has been retired.

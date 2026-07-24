@@ -69,12 +69,15 @@ if errorlevel 1 (
     pause & exit /b 1
 )
 
-echo  [3/4] Initialising OASIS for !OASIS_PROFILE! store profile...
-.oasis_venv\Scripts\python.exe entrypoint.py --mode init --profile !OASIS_PROFILE!
-if errorlevel 1 (
-    echo.
-    echo   Note: init reported a warning. If this is a first install without
-    echo   catalog exports yet, that's expected. Proceeding.
+REM 3. Data setup is chosen on first launch (sample / empty / connect a POS),
+REM    so a fresh install never silently ships mock data. Multi-store networks
+REM    still build their topology here.
+if /I "!OASIS_PROFILE!"=="multi" (
+    echo  [3/4] Building multi-store network...
+    .oasis_venv\Scripts\python.exe entrypoint.py --mode init --profile multi
+) else (
+    echo  [3/4] Data setup will run on first launch.
+    echo        ^(You'll choose: sample store, empty store, or connect your POS.^)
 )
 
 echo  [4/4] License status:
@@ -84,8 +87,10 @@ echo.
 echo  ============================================================
 echo    Installation complete.
 echo.
-echo    Log in:      admin password shown above (change with --mode set-password)
 echo    Launch:      double-click  run_oasis_home.bat
+echo    First run:   OASIS asks where your data comes from --
+echo                 try the sample store, start empty, or connect your POS.
+echo    Log in:      admin password shown above (change with --mode set-password)
 echo    License key: drop it beside install.bat as  oasis_license.key
 echo                 (without one, the 14-day evaluation trial is active)
 echo.

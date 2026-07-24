@@ -76,6 +76,8 @@ if __name__ == "__main__":
     )
     require_login(st, _AUTH_DB, app_title="Allocation Engine")
 
+from oasis.ui.onboarding import data_source_badge as _src_badge  # noqa: E402
+_src_badge(st)
 st.title("🛒 Dynamic Inventory Allocation Engine (v2.0 Logic)")
 st.markdown("Powered by **OrderEngine 2.0**: Two-Pass Allocation with Efficiency Guards.")
 

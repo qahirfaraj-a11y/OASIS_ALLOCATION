@@ -67,6 +67,8 @@ st.set_page_config(
 # ── License enforcement (locked installs stop here) ─────────────────
 from oasis.logic.license_manager import console_gate as _license_gate  # noqa: E402
 _license_gate(st, "core")
+from oasis.ui.onboarding import data_source_badge as _src_badge  # noqa: E402
+_src_badge(st)
 
 # Cross-links to the sibling consoles (suite polish)
 from oasis.ui.home import suite_links as _suite_links  # noqa: E402
@@ -971,6 +973,9 @@ if user_perms['tabs'].get('settings'):
 if user_role in ('ops_admin', 'regional_manager') or showcase_mode:
     tab_labels.append("🔬 Supplier Intelligence")
     tab_keys.append("supplier_intelligence")
+if not tab_labels:
+    tab_labels.append("Dashboard")
+    tab_keys.append("default")
 
 tabs = st.tabs(tab_labels)
 tab_map = {key: tabs[i] for i, key in enumerate(tab_keys)}

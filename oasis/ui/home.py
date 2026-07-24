@@ -20,17 +20,16 @@ from typing import List, Optional
 #: the shipped surfaces — single source of truth for the launcher & suite bar
 CONSOLES = [
     {"key": "ops", "title": "Operations Console", "icon": "◎", "port": 8500,
-     "launcher": "run_oasis_live.bat",
      "desc": "Ordering, approvals, transfers, allocation, suppliers."},
     {"key": "command", "title": "Command Center", "icon": "🔮", "port": 8501,
-     "launcher": "run_command_center_live.bat",
      "desc": "Multi-tab operations dashboard: live sales, stock, smart ordering."},
     {"key": "intel", "title": "Intelligence Console", "icon": "⚡", "port": 8510,
-     "launcher": "run_oasis_intel_live.bat",
      "desc": "Pulse, velocity alerts, stock review, baskets, executive ROI."},
     {"key": "stgat", "title": "Market Intelligence", "icon": "📈", "port": 8502,
-     "launcher": "run_market_intelligence_tool.bat",
      "desc": "ST-GAT network analysis and advisory transfers."},
+    {"key": "hub", "title": "Cloud Hub", "icon": "☁", "port": 8700,
+     "desc": "Online expansion: supplier portal, movement ingestion, consent.",
+     "portal_path": "/portal-app/"},
 ]
 
 
@@ -116,6 +115,12 @@ def render_home_page(st, project_root: str) -> None:
     from ..logic.branding import load_branding
     from ..logic.install_profile import is_multi_store, load_profile
     from ..logic.license_manager import KNOWN_MODULES, OfflineLicenseManager
+    from .onboarding import render_onboarding, demo_badge, render_reset_control
+
+    # First-run gate: a fresh install picks its data source before anything else,
+    # rather than silently showing a mock (or broken/empty) store.
+    if render_onboarding(st, project_root):
+        return
 
     b = load_branding()
     _profile = load_profile()
@@ -129,7 +134,7 @@ def render_home_page(st, project_root: str) -> None:
     subline = f" · {b.tenant_name}" if b.tenant_name != b.product_name else ""
     # Top spec tag — brand's "[ AUDITED LOGIC_ENGINE_V3.1 ]" motif
     from . import components as C
-    from ..logic.license_manager import OfflineLicenseManager, allowed_modules
+    from ..logic.license_manager import allowed_modules
     _sys_status = "PEAK" if OfflineLicenseManager().status("core")["mode"] != "locked" else "LOCKED"
     C.spec_tag(f"AUDITED LOGIC_ENGINE_V{_version_str(project_root)}", hot=True,
                st_module=st)
@@ -154,15 +159,40 @@ def render_home_page(st, project_root: str) -> None:
          "value": "SECURE" if _snap["db_exists"] else "PENDING"},
         {"label": "Modules Live", "value": f"{len(_mods)}/5"},
     ], st_module=st)
+    # Sample-data banner (only when the active store is the built-in demo).
+    demo_badge(st)
+
     # Profile badge — tells the operator (and any support tech) which topology
     # is active and where the DB lives.
     if _profile:
         _label = "Multi-store network" if _is_multi else "Single store"
         st.caption(f"▸ {_label} · DB: `{_profile.get('db_path', '—')}`")
-    else:
-        st.warning("This install has not been initialised. "
-                   "Run `entrypoint.py --mode init --profile single` "
-                   "(or `--profile multi`) to build the DB and record the topology.")
+
+    # ── launch controls ─────────────────────────────────────────────────
+    from ..logic.console_launcher import start_console, stop_all as _stop_all
+    if "_launched_pids" not in st.session_state:
+        st.session_state["_launched_pids"] = {}
+    _pids = st.session_state["_launched_pids"]
+    _db = os.getenv("OASIS_DB_PATH",
+                    os.path.join(project_root, "oasis", "data", "rhapta_pos.db"))
+
+    l_col, r_col = st.columns([1, 1])
+    with l_col:
+        if st.button("▶  Start All Consoles", use_container_width=True, type="primary"):
+            for c in CONSOLES:
+                pid = start_console(c["key"], db_path=_db)
+                if pid:
+                    _pids[c["key"]] = pid
+            import time
+            time.sleep(3)  # let processes bind ports
+            st.rerun()
+    with r_col:
+        if st.button("■  Stop All", use_container_width=True):
+            _stop_all(_pids)
+            _pids.clear()
+            import time
+            time.sleep(1)
+            st.rerun()
 
     # ── consoles ────────────────────────────────────────────────────────
     cards = console_cards()
@@ -178,9 +208,20 @@ def render_home_page(st, project_root: str) -> None:
                 f"<div>{badge} &nbsp;·&nbsp; :{c['port']}</div></div>",
                 unsafe_allow_html=True)
             if c["live"]:
-                st.link_button("Open", c["url"], use_container_width=True)
+                # Hub links to the portal app, not the raw API root
+                url = c["url"]
+                if c.get("portal_path"):
+                    url += c["portal_path"]
+                st.link_button("Open", url, use_container_width=True)
             else:
-                st.caption(f"Start with `{c['launcher']}`")
+                if st.button("Launch", key=f"launch_{c['key']}",
+                             use_container_width=True):
+                    pid = start_console(c["key"], db_path=_db)
+                    if pid:
+                        _pids[c["key"]] = pid
+                    import time
+                    time.sleep(3)
+                    st.rerun()
 
     st.divider()
     left, right = st.columns(2)
@@ -216,3 +257,6 @@ def render_home_page(st, project_root: str) -> None:
                                    file_name=os.path.basename(report))
         else:
             st.caption("No value report yet — run `--mode value-report`.")
+
+    st.divider()
+    render_reset_control(st)

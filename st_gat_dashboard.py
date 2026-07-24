@@ -44,6 +44,8 @@ st.set_page_config(page_title="ST-GAT Market Pulse", layout="wide", page_icon="�
 # ── License gate: Market Intelligence ships in the Network module ───────
 from oasis.logic.license_manager import allowed_modules, console_gate, render_upsell  # noqa: E402
 console_gate(st, "core")
+from oasis.ui.onboarding import data_source_badge  # noqa: E402
+data_source_badge(st)
 if "network" not in allowed_modules():
     render_upsell(st, "network")
     st.stop()

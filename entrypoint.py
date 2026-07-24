@@ -381,6 +381,26 @@ def run_full():
         dashboard_procs.append((name, proc))
         logger.info(f"Dashboard {name} started on port {port}")
 
+    # Launch modern consoles
+    modern_consoles = {
+        "home": ("home_app.py", 8490),
+        "ops": ("app.py", 8500),
+        "intel": ("app_intel.py", 8510)
+    }
+    for name, (script, port) in modern_consoles.items():
+        if not os.path.exists(script):
+            continue
+        cmd = [
+            sys.executable, "-m", "streamlit", "run", script,
+            "--server.port", str(port),
+            "--server.address", "0.0.0.0",
+            "--server.headless", "true",
+            "--browser.gatherUsageStats", "false",
+        ]
+        proc = subprocess.Popen(cmd)
+        dashboard_procs.append((name, proc))
+        logger.info(f"Modern console {name} started on port {port}")
+
     # Hold until shutdown
     _shutdown.wait()
 

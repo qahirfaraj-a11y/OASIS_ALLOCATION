@@ -19,11 +19,10 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from oasis.ui import shell
 
+from oasis.logic.onboarding import resolved_db_path
+
 PROJECT_ROOT = os.path.dirname(os.path.abspath(__file__))
-DB_PATH = os.getenv(
-    "OASIS_DB_PATH",
-    os.path.join(PROJECT_ROOT, "oasis", "data", "mock_pos_erp.db"),
-)
+DB_PATH = resolved_db_path(PROJECT_ROOT)
 
 st.set_page_config(page_title="O.A.S.I.S. — Operations", page_icon="◎",
                    layout="wide", initial_sidebar_state="expanded")
