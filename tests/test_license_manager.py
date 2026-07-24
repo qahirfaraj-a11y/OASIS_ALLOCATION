@@ -115,3 +115,48 @@ class TestTrial:
         (tmp_path / "state.json").write_text(json.dumps({"first_run": old}))
         s = m.status("ops")
         assert s["mode"] == "locked" and "evaluation period ended" in s["reason"]
+
+
+class TestKeyValidation:
+    """Audit E2: in-product activation — the pure validation core."""
+
+    def test_garbage_rejected(self):
+        from oasis.logic.license_manager import validate_key_payload
+        ok, detail, key = validate_key_payload("not json at all")
+        assert not ok and "JSON" in detail
+
+    def test_json_but_not_a_key_rejected(self):
+        from oasis.logic.license_manager import validate_key_payload
+        ok, detail, _ = validate_key_payload('{"hello": "world"}')
+        assert not ok and "not an OASIS key" in detail
+
+    def test_expired_key_rejected(self, monkeypatch):
+        from oasis.logic.license_manager import validate_key_payload
+        monkeypatch.delenv("OASIS_LICENSE_SALT", raising=False)
+        raw = ('{"tenant_id": "t", "expiry_date": "2020-01-01", '
+               '"authorized_modules": {"core": "x"}}')
+        ok, detail, _ = validate_key_payload(raw)
+        assert not ok and "expired" in detail
+
+    def test_valid_signed_key_accepted(self, monkeypatch, tmp_path):
+        import json as _json
+
+        from oasis.logic.license_manager import (
+            OfflineLicenseManager, validate_key_payload,
+        )
+        monkeypatch.setenv("OASIS_LICENSE_SALT", "unit-salt")
+        issued = OfflineLicenseManager().build_key("acme", ["core"], "2030-01-01")
+        ok, detail, key = validate_key_payload(_json.dumps(issued))
+        assert ok and key["tenant_id"] == "acme" and "core" in detail
+
+    def test_tampered_signature_rejected_when_salt_known(self, monkeypatch):
+        import json as _json
+
+        from oasis.logic.license_manager import (
+            OfflineLicenseManager, validate_key_payload,
+        )
+        monkeypatch.setenv("OASIS_LICENSE_SALT", "unit-salt")
+        issued = OfflineLicenseManager().build_key("acme", ["core"], "2030-01-01")
+        issued["authorized_modules"]["core"] = "forged"
+        ok, detail, _ = validate_key_payload(_json.dumps(issued))
+        assert not ok and "Signature" in detail

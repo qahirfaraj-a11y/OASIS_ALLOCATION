@@ -413,6 +413,99 @@ def render_upsell(st, module: str) -> None:
         </div>""", unsafe_allow_html=True)
 
 
+def validate_key_payload(raw: str) -> tuple:
+    """Structural + (when salt is configured) cryptographic check of a pasted
+    or uploaded key. Returns (ok, detail, key_dict|None). Pure — unit-tested."""
+    try:
+        key = json.loads(raw or "")
+    except ValueError:
+        return False, "That doesn't look like a license key (not valid JSON).", None
+    if not isinstance(key, dict) or not key.get("authorized_modules") \
+            or not key.get("tenant_id") or not key.get("expiry_date"):
+        return False, ("That file is JSON but not an OASIS key — it must carry "
+                       "tenant_id, expiry_date and authorized_modules."), None
+    mgr = OfflineLicenseManager()
+    if mgr._salt:
+        tenant, expiry = key["tenant_id"], key["expiry_date"]
+        bad = [m for m, sig in key["authorized_modules"].items()
+               if sig != mgr._fingerprint(tenant, m, expiry)]
+        if bad:
+            return False, (f"Signature check failed for module(s): "
+                           f"{', '.join(bad)} — the key was altered or issued "
+                           "for a different install."), None
+    try:
+        exp = date.fromisoformat(key["expiry_date"])
+        if exp < date.today():
+            return False, f"This key expired on {key['expiry_date']}.", None
+    except ValueError:
+        return False, "expiry_date is not a valid date.", None
+    return True, (f"Key for {key['tenant_id']} — modules: "
+                  f"{', '.join(key['authorized_modules'])} · "
+                  f"valid to {key['expiry_date']}."), key
+
+
+def render_license_activation(st) -> None:
+    """Paste/upload a license key IN the product (audit E2) — no file surgery."""
+    up = st.file_uploader("Upload oasis_license.key", type=["key", "json"],
+                          key="_lic_upload")
+    txt = st.text_area("…or paste the key contents", height=130, key="_lic_paste",
+                       placeholder='{"tenant_id": "...", "authorized_modules": {...}}')
+    if st.button("Activate license", type="primary", key="_lic_activate"):
+        raw = up.getvalue().decode("utf-8", "replace") if up else (txt or "")
+        ok, detail, key = validate_key_payload(raw)
+        if not ok:
+            st.error(detail)
+            return
+        path = _default_key_path()
+        with open(path, "w", encoding="utf-8") as f:
+            json.dump(key, f, indent=2)
+        st.success(f"✓ License activated. {detail}")
+        st.rerun()
+
+
+def render_lock_screen(st) -> None:
+    """Day-15 (or expiry) surface: never a dead end (audit E1/E3).
+
+    The user keeps three doors: activate a key, export THEIR data, and see
+    exactly what a license buys. Their records are never held hostage.
+    """
+    a, b, c = st.tabs(["🔑 Activate", "📦 Export my data", "🧾 What a license includes"])
+    with a:
+        st.caption("Already purchased? Activate here — no file copying needed.")
+        render_license_activation(st)
+    with b:
+        st.caption("Your data is yours, licensed or not. Take a full copy any time.")
+        try:
+            from .onboarding import resolved_db_path
+            db = resolved_db_path()
+            if os.path.exists(db):
+                with open(db, "rb") as f:
+                    st.download_button("⬇ Download my store database (.db)",
+                                       f.read(), file_name=os.path.basename(db),
+                                       key="_lock_export")
+            else:
+                st.info("No store database found yet.")
+        except Exception as e:
+            st.error(f"Export unavailable: {e}")
+        reports = os.path.join(_ROOT, "reports")
+        if os.path.isdir(reports):
+            mds = sorted(f for f in os.listdir(reports) if f.endswith(".md"))
+            if mds:
+                with open(os.path.join(reports, mds[-1]), encoding="utf-8") as f:
+                    st.download_button("⬇ Latest Value Report",
+                                       f.read(), file_name=mds[-1],
+                                       key="_lock_report")
+    with c:
+        for m in KNOWN_MODULES:
+            st.markdown(f"- **{MODULE_LABELS[m]}**"
+                        + (" — mandatory base" if m == "core" else ""))
+        st.markdown("**Bundles:** " + " · ".join(
+            f"`{n}` ({len(ms)} modules)" for n, ms in BUNDLES.items()))
+        st.caption("Contact iLink for a key — activation is immediate, and the "
+                   "data OASIS collected during your trial lights up in full "
+                   "the moment it lands.")
+
+
 def console_gate(st, module: str) -> dict:
     """Enforce licensing at a Streamlit console's entry point.
 
@@ -433,8 +526,7 @@ def console_gate(st, module: str) -> dict:
         st.warning(f"⏳ **EVALUATION MODE** — {s['trial_days_left']} day(s) "
                    "remaining. Contact iLink for a license key.")
     else:
-        st.error(f"🔒 **O.A.S.I.S. is locked** — {s['reason']}.\n\n"
-                 "Contact iLink to obtain or renew your license key, then place "
-                 "it at the configured OASIS_LICENSE_KEY path and reload.")
+        st.error(f"🔒 **O.A.S.I.S. is locked** — {s['reason']}.")
+        render_lock_screen(st)
         st.stop()
     return s

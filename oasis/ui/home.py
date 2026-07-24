@@ -234,6 +234,10 @@ def render_home_page(st, project_root: str) -> None:
                 for m in KNOWN_MODULES]
         import pandas as pd
         st.dataframe(pd.DataFrame(rows), hide_index=True, use_container_width=True)
+        if mgr.status("core")["mode"] != "licensed":
+            from ..logic.license_manager import render_license_activation
+            with st.expander("🔑 Activate a license"):
+                render_license_activation(st)
 
     # ── system snapshot ─────────────────────────────────────────────────
     with right:
