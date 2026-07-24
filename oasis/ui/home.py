@@ -25,7 +25,7 @@ CONSOLES = [
      "desc": "Multi-tab operations dashboard: live sales, stock, smart ordering."},
     {"key": "intel", "title": "Intelligence Console", "icon": "⚡", "port": 8510,
      "desc": "Pulse, velocity alerts, stock review, baskets, executive ROI."},
-    {"key": "stgat", "title": "Market Intelligence", "icon": "📈", "port": 8502,
+    {"key": "stgat", "title": "Market Intelligence", "icon": "📈", "port": 8505,
      "desc": "ST-GAT network analysis and advisory transfers."},
     {"key": "hub", "title": "Cloud Hub", "icon": "☁", "port": 8700,
      "desc": "Online expansion: supplier portal, movement ingestion, consent.",

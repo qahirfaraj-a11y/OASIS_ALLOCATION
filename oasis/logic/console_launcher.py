@@ -40,7 +40,7 @@ CONSOLE_DEFS: Dict[str, ConsoleDef] = {
                           port=8501, title="Command Center"),
     "intel": ConsoleDef("intel", "intel", port=8510, title="Intelligence Console"),
     "stgat": ConsoleDef("stgat", "dashboard", extra_args=("--dashboard", "stgat"),
-                        port=8502, title="Market Intelligence"),
+                        port=8505, title="Market Intelligence"),
     "hub": ConsoleDef("hub", "hub", port=8700, title="Cloud Hub"),
     "pitch": ConsoleDef("pitch", "dashboard", extra_args=("--dashboard", "pitch"),
                         port=8504, title="Diagnostic Tool"),

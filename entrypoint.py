@@ -56,8 +56,8 @@ DASHBOARD_MAP = {
 }
 
 DEFAULT_PORTS = {
-    "ops": 8501, "command": 8501, "allocation": 8502, "stgat": 8502,
-    "integrated": 8503, "pitch": 8504, "shadow": 8506, "approval": 8507,
+    "ops": 8501, "command": 8501, "shadow": 8502, "approval": 8503,
+    "pitch": 8504, "stgat": 8505, "allocation": 8506, "integrated": 8507,
 }
 
 # ── Graceful Shutdown ─────────────────────────────────────────────────

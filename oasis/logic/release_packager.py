@@ -85,7 +85,7 @@ _ROOT_WHITELIST = {
     "home_app.py", "st_gat_dashboard.py", "allocation_app.py",
     "intraday_sim.py",
     # install + config
-    "install.bat", "VERSION", "requirements.txt", "alembic.ini",
+    "install.bat", "OASIS.bat", "VERSION", "requirements.txt", "alembic.ini",
     "branding.example.json", "oasis_client_config.template.json",
     # launchers the client actually runs
     "run_oasis_home.bat",
