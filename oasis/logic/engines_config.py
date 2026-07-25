@@ -33,8 +33,13 @@ logger = logging.getLogger("OASIS.EnginesConfig")
 LIVE_FILE = "oasis_engines_config.json"
 DEFAULT_FILE = "oasis_engines_config.default.json"
 
-#: the engines the config is expected to describe (used by preflight)
-KNOWN_ENGINES = ("mop_up", "amit", "lata", "dharam", "mande", "dead_stock")
+#: engines gated by an ``enabled`` flag (used by preflight's active list).
+#: ``dead_stock`` is deliberately absent — it is a parameter block read by
+#: amit_governance, not a flag-gated engine, so reporting it as "inactive"
+#: would be misleading.
+KNOWN_ENGINES = ("mop_up", "amit", "lata", "dharam", "mande")
+#: config sections that carry parameters but no on/off flag
+PARAM_ONLY_SECTIONS = ("dead_stock",)
 
 
 def _package_data_dir() -> str:

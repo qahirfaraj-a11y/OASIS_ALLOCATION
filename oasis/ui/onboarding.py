@@ -71,24 +71,41 @@ def render_onboarding(st, project_root: str) -> bool:
                     res = OB.apply_connect(url.strip())
                 if res["ok"]:
                     st.success(res["detail"])
-                    st.info("Set `OASIS_POS_DB_URL` to this URL (or in your "
-                            ".env) so every console reads it, then reload.")
-                    st.rerun()
+                    st.rerun()      # the consoles read this URL now (S2) —
+                                    # no OASIS_POS_DB_URL hand-edit needed
                 else:
                     st.error(res["detail"])
 
     with c4:
         st.markdown("### 🏢 Build from Catalogue")
-        st.caption("Initialize a real database from your provided **product catalog** and optionally seed demand from historical sales files.")
-        prof = st.selectbox("Store topology", ["single", "multi"], key="ob_profile")
-        if st.button("Initialize DB", use_container_width=True, key="ob_init"):
-            with st.spinner("Building database from catalog..."):
-                res = OB.apply_init(prof)
-            if "catalog_error" in res:
-                st.error(f"Catalog error: {res['catalog_error']}")
-            else:
-                st.success(f"Initialized ({res['profile']} store). Catalog: {res.get('catalog', '0 SKUs')}")
-                st.rerun()
+        st.caption("Initialize a real database from your provided **product "
+                   "catalog** and optionally seed demand from historical sales "
+                   "files.")
+        cat = OB.catalog_available(project_root)
+        if not cat["ok"]:
+            # Don't offer a button whose only outcome is a red error: OASIS
+            # ships no catalogue files (they're your data), so say what's
+            # needed and where to put it (S3).
+            st.info("**Catalogue files not found.** This path builds from your "
+                    "own product catalogue — export it as one or more "
+                    "`dept_*.xlsx` files and drop them in `oasis/data/`, then "
+                    "reload this page.")
+            st.caption(f"Looked in: `{cat['detail'].rsplit(' in ', 1)[-1]}`  ·  "
+                       "Not got a catalogue export? Start with the sample "
+                       "store — you can switch later.")
+        else:
+            st.caption(f"✓ {cat['files']} catalogue file(s) detected.")
+            prof = st.selectbox("Store topology", ["single", "multi"],
+                                key="ob_profile")
+            if st.button("Initialize DB", use_container_width=True, key="ob_init"):
+                with st.spinner("Building database from catalog..."):
+                    res = OB.apply_init(prof)
+                if "catalog_error" in res:
+                    st.error(f"Catalog error: {res['catalog_error']}")
+                else:
+                    st.success(f"Initialized ({res['profile']} store). "
+                               f"Catalog: {res.get('catalog', '0 SKUs')}")
+                    st.rerun()
 
     st.divider()
     with st.expander("🏬 Running a multi-store network?"):
@@ -99,8 +116,8 @@ def render_onboarding(st, project_root: str) -> bool:
         if st.button("Build multi-store demo network", key="ob_multi"):
             with st.spinner("Building the network…"):
                 s = OB.apply_multi_demo()
-            st.success(f"Multi-store demo ready — "
-                       f"{s.get('catalog') or s.get('catalog_error', '')}")
+            st.success(f"Multi-store demo ready — {s.get('catalog', '')}"
+                       + (f" · {s['history']}" if s.get("history") else ""))
             st.rerun()
 
     st.caption("Odoo users: install the **OASIS Connector** in Odoo to stream "
@@ -143,6 +160,13 @@ def data_source_badge(st) -> None:
         host = url.split("@")[-1].split("/")[0] if "@" in url else (
             url.rsplit("/", 1)[-1] or "external POS")
         label = f"DATA: connected POS ({host})"
+    elif src == "init":
+        # a real catalogue-built store. Without this branch it fell to the
+        # else and every console header called it un-onboarded, forever (S4).
+        store = ob.get("store_name") or "catalogue store"
+        prof = ob.get("profile")
+        label = f"DATA: {store} (built from your catalogue" + \
+                (f", {prof}-store)" if prof else ")")
     else:
         label = "DATA: not onboarded — run first-launch setup from Home"
     st.markdown(

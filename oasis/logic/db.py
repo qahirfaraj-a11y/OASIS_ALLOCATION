@@ -38,15 +38,55 @@ def is_sqlite() -> bool:
     return get_db_url().startswith("sqlite")
 
 
+def sqlite_path_from_url(url: Optional[str]) -> Optional[str]:
+    """The local file behind a ``sqlite:///`` URL, else None (non-SQLite URLs)."""
+    u = str(url or "")
+    if not u.startswith("sqlite") or "///" not in u:
+        return None
+    path = u.split("///", 1)[1].split("?", 1)[0]
+    return os.path.abspath(path) if path else None
+
+
+def onboarded_pos_url() -> Optional[str]:
+    """POS URL recorded by the first-run wizard's "Connect a POS" choice.
+
+    Read lazily (and defensively) so this module stays importable on its own —
+    oasis.logic.onboarding imports db for its connection check.
+    """
+    try:
+        from .onboarding import load_onboarding
+        ob = load_onboarding()
+        if ob.get("source") == "connect" and ob.get("db_url"):
+            return str(ob["db_url"])
+    except Exception:
+        pass
+    return None
+
+
 def get_pos_db_url() -> str:
     """URL of the POS/ERP *source* database (read-only client system).
 
     Separating this from OASIS's own operational store (get_db_url) lets a client
     install read the POS database read-only while OASIS keeps its users/audit/
-    config/integration tables in its own store. Falls back to OASIS_DB_URL and
-    then the SQLite default, so the single-DB demo keeps working unchanged.
+    config/integration tables in its own store.
+
+    Priority: OASIS_POS_DB_URL → the URL the wizard recorded → OASIS_DB_URL →
+    the SQLite default (so the single-DB demo keeps working unchanged). The
+    middle tier is what makes "Connect a POS" actually reach the runtime: before
+    it existed the wizard recorded a URL nothing ever read, and the consoles
+    opened a default SQLite file that a connect-only install does not have
+    (deep-analysis finding S2).
     """
-    return os.getenv("OASIS_POS_DB_URL") or get_db_url()
+    return os.getenv("OASIS_POS_DB_URL") or onboarded_pos_url() or get_db_url()
+
+
+def has_distinct_pos() -> bool:
+    """True when the POS source is a database separate from the OASIS store.
+
+    Use this instead of testing ``os.getenv("OASIS_POS_DB_URL")`` directly —
+    the env var is only one of the two ways a distinct POS gets configured.
+    """
+    return bool(os.getenv("OASIS_POS_DB_URL") or onboarded_pos_url())
 
 
 def get_pos_sqlalchemy_url(db_url: Optional[str] = None) -> str:

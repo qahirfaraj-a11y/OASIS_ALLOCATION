@@ -36,8 +36,9 @@ from typing import Dict, List, Optional
 # "FRESH DAIRY", etc.
 
 DEPARTMENT_GROUPS = {
-    "STAPLE":       ["RICE", "FLOUR", "SUGAR", "SALT", "MAIZE", "COOKING OIL",
-                     "COOKING FAT", "GHEE", "PULSES", "BEANS", "LENTILS"],
+    "STAPLE":       ["STAPLE", "RICE", "FLOUR", "SUGAR", "SALT", "MAIZE",
+                     "COOKING OIL", "COOKING FAT", "GHEE", "PULSES", "BEANS",
+                     "LENTILS"],
     "DAIRY":        ["MILK", "DAIRY", "CHEESE", "YOGHURT", "BUTTER", "CREAM",
                      "EGGS"],
     "FRESH":        ["FRESH", "VEGETABLE", "FRUIT", "SALAD", "HERBS"],

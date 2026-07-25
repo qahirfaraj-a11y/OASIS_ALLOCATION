@@ -26,7 +26,11 @@ from datetime import datetime
 from typing import Optional
 
 ONBOARD_FILE = ".oasis_onboarding.json"
-SOURCES = ("demo", "empty", "connect")
+#: every value _record() can write. "init" is a real catalogue-built store —
+#: it was missing here, so the badge fell through to "not onboarded" (S4).
+SOURCES = ("demo", "empty", "connect", "init")
+#: sources that represent the operator's OWN data (not the built-in sample).
+REAL_SOURCES = ("empty", "connect", "init")
 
 
 def _root() -> str:
@@ -84,11 +88,19 @@ def resolved_db_path(root: Optional[str] = None) -> str:
     Priority chain:
       1. ``OASIS_DB_PATH`` env var (explicit override — always wins)
       2. Onboarding state ``db_path`` (set by the first-run wizard)
-      3. Install profile ``db_path`` (set by ``--mode init``)
-      4. Default fallback (``oasis/data/rhapta_pos.db``)
+      3. A connected POS recorded as a local ``sqlite:///`` URL
+      4. Install profile ``db_path`` (set by ``--mode init``)
+      5. Default fallback (``oasis/data/rhapta_pos.db``)
 
     Every console and the Home app should call this instead of hardcoding
     a default path. This closes W-7 (DB path fragmentation).
+
+    Tier 3 exists because "Connect a POS" records a ``db_url``, not a
+    ``db_path``: without it a connect-only install resolved to the default
+    file, which does not exist there, while the badge claimed a live
+    connection (finding S2). Non-SQLite POS URLs cannot be represented as a
+    path at all — those flow through ``db.get_pos_db_url()`` instead, and
+    ``connected_pos_url()`` below is how a caller detects that case.
     """
     env = os.getenv("OASIS_DB_PATH")
     if env:
@@ -96,11 +108,43 @@ def resolved_db_path(root: Optional[str] = None) -> str:
     ob = load_onboarding(root)
     if ob.get("db_path") and os.path.exists(ob["db_path"]):
         return ob["db_path"]
+    if ob.get("source") == "connect" and ob.get("db_url"):
+        from .db import sqlite_path_from_url
+        p = sqlite_path_from_url(ob["db_url"])
+        if p and os.path.exists(p):
+            return p
     from .install_profile import load_profile
     ip = load_profile(root)
     if ip.get("db_path") and os.path.exists(ip["db_path"]):
         return ip["db_path"]
     return os.path.join(root or _root(), "oasis", "data", "rhapta_pos.db")
+
+
+def connected_pos_url(root: Optional[str] = None) -> Optional[str]:
+    """The POS URL this install connected to, or None. See ``db.get_pos_db_url``."""
+    ob = load_onboarding(root)
+    if ob.get("source") == "connect" and ob.get("db_url"):
+        return str(ob["db_url"])
+    return None
+
+
+def catalog_available(root: Optional[str] = None) -> dict:
+    """Are the client's catalogue spreadsheets present for a ``--mode init`` build?
+
+    ``{ok, files, detail}``. The release zip ships no ``.xlsx`` (they are client
+    data), so on a clean install this is False and the two catalogue-backed
+    onboarding paths cannot run. The wizard asks first and explains, instead of
+    offering a button that returns a red error (finding S3).
+    """
+    import glob
+    data_dir = os.getenv("OASIS_DATA_DIR",
+                         os.path.join(root or _root(), "oasis", "data"))
+    files = sorted(glob.glob(os.path.join(data_dir, "dept_*.xlsx")))
+    if files:
+        return {"ok": True, "files": len(files),
+                "detail": f"{len(files)} catalogue file(s) found in {data_dir}"}
+    return {"ok": False, "files": 0,
+            "detail": f"no dept_*.xlsx catalogue files in {data_dir}"}
 
 
 # ── applying a choice ────────────────────────────────────────────────────
@@ -146,6 +190,24 @@ def apply_empty(store_name: str = "My Store",
     return summary
 
 
+#: the demo network seeds a shallower history than a real multi-store install.
+#: Full profile depth is 62,400 bills across the five stores — minutes of work
+#: behind a first-run button. 14 days at a third of the density still gives the
+#: velocity, cover and imbalance signal the transfer/allocation tour needs.
+DEMO_HISTORY_DAYS = 14
+DEMO_HISTORY_DENSITY = 0.33
+
+
+def _demo_history_profiles():
+    """STORE_PROFILES with the history depth dialled down for the demo build."""
+    from dataclasses import replace
+    from .multi_store_profiles import STORE_PROFILES
+    return [replace(p, history_days=DEMO_HISTORY_DAYS,
+                    history_bills_per_day=max(
+                        20, int(p.history_bills_per_day * DEMO_HISTORY_DENSITY)))
+            for p in STORE_PROFILES]
+
+
 def apply_multi_demo(root: Optional[str] = None) -> dict:
     """Build the multi-store DEMO network and record the choice (audit B3).
 
@@ -153,12 +215,41 @@ def apply_multi_demo(root: Optional[str] = None) -> dict:
     everywhere, and the trial clock is untouched). Real multi-store rollouts are
     an assisted onboarding — this card exists so a multi install still goes
     through an explicit first-run choice instead of a silent eager build.
+
+    Built from the code-resident demo catalogue, NOT from the client catalogue
+    spreadsheets. It used to route through ``init_install(profile="multi")``,
+    which loads ``dept_*.xlsx`` — files the release deliberately never ships —
+    so on every clean install this card returned a catalog error (finding S3).
+    The store topology itself (multi_store_profiles) was already code-resident;
+    only the catalogue source needed replacing, and build_multi_store_db()
+    already takes rows rather than a directory.
     """
-    from .install_profile import init_install
-    summary = init_install(profile="multi", root=root)
-    _record("demo", root, db_path=summary.get("db_path"),
-            store_name="Multi-store demo network",
-            multi=True, detail=summary.get("catalog") or summary.get("catalog_error"))
+    from .demo_seed import demo_catalog_rows
+    from .install_profile import save_profile
+    from .multi_store_build import build_multi_store_db
+    from .multi_store_pos import seed_multi_store_history
+
+    data_dir = os.getenv("OASIS_DATA_DIR",
+                         os.path.join(root or _root(), "oasis", "data"))
+    db = os.getenv("OASIS_DB_PATH", os.path.join(data_dir, "rhapta_multi_store.db"))
+
+    r = build_multi_store_db(demo_catalog_rows(), db)
+    summary = {"profile": "multi", "db_path": db,
+               "stores": r.get("stores", 0),
+               "catalog": f"{r.get('stores', 0)} stores, "
+                          f"{r.get('catalog_skus', 0):,} SKUs",
+               "per_store": r.get("per_store", {})}
+    try:
+        h = seed_multi_store_history(db, profiles=_demo_history_profiles())
+        summary["history"] = (f"{sum(v.get('total_bills', 0) for v in h.values()):,} "
+                              "bills seeded")
+    except Exception as e:                      # history is a nicety, not the store
+        summary["history_error"] = str(e)
+
+    # launchers autodetect topology from the install profile (is_multi_store)
+    save_profile({k: v for k, v in summary.items() if k != "per_store"}, root=root)
+    _record("demo", root, db_path=db, store_name="Multi-store demo network",
+            multi=True, detail=summary["catalog"])
     return summary
 
 
@@ -203,8 +294,20 @@ def _record(source: str, root: Optional[str], **extra) -> None:
 
 
 def apply_init(profile: str, root: Optional[str] = None) -> dict:
-    """Build the DB from client catalog using install_profile, and record the choice."""
+    """Build the DB from the client catalogue via install_profile; record the choice.
+
+    Restarts the trial like the other real-data paths do (S4). This is the one
+    choice that is unambiguously the operator's own data, and it was the only
+    one NOT getting the fresh 14-day clock that rule exists to give.
+    """
     from .install_profile import init_install
     summary = init_install(profile=profile, root=root)
-    _record("init", root, db_path=summary.get("db_path"), profile=profile)
+    if summary.get("catalog_error"):
+        return summary                          # nothing built — record nothing
+    extra = _maybe_restart_trial(root)
+    tenant = summary.get("tenant")
+    if not tenant or tenant == "(unnamed)":     # init_install's placeholder
+        tenant = "Your store"
+    _record("init", root, db_path=summary.get("db_path"), profile=profile,
+            store_name=tenant, detail=summary.get("catalog"), **extra)
     return summary

@@ -69,13 +69,18 @@ def test_suite_links_carry_the_sid():
 
 
 def test_apply_multi_demo_records_demo_source(tmp_path, monkeypatch):
+    """Note: this used to monkeypatch install_profile.init_install, which meant
+    it passed on a machine where the real call could not work — the analysis
+    flagged it as a test exercising a shape production never runs. apply_multi_demo
+    no longer routes through init_install at all (S3); see tests/test_wave_a.py
+    for the real code-resident build. Kept here for the recording behaviour."""
     from oasis.logic import onboarding as OB
     root = tmp_path.as_posix()
     os.makedirs(os.path.join(root, "oasis", "data"), exist_ok=True)
-    monkeypatch.setattr("oasis.logic.install_profile.init_install",
-                        lambda profile, tenant="", root=None: {
-                            "profile": profile, "db_path": "multi.db",
-                            "catalog": "3 stores, 90 SKUs"})
+    monkeypatch.setattr("oasis.logic.multi_store_pos.seed_multi_store_history",
+                        lambda db, **kw: {})
+    monkeypatch.setenv("OASIS_DATA_DIR", os.path.join(root, "oasis", "data"))
+    monkeypatch.setenv("OASIS_DB_PATH", os.path.join(root, "oasis", "data", "m.db"))
     s = OB.apply_multi_demo(root=root)
     assert s["profile"] == "multi"
     ob = OB.load_onboarding(root)

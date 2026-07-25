@@ -153,7 +153,14 @@ Before switching the system to LIVE production, verify the following:
 2. **Environment Mode**: Check `.env` contains `production_mode=true`.
 3. **API Connectivity**: If using AI Strategic Analysis, ensure `ANTHROPIC_API_KEY` is set.
 4. **Port Clearance**: Ensure port `8501` is not blocked by a previous instance.
-5. **Intelligence Cache**: Verify `oasis/data/oasis_engines_config.json` is present and engines are `enabled: true`.
+5. **Engine layer**: Run `python entrypoint.py --mode preflight` and confirm the
+   **Engine config** check passes. A client install ships
+   `oasis/data/oasis_engines_config.default.json` and runs on those defaults —
+   there is no `oasis_engines_config.json` until you tune one, and you should
+   not create it by hand. To tune, copy the `.default.json` to
+   `oasis_engines_config.json` and edit the copy (an upgrade replaces the
+   default, so edits to it are lost), or use the Operations Console →
+   Settings → Engine Flags, which writes the tuned file for you.
 
 ---
 

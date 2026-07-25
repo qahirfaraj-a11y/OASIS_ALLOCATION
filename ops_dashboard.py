@@ -260,8 +260,9 @@ def get_connector():
 def get_pos_connector():
     """Cached UniversalConnector for the read-only POS/ERP *source* DB.
 
-    Only distinct from the store when OASIS_POS_DB_URL is set; otherwise the
-    caller falls back to the single store connector (demo behaviour).
+    Only distinct from the store when a POS is actually configured — by
+    OASIS_POS_DB_URL or the first-run wizard's "Connect a POS" choice;
+    otherwise the caller falls back to the single store connector (demo).
     """
     from oasis.logic import db as oasis_db
     mapper = SchemaMapper.for_pos_erp()
@@ -270,7 +271,8 @@ def get_pos_connector():
 @st.cache_resource
 def get_adapter():
     """Cached PosErpAdapter: POS source for reads, OASIS store for the queues."""
-    if os.getenv("OASIS_POS_DB_URL"):
+    from oasis.logic import db as oasis_db
+    if oasis_db.has_distinct_pos():          # env var OR wizard choice (S2)
         return PosErpAdapter(get_pos_connector(), get_connector())
     return PosErpAdapter(get_connector())
 

@@ -339,9 +339,11 @@ def _pos_adapter(ctx):
         # OASIS's own store (users/audit/config + PO/transfer queues).
         store_uri = oasis_db.get_sqlalchemy_url() if os.getenv("OASIS_DB_URL") \
             else f"sqlite:///{ctx['db_path']}"
-        # POS/ERP source (read-only). Splits from the store only when
-        # OASIS_POS_DB_URL is set; otherwise both share one DB (demo).
-        pos_uri = oasis_db.get_pos_sqlalchemy_url() if os.getenv("OASIS_POS_DB_URL") else store_uri
+        # POS/ERP source (read-only). Splits from the store when a distinct POS
+        # is configured — by OASIS_POS_DB_URL *or* by the first-run wizard's
+        # "Connect a POS" choice (finding S2: the wizard's URL used to reach
+        # nothing, so a connected console silently read the local default).
+        pos_uri = oasis_db.get_pos_sqlalchemy_url() if oasis_db.has_distinct_pos() else store_uri
         mapper = SchemaMapper.for_pos_erp()
         pos_conn = UniversalConnector(pos_uri, mapper)
         store_conn = pos_conn if pos_uri == store_uri else UniversalConnector(store_uri, mapper)
