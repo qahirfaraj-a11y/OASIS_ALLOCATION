@@ -41,16 +41,14 @@ DEFAULT_CAP_FALLBACK_BASELINE = 50
 
 
 def _load_amit_config(data_dir: str) -> Dict[str, Any]:
-    """Helper to load AMIT parameters from the central config."""
-    path = os.path.join(data_dir, 'oasis_engines_config.json')
-    if os.path.exists(path):
-        try:
-            with open(path, 'r', encoding='utf-8') as f:
-                config = json.load(f)
-            return config
-        except Exception as e:
-            logger.warning(f"Failed to load AMIT config: {e}")
-    return {}
+    """Helper to load the whole central config (AMIT reads engines + category rules).
+
+    Resolved via oasis.logic.engines_config, so an install with no tuned
+    oasis_engines_config.json picks up the SHIPPED defaults rather than an
+    empty dict (deep-analysis finding S1).
+    """
+    from .engines_config import load_engines_config
+    return load_engines_config(data_dir)
 
 
 def load_nodes(nn_path: str) -> List[Dict[str, Any]]:

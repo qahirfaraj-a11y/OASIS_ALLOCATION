@@ -816,30 +816,48 @@ def render_settings(ctx) -> None:
 
     # Engine feature flags (editable)
     st.markdown("#### Engine Flags")
-    cfg_path = os.path.join(ctx["project_root"], "oasis", "data", "oasis_engines_config.json")
-    if os.path.exists(cfg_path):
+    # Read through the two-tier resolver (tuned config, else shipped defaults);
+    # ALWAYS write to the tuned path — the shipped default is replaced on upgrade,
+    # so editing it would silently lose the operator's changes (finding S1).
+    from ..logic.engines_config import (LIVE_FILE, load_engines_config,
+                                        resolve_source)
+    _data_dir = os.path.join(ctx["project_root"], "oasis", "data")
+    cfg_path = os.path.join(_data_dir, LIVE_FILE)
+    _tier, _src = resolve_source(_data_dir)
+    if _tier:
         try:
-            with open(cfg_path, "r", encoding="utf-8") as f:
-                cfg = json.load(f)
-                engines = cfg.get("engines", {})
-            
+            cfg = load_engines_config(_data_dir)
+            engines = cfg.get("engines", {})
+            if _tier == "default":
+                st.caption("▸ Running OASIS methodology **defaults** (untuned). "
+                           "Changing a flag here writes your own "
+                           f"`{LIVE_FILE}`, which then takes precedence.")
             changed = False
             for k, v in engines.items():
+                if not isinstance(v, dict):
+                    continue
                 is_enabled = bool(v.get("enabled"))
-                new_val = st.toggle(k, value=is_enabled, key=f"engine_{k}")
+                new_val = st.toggle(k, value=is_enabled, key=f"engine_{k}",
+                                    help=v.get("description") or None)
                 if new_val != is_enabled:
                     engines[k]["enabled"] = new_val
                     changed = True
-            
+
             if changed:
+                cfg.pop("_meta", None)      # provenance of the shipped default
                 with open(cfg_path, "w", encoding="utf-8") as f:
-                    json.dump(cfg, f, indent=2)
-                _log_action(ctx, "config_changed", {"file": "oasis_engines_config.json"})
+                    json.dump(cfg, f, indent=2, ensure_ascii=False)
+                _log_action(ctx, "config_changed", {"file": LIVE_FILE,
+                                                    "from_tier": _tier})
                 st.success("Engine configuration updated.")
-        except Exception:
-            C.empty_state("Engine config unreadable", "Check oasis_engines_config.json.", st_module=st)
+        except Exception as e:
+            C.error_panel("Engine config unreadable.", f"{_src}: {e}", st_module=st)
     else:
-        C.empty_state("No engine config", "oasis_engines_config.json not found.", st_module=st)
+        C.empty_state("No engine config",
+                      "Neither oasis_engines_config.json nor the shipped "
+                      "oasis_engines_config.default.json was found — every "
+                      "engine is disabled. Reinstall or restore the defaults.",
+                      st_module=st)
 
     # U5: adoption — which shell pages are used (last 7 days)
     st.markdown("#### Adoption (last 7 days)")

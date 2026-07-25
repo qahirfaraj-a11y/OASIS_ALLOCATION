@@ -26,16 +26,14 @@ logger = logging.getLogger("OASIS.LATA")
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(name)s] %(levelname)s: %(message)s")
 
 def _load_lata_config(data_dir: str) -> Dict[str, Any]:
-    """Helper to load LATA parameters from the central config."""
-    path = os.path.join(data_dir, 'oasis_engines_config.json')
-    if os.path.exists(path):
-        try:
-            with open(path, 'r', encoding='utf-8') as f:
-                config = json.load(f)
-            return config.get('engines', {}).get('lata', {})
-        except Exception as e:
-            logger.warning(f"Failed to load LATA config: {e}")
-    return {}
+    """Helper to load LATA parameters from the central config.
+
+    Resolved via oasis.logic.engines_config, so an install with no tuned
+    oasis_engines_config.json picks up the SHIPPED defaults rather than an
+    empty dict (deep-analysis finding S1).
+    """
+    from .engines_config import engine_params
+    return engine_params('lata', data_dir)
 
 
 def calculate_variance_multiplier(gap_days: List[int], stated_lead_time: float) -> Dict[str, Any]:

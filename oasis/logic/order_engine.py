@@ -76,29 +76,35 @@ class OrderEngine(IntelligenceMixin, ProcurementMixin, MaintenanceMixin, DataMix
         self.grn_frequency_map = self.load_grn_frequency()
     
     def _load_engines_config(self) -> Dict[str, Any]:
-        """Load the OASIS engines feature flag and parameter configuration."""
-        config_paths = [
-            os.path.join(self.data_dir, 'oasis_engines_config.json'),
-            os.path.join(self.data_dir, '..', 'data', 'oasis_engines_config.json'),
-            os.path.join(os.path.dirname(__file__), '..', 'data', 'oasis_engines_config.json'),
-        ]
-        for path in config_paths:
-            if os.path.exists(path):
-                try:
-                    with open(path, 'r', encoding='utf-8') as f:
-                        config = json.load(f)
-                    
-                    self.global_settings = config.get('global_settings', {})
-                    self.category_rules = config.get('category_rules', {})
-                    
-                    engines = config.get('engines', {})
-                    enabled_list = [k for k, v in engines.items() if v.get('enabled')]
-                    logger.info(f"OASIS Engines Config loaded. Active engines: {enabled_list or 'NONE'}")
-                    return config
-                except Exception as e:
-                    logger.warning(f"Failed to load engines config: {e}")
-        
-        # Fallback defaults
+        """Load the OASIS engines feature flag and parameter configuration.
+
+        Resolved through oasis.logic.engines_config: the tuned
+        oasis_engines_config.json for this install if present, otherwise the
+        SHIPPED oasis_engines_config.default.json. That second tier matters —
+        without it a client install returned {"engines": {}}, is_engine_enabled()
+        answered False for every engine, and the whole Chapter-11 layer sat
+        dormant and silent (deep-analysis finding S1).
+        """
+        from .engines_config import load_engines_config, resolve_source
+
+        tier, path = resolve_source(self.data_dir)
+        config = load_engines_config(self.data_dir)
+        if config:
+            self.global_settings = config.get('global_settings', {})
+            self.category_rules = config.get('category_rules', {})
+            engines = config.get('engines', {})
+            enabled_list = [k for k, v in engines.items()
+                            if isinstance(v, dict) and v.get('enabled')]
+            logger.info("OASIS Engines Config loaded (%s: %s). Active engines: %s",
+                        tier, os.path.basename(path or '?'),
+                        enabled_list or 'NONE')
+            return config
+
+        # No config file at all — the engine layer runs off, and says so loudly.
+        logger.error("No engine config resolved — every Chapter-11 engine is "
+                     "DISABLED. Expected oasis_engines_config.json or the "
+                     "shipped oasis_engines_config.default.json in %s",
+                     self.data_dir)
         self.global_settings = {"strict_mathematical_mode": False, "simulation_correction_multiplier": 1.15}
         self.category_rules = {}
         return {"engines": {}}

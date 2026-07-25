@@ -25,15 +25,17 @@ logger = logging.getLogger("OASIS.DHARAM")
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(name)s] %(levelname)s: %(message)s")
 
 def _load_dharam_config(data_dir: str) -> Dict[str, Any]:
-    """Helper to load DHARAM parameters from the central config."""
-    path = os.path.join(data_dir, 'oasis_engines_config.json')
-    if os.path.exists(path):
-        try:
-            with open(path, 'r', encoding='utf-8') as f:
-                config = json.load(f)
-            return config.get('engines', {}).get('dharam', {})
-        except Exception as e:
-            logger.warning(f"Failed to load DHARAM config: {e}")
+    """Helper to load DHARAM parameters from the central config.
+
+    Resolved via oasis.logic.engines_config, so an install with no tuned
+    oasis_engines_config.json picks up the SHIPPED defaults instead of the
+    literals below (deep-analysis finding S1).
+    """
+    from .engines_config import engine_params
+    params = engine_params('dharam', data_dir)
+    if params:
+        return params
+    logger.warning("No DHARAM config resolved — falling back to library defaults")
     return {
         "brand_loyalty_factor": 0.5,
         "stockout_fill_rate_threshold": 0.5,

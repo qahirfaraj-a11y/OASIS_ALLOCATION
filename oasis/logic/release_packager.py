@@ -103,9 +103,20 @@ _OASIS_WHITELIST_SUBPKGS = {
     "tools/", "data_validation/",
 }
 
-#: exact files from oasis/data that ship (schema code, not data files)
+#: exact files from oasis/data that ship (schema code + shipped defaults, never data)
 _OASIS_DATA_WHITELIST = {
     "supplier_calendar.py", "__init__.py",
+    # Methodology defaults for the Chapter-11 engine layer. Without this file
+    # is_engine_enabled() returns False for every engine and AMIT/LATA/DHARAM/
+    # MANDE sit dormant on a client install (deep-analysis finding S1). It holds
+    # flags/thresholds only — no client data. The tuned per-install
+    # oasis_engines_config.json is machine state and still never ships.
+    "oasis_engines_config.default.json",
+}
+
+#: files that ship in BOTH modes, overriding the blacklist globs above
+_ALWAYS_SHIP = {
+    "oasis/data/oasis_engines_config.default.json",
 }
 
 #: everything in migrations/ ships (alembic run-time)
@@ -167,6 +178,8 @@ def should_ship(relpath: str, size_bytes: int = 0) -> Tuple[bool, str]:
     """(ship?, reason) for a repo-relative path. Pure."""
     import fnmatch
     rel = relpath.replace("\\", "/")
+    if rel in _ALWAYS_SHIP:
+        return True, "always ships (shipped default)"
     parts = rel.split("/")
     for seg in parts[:-1]:
         if seg in _EXCLUDE_DIRS:

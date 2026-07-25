@@ -31,15 +31,14 @@ class AMITGovernance:
         self.config = self._load_central_config()
 
     def _load_central_config(self):
-        """Load central O.A.S.I.S. configuration."""
-        path = os.path.join(self.data_dir, 'oasis_engines_config.json')
-        if os.path.exists(path):
-            try:
-                with open(path, 'r', encoding='utf-8') as f:
-                    return json.load(f)
-            except Exception as e:
-                logger.warning(f"Failed to load central config: {e}")
-        return {}
+        """Load central O.A.S.I.S. configuration.
+
+        Resolved via oasis.logic.engines_config, so an install with no tuned
+        oasis_engines_config.json picks up the SHIPPED defaults rather than an
+        empty dict (deep-analysis finding S1).
+        """
+        from .engines_config import load_engines_config
+        return load_engines_config(self.data_dir)
 
     def generate_negative_list(self, scorecard_path: str):
         """

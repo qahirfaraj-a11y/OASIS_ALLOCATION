@@ -175,6 +175,15 @@ def run_preflight(pos_url: Optional[str] = None, store_url: Optional[str] = None
     except Exception as e:
         checks.append({"check": "OASIS store writable", "status": "FAIL", "detail": str(e)[:160]})
 
+    # --- engine layer config (finding S1: a missing config silently disabled
+    #     every Chapter-11 engine on client installs) ---
+    try:
+        from .engines_config import preflight_check as _engines_check
+        checks.append(_engines_check())
+    except Exception as e:
+        checks.append({"check": "Engine config", "status": "FAIL",
+                       "detail": str(e)[:160]})
+
     return {
         "pos_url": _redact(pos_url),
         "store_url": _redact(store_url),
