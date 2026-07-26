@@ -35,34 +35,35 @@ def _fmt_kes(amount: float) -> str:
         return "KES 0"
 
 
-# ── Metric / KPI ─────────────────────────────────────────────────────────
 def _html_metric_card(label: str, value, sub: Optional[str] = None,
-                      status: Optional[str] = None) -> str:
+                      status: Optional[str] = None, help_text: Optional[str] = None) -> str:
     accent = ""
     if status in theme.STATUS:
         _, colour, _ = theme.STATUS[status]
         accent = f"border-left:4px solid {colour};"
     sub_html = f'<div class="oasis-metric-sub">{_esc(sub)}</div>' if sub else ""
+    title_attr = f' title="{_esc(help_text)}"' if help_text else ""
     return (
-        f'<div class="oasis-card" style="{accent}">'
+        f'<div class="oasis-card" style="{accent}"{title_attr}>'
         f'<div class="oasis-metric-label">{_esc(label)}</div>'
         f'<div class="oasis-metric-value">{_esc(value)}</div>'
         f'{sub_html}</div>'
     )
 
 
-def metric_card(label, value, sub=None, status=None, st_module=None):
-    _render(_html_metric_card(label, value, sub, status), st_module)
+def metric_card(label, value, sub=None, status=None, help_text=None, st_module=None):
+    _render(_html_metric_card(label, value, sub, status, help_text), st_module)
 
 
 def kpi_row(items: Sequence[dict], st_module=None):
-    """items: list of {label, value, sub?, status?}. Renders in columns."""
+    """items: list of {label, value, sub?, status?, help?}. Renders in columns."""
     st = st_module or _st()
     cols = st.columns(len(items)) if items else []
     for col, item in zip(cols, items):
         with col:
             metric_card(item.get("label", ""), item.get("value", ""),
-                        item.get("sub"), item.get("status"), st_module=st)
+                        item.get("sub"), item.get("status"),
+                        help_text=item.get("help"), st_module=st)
 
 
 # ── Alerts / cards ───────────────────────────────────────────────────────
@@ -298,3 +299,15 @@ def _html_status_ticker(items: Sequence[dict]) -> str:
 
 def status_ticker(items: Sequence[dict], st_module=None):
     _st(st_module).markdown(_html_status_ticker(items), unsafe_allow_html=True)
+
+
+def render_top_header(console_title: str, console_key: str = "ops", st_module=None):
+    """Top navigation bar component (UX Heuristic 3 & 4) rendering:
+    - Spec tag & title
+    - Persistent Home link
+    - Data source badge
+    """
+    st = st_module or _st()
+    from .onboarding import data_source_badge
+    spec_tag(f"AUDITED LOGIC_ENGINE_V2.3 · {console_title.upper()}", hot=True, st_module=st)
+    data_source_badge(st)
