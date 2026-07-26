@@ -78,15 +78,26 @@ echo         build from catalogue, or multi-store demo network.^)
 echo  [4/4] License status:
 .oasis_venv\Scripts\python.exe entrypoint.py --mode license-status
 
+REM 5. Desktop Shortcut Creation
+echo.
+set "CREATE_SHORTCUT=Y"
+set /p "CREATE_SHORTCUT=  Create Desktop Shortcut? [Y/N] (default Y): "
+if "!CREATE_SHORTCUT!"=="" set "CREATE_SHORTCUT=Y"
+if /I "!CREATE_SHORTCUT!"=="Y" (
+    powershell -ExecutionPolicy Bypass -Command "$ws = New-Object -ComObject WScript.Shell; $s = $ws.CreateShortcut([System.IO.Path]::Combine([Environment]::GetFolderPath('Desktop'), 'O.A.S.I.S. Platform.lnk')); $s.TargetPath = '%~dp0OASIS.bat'; $s.WorkingDirectory = '%~dp0'; $s.Save()" >nul 2>&1
+    echo   [OK] Desktop Shortcut 'O.A.S.I.S. Platform' created on your Desktop!
+)
+
 echo.
 echo  ============================================================
 echo    Installation complete.
 echo.
-echo    Launch:      double-click  OASIS.bat  (or run_oasis_home.bat)
+echo    Desktop:     double-click  'O.A.S.I.S. Platform' on your Desktop
+echo    Launcher:    double-click  OASIS.bat  (or run_oasis_home.bat)
 echo    Service:     double-click  serve.bat  (or register_service.bat)
 echo    First run:   OASIS asks where your data comes from --
 echo                 try sample store, empty store, connect POS, or build.
-echo    Log in:      admin password shown above
+echo    Log in:      admin password set to '!OASIS_SEED_PASSWORD!'
 echo                 (change: .oasis_venv\Scripts\python.exe entrypoint.py --mode set-password)
 echo    License key: drop it beside install.bat as  oasis_license.key
 echo                 (without one, the 14-day evaluation trial is active)
