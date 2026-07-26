@@ -104,13 +104,21 @@ def _uses_default_password(db_path: str, username: str) -> bool:
 
 def run_console(st, *, registry: Sequence[Page], db_path: str,
                 project_root: str, app_title: str,
-                license_module: str = "ops") -> None:
+                license_module: str = "ops",
+                console_key: str = "") -> None:
     """Shared console runner for every OASIS shell (Operations, Intelligence).
 
     Assumes the caller already invoked st.set_page_config. Handles licensing,
     theme, first-run seed, the single login gate, role-filtered navigation,
     page-view telemetry, and the error-wrapped render. Both app.py and
     app_intel.py are thin callers of this so the two consoles can't drift apart.
+
+    ``console_key`` is this console's key in home.CONSOLES ("ops", "intel", …)
+    and is used only to omit self from the suite bar. It is deliberately NOT
+    ``license_module``: that is a licence name, both consoles pass "core", and
+    passing it here meant the skip-self test never matched — so every console
+    listed itself and Operations and Intelligence rendered identical bars
+    (deep-analysis finding S6).
     """
     from . import theme
     from .auth import require_login, logout
@@ -125,7 +133,7 @@ def run_console(st, *, registry: Sequence[Page], db_path: str,
     ensure_seeded(db_path)
 
     from .home import suite_links
-    suite_links(st, license_module)    # cross-links to the sibling consoles
+    suite_links(st, console_key)       # cross-links to the SIBLING consoles
 
     user = require_login(st, db_path, app_title=app_title)
     role = user.get("role")

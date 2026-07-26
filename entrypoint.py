@@ -73,6 +73,23 @@ signal.signal(signal.SIGTERM, _handle_signal)
 signal.signal(signal.SIGINT, _handle_signal)
 
 
+def _active_db(root: str) -> str:
+    """Path of the store this install is actually using.
+
+    Twelve modes used to rebuild ``os.getenv("OASIS_DB_PATH", <default>)`` by
+    hand, so a store built at a non-default path (an init/multi profile, or a
+    connected SQLite POS) was invisible to backup, value-report, metering and
+    the simulators even though the consoles opened it fine — the fragmentation
+    resolved_db_path() exists to close (W-7, deep-analysis finding S7).
+
+    Note ``--mode build-pos-db`` deliberately still uses the env/default path:
+    it CREATES a store, and must not follow a resolved path into an existing
+    onboarded one and overwrite it.
+    """
+    from oasis.logic.onboarding import resolved_db_path
+    return resolved_db_path(root)
+
+
 # ── Mode: Engine ──────────────────────────────────────────────────────
 
 def run_engine():
@@ -250,8 +267,7 @@ def run_upgrade():
     """
     from oasis.logic.backup_util import backup_db
     root = os.path.dirname(os.path.abspath(__file__))
-    db_path = os.getenv("OASIS_DB_PATH",
-                        os.path.join(root, "oasis", "data", "rhapta_pos.db"))
+    db_path = _active_db(root)
     print(f"[upgrade] O.A.S.I.S. v{_read_version()}")
     if os.path.exists(db_path):
         res = backup_db(db_path, keep=int(os.getenv("OASIS_BACKUP_KEEP", "10")))
@@ -737,6 +753,8 @@ def main():
         from oasis.logic.mock_pos_build import build_from_xlsx
         root = os.path.dirname(__file__)
         data_dir = os.getenv("OASIS_DATA_DIR", os.path.join(root, "oasis", "data"))
+        # NOT _active_db(): this mode CREATES a store, so it must not resolve
+        # onto an already-onboarded DB elsewhere and overwrite it (see S7).
         db_path = os.getenv("OASIS_DB_PATH",
                             os.path.join(root, "oasis", "data", "rhapta_pos.db"))
         summary = build_from_xlsx(data_dir, db_path)
@@ -754,8 +772,7 @@ def main():
     elif args.mode == "seed-real-demand":
         from oasis.logic.real_demand import seed_real_demand_from_files
         root = os.path.dirname(__file__)
-        db_path = os.getenv("OASIS_DB_PATH",
-                            os.path.join(root, "oasis", "data", "rhapta_pos.db"))
+        db_path = _active_db(root)
         cash_dir = os.getenv("OASIS_CASH_DIR",
                              os.path.join(os.path.expanduser("~"), "Desktop", "Projects"))
         print(f"Real demand seeded from {cash_dir}: "
@@ -763,8 +780,7 @@ def main():
     elif args.mode == "seed-history":
         from oasis.logic.pos_simulator import seed_demand_history
         root = os.path.dirname(__file__)
-        db_path = os.getenv("OASIS_DB_PATH",
-                            os.path.join(root, "oasis", "data", "rhapta_pos.db"))
+        db_path = _active_db(root)
         prior = os.getenv("OASIS_BASKET_PRIOR",
                           os.path.join(root, "neutral_network_export", "basket_prior.json"))
         days = int(os.getenv("OASIS_HISTORY_DAYS", "30"))
@@ -773,8 +789,7 @@ def main():
     elif args.mode == "pos-sim":
         from oasis.logic.pos_simulator import run_simulator
         root = os.path.dirname(__file__)
-        db_path = os.getenv("OASIS_DB_PATH",
-                            os.path.join(root, "oasis", "data", "rhapta_pos.db"))
+        db_path = _active_db(root)
         prior = os.getenv("OASIS_BASKET_PRIOR",
                           os.path.join(root, "neutral_network_export", "basket_prior.json"))
         run_simulator(db_path, prior_path=prior, batches=args.batches,
@@ -782,8 +797,7 @@ def main():
     elif args.mode == "pos-stream":
         from oasis.logic.pos_simulator import stream_realtime
         root = os.path.dirname(__file__)
-        db_path = os.getenv("OASIS_DB_PATH",
-                            os.path.join(root, "oasis", "data", "rhapta_pos.db"))
+        db_path = _active_db(root)
         prior = os.getenv("OASIS_BASKET_PRIOR",
                           os.path.join(root, "neutral_network_export", "basket_prior.json"))
         # real-time defaults: pace 2s, stream until Ctrl-C (--batches 0)
@@ -850,8 +864,7 @@ def main():
         from oasis.logic.grn_cost import inject_from_files
         root = os.path.dirname(__file__)
         data_dir = os.getenv("OASIS_DATA_DIR", os.path.join(root, "oasis", "data"))
-        db_path = os.getenv("OASIS_DB_PATH",
-                            os.path.join(root, "oasis", "data", "rhapta_pos.db"))
+        db_path = _active_db(root)
         res = inject_from_files(db_path, data_dir)
         print(f"GRN costs injected into {db_path}: {res}")
     elif args.mode == "supplier-scorecard":
@@ -885,8 +898,7 @@ def main():
     elif args.mode == "value-report":
         from oasis.logic.value_report import write_value_report
         root = os.path.dirname(__file__)
-        db_path = os.getenv("OASIS_DB_PATH",
-                            os.path.join(root, "oasis", "data", "rhapta_pos.db"))
+        db_path = _active_db(root)
         out_dir = os.getenv("OASIS_REPORTS_DIR", os.path.join(root, "reports"))
         res = write_value_report(db_path, out_dir, period_days=args.days,
                                  tenant=args.tenant or "")
@@ -902,8 +914,7 @@ def main():
 
         from oasis.logic.value_report import usage_summary
         root = os.path.dirname(__file__)
-        db_path = os.getenv("OASIS_DB_PATH",
-                            os.path.join(root, "oasis", "data", "rhapta_pos.db"))
+        db_path = _active_db(root)
         since = (_dt.now() - _td(days=args.days)).strftime("%Y-%m-%d")
         print(f"Usage since {since}: {usage_summary(db_path, since)}")
     elif args.mode == "init":
@@ -962,8 +973,7 @@ def main():
     elif args.mode == "backup":
         from oasis.logic.backup_util import backup_db
         root = os.path.dirname(__file__)
-        db_path = os.getenv("OASIS_DB_PATH",
-                            os.path.join(root, "oasis", "data", "rhapta_pos.db"))
+        db_path = _active_db(root)
         keep = int(os.getenv("OASIS_BACKUP_KEEP", "10"))
         print(f"Backup complete: {backup_db(db_path, keep=keep)}")
     elif args.mode == "restore":
@@ -971,8 +981,7 @@ def main():
         if not args.file:
             raise SystemExit("restore requires --file <backup path>")
         root = os.path.dirname(__file__)
-        db_path = os.getenv("OASIS_DB_PATH",
-                            os.path.join(root, "oasis", "data", "rhapta_pos.db"))
+        db_path = _active_db(root)
         print(f"Restore complete: {restore_db(db_path, args.file)}")
     elif args.mode == "set-password":
         import getpass
@@ -984,8 +993,7 @@ def main():
         if len(pw) < 8:
             raise SystemExit("Password must be at least 8 characters")
         root = os.path.dirname(__file__)
-        db_path = os.getenv("OASIS_DB_PATH",
-                            os.path.join(root, "oasis", "data", "rhapta_pos.db"))
+        db_path = _active_db(root)
         conn = _sq.connect(db_path)
         try:
             n = conn.execute("UPDATE OASIS_USERS SET PASSWORD_HASH=? WHERE USERNAME=?",

@@ -45,7 +45,8 @@ from oasis.logic.order_engine import apply_safety_guards
 from oasis.simulation.black_swan_events import SupplierRiskAnalyzer, SupplierFailureEvent, SCENARIO_TEMPLATES
 from oasis.logic.consolidated_transfer_service import ConsolidatedTransferService, NetworkPlan
 from oasis.logic.transfer_state import TransferRecord
-from oasis.logic.auth_manager import authenticate, get_user_permissions, get_all_users
+from oasis.logic.auth_manager import get_user_permissions, get_all_users
+from oasis.ui.auth import require_login
 from oasis.logic.audit_logger import (
     log_action, get_recent_logs, get_action_summary,
     ACTION_LOGIN, ACTION_LOGOUT, ACTION_PO_GENERATED, ACTION_PO_EXPORTED,
@@ -490,77 +491,22 @@ def get_calendar():
     return cal
 
 
-# ── Authentication Gate (with Showcase Bypass) ──
-# (SC2 fix: removed duplicate show_login_screen definition — the real one is below)
+# ── Authentication Gate ──
+# Goes through the shared oasis.ui.auth gate so this console takes part in suite
+# SSO. require_login() adopts a ?sid= handed over by a sibling console before it
+# ever renders a login form; previously this file ran an entirely parallel auth
+# stack (its own login screen calling authenticate() directly), so the suite bar
+# linked here WITH a sid and the user still landed on a second login form
+# (deep-analysis finding S5). The session key is the same either way —
+# oasis.ui.auth.USER_KEY is "user" — so everything below reads unchanged.
 
-if 'user' not in st.session_state:
-    st.session_state['user'] = None
+if showcase_mode and not st.session_state.get("user"):
+    st.toast("🛡️ Showcase Mode Active: sign in as 'ops_admin'.", icon="🔐")
+    st.caption("🔒 **System Isolation Enabled (Showcase Mode)** — demo accounts: "
+               "`ops_admin` (full), `regional_mgr`, `branch_mgr`. "
+               "Password: value of `OASIS_SEED_PASSWORD`.")
 
-if st.session_state['user'] is None:
-    def show_login_screen():
-        """Display the login form."""
-        if showcase_mode:
-            st.toast("🛡️ Showcase Mode Active: Use 'ops_admin' to login.", icon="🔐")
-            
-        st.markdown("""
-        <div class="header-bar">
-            <div>
-                <h1>🔮 OASIS Retail Manager</h1>
-                <div class="subtitle">Operations, Allocation, Sales Intelligence & Simulation</div>
-            </div>
-        </div>
-        """, unsafe_allow_html=True)
-        
-        col1, col2, col3 = st.columns([1, 2, 1])
-        with col2:
-            st.markdown("### 🔐 Sign In")
-            if showcase_mode:
-                st.caption("🔒 **System Isolation Enabled (Showcase Mode)**")
-            else:
-                st.caption("Enter your credentials to access the dashboard.")
-            
-            with st.form("login_form"):
-                username = st.text_input("Username",
-                                        value="ops_admin" if showcase_mode else "",
-                                        placeholder="e.g. ops_admin")
-                password = st.text_input("Password",
-                                        type="password",
-                                        value=os.getenv("OASIS_SEED_PASSWORD", "") if showcase_mode else "",
-                                        placeholder="Enter password")
-                submitted = st.form_submit_button("Sign In", type="primary", use_container_width=True)
-                
-                if submitted:
-                    if username and password:
-                        user = authenticate(username, password, DB_PATH)
-                        if user:
-                            st.session_state['user'] = user
-                            log_action(DB_PATH, username, ACTION_LOGIN, ENTITY_SESSION)
-                            st.rerun()
-                        else:
-                            st.error("❌ Invalid username or password.")
-                    else:
-                        st.warning("Please enter both username and password.")
-            
-            st.markdown("---")
-            if showcase_mode:
-                st.markdown("""
-                <div style="text-align:center; color:#666; font-size:0.85em;">
-                    <strong>Demo Accounts (Showcase Only):</strong><br/>
-                    <code>ops_admin</code> — Full Access<br/>
-                    <code>regional_mgr</code> — Regional View<br/>
-                    <code>branch_mgr</code> — Branch View<br/>
-                    Password: value of <code>OASIS_SEED_PASSWORD</code>
-                </div>
-                """, unsafe_allow_html=True)
-            else:
-                st.markdown("""
-                <div style="text-align:center; color:#666; font-size:0.85em;">
-                    Contact your system administrator for credentials.
-                </div>
-                """, unsafe_allow_html=True)
-
-    show_login_screen()
-    st.stop()
+require_login(st, DB_PATH, app_title="Command Center")
 
 # ── User is authenticated ──
 # Fallback for import-time or unauthenticated state to prevent subscript errors

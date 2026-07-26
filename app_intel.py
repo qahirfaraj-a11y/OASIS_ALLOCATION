@@ -34,4 +34,5 @@ shell.run_console(
     project_root=PROJECT_ROOT,
     app_title="Intelligence Console",
     license_module="core",
+    console_key="intel",        # which console this is (suite bar skips self)
 )

@@ -133,6 +133,14 @@ def render_home_page(st, project_root: str) -> None:
     b = load_branding()
     _profile = load_profile()
     _is_multi = is_multi_store()
+    # The one store path for this whole page. Home used to rebuild
+    # os.getenv("OASIS_DB_PATH", <default>) by hand in three places, which is
+    # exactly the fragmentation resolved_db_path() exists to close (W-7): a
+    # store built at a non-default path showed "Store DB — missing" here while
+    # the consoles Home launches opened it fine, and Start All then handed each
+    # console that wrong path (deep-analysis finding S7).
+    from ..logic.onboarding import resolved_db_path
+    _db = resolved_db_path(project_root)
     logo = ""
     if b.logo_data_uri:
         logo = f'<img src="{b.logo_data_uri}" style="height:56px;margin-right:16px;vertical-align:middle;">'
@@ -156,10 +164,7 @@ def render_home_page(st, project_root: str) -> None:
         f"{subtitle}</p>",
         unsafe_allow_html=True)
     # Status ticker: the brand's signature "● SYSTEM READINESS: PEAK" line
-    _snap = system_snapshot(
-        os.getenv("OASIS_DB_PATH",
-                  os.path.join(project_root, "oasis", "data",
-                               "rhapta_pos.db")))
+    _snap = system_snapshot(_db)
     _mods = allowed_modules()
     C.status_ticker([
         {"label": "System Readiness", "value": _sys_status},
@@ -181,8 +186,6 @@ def render_home_page(st, project_root: str) -> None:
     if "_launched_pids" not in st.session_state:
         st.session_state["_launched_pids"] = {}
     _pids = st.session_state["_launched_pids"]
-    _db = os.getenv("OASIS_DB_PATH",
-                    os.path.join(project_root, "oasis", "data", "rhapta_pos.db"))
 
     l_col, r_col = st.columns([1, 1])
     with l_col:
@@ -250,8 +253,7 @@ def render_home_page(st, project_root: str) -> None:
     # ── system snapshot ─────────────────────────────────────────────────
     with right:
         st.markdown("#### System")
-        db_path = os.getenv("OASIS_DB_PATH",
-                            os.path.join(project_root, "oasis", "data", "rhapta_pos.db"))
+        db_path = _db
         snap = system_snapshot(db_path)
         st.metric("Store DB", snap["db"] or "—",
                   "connected" if snap["db_exists"] else "missing")

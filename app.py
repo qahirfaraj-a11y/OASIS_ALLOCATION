@@ -34,4 +34,5 @@ shell.run_console(
     project_root=PROJECT_ROOT,
     app_title="Operations Console",
     license_module="core",
+    console_key="ops",          # which console this is (suite bar skips self)
 )
