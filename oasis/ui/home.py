@@ -264,13 +264,27 @@ def render_home_page(st, project_root: str) -> None:
 
         backup = latest_file(os.path.join(os.path.dirname(db_path), "backups"), ".db")
         report = latest_file(os.path.join(project_root, "reports"), ".md")
-        st.caption(f"Latest backup: `{os.path.basename(backup) if backup else 'none — run --mode backup'}`")
+        st.caption(f"Latest backup: `{os.path.basename(backup) if backup else 'none'}`")
+
+        b1, b2 = st.columns(2)
+        with b1:
+            if st.button("💾 Run Backup", use_container_width=True):
+                from ..logic.backup_util import backup_db
+                res = backup_db(db_path, keep=int(os.getenv("OASIS_BACKUP_KEEP", "10")))
+                st.toast(f"Backup created: {os.path.basename(res)}", icon="💾")
+                st.rerun()
+        with b2:
+            if st.button("📊 Value Report", use_container_width=True):
+                from ..logic.value_report import write_value_report
+                out_dir = os.path.join(project_root, "reports")
+                res = write_value_report(db_path, out_dir)
+                st.toast(f"Report generated: {os.path.basename(res)}", icon="📊")
+                st.rerun()
+
         if report:
             with open(report, "r", encoding="utf-8") as f:
                 st.download_button(f"⬇ {os.path.basename(report)}", f.read(),
-                                   file_name=os.path.basename(report))
-        else:
-            st.caption("No value report yet — run `--mode value-report`.")
+                                   file_name=os.path.basename(report), use_container_width=True)
 
     st.divider()
     render_reset_control(st)

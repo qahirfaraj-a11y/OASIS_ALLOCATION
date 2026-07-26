@@ -125,6 +125,142 @@ def build_cards(data_dir: str, *, period: str = "",
     except Exception as e:
         logger.warning("SEI cards skipped: %s", e)
 
+    # 3. Velocity — per-SKU sell-through for supplier products.
+    try:
+        for fname in ("velocity_report.json", "sku_velocity.json"):
+            path = os.path.join(data_dir, fname)
+            if os.path.exists(path):
+                with open(path, "r", encoding="utf-8") as f:
+                    data = json.load(f) or {}
+                items_by_supp = data if isinstance(data, dict) else {}
+                for code, rows in items_by_supp.items():
+                    if wanted and code not in wanted:
+                        continue
+                    if isinstance(rows, list) and rows:
+                        cards.append(IE.velocity_card(
+                            code, rows, source_ref=f"vel:{period}" if period else None))
+                break
+    except Exception as e:
+        logger.warning("Velocity cards skipped: %s", e)
+
+    # 4. Halo — basket affinity anchor-attachment pairs.
+    try:
+        for fname in ("basket_affinity.json", "halo_pairs.json"):
+            path = os.path.join(data_dir, fname)
+            if os.path.exists(path):
+                with open(path, "r", encoding="utf-8") as f:
+                    data = json.load(f) or {}
+                pairs_by_supp = data if isinstance(data, dict) else {}
+                for code, pairs in pairs_by_supp.items():
+                    if wanted and code not in wanted:
+                        continue
+                    if isinstance(pairs, list) and pairs:
+                        cards.append(IE.halo_card(
+                            code, pairs, source_ref=f"halo:{period}" if period else None))
+                break
+    except Exception as e:
+        logger.warning("Halo cards skipped: %s", e)
+
+    # 5. Reorder — forward-looking order lines.
+    try:
+        path = os.path.join(data_dir, "reorder_lines.json")
+        if os.path.exists(path):
+            with open(path, "r", encoding="utf-8") as f:
+                data = json.load(f) or {}
+            lines_by_supp = data if isinstance(data, dict) else {}
+            for code, lines in lines_by_supp.items():
+                if wanted and code not in wanted:
+                    continue
+                if isinstance(lines, list) and lines:
+                    cards.append(IE.reorder_card(
+                        code, lines, source_ref=f"reorder:{period}" if period else None))
+    except Exception as e:
+        logger.warning("Reorder cards skipped: %s", e)
+
+    # 6. Broken Halo — DHARAM broken affinity alerts.
+    try:
+        for fname in ("dharam_demand_patch.json", "broken_halo.json"):
+            path = os.path.join(data_dir, fname)
+            if os.path.exists(path):
+                with open(path, "r", encoding="utf-8") as f:
+                    data = json.load(f) or {}
+                breaks_by_supp = data.get("broken_halos", {}) if isinstance(data, dict) else {}
+                if not breaks_by_supp and isinstance(data, dict):
+                    breaks_by_supp = data
+                for code, breaks in breaks_by_supp.items():
+                    if wanted and code not in wanted:
+                        continue
+                    if isinstance(breaks, list) and breaks:
+                        cards.append(IE.broken_halo_card(
+                            code, breaks, source_ref=f"bk_halo:{period}" if period else None))
+                break
+    except Exception as e:
+        logger.warning("Broken Halo cards skipped: %s", e)
+
+    # 7. Archetype — demand shape distribution.
+    try:
+        path = os.path.join(data_dir, "archetype_mix.json")
+        if os.path.exists(path):
+            with open(path, "r", encoding="utf-8") as f:
+                data = json.load(f) or {}
+            mix_by_supp = data if isinstance(data, dict) else {}
+            for code, mix in mix_by_supp.items():
+                if wanted and code not in wanted:
+                    continue
+                if isinstance(mix, list) and mix:
+                    cards.append(IE.archetype_card(
+                        code, mix, source_ref=f"arch:{period}" if period else None))
+    except Exception as e:
+        logger.warning("Archetype cards skipped: %s", e)
+
+    # 8. Capital Efficiency — relative index per category.
+    try:
+        path = os.path.join(data_dir, "capital_efficiency.json")
+        if os.path.exists(path):
+            with open(path, "r", encoding="utf-8") as f:
+                data = json.load(f) or {}
+            stats_by_supp = data if isinstance(data, dict) else {}
+            for code, stats in stats_by_supp.items():
+                if wanted and code not in wanted:
+                    continue
+                if isinstance(stats, dict) and stats:
+                    cards.append(IE.capital_efficiency_card(
+                        code, stats, source_ref=f"capeff:{period}" if period else None))
+    except Exception as e:
+        logger.warning("Capital efficiency cards skipped: %s", e)
+
+    # 9. Net Capital Position (NCP) — credit terms vs DIO.
+    try:
+        path = os.path.join(data_dir, "ncp_report.json")
+        if os.path.exists(path):
+            with open(path, "r", encoding="utf-8") as f:
+                data = json.load(f) or {}
+            ncp_by_supp = data if isinstance(data, dict) else {}
+            for code, ncp_val in ncp_by_supp.items():
+                if wanted and code not in wanted:
+                    continue
+                if isinstance(ncp_val, dict) and ncp_val:
+                    cards.append(IE.ncp_card(
+                        code, ncp_val, source_ref=f"ncp:{period}" if period else None))
+    except Exception as e:
+        logger.warning("NCP cards skipped: %s", e)
+
+    # 10. Cannibalization — range substitution overlap.
+    try:
+        path = os.path.join(data_dir, "cannibalization.json")
+        if os.path.exists(path):
+            with open(path, "r", encoding="utf-8") as f:
+                data = json.load(f) or {}
+            rows_by_supp = data if isinstance(data, dict) else {}
+            for code, rows in rows_by_supp.items():
+                if wanted and code not in wanted:
+                    continue
+                if isinstance(rows, list) and rows:
+                    cards.append(IE.cannibalization_card(
+                        code, rows, source_ref=f"cannibal:{period}" if period else None))
+    except Exception as e:
+        logger.warning("Cannibalization cards skipped: %s", e)
+
     logger.info("Built %d insight card(s) from %s", len(cards), data_dir)
     return cards
 

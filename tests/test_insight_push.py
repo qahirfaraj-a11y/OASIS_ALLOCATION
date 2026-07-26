@@ -85,3 +85,60 @@ def test_build_cards_degrades_when_nothing_available(tmp_path):
 def test_run_dry_run_builds_without_pushing(tmp_path):
     res = IP.run(tmp_path.as_posix(), dry_run=True)
     assert res["pushed"] is False and res["built"] == 0
+
+
+def test_build_cards_all_10_kinds(tmp_path, monkeypatch):
+    data_dir = tmp_path.as_posix()
+
+    # 1. Scorecard -> Reliability
+    import oasis.logic.supplier_scorecard as SS
+    monkeypatch.setattr(SS, "load_patterns", lambda d: {"x": 1})
+    monkeypatch.setattr(SS, "scorecard_rows", lambda p: [
+        {"supplier": "SUP1", "classification": "RELIABLE", "avg_lead_time": 2.0}
+    ])
+
+    # 2. MANDE -> SEI
+    with open(os.path.join(data_dir, "mande_purge_report.json"), "w") as f:
+        json.dump({"suppliers": [{"supplier": "SUP1", "sei": 100}]}, f)
+
+    # 3. Velocity
+    with open(os.path.join(data_dir, "velocity_report.json"), "w") as f:
+        json.dump({"SUP1": [{"sku_code": "SKU1", "units": 50, "ads": 2.5}]}, f)
+
+    # 4. Halo
+    with open(os.path.join(data_dir, "basket_affinity.json"), "w") as f:
+        json.dump({"SUP1": [{"anchor_sku": "SKU1", "attachment_sku": "SKU2", "lift": 1.5}]}, f)
+
+    # 5. Reorder
+    with open(os.path.join(data_dir, "reorder_lines.json"), "w") as f:
+        json.dump({"SUP1": [{"sku_code": "SKU1", "suggested_units": 10}]}, f)
+
+    # 6. Broken Halo
+    with open(os.path.join(data_dir, "dharam_demand_patch.json"), "w") as f:
+        json.dump({"broken_halos": {"SUP1": [{"anchor_sku": "SKU1", "attachment_sku": "SKU3", "drop_pct": 0.4}]}}, f)
+
+    # 7. Archetype
+    with open(os.path.join(data_dir, "archetype_mix.json"), "w") as f:
+        json.dump({"SUP1": [{"archetype": "staple", "sku_count": 5}]}, f)
+
+    # 8. Capital Efficiency
+    with open(os.path.join(data_dir, "capital_efficiency.json"), "w") as f:
+        json.dump({"SUP1": {"efficiency_index": 1.2, "band": "top quartile"}}, f)
+
+    # 9. NCP
+    with open(os.path.join(data_dir, "ncp_report.json"), "w") as f:
+        json.dump({"SUP1": {"ncp_days": 10, "credit_days": 30, "dio_days": 20, "position": "funding"}}, f)
+
+    # 10. Cannibalization
+    with open(os.path.join(data_dir, "cannibalization.json"), "w") as f:
+        json.dump({"SUP1": [{"sku_code": "SKU1", "cannibalization_rate": 0.2}]}, f)
+
+    cards = IP.build_cards(data_dir, period="2026-07-26")
+    kinds = {c["kind"] for c in cards}
+    expected = {
+        "reliability", "sei", "velocity", "halo", "reorder",
+        "broken_halo", "archetype", "capital_efficiency", "ncp", "cannibalization"
+    }
+    assert kinds == expected
+    assert len(cards) == 10
+

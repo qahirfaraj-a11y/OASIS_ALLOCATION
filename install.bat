@@ -73,7 +73,7 @@ REM 3. Data setup is chosen on first launch (sample / empty / connect a POS /
 REM    multi-store demo) — a fresh install NEVER silently builds mock data.
 echo  [3/4] Data setup will run on first launch.
 echo        ^(You'll choose: sample store, empty store, connect your POS,
-echo         or the multi-store demo network.^)
+echo         build from catalogue, or multi-store demo network.^)
 
 echo  [4/4] License status:
 .oasis_venv\Scripts\python.exe entrypoint.py --mode license-status
@@ -82,10 +82,12 @@ echo.
 echo  ============================================================
 echo    Installation complete.
 echo.
-echo    Launch:      double-click  run_oasis_home.bat
+echo    Launch:      double-click  OASIS.bat  (or run_oasis_home.bat)
+echo    Service:     double-click  serve.bat  (or register_service.bat)
 echo    First run:   OASIS asks where your data comes from --
-echo                 try the sample store, start empty, or connect your POS.
-echo    Log in:      admin password shown above (change with --mode set-password)
+echo                 try sample store, empty store, connect POS, or build.
+echo    Log in:      admin password shown above
+echo                 (change: .oasis_venv\Scripts\python.exe entrypoint.py --mode set-password)
 echo    License key: drop it beside install.bat as  oasis_license.key
 echo                 (without one, the 14-day evaluation trial is active)
 echo.
