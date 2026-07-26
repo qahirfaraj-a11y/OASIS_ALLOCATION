@@ -96,6 +96,11 @@ def suite_links(st, current_key: str) -> None:
         from .auth import current_sid
         sid = current_sid(st)
         parts = []
+        if current_key != "home":
+            home_url = "http://localhost:8500"
+            if sid:
+                home_url += "/?sid=%s" % sid
+            parts.append("[🏠 Home](%s)" % home_url)
         for c in CONSOLES:
             if c["key"] == current_key:
                 continue
