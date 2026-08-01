@@ -347,6 +347,28 @@ class OfflineLicenseManager:
         return self.status(module_name)["mode"] in ("licensed", "evaluation")
 
 
+def license_posture(module: str = "core",
+                    mgr: Optional["OfflineLicenseManager"] = None) -> dict:
+    """Flat license posture for UIs: ``{status, days_remaining, reason, tenant}``.
+
+    Adapts ``OfflineLicenseManager.status()`` into the shape the launchers and
+    the desktop app read. ``status`` mirrors ``mode``
+    (licensed | evaluation | locked); ``days_remaining`` is the license
+    ``days_left`` when licensed, else the trial days left, else 0 (always an
+    int, so callers can compare it numerically without a None guard).
+    """
+    st = (mgr or OfflineLicenseManager()).status(module)
+    days = st.get("days_left")
+    if days is None:
+        days = st.get("trial_days_left")
+    return {
+        "status": st.get("mode", "unknown"),
+        "days_remaining": int(days) if isinstance(days, int) else 0,
+        "reason": st.get("reason"),
+        "tenant": st.get("tenant"),
+    }
+
+
 def restart_trial(root: Optional[str] = None) -> date:
     """Re-stamp every trial anchor to today — the evaluation starts over.
 

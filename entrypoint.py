@@ -361,6 +361,26 @@ def run_home(port: int = 8490):
     _run_streamlit_console("home_app.py", port, "O.A.S.I.S. Home")
 
 
+def run_desktop():
+    """Launch the native Flet desktop application — single window, no browser.
+
+    This is the Phase-1 migration target: one process, one window,
+    left-rail navigation across all consoles, single auth gate.
+    """
+    logger.info("Starting O.A.S.I.S. Native Desktop App (Flet)...")
+    try:
+        import flet as ft
+        from oasis.desktop.app import main as flet_main
+        ft.app(target=flet_main)
+    except ImportError as e:
+        logger.error(f"Flet not installed: {e}")
+        logger.error("Install with: pip install flet>=0.25.2")
+        sys.exit(1)
+    except Exception as e:
+        logger.error(f"Desktop app failed: {e}")
+        sys.exit(1)
+
+
 # ── Mode: Full ────────────────────────────────────────────────────────
 
 def run_full():
