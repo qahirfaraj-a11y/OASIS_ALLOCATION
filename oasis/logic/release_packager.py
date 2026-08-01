@@ -101,6 +101,13 @@ _OASIS_WHITELIST_SUBPKGS = {
     "__init__.py", "logging_config.py", "models.py",
     "api/", "logic/", "ui/", "simulation/", "analytics/",
     "tools/", "data_validation/",
+    # The native desktop app. This whitelist is default-deny, so a new package
+    # ships only when named here — oasis/desktop was absent, and the entire
+    # Flet app (which OASIS.bat option 0 and --mode desktop both dispatch into)
+    # was silently missing from every client zip while should_ship() — the
+    # BLACKLIST-mode function, not the one build_release actually calls in
+    # clean mode — still answered "ok". Verify packaging with should_ship_clean.
+    "desktop/",
 }
 
 #: exact files from oasis/data that ship (schema code + shipped defaults, never data)

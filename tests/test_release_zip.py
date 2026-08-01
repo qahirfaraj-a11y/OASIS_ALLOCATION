@@ -114,3 +114,62 @@ class TestReleaseZipContract:
             content = zf.read(bat).decode("utf-8", "replace")
         assert "OASIS_SEED_PASSWORD" in content, \
             "install.bat must handle OASIS_SEED_PASSWORD before preflight"
+
+    def test_desktop_app_is_in_the_built_zip(self, zip_info):
+        """The whole Flet app was missing from every release (see below)."""
+        _z, names, _ = zip_info
+        desktop = [n for n in names if "/oasis/desktop/" in n and n.endswith(".py")]
+        assert desktop, "oasis/desktop is absent from the built release zip"
+        for required in ("app.py", "data.py", "views/ops_view.py"):
+            assert any(n.endswith("/oasis/desktop/" + required) for n in desktop), \
+                f"oasis/desktop/{required} missing from the release zip"
+
+
+class TestPackagingDecisions:
+    """Pure whitelist checks — no built zip needed, so these always run.
+
+    build_release() calls should_ship_CLEAN() in its default clean mode, not
+    should_ship(). The two disagree: the blacklist-mode should_ship() answered
+    "ok" for oasis/desktop while the strict whitelist silently dropped it,
+    because _OASIS_WHITELIST_SUBPKGS is default-deny and nobody added the new
+    package. The entire native desktop app — which OASIS.bat option 0 and
+    --mode desktop both dispatch into — was therefore missing from every client
+    release, and a spot-check against the wrong function said it was fine.
+
+    Assert against the function the builder actually uses.
+    """
+
+    def _clean(self):
+        from oasis.logic.release_packager import should_ship_clean
+        return should_ship_clean
+
+    def test_desktop_package_ships(self):
+        sc = self._clean()
+        for p in ("oasis/desktop/__init__.py", "oasis/desktop/app.py",
+                  "oasis/desktop/data.py", "oasis/desktop/theme.py",
+                  "oasis/desktop/views/__init__.py",
+                  "oasis/desktop/views/ops_view.py",
+                  "oasis/desktop/views/intel_view.py",
+                  "oasis/desktop/views/home_view.py",
+                  "oasis/desktop/views/settings_view.py"):
+            ship, why = sc(p, 5000)
+            assert ship, f"{p} would not ship ({why})"
+
+    def test_desktop_pycache_never_ships(self):
+        ship, _ = self._clean()("oasis/desktop/__pycache__/app.cpython-310.pyc", 5000)
+        assert not ship
+
+    def test_every_shipped_oasis_package_is_importable_from_the_zip(self):
+        """A package that ships must ship its __init__.py, or the import fails."""
+        sc = self._clean()
+        for pkg in ("logic", "ui", "desktop", "desktop/views"):
+            ship, why = sc(f"oasis/{pkg}/__init__.py", 100)
+            assert ship, f"oasis/{pkg} ships without __init__.py ({why})"
+
+    def test_engine_defaults_still_ship_and_tuned_config_does_not(self):
+        """S1 guard, restated against the clean-mode function."""
+        sc = self._clean()
+        ship_default, _ = sc("oasis/data/oasis_engines_config.default.json", 5000)
+        ship_tuned, _ = sc("oasis/data/oasis_engines_config.json", 5000)
+        assert ship_default, "shipped engine defaults must ship (S1)"
+        assert not ship_tuned, "the per-install tuned config must never ship"
