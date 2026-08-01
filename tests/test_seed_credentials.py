@@ -95,6 +95,38 @@ def test_first_run_password_gives_the_operator_control(root):
     assert AM.authenticate("ops_admin", "oasis2026", db) is None
 
 
+# ── the lockout this nearly shipped ──────────────────────────────────────
+def test_real_store_asks_for_a_password_instead_of_an_impossible_login(root):
+    """Seeding ALWAYS runs (ensure_oasis_tables calls seed_users), so a real
+    store always has accounts — holding random passwords that were only logged.
+    Reading "accounts exist" as "the operator can sign in" is a lockout: the
+    desktop would show a login form for a password nobody has ever seen."""
+    OB.apply_empty(store_name="Acme Duka", root=root)
+    db = OB.resolved_db_path(root)
+    assert AM.has_accounts(db), "precondition: seeding always creates accounts"
+    assert OB.needs_admin_password(root) is True, \
+        "a real store must be asked to SET a password, not to guess one"
+
+
+def test_password_prompt_stops_once_the_operator_has_set_one(root):
+    OB.apply_empty(store_name="Acme Duka", root=root)
+    db = OB.resolved_db_path(root)
+    AM.set_password(db, "ops_admin", "ChosenPw123")
+    OB.mark_admin_password_set(root)
+    assert OB.needs_admin_password(root) is False
+    assert AM.authenticate("ops_admin", "ChosenPw123", db)
+
+
+def test_sample_store_is_never_asked_to_set_a_password(root):
+    """The demo login is published in the wizard — prompting would be noise."""
+    OB.apply_demo(root=root)
+    assert OB.needs_admin_password(root) is False
+
+
+def test_fresh_install_is_not_asked_either(root):
+    assert OB.needs_admin_password(root) is False, "no store yet — wizard first"
+
+
 def test_set_password_rejects_short_and_unknown(root):
     from oasis.logic.db_connector import ensure_oasis_tables
     db = os.environ["OASIS_DB_PATH"]

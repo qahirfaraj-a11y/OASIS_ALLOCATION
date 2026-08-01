@@ -180,7 +180,8 @@ def _build_set_password_view(page: ft.Page, on_done) -> ft.Column:
             from oasis.logic.auth_manager import (has_accounts, seed_users,
                                                   set_password)
             from oasis.logic.db_connector import ensure_oasis_tables
-            from oasis.logic.onboarding import resolved_db_path
+            from oasis.logic.onboarding import (mark_admin_password_set,
+                                                resolved_db_path)
             db = resolved_db_path(_PROJECT_ROOT)
             # ensure_oasis_tables() also SEEDS the default accounts (with random
             # one-time passwords), so by this point they usually already exist —
@@ -190,6 +191,7 @@ def _build_set_password_view(page: ft.Page, on_done) -> ft.Column:
                 set_password(db, "ops_admin", pw1.value)
             else:
                 seed_users(db, password=pw1.value)
+            mark_admin_password_set(_PROJECT_ROOT)   # don't ask again
             page.session.set("username", "ops_admin")
             page.session.set("role", "ops_admin")
             page.session.set("authenticated", True)
@@ -350,27 +352,26 @@ def main(page: ft.Page):
         page.update()
 
     def _needs_initial_password() -> bool:
-        """Onboarded store that has no accounts yet → first run must create one."""
+        """Real store whose accounts hold passwords the operator never saw."""
         try:
-            from oasis.logic.auth_manager import has_accounts
-            from oasis.logic.onboarding import is_onboarded, resolved_db_path
-            if not is_onboarded(_PROJECT_ROOT):
-                return False              # no store yet — wizard comes first
-            return not has_accounts(resolved_db_path(_PROJECT_ROOT))
+            from oasis.logic.onboarding import needs_admin_password
+            return needs_admin_password(_PROJECT_ROOT)
         except Exception:
             return False                  # can't tell → _needs_auth gates instead
 
     # ── Boot Sequence ────────────────────────────────────────────────────
     if page.session.contains_key("authenticated"):
         _show_app()
+    elif _needs_initial_password():
+        # Ordered BEFORE the login gate on purpose. A real store always has
+        # accounts (ensure_oasis_tables seeds them), but their passwords are
+        # random and were only logged — so showing a login form here would be
+        # an unanswerable prompt. Ask for the password instead, then rotate.
+        page.clean()
+        page.add(_build_set_password_view(page, _show_app))
     elif _needs_auth():
         page.clean()
         page.add(_build_login_view(page, _show_app))
-    elif _needs_initial_password():
-        # A store exists but has no accounts: let the operator set the admin
-        # password here rather than shipping a known one (see auth_manager).
-        page.clean()
-        page.add(_build_set_password_view(page, _show_app))
     else:
         # Genuine first run: no store at all, so there is nothing to sign in
         # to and the wizard must be reachable. The session is NOT authenticated,

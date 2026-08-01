@@ -120,6 +120,35 @@ def resolved_db_path(root: Optional[str] = None) -> str:
     return os.path.join(root or _root(), "oasis", "data", "rhapta_pos.db")
 
 
+ADMIN_PW_FLAG = "admin_password_set"
+
+
+def needs_admin_password(root: Optional[str] = None) -> bool:
+    """True when this install still has no password the operator actually knows.
+
+    Seeding always runs — ``ensure_oasis_tables()`` calls ``seed_users()`` — so
+    a real store always HAS accounts, holding random one-time passwords that
+    were only ever written to a log. A desktop client with no console never
+    sees them, so "accounts exist" must not be read as "the operator can sign
+    in": that combination is a lockout, not a login.
+
+    True only for a REAL store (a sample store's password is known and
+    published in the wizard) that has not yet recorded a set password.
+    """
+    rec = load_onboarding(root)
+    if rec.get("source") not in REAL_SOURCES:
+        return False                      # not onboarded, or SAMPLE data
+    return not rec.get(ADMIN_PW_FLAG)
+
+
+def mark_admin_password_set(root: Optional[str] = None) -> None:
+    """Record that the operator has chosen the administrator password."""
+    rec = load_onboarding(root)
+    if rec:
+        rec[ADMIN_PW_FLAG] = True
+        save_onboarding(rec, root)
+
+
 def connected_pos_url(root: Optional[str] = None) -> Optional[str]:
     """The POS URL this install connected to, or None. See ``db.get_pos_db_url``."""
     ob = load_onboarding(root)
