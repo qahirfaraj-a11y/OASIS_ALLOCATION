@@ -53,7 +53,15 @@ scikit-learn==1.7.2
 joblib==1.5.3
 
 # Desktop App (Flet)
-flet==0.25.2
+# 0.26+ is REQUIRED, not preferred: oasis/desktop is written against the
+# ft.Icons / ft.Colors enum API that replaced ft.icons / ft.colors. On 0.25.2
+# every view raises AttributeError on import — the pin below said 0.25.2 while
+# the code needed 0.28, so the declared environment could not run the app.
+# flet-desktop provides the native window used by `--mode desktop`.
+# (Packaging the .exe additionally needs flet-cli, a BUILD-time tool — see
+# build_desktop.py; it is deliberately not a client runtime dependency.)
+flet==0.28.3
+flet-desktop==0.28.3
 
 # SQL Server Integration (Optional - install only if using MSSQL)
 # pyodbc==5.2.0
