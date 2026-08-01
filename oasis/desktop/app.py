@@ -22,6 +22,8 @@ import flet as ft  # noqa: E402  (imports follow the sys.path bootstrap above)
 
 from . import theme as T  # noqa: E402
 from .views.home_view import build_home_view  # noqa: E402
+from .views.intel_view import build_intel_view  # noqa: E402
+from .views.ops_view import build_ops_view  # noqa: E402
 from .views.settings_view import build_settings_view  # noqa: E402
 
 
@@ -301,11 +303,11 @@ def main(page: ft.Page):
         elif route == "/settings":
             return build_settings_view(page, _PROJECT_ROOT)
         elif route == "/ops":
-            return _placeholder_view("Operations", "◎")
+            return build_ops_view(page, _PROJECT_ROOT)
+        elif route == "/intel":
+            return build_intel_view(page, _PROJECT_ROOT)
         elif route == "/command":
             return _placeholder_view("Command Center", "🔮")
-        elif route == "/intel":
-            return _placeholder_view("Intelligence", "⚡")
         elif route == "/market":
             return _placeholder_view("Market Intelligence", "📈")
         else:
