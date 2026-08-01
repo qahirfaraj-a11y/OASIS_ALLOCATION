@@ -386,11 +386,15 @@ def get_all_users(db_path: str) -> list:
 # ---------------------------------------------------------------------------
 # Default Users (for seeding)
 # ---------------------------------------------------------------------------
-# Passwords are NOT stored in source. Seed passwords come from the
-# OASIS_SEED_PASSWORD env var (single password for all seeded accounts) or
-# per-user overrides like OASIS_SEED_PASSWORD_OPS_ADMIN. If neither is set,
-# a random password is generated per run and printed once to the log —
-# operators must then reset passwords through the admin UI.
+# Passwords are NOT stored in source. Seed passwords come from an explicit
+# `seed_users(db, password=...)` call (how first-run setup applies the
+# operator's own choice), the OASIS_SEED_PASSWORD env var, or per-user
+# overrides like OASIS_SEED_PASSWORD_OPS_ADMIN. If none is given, a random
+# password is generated per run and printed once to the log — operators must
+# then reset passwords through the admin UI or first-run setup.
+#
+# The one known password in the product is onboarding.DEMO_SEED_PASSWORD, and
+# it is passed explicitly for SAMPLE data only. See tests/test_seed_credentials.py.
 
 DEFAULT_USERS = [
     {
@@ -461,7 +465,18 @@ DEFAULT_USERS = [
 
 
 def _resolve_seed_password(username: str) -> str:
-    """Resolve the seed password for a user from the environment."""
+    """Resolve the seed password for a user from the environment.
+
+    NEVER returns a value baked into source. Order: a per-user env override,
+    then the shared OASIS_SEED_PASSWORD, then a random one-time password that
+    is logged once so the operator can sign in and rotate it.
+
+    A literal ``"oasis2026"`` default was reintroduced here at one point, which
+    silently reverted the credential removal in cdcf0b7 and put a
+    publicly-known password on every real client install. Callers that need a
+    deterministic password must pass one explicitly to ``seed_users`` — it must
+    never be the fallback.
+    """
     import os
     per_user = os.getenv(f"OASIS_SEED_PASSWORD_{username.upper()}")
     if per_user:
@@ -478,13 +493,42 @@ def _resolve_seed_password(username: str) -> str:
     return generated
 
 
-def seed_users(db_path: str):
-    """Seed default users into OASIS_USERS table."""
+def has_accounts(db_path: str) -> bool:
+    """True when the store has at least one user to authenticate against."""
+    try:
+        return bool(get_all_users(db_path))
+    except Exception:
+        return False
+
+
+def set_password(db_path: str, username: str, new_password: str) -> None:
+    """Set one account's password. Raises ValueError if too short/unknown user."""
+    if len(new_password or "") < 8:
+        raise ValueError("Password must be at least 8 characters")
+    conn = get_auth_db_conn(db_path)
+    try:
+        cur = conn.execute(
+            "UPDATE OASIS_USERS SET PASSWORD_HASH = ? WHERE USERNAME = ?",
+            (hash_password(new_password), username))
+        if not cur.rowcount:
+            raise ValueError(f"no such user: {username}")
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def seed_users(db_path: str, password: Optional[str] = None):
+    """Seed default users into OASIS_USERS table.
+
+    ``password`` sets every seeded account explicitly — this is how a first-run
+    setup flow hands the operator's chosen admin password to the seeder instead
+    of relying on an env var or a hardcoded default.
+    """
     conn = get_auth_db_conn(db_path)
     now = datetime.now().isoformat()
 
     for user in DEFAULT_USERS:
-        pw_hash = hash_password(_resolve_seed_password(user["username"]))
+        pw_hash = hash_password(password or _resolve_seed_password(user["username"]))
         try:
             conn.execute(
                 """INSERT OR IGNORE INTO OASIS_USERS 

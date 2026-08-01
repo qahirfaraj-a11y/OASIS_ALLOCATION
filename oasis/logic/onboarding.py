@@ -166,6 +166,14 @@ def _maybe_restart_trial(root: Optional[str]) -> dict:
     day = restart_trial(root)
     return {"trial_restarted": True, "trial_restarted_at": day.isoformat()}
 
+#: Password for the SAMPLE store's seeded accounts. This is demo data behind a
+#: permanent SAMPLE banner, so a known password is the point — you can tour the
+#: consoles immediately. It is passed explicitly and ONLY here: a real store
+#: (empty / init / connect) never receives it, and its accounts get a random
+#: one-time password until first-run setup sets the operator's own.
+DEMO_SEED_PASSWORD = "oasis2026"
+
+
 def apply_demo(store_name: str = "OASIS Sample Store",
                root: Optional[str] = None) -> dict:
     """Build the self-contained sample store and record the choice."""
@@ -173,7 +181,8 @@ def apply_demo(store_name: str = "OASIS Sample Store",
     from .mock_pos_build import build_pos_db_from_catalog
     db = default_db_path(root)
     summary = build_pos_db_from_catalog(demo_catalog_rows(), db,
-                                        org_name=store_name)
+                                        org_name=store_name,
+                                        seed_password=DEMO_SEED_PASSWORD)
     _record("demo", root, db_path=db, store_name=store_name,
             skus=summary.get("items", 0))
     return summary

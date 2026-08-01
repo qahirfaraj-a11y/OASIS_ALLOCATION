@@ -14,7 +14,7 @@ from __future__ import annotations
 import os
 import sqlite3
 from datetime import datetime
-from typing import List
+from typing import List, Optional
 
 from .mock_pos_erp import SCHEMA_SQL, MockPosErpBuilder
 
@@ -30,8 +30,17 @@ def _reset_db(db_path: str) -> None:
 
 def build_pos_db_from_catalog(rows: List[dict], db_path: str, org_cd: str = "ORG001",
                               org_name: str = "Chandarana Foodplus - Rhapta Road",
-                              reset: bool = True) -> dict:
-    """Create db_path from catalogue rows. Returns a summary dict."""
+                              reset: bool = True,
+                              seed_password: Optional[str] = None) -> dict:
+    """Create db_path from catalogue rows. Returns a summary dict.
+
+    ``seed_password`` sets the seeded accounts' password. Pass one only for
+    SAMPLE data, where frictionless sign-in is the point. Leave it None for a
+    real store: the seeder then generates a random one-time password and the
+    first-run setup asks the operator to choose the real one. This used to
+    ``setdefault("OASIS_SEED_PASSWORD", "oasis2026")`` unconditionally, so every
+    real catalogue-built store shipped with a publicly-known credential.
+    """
     if reset:
         _reset_db(db_path)
     os.makedirs(os.path.dirname(os.path.abspath(db_path)), exist_ok=True)
@@ -56,9 +65,10 @@ def build_pos_db_from_catalog(rows: List[dict], db_path: str, org_cd: str = "ORG
              "Nairobi", "KE", "KES", 1, "Y"))
 
         # reuse the canonical system seeds so the consoles still authenticate.
-        # Default the demo seed password so logins work out of the box (override
-        # with OASIS_SEED_PASSWORD); without it the seeder generates random ones.
-        os.environ.setdefault("OASIS_SEED_PASSWORD", "oasis2026")
+        # A caller-supplied password applies to SAMPLE builds only; otherwise the
+        # seeder generates a random one-time password (see _resolve_seed_password).
+        if seed_password:
+            os.environ.setdefault("OASIS_SEED_PASSWORD", seed_password)
         b._seed_system_preferences()
         b._seed_tax_plans()
         b._seed_counters()

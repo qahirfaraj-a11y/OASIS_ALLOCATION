@@ -126,7 +126,10 @@ def build_multi_store_db(rows: List[dict], db_path: str,
                  p.city, "KE", "KES", 1, "Y"))
 
         # ── 2. System seeds (auth / tax / counters / config) ─────────────
-        os.environ.setdefault("OASIS_SEED_PASSWORD", "oasis2026")
+        # This builder only ever produces the multi-store DEMO network, so the
+        # known sample password applies (single source of truth in onboarding).
+        from .onboarding import DEMO_SEED_PASSWORD
+        os.environ.setdefault("OASIS_SEED_PASSWORD", DEMO_SEED_PASSWORD)
         b._seed_system_preferences()
         b._seed_tax_plans()
         b._seed_counters()
