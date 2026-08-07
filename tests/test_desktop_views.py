@@ -21,6 +21,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 from oasis.desktop import data as D
 from oasis.desktop.views.intel_view import build_intel_view
 from oasis.desktop.views.ops_view import build_ops_view
+from oasis.desktop.views.market_view import build_market_view
 
 
 def _count(control) -> int:
@@ -108,12 +109,14 @@ def test_provenance_flags_sample_data(store):
 def test_both_views_build_against_a_real_store(store):
     assert _count(build_ops_view(None, store)) > 50
     assert _count(build_intel_view(None, store)) > 40
+    assert _count(build_market_view(None, store)) > 20
 
 
 def test_both_views_build_with_no_store(empty):
     """Must degrade to an explanation, not crash the window."""
     assert _count(build_ops_view(None, empty)) > 0
     assert _count(build_intel_view(None, empty)) > 0
+    assert _count(build_market_view(None, empty)) > 0
 
 
 def test_multi_store_network_builds_the_transfer_branch(tmp_path, monkeypatch):

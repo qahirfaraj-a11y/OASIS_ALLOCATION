@@ -20,11 +20,15 @@ if _PROJECT_ROOT not in sys.path:
 
 import flet as ft  # noqa: E402  (imports follow the sys.path bootstrap above)
 
+from . import data as D  # noqa: E402
 from . import theme as T  # noqa: E402
 from .views.home_view import build_home_view  # noqa: E402
 from .views.intel_view import build_intel_view  # noqa: E402
+from .views.license_view import build_lock_view, build_notice  # noqa: E402
 from .views.ops_view import build_ops_view  # noqa: E402
 from .views.settings_view import build_settings_view  # noqa: E402
+from .views.market_view import build_market_view  # noqa: E402
+from .views.command_view import build_command_view  # noqa: E402
 
 
 # ── Navigation Destinations ──────────────────────────────────────────────
@@ -70,6 +74,19 @@ def _placeholder_view(title: str, icon: str) -> ft.Column:
         expand=True,
         scroll=ft.ScrollMode.AUTO,
     )
+
+
+def _build_locked_view(page: ft.Page, status: dict, on_activated) -> ft.Column:
+    """Full-window lock — the native twin of ``console_gate``'s st.stop().
+
+    Deliberately rendered BEFORE the auth gate, matching the order every
+    Streamlit console uses (``console_gate`` precedes ``require_login`` in
+    shell.py and st_gat_dashboard.py). Gating the export door behind a login
+    would buy nothing — the same door is open in the browser consoles — and
+    would break the audit E1/E3 promise that a locked client can always take
+    their own records with them.
+    """
+    return build_lock_view(page, _PROJECT_ROOT, status, on_activated)
 
 
 def _build_login_view(page: ft.Page, on_login) -> ft.Column:
@@ -258,9 +275,16 @@ def main(page: ft.Page):
         bgcolor=T.OBSIDIAN_RAISE,
         indicator_color=T.TEAL,
         destinations=[
+            # icon= / selected_icon=, NOT icon_content= / selected_icon_content=.
+            # Those were removed in flet 0.28.0, and requirements.txt pins
+            # 0.28.3 — so on the version a client actually installs, the whole
+            # nav rail raised TypeError and --mode desktop could not open. The
+            # dev venv still holds 0.25.2, where the old names merely warn,
+            # which is exactly why nothing caught it. Both names accept a
+            # Control, so this form is correct on 0.25.2 and 0.28.3 alike.
             ft.NavigationRailDestination(
-                icon_content=ft.Icon(n["icon"], color=T.TEXT_MUTED),
-                selected_icon_content=ft.Icon(n["selected"], color=T.TEAL),
+                icon=ft.Icon(n["icon"], color=T.TEXT_MUTED),
+                selected_icon=ft.Icon(n["selected"], color=T.TEAL),
                 label_content=ft.Text(n["label"], size=10, color=T.TEXT_SECONDARY),
             )
             for n in NAV_ITEMS
@@ -307,9 +331,9 @@ def main(page: ft.Page):
         elif route == "/intel":
             return build_intel_view(page, _PROJECT_ROOT)
         elif route == "/command":
-            return _placeholder_view("Command Center", "🔮")
+            return build_command_view(page, _PROJECT_ROOT)
         elif route == "/market":
-            return _placeholder_view("Market Intelligence", "📈")
+            return build_market_view(page, _PROJECT_ROOT)
         else:
             return _placeholder_view("Unknown", "?")
 
@@ -324,13 +348,17 @@ def main(page: ft.Page):
         nav_rail.on_change = on_nav_change
         content_area.content = _render_view("/")
 
+        # Licensing notice — the trial countdown / renewal warning the consoles
+        # show. The locked case never reaches here; _boot() stops it first.
+        notice = build_notice(D.license_gate("core"))
+
         # Status bar at bottom
         status_bar = ft.Container(
             content=ft.Row([
                 ft.Text("O.A.S.I.S. Platform", size=10, color=T.TEXT_MUTED,
                         font_family="JetBrains Mono"),
                 ft.Text("·", size=10, color=T.OBSIDIAN_BORDER),
-                ft.Text(f"Signed in as: {page.session.get('username', 'system')}",
+                ft.Text(f"Signed in as: {page.session.get('username') or 'system'}",
                         size=10, color=T.TEXT_MUTED,
                         font_family="JetBrains Mono"),
             ], spacing=8),
@@ -341,6 +369,8 @@ def main(page: ft.Page):
 
         page.clean()
         page.add(
+            ft.Container(content=notice,
+                         padding=ft.padding.symmetric(horizontal=20, vertical=0)),
             ft.Row(
                 controls=[
                     nav_rail,
@@ -362,28 +392,51 @@ def main(page: ft.Page):
             return False                  # can't tell → _needs_auth gates instead
 
     # ── Boot Sequence ────────────────────────────────────────────────────
-    if page.session.contains_key("authenticated"):
-        _show_app()
-    elif _needs_initial_password():
-        # Ordered BEFORE the login gate on purpose. A real store always has
-        # accounts (ensure_oasis_tables seeds them), but their passwords are
-        # random and were only logged — so showing a login form here would be
-        # an unanswerable prompt. Ask for the password instead, then rotate.
-        page.clean()
-        page.add(_build_set_password_view(page, _show_app))
-    elif _needs_auth():
-        page.clean()
-        page.add(_build_login_view(page, _show_app))
-    else:
-        # Genuine first run: no store at all, so there is nothing to sign in
-        # to and the wizard must be reachable. The session is NOT authenticated,
-        # so it must not carry an operator role — "ops_admin" here would hand an
-        # unauthenticated window top privilege, and Settings resolves its
-        # password-change target from this same username.
-        if not page.session.contains_key("username"):
-            page.session.set("username", "setup")
-            page.session.set("role", "setup")
-        _show_app()
+    def _boot():
+        """Licensing first, then identity — the order the consoles established.
+
+        Until Phase 3 the native window never asked this question at all: an
+        expired trial locked all four browser consoles while `--mode desktop`
+        opened straight into store data (finding R-2). It fails closed, so a
+        license subsystem that cannot answer locks rather than admits.
+        """
+        gate = D.license_gate("core")
+        if gate.get("blocked"):
+            page.clean()
+            page.add(_build_locked_view(page, gate, _boot))
+            page.update()
+            return
+        _resume()
+
+    def _resume():
+        """Identity, once licensing has allowed the window to open at all."""
+        if page.session.contains_key("authenticated"):
+            _show_app()
+        elif _needs_initial_password():
+            # Ordered BEFORE the login gate on purpose. A real store always has
+            # accounts (ensure_oasis_tables seeds them), but their passwords are
+            # random and were only logged — so showing a login form here would
+            # be an unanswerable prompt. Ask for the password instead, then
+            # rotate.
+            page.clean()
+            page.add(_build_set_password_view(page, _show_app))
+            page.update()
+        elif _needs_auth():
+            page.clean()
+            page.add(_build_login_view(page, _show_app))
+            page.update()
+        else:
+            # Genuine first run: no store at all, so there is nothing to sign in
+            # to and the wizard must be reachable. The session is NOT
+            # authenticated, so it must not carry an operator role — "ops_admin"
+            # here would hand an unauthenticated window top privilege, and
+            # Settings resolves its password-change target from this username.
+            if not page.session.contains_key("username"):
+                page.session.set("username", "setup")
+                page.session.set("role", "setup")
+            _show_app()
+
+    _boot()
 
 
 if __name__ == "__main__":

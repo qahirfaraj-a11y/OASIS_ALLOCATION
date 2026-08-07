@@ -269,3 +269,20 @@ def store_risk(stock_by_org: Dict[str, Sequence[dict]],
         return result
     except Exception:
         return dict(inv)  # any inference failure -> inventory-only
+
+import logging
+logger = logging.getLogger(__name__)
+
+def get_gnn_resources() -> Tuple[object, object]:
+    """Load NetworkSimulator + StoreGraphNetwork via the shared service.
+    
+    Returns (model, sim) or (None, None).
+    """
+    model, sim, status = _load_model()
+    if model is None or sim is None:
+        return None, None
+    if status == "trained":
+        logger.info("Successfully loaded GNN model weights (via gnn_service).")
+    else:
+        logger.warning(f"GNN model status={status}; using inventory-led risk.")
+    return model, sim

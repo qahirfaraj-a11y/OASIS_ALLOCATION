@@ -6,7 +6,9 @@ Auth management, license posture, branding, and data source reset.
 
 import flet as ft
 
+from .. import data as D
 from .. import theme as T
+from .license_view import build_activation_panel
 
 
 def build_settings_view(page: ft.Page, project_root: str) -> ft.Column:
@@ -22,6 +24,7 @@ def build_settings_view(page: ft.Page, project_root: str) -> ft.Column:
             return {"status": "unknown"}
 
     lic = _license_info()
+    mods = sorted(D.allowed_modules())
 
     license_card = T.card_container(
         content=ft.Column([
@@ -32,9 +35,14 @@ def build_settings_view(page: ft.Page, project_root: str) -> ft.Column:
                 T.metric_card("Days Remaining",
                               str(lic.get("days_remaining", "∞")),
                               status="success" if lic.get("days_remaining", 0) > 7 else "danger"),
+                T.metric_card("Modules", str(len(mods)), status="info",
+                              sub=", ".join(mods) if mods else "none",
+                              help_text="What this install may use right now. "
+                                        "During evaluation every module is open."),
             ], spacing=12, expand=True),
-            ft.Text("Drop your license key as 'oasis_license.key' beside the application.",
-                    size=12, color=T.TEXT_MUTED),
+            # Audit E2: activation happens IN the product. Telling a client to
+            # drop a file beside the application was the workaround this replaces.
+            build_activation_panel(page),
         ], spacing=12),
     )
 
@@ -138,6 +146,85 @@ def build_settings_view(page: ft.Page, project_root: str) -> ft.Column:
         ], spacing=12),
     )
 
+    # ── System Configuration (from Command Center) ───────────────────────
+    config_card_content = ft.Column([
+        T.section_header("System Configuration", "⚙️"),
+        ft.Text("Requires ops_admin privileges.", size=12, color=T.TEXT_MUTED),
+    ], spacing=12)
+    
+    config_card = T.card_container(content=config_card_content)
+    
+    def _load_configs():
+        try:
+            from oasis.logic.db_connector import load_system_config_full
+            from oasis.logic.onboarding import resolved_db_path
+            db = resolved_db_path(project_root)
+            return load_system_config_full(db) or []
+        except Exception as e:
+            return []
+
+    configs = _load_configs()
+    config_inputs = {}
+
+    if configs:
+        groups = {}
+        for cfg in configs:
+            g = cfg.get('CONFIG_GROUP', 'general')
+            groups.setdefault(g, []).append(cfg)
+        
+        for group_name, items in groups.items():
+            config_card_content.controls.append(ft.Text(f"{group_name.title()}", weight=ft.FontWeight.W_700, color=T.TEXT_PRIMARY))
+            for cfg in items:
+                key = cfg['CONFIG_KEY']
+                desc = cfg.get('DESCRIPTION', key)
+                val = cfg['CONFIG_VALUE']
+                
+                tf = ft.TextField(
+                    label=desc,
+                    value=val,
+                    border_color=T.OBSIDIAN_BORDER,
+                    focused_border_color=T.TEAL,
+                    color=T.TEXT_PRIMARY,
+                    label_style=ft.TextStyle(color=T.TEXT_SECONDARY),
+                    tooltip=f"Key: {key}"
+                )
+                config_inputs[key] = (tf, val)
+                config_card_content.controls.append(tf)
+                
+        def _save_configs(e):
+            username = page.session.get("username")
+            if not username or username == "setup":
+                page.snack_bar = ft.SnackBar(ft.Text("❌ Sign in as ops_admin to save settings.", color=T.DANGER), bgcolor=T.OBSIDIAN_RAISE)
+                page.snack_bar.open = True
+                page.update()
+                return
+                
+            try:
+                from oasis.logic.db_connector import save_system_config
+                from oasis.logic.onboarding import resolved_db_path
+                db = resolved_db_path(project_root)
+                changes = 0
+                for key, (tf, old_val) in config_inputs.items():
+                    new_val = tf.value
+                    if new_val != old_val:
+                        save_system_config(db, key, new_val, username)
+                        config_inputs[key] = (tf, new_val)
+                        changes += 1
+                
+                msg = f"✅ Saved {changes} config change(s)." if changes > 0 else "No changes detected."
+                page.snack_bar = ft.SnackBar(ft.Text(msg, color=T.TEAL), bgcolor=T.OBSIDIAN_RAISE)
+                page.snack_bar.open = True
+            except Exception as ex:
+                page.snack_bar = ft.SnackBar(ft.Text(f"❌ Save failed: {ex}", color=T.DANGER), bgcolor=T.OBSIDIAN_RAISE)
+                page.snack_bar.open = True
+            page.update()
+
+        config_card_content.controls.append(
+            ft.ElevatedButton("Save Settings", on_click=_save_configs, icon=ft.Icons.SAVE, style=ft.ButtonStyle(bgcolor=T.OBSIDIAN_RAISE, color=T.TEAL))
+        )
+    else:
+        config_card_content.controls.append(ft.Text("No configuration entries found.", color=T.WARNING))
+
     return ft.Column(
         controls=[
             T.spec_tag("SYSTEM CONFIGURATION", hot=True),
@@ -147,6 +234,7 @@ def build_settings_view(page: ft.Page, project_root: str) -> ft.Column:
             license_card,
             data_card,
             auth_card,
+            config_card,
         ],
         spacing=8,
         scroll=ft.ScrollMode.AUTO,

@@ -88,10 +88,7 @@ _ROOT_WHITELIST = {
     "install.bat", "OASIS.bat", "serve.bat", "register_service.bat", "unregister_service.bat", "VERSION", "requirements.txt", "alembic.ini",
     "branding.example.json", "oasis_client_config.template.json",
     # launchers the client actually runs
-    "run_oasis_home.bat",
-    "run_oasis_live.bat", "run_oasis_intel_live.bat", "run_command_center_live.bat",
-    "run_multi_pos.bat", "run_mock_pos.bat", "run_command_center_multi.bat",
-    "run_market_intelligence_tool.bat",
+    # (Removed in Phase 3.3 entrypoint consolidation)
     # doc
     "README.md",
 }

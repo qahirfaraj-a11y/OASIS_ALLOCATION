@@ -3,7 +3,8 @@ O.A.S.I.S. Container Entrypoint
 =================================
 Orchestrates which services run inside the Docker container.
 
-Modes:
+Modes (52 total, authoritative list in main()'s argparse choices):
+
     --mode full      : Engine + all dashboards (single-container deployment)
     --mode engine    : Scheduler + FileWatcher + Heartbeat only
     --mode dashboard : Single Streamlit dashboard (--dashboard ops|shadow|approval|stgat)
@@ -11,6 +12,15 @@ Modes:
     --mode bridge    : Manager Bridge API (FastAPI/uvicorn, default port 8600)
     --mode migrate   : Run Alembic migrations (alembic upgrade head) and exit
     --mode bootstrap : Run Day-0 initialization and exit
+
+    Other modes: shell, intel, home, showcase, shadow, simulation, desktop,
+    preflight, build-views, bootstrap-intel, bootstrap-governance, build-graph,
+    build-store-graph, build-baskets, build-prior, build-pos-db, seed-history,
+    seed-real-demand, pos-sim, pos-stream, pos-inject, build-multi-store-db,
+    seed-multi-history, multi-pos-stream, issue-license, license-status, backup,
+    restore, set-password, package-release, set-branding, show-branding, init,
+    value-report, metering-report, version, upgrade, assess, supplier-scorecard,
+    category-report, inject-grn-costs, sku-deepdive, push-insights, serve.
 
 Usage:
     python entrypoint.py --mode full
@@ -46,13 +56,9 @@ logger = logging.getLogger("OASIS.Entrypoint")
 # ── Dashboard Map ─────────────────────────────────────────────────────
 DASHBOARD_MAP = {
     "ops":        "ops_dashboard.py",
-    "shadow":     "shadow_dashboard.py",
-    "approval":   "approval_dashboard.py",
     "stgat":      "st_gat_dashboard.py",
     "command":    "ops_dashboard.py",
     "allocation": "allocation_app.py",
-    "integrated": "integrated_app.py",
-    "pitch":      "pitch_app_v2.py",
 }
 
 DEFAULT_PORTS = {
@@ -102,8 +108,9 @@ def run_engine():
     # 1. Ensure DB is initialized
     db_path = config.get("paths", {}).get("db_path", "/data/oasis.db")
     try:
+        from oasis.logic import db as oasis_db
         from oasis.logic.db_connector import UniversalConnector
-        connector = UniversalConnector(db_path)
+        connector = UniversalConnector(oasis_db.to_sqlalchemy_url(db_path))
         connector.ensure_oasis_tables()
         logger.info(f"Database initialized: {db_path}")
     except Exception as e:
@@ -400,9 +407,11 @@ def run_full():
     ui_cfg = config.get("ui", {})
 
     dashboard_procs = []
+    seen_scripts = set()
     for name, script in DASHBOARD_MAP.items():
-        if not os.path.exists(script):
+        if not os.path.exists(script) or script in seen_scripts:
             continue
+        seen_scripts.add(script)
         port_key = f"{name}_dashboard_port" if name != "command" else "command_center_port"
         port = ui_cfg.get(port_key, 8501 + len(dashboard_procs))
 
@@ -481,16 +490,18 @@ def run_shadow_full(port: int = 8506, pathway: str = "file"):
     # Background daemon
     daemon_log = os.path.join("shadow_logs", "shadow_daemon_console.log")
     daemon_cmd = [sys.executable, "shadow_monitor.py", "--mode", pathway, "--root", "."]
-    with open(daemon_log, "a") as f:
-        daemon = subprocess.Popen(daemon_cmd, stdout=f, stderr=subprocess.STDOUT)
-    logger.info(f"Shadow daemon PID {daemon.pid}")
-
     try:
-        run_dashboard("shadow", port)
-    finally:
-        daemon.terminate()
-        daemon.wait(timeout=10)
-        logger.info("Shadow daemon stopped.")
+        with open(daemon_log, "a") as f:
+            daemon = subprocess.Popen(daemon_cmd, stdout=f, stderr=subprocess.STDOUT)
+        logger.info(f"Shadow daemon PID {daemon.pid}")
+        try:
+            run_dashboard("shadow", port)
+        finally:
+            daemon.terminate()
+            daemon.wait(timeout=10)
+            logger.info("Shadow daemon stopped.")
+    except FileNotFoundError:
+        logger.error(f"Failed to launch shadow daemon. Dev script not found.")
 
 
 # ── Mode: Simulation ─────────────────────────────────────────────────
@@ -507,16 +518,6 @@ def run_simulation(scenario: str = "Baseline", days: int = 30,
     cmd = [sys.executable, script,
            "--scenario", scenario, "--days", str(days),
            "--budget", str(budget), "--month", month]
-    result = subprocess.run(cmd)
-    sys.exit(result.returncode)
-
-
-# ── Mode: Desktop (Flet native) ──────────────────────────────────────
-
-def run_desktop():
-    """Launch the Flet native desktop app."""
-    logger.info("Starting O.A.S.I.S. Desktop App...")
-    cmd = [sys.executable, "-m", "oasis.main"]
     result = subprocess.run(cmd)
     sys.exit(result.returncode)
 
@@ -561,10 +562,9 @@ def _find_open_port(start: int) -> int:
 def main():
     parser = argparse.ArgumentParser(description="O.A.S.I.S. Unified Entrypoint")
     parser.add_argument("--mode",
-                        choices=["full", "engine", "dashboard", "showcase",
-                                 "shadow", "simulation", "desktop", "bootstrap",
+                        choices=["full", "engine", "dashboard",                                  "desktop", "bootstrap",
                                  "api", "bridge", "hub", "migrate", "shell", "intel",
-                                 "preflight", "build-views", "bootstrap-intel",
+                                 "build-views", "bootstrap-intel",
                                  "bootstrap-governance", "build-graph",
                                  "build-store-graph", "build-baskets", "build-prior",
                                  "build-pos-db", "seed-history", "seed-real-demand",
@@ -574,7 +574,7 @@ def main():
                                  "issue-license", "license-status",
                                  "backup", "restore", "set-password",
                                  "package-release", "set-branding", "show-branding",
-                                 "init",
+                                 "init", "demo-single", "demo-multi",
                                  "value-report", "metering-report", "home",
                                  "version", "upgrade", "assess",
                                  "supplier-scorecard", "category-report",
@@ -643,9 +643,17 @@ def main():
 
     logger.info(f"O.A.S.I.S. v{_read_version()} — Mode: {args.mode}")
 
-    # Resolve port
+    # Resolve port — the mode's OWN dashboard decides the default, not the
+    # generic --dashboard value (which only --mode dashboard uses). Otherwise
+    # shadow/showcase inherit the ops port (8501) and can collide with the
+    # Command Center (finding N-2); the 8502/8505 signature defaults were dead.
     if args.port == 0:
-        default = DEFAULT_PORTS.get(args.dashboard, 8501)
+        mode_key = {
+            "dashboard": args.dashboard,
+            "shadow": "shadow",
+            "showcase": "stgat",
+        }.get(args.mode, args.dashboard)
+        default = DEFAULT_PORTS.get(mode_key, 8501)
         port = _find_open_port(default)
     else:
         port = args.port
@@ -752,8 +760,7 @@ def main():
     elif args.mode == "build-baskets":
         from oasis.logic.basket_affinity import build_baskets_from_db
         root = os.path.dirname(__file__)
-        db_path = os.getenv("OASIS_DB_PATH",
-                            os.path.join(root, "oasis", "data", "mock_pos_erp.db"))
+        db_path = _active_db(root)
         nn_dir = os.getenv("OASIS_NN_OUT", os.path.join(root, "neutral_network_export"))
         min_count = int(os.getenv("OASIS_BASKET_MIN_COUNT", "3"))
         min_lift = float(os.getenv("OASIS_BASKET_MIN_LIFT", "1.0"))
@@ -937,6 +944,21 @@ def main():
         db_path = _active_db(root)
         since = (_dt.now() - _td(days=args.days)).strftime("%Y-%m-%d")
         print(f"Usage since {since}: {usage_summary(db_path, since)}")
+    elif args.mode in ("demo-single", "demo-multi"):
+        # The OASIS.bat "Demo / sample data" submenu (P3.3). These go through
+        # onboarding, NOT through a hardcoded OASIS_DB_PATH: the archived
+        # run_*.bat launchers pinned the demo DB and so silently switched an
+        # onboarded client onto the Rhapta snapshot (finding E-2). Routing here
+        # also records provenance, so the SAMPLE badge appears everywhere.
+        from oasis.logic import onboarding as _ob
+        if args.mode == "demo-single":
+            summary = _ob.apply_demo()
+        else:
+            summary = _ob.apply_multi_demo()
+        print(f"Demo data built ({args.mode}):")
+        for k, v in (summary or {}).items():
+            print(f"  {k}: {v}")
+        print(f"  active store: {_ob.resolved_db_path()}")
     elif args.mode == "init":
         from oasis.logic.install_profile import init_install
         summary = init_install(profile=args.profile, tenant=args.tenant or "")
@@ -1054,8 +1076,7 @@ def main():
     elif args.mode == "pos-inject":
         from oasis.logic.pos_injector import run_injector
         root = os.path.dirname(__file__)
-        db_path = os.getenv("OASIS_DB_PATH",
-                            os.path.join(root, "oasis", "data", "mock_pos_erp.db"))
+        db_path = _active_db(root)
         run_injector(db_path, batches=args.batches, interval=args.interval,
                      org=args.org, sku_count=args.sku_count)
     elif args.mode == "build-multi-store-db":
@@ -1063,6 +1084,8 @@ def main():
         root = os.path.dirname(__file__)
         data_dir = os.getenv("OASIS_DATA_DIR",
                              os.path.join(root, "oasis", "data"))
+        # NOT _active_db(): this mode CREATES a store, so it must not resolve
+        # onto an already-onboarded DB elsewhere and overwrite it (see S7).
         db_path = os.getenv("OASIS_DB_PATH",
                             os.path.join(root, "oasis", "data", "rhapta_multi_store.db"))
         summary = build_multi_store_from_xlsx(data_dir, db_path)
@@ -1071,16 +1094,14 @@ def main():
     elif args.mode == "seed-multi-history":
         from oasis.logic.multi_store_pos import seed_multi_store_history
         root = os.path.dirname(__file__)
-        db_path = os.getenv("OASIS_DB_PATH",
-                            os.path.join(root, "oasis", "data", "rhapta_multi_store.db"))
+        db_path = _active_db(root)
         prior = os.getenv("OASIS_BASKET_PRIOR",
                           os.path.join(root, "neutral_network_export", "basket_prior.json"))
         print(f"Multi-store history: {seed_multi_store_history(db_path, prior_path=prior)}")
     elif args.mode == "multi-pos-stream":
         from oasis.logic.multi_store_pos import stream_multi_store
         root = os.path.dirname(__file__)
-        db_path = os.getenv("OASIS_DB_PATH",
-                            os.path.join(root, "oasis", "data", "rhapta_multi_store.db"))
+        db_path = _active_db(root)
         prior = os.getenv("OASIS_BASKET_PRIOR",
                           os.path.join(root, "neutral_network_export", "basket_prior.json"))
         stream_multi_store(db_path, prior_path=prior,

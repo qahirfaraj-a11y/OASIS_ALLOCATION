@@ -159,6 +159,38 @@ def engine_posture(root: Optional[str] = None) -> Dict[str, Any]:
                 "error": str(e)[:200]}
 
 
+def license_gate(module: str = "core") -> Dict[str, Any]:
+    """The licensing decision for this window — the console gate's twin (P3.0).
+
+    Fails CLOSED, for the same reason ``app._needs_auth`` does: if we cannot
+    prove this install is entitled, it is not. ``OfflineLicenseManager.status``
+    already turns an unreadable or forged key into "locked" on its own; this
+    guard covers the subsystem itself failing to load.
+    """
+    try:
+        from oasis.logic.license_manager import gate_status
+        return gate_status(module)
+    except Exception as e:
+        reason = f"license subsystem unavailable: {str(e)[:120]}"
+        return {"mode": "locked", "blocked": True, "reason": reason,
+                "notice": ("error", f"O.A.S.I.S. is locked — {reason}."),
+                "tenant": None, "expiry": None, "days_left": None,
+                "trial_days_left": 0}
+
+
+def allowed_modules() -> set:
+    """Module SKUs this install may use right now — ``{"core"}`` if unknowable.
+
+    Degrading to core (rather than to everything) keeps an error path from
+    handing out paid modules, which is the mirror of the fail-closed rule above.
+    """
+    try:
+        from oasis.logic.license_manager import allowed_modules as _allowed
+        return set(_allowed())
+    except Exception:
+        return {"core"}
+
+
 def data_provenance(root: Optional[str] = None) -> Dict[str, Any]:
     """What this install is looking at — the desktop's provenance chip (C1/G1)."""
     try:
@@ -170,3 +202,578 @@ def data_provenance(root: Optional[str] = None) -> Dict[str, Any]:
                 "db": os.path.basename(store_db_path(root))}
     except Exception:
         return {"source": "none", "store_name": None, "is_sample": False, "db": ""}
+
+
+def generate_smart_orders(org_cd: str, thresholds: Optional[Dict[str, Any]] = None, root: Optional[str] = None) -> Dict[str, Any]:
+    """Run the Smart Ordering pipeline (engine -> network -> MOQ gate) completely offline."""
+    try:
+        import os
+        import json
+        from datetime import datetime
+        from oasis.logic.order_engine import OrderEngine
+        from oasis.logic.simulation_bridge import SimulationOrderUtil
+        from oasis.logic.consolidated_transfer_service import ConsolidatedTransferService
+        from oasis.logic import gnn_service
+        from oasis.logic.moq_failure_store import record_moq_failures
+        
+        proj_root = root or project_root()
+        data_dir = os.path.join(proj_root, "oasis", "data")
+        adapter = get_adapter(proj_root)
+        
+        products = adapter.fetch_enriched_products(org_cd) or []
+        engine = OrderEngine(data_dir)
+        engine.load_local_databases()
+        
+        sim_util = SimulationOrderUtil(data_dir, thresholds=thresholds, engine=engine)
+        enriched = sim_util.prepare_sku_data(products)
+        
+        _ordering_risk = gnn_service.ordering_risk(products, gnn_risk_score=0.0)
+        raw_recs = sim_util.calculate_order_quantity(enriched, gnn_risk_score=_ordering_risk, use_real_date=True)
+        finalized_recs = sim_util.finalize_orders(raw_recs)
+        
+        all_orgs = adapter.fetch_all_organizations() or []
+        all_org_cds = [o.get("ORG_CD") for o in all_orgs]
+        org_name_map = {o.get("ORG_CD"): (o.get("ORG_NAME") or o.get("ORG_CD")) for o in all_orgs}
+        
+        enriched_network_stock = {}
+        for o_cd in all_org_cds:
+            if o_cd:
+                enriched_network_stock[o_cd] = adapter.fetch_enriched_products(o_cd) or []
+                
+        distance_map = {}
+        coords_path = os.path.join(proj_root, "store_coords.json")
+        if os.path.exists(coords_path):
+            with open(coords_path, "r") as f:
+                distance_map = json.load(f)
+                
+        registry_path = os.path.join(data_dir, "network_registry.json")
+        cts = ConsolidatedTransferService(
+            org_names=org_name_map,
+            stock_data=enriched_network_stock,
+            registry_path=registry_path,
+            distance_map=distance_map,
+            cold_node_days=60,
+            hot_node_days=14
+        )
+        
+        network_plan = cts.optimize_network({org_cd: finalized_recs}, risk_scores={})
+        network_adjusted_recs = network_plan.adjusted_orders.get(org_cd, [])
+        mot_result = sim_util.apply_minimum_order_gate(network_adjusted_recs)
+        
+        dropped_recs = mot_result["transfer_recs"]
+        if dropped_recs:
+            try:
+                moq_path = os.path.join(data_dir, "moq_failures.json")
+                record_moq_failures(moq_path, org_cd, dropped_recs)
+            except Exception:
+                pass
+                
+        return {
+            "po_recs": mot_result["po_recs"],
+            "dropped_recs": dropped_recs,
+            "network_plan": network_plan,
+            "org_name_map": org_name_map,
+            "enriched_network_stock": enriched_network_stock,
+            "generated_at": datetime.now().strftime("%H:%M:%S"),
+            "error": None
+        }
+    except Exception as e:
+        return {"po_recs": [], "dropped_recs": [], "network_plan": None, "error": str(e)[:200]}
+
+
+def push_purchase_order(org_cd: str, username: str, po_recs: List[Dict[str, Any]], root: Optional[str] = None) -> Dict[str, Any]:
+    try:
+        import time
+        from oasis.logic.audit_logger import log_action, ACTION_PO_GENERATED, ENTITY_PO
+        proj_root = root or project_root()
+        adapter = get_adapter(proj_root)
+        pushed = adapter.push_purchase_order(org_cd, po_recs)
+        if pushed:
+            db = store_db_path(proj_root)
+            log_action(db, username, ACTION_PO_GENERATED, ENTITY_PO, f"PO_{org_cd}_{int(time.time())}", org_cd, {"items": pushed})
+            return {"success": True, "pushed_count": pushed, "error": None}
+        return {"success": False, "pushed_count": 0, "error": "No items pushed."}
+    except Exception as e:
+        return {"success": False, "pushed_count": 0, "error": str(e)[:200]}
+
+
+def update_po_status(po_id: int, status: str, username: str, org_cd: str, new_qty: Optional[float] = None, reason: Optional[str] = None, root: Optional[str] = None) -> Dict[str, Any]:
+    try:
+        from oasis.logic.audit_logger import log_action, ENTITY_PO
+        proj_root = root or project_root()
+        adapter = get_adapter(proj_root)
+        if adapter.update_po_status(po_id, status, username, new_qty, reason):
+            db = store_db_path(proj_root)
+            action = f"PO_{status}"
+            details = {}
+            if new_qty is not None: details["new_qty"] = new_qty
+            if reason is not None: details["reason"] = reason
+            log_action(db, username, action, ENTITY_PO, f"PO_ID_{po_id}", org_cd, details)
+            return {"success": True, "error": None}
+        return {"success": False, "error": "Update failed."}
+    except Exception as e:
+        return {"success": False, "error": str(e)[:200]}
+
+
+def executive_roi(org_cd: str, root: Optional[str] = None) -> Dict[str, Any]:
+    """Executive ROI overview statistics for one store."""
+    try:
+        rows = get_adapter(root).fetch_enriched_products(org_cd) or []
+    except Exception as e:
+        return {"total_skus": 0, "dead_pct": 0.0, "so_pct": 0.0, "trapped": 0.0,
+                "stockout": 0, "avail": 0.0, "error": str(e)[:200]}
+
+    total_skus = len(rows)
+    dead = 0
+    trapped = 0.0
+    stockout = 0
+    
+    for r in rows:
+        ads = float(r.get('avg_daily_sales', 0) or 0)
+        soh = float(r.get('current_stocks', r.get('current_stock', 0)) or 0)
+        cost = float(r.get('cost_price', r.get('wac', 0)) or 0) or \
+               float(r.get('selling_price', 0) or 0) * 0.75
+        if ads < 0.2 and soh > 15:
+            dead += 1
+            trapped += soh * cost
+        if ads > 0 and soh < 1:
+            stockout += 1
+            
+    dead_pct = round(dead / total_skus * 100, 1) if total_skus else 0.0
+    so_pct = round(stockout / total_skus * 100, 1) if total_skus else 0.0
+    avail = round(100.0 - so_pct, 1)
+    
+    return {
+        "total_skus": total_skus,
+        "dead_pct": dead_pct,
+        "so_pct": so_pct,
+        "trapped": round(trapped, 2),
+        "stockout": stockout,
+        "avail": avail,
+        "error": None
+    }
+
+
+def eod_stock_heuristic(org_cd: str, root: Optional[str] = None) -> Dict[str, Any]:
+    """Items with < 3 days cover."""
+    try:
+        rows = get_adapter(root).fetch_enriched_products(org_cd) or []
+    except Exception as e:
+        return {"items": [], "error": str(e)[:200]}
+    
+    items = []
+    for r in rows:
+        name = r.get("product_name", "Unknown")
+        qty = float(r.get("current_stocks", 0) or 0)
+        ads = float(r.get("avg_daily_sales", 0) or 0)
+        uom = str(r.get("uom", "EA")).upper()
+        
+        if ads > 0:
+            days_cover = qty / ads
+            if days_cover < 3.0:
+                if qty < 1.0: severity = "⛔ DEPLETED"
+                elif days_cover < 0.5: severity = "🔴 CRITICAL (<½ day)"
+                elif days_cover < 1.0: severity = "🟠 URGENT (<1 day)"
+                else: severity = "🟡 LOW (<3 days)"
+                
+                items.append({
+                    "Severity": severity,
+                    "Product": name,
+                    "Dept": str(r.get("department") or r.get("category") or ""),
+                    "Stock": round(qty, 1) if uom == "KG" else int(round(qty)),
+                    "ADS": round(ads, 1),
+                    "Cover": f"{days_cover:.1f} days"
+                })
+    return {"items": items, "error": None}
+
+
+def transfer_intelligence(root: Optional[str] = None) -> Dict[str, Any]:
+    """Transfer intelligence using GNN and CTS."""
+    try:
+        from oasis.logic.gnn_service import get_gnn_resources, store_risk
+        
+        gnn_model, gnn_sim = get_gnn_resources()
+        if not gnn_model or not gnn_sim:
+            return {"error": "GNN resources unavailable."}
+            
+        import torch
+        x_t = gnn_sim.get_feature_matrix()
+        with torch.no_grad():
+            gnn_out = gnn_model(x_t, gnn_sim.edge_index)
+            gnn_out['transfer'] = gnn_model.get_all_transfer_scores(gnn_out['embeddings']).unsqueeze(0)
+            
+        traffic_mat = gnn_sim.get_traffic_matrix()
+        gnn_stores = gnn_sim.stores_data
+        gnn_ids = [s['store_id'] for s in gnn_stores]
+        
+        # Build stock_by_org for store_risk() — use enriched products for real ADS
+        _adapter = get_adapter(root)
+        _stock_by_org = {}
+        for sid in gnn_ids:
+            org_cd = sid if sid.startswith("ORG") else sid.replace("CFP-", "ORG")
+            try:
+                _stock_by_org[org_cd] = _adapter.fetch_enriched_products(org_cd) or []
+            except Exception:
+                _stock_by_org[org_cd] = []
+        risk_scores_map = store_risk(_stock_by_org)
+        # Map back to gnn_ids (CFP-style keys if needed)
+        for sid in gnn_ids:
+            org_cd = sid if sid.startswith("ORG") else sid.replace("CFP-", "ORG")
+            if sid not in risk_scores_map and org_cd in risk_scores_map:
+                risk_scores_map[sid] = risk_scores_map[org_cd]
+        risk_scores = [risk_scores_map.get(sid, gnn_out['risk'][i].item()) for i, sid in enumerate(gnn_ids)]
+        
+        risks = [{"store_id": sid, "risk": r} for sid, r in zip(gnn_ids, risk_scores)]
+        
+        transfer_mat = gnn_out['transfer'][0]
+        traffic_sq = traffic_mat.squeeze(-1)
+        gnn_recs = []
+        for si, src in enumerate(gnn_stores):
+            for dj, dst in enumerate(gnn_stores):
+                if si == dj: continue
+                score = transfer_mat[si, dj].item()
+                fric = traffic_sq[si, dj].item()
+                if score > 0.25:
+                    profit_pulse = score * 1000
+                    friction_pen = fric * 400
+                    net_gain = profit_pulse - friction_pen
+                    gnn_recs.append({
+                        "From": src['store_id'], "To": dst['store_id'],
+                        "Score": f"{score:.2f}", "Priority Index": f"{net_gain:,.0f}",
+                        "_net_gain": net_gain
+                    })
+        gnn_recs.sort(key=lambda x: -x["_net_gain"])
+        return {"risks": risks, "recs": gnn_recs, "error": None}
+    except Exception as e:
+        return {"risks": [], "recs": [], "error": str(e)[:200]}
+
+
+def store_intelligence(org_cd: str, root: Optional[str] = None) -> Dict[str, Any]:
+    try:
+        from oasis.logic.gnn_service import get_gnn_resources
+        model, sim = get_gnn_resources()
+        if not model or not sim:
+            return {"error": "GNN resources unavailable"}
+        
+        if not sim.is_hydrated:
+            sim.hydrate_simulators()
+            
+        all_skus = []
+        if org_cd == "ALL":
+            for s_sim in sim.simulators.values():
+                for sku in s_sim.skus.values():
+                    all_skus.append({
+                        "Product": sku.product_name,
+                        "Category": sku.department,
+                        "Units": sku.total_sales,
+                        "Revenue": sku.total_sales * sku.unit_price,
+                        "Stockouts": sku.stockout_days
+                    })
+        else:
+            s_sim = sim.simulators.get(org_cd)
+            if s_sim:
+                for sku in s_sim.skus.values():
+                    all_skus.append({
+                        "Product": sku.product_name,
+                        "Category": sku.department,
+                        "Units": sku.total_sales,
+                        "Revenue": sku.total_sales * sku.unit_price,
+                        "Stockouts": sku.stockout_days
+                    })
+        
+        if not all_skus:
+            return {"top_qty": [], "top_rev": [], "categories": [], "error": None}
+            
+        import pandas as pd
+        df = pd.DataFrame(all_skus)
+        if org_cd == "ALL":
+            df = df.groupby(["Product", "Category"]).sum().reset_index()
+            
+        top_qty = df.sort_values("Units", ascending=False).head(15).to_dict("records")
+        top_rev = df.sort_values("Revenue", ascending=False).head(15).to_dict("records")
+        cat_stats = df.groupby("Category")[["Revenue", "Units"]].sum().reset_index().to_dict("records")
+        
+        return {"top_qty": top_qty, "top_rev": top_rev, "categories": cat_stats, "error": None}
+    except Exception as e:
+        return {"error": str(e)[:200]}
+
+def cluster_analysis(root: Optional[str] = None) -> Dict[str, Any]:
+    try:
+        from oasis.logic.gnn_service import get_gnn_resources, store_risk
+        
+        gnn_model, gnn_sim = get_gnn_resources()
+        if not gnn_model or not gnn_sim:
+            return {"error": "GNN resources unavailable"}
+            
+        import torch
+        from sklearn.decomposition import PCA
+        from sklearn.cluster import KMeans
+        
+        x_t = gnn_sim.get_feature_matrix()
+        X_np = x_t.cpu().numpy()
+        
+        pca = PCA(n_components=2)
+        components = pca.fit_transform(X_np)
+        
+        kmeans = KMeans(n_clusters=4, random_state=42)
+        clusters = kmeans.fit_predict(X_np)
+        
+        stores = gnn_sim.stores_data
+        # Build stock_by_org for store_risk()
+        _adapter = get_adapter(root)
+        _stock_by_org = {}
+        for s in stores:
+            sid = s['store_id']
+            org_cd = sid if sid.startswith("ORG") else sid.replace("CFP-", "ORG")
+            try:
+                _stock_by_org[org_cd] = _adapter.fetch_enriched_products(org_cd) or []
+            except Exception:
+                _stock_by_org[org_cd] = []
+        risk_scores_map = store_risk(_stock_by_org)
+        # Map back to gnn_ids (CFP-style keys if needed)
+        for s in stores:
+            sid = s['store_id']
+            org_cd = sid if sid.startswith("ORG") else sid.replace("CFP-", "ORG")
+            if sid not in risk_scores_map and org_cd in risk_scores_map:
+                risk_scores_map[sid] = risk_scores_map[org_cd]
+        
+        res = []
+        for i, s in enumerate(stores):
+            sid = s['store_id']
+            risk = risk_scores_map.get(sid, 0.0)
+            res.append({
+                "Store": sid,
+                "Region": s.get('region', 'Unknown'),
+                "Cluster": f"Group {clusters[i]}",
+                "Risk": round(risk, 2)
+            })
+            
+        return {"clusters": res, "error": None}
+    except Exception as e:
+        return {"error": str(e)[:200]}
+
+
+# ── Command Center accessors ─────────────────────────────────────────────
+# The Command Center tabs are presentation only. Anything that decides what a
+# number MEANS lives here, next to the accessor the Operations view uses, so
+# the two native surfaces can never disagree about the same store.
+
+#: severity bands for unit-based days-of-cover, worst first. Shared by the
+#: network scan and the per-store health split so one definition of "critical"
+#: serves both.
+_COVER_BANDS = (
+    (0.5, "CRITICAL"),
+    (1.0, "URGENT"),
+    (3.0, "LOW"),
+)
+
+
+def _cover_severity(qty: float, days_cover: float) -> str:
+    if qty < 1.0:
+        return "DEPLETED"
+    for limit, label in _COVER_BANDS:
+        if days_cover < limit:
+            return label
+    return "HEALTHY"
+
+
+def network_risk(root: Optional[str] = None) -> Dict[str, Any]:
+    """Per-store risk across the whole network — inventory-led, GNN-gated.
+
+    Unlike :func:`transfer_intelligence` this does NOT require a trained GNN:
+    ``store_risk`` degrades to the interpretable inventory signal, which is the
+    posture the risk-methodology gate demands until the model beats baseline.
+    """
+    try:
+        from oasis.logic.gnn_service import store_risk, model_status
+        adapter = get_adapter(root)
+        stores = list_stores(root)
+        stock_by_org: Dict[str, Any] = {}
+        for s in stores:
+            try:
+                stock_by_org[s["org_cd"]] = adapter.fetch_enriched_products(s["org_cd"]) or []
+            except Exception:
+                stock_by_org[s["org_cd"]] = []
+        risk_map = store_risk(stock_by_org)
+        return {"status": model_status(),
+                "stores": [{"org_cd": s["org_cd"], "name": s["name"],
+                            "risk": float(risk_map.get(s["org_cd"], 0.0) or 0.0)}
+                           for s in stores],
+                "error": None}
+    except Exception as e:
+        return {"status": "unavailable", "stores": [], "error": str(e)[:200]}
+
+
+def network_stockout_risk(root: Optional[str] = None) -> Dict[str, Any]:
+    """Item-level items under 3 days of cover, across every store.
+
+    The network-wide twin of :func:`eod_stock_heuristic` (which is one store).
+    Returns ``{items, counts, error}`` sorted worst-first.
+    """
+    try:
+        adapter = get_adapter(root)
+        stores = list_stores(root)
+    except Exception as e:
+        return {"items": [], "counts": {}, "error": str(e)[:200]}
+
+    items: List[Dict[str, Any]] = []
+    for s in stores:
+        try:
+            rows = adapter.fetch_enriched_products(s["org_cd"]) or []
+        except Exception:
+            rows = []
+        for r in rows:
+            qty = float(r.get("current_stocks", r.get("current_stock", 0)) or 0)
+            ads = float(r.get("avg_daily_sales", 0) or 0)
+            if ads <= 0:
+                continue
+            days_cover = qty / ads
+            if days_cover >= 3.0:
+                continue
+            items.append({
+                "severity": _cover_severity(qty, days_cover),
+                "name": r.get("product_name", "Unknown"),
+                "store": s["name"],
+                "stock": round(qty, 1),
+                "ads": round(ads, 2),
+                "days_cover": round(days_cover, 1),
+            })
+
+    order = {"DEPLETED": 0, "CRITICAL": 1, "URGENT": 2, "LOW": 3}
+    items.sort(key=lambda x: (order.get(x["severity"], 99), x["days_cover"]))
+    counts = {k: sum(1 for i in items if i["severity"] == k) for k in order}
+    return {"items": items, "counts": counts, "error": None}
+
+
+def transfer_status(org_cd: str, root: Optional[str] = None) -> Dict[str, Any]:
+    """Transfer records for a store: ``{rows, error}`` (rows are plain dicts)."""
+    try:
+        df = get_adapter(root).fetch_transfers(org_cd)
+        rows = df.to_dict("records") if hasattr(df, "to_dict") else list(df or [])
+        return {"rows": rows[:200], "error": None}
+    except Exception as e:
+        return {"rows": [], "error": str(e)[:200]}
+
+
+def stock_health(org_cd: str, root: Optional[str] = None) -> Dict[str, Any]:
+    """Four-way health split for one store, plus the product detail behind it.
+
+    Overstock is judged against a shorter horizon for perishables — 14 days
+    against 30 — because a month of cover on fresh milk is spoilage, not depth.
+    """
+    try:
+        rows = get_adapter(root).fetch_enriched_products(org_cd) or []
+    except Exception as e:
+        return {"counts": {}, "items": [], "error": str(e)[:200]}
+
+    fresh_keys = ("MILK", "DAIRY", "FRESH", "MEAT", "BREAD", "BAKERY")
+    counts = {"HEALTHY": 0, "CRITICAL": 0, "STOCKOUT": 0, "OVERSTOCK": 0}
+    items: List[Dict[str, Any]] = []
+
+    for r in rows:
+        name = r.get("product_name", "Unknown")
+        dept = str(r.get("department") or r.get("category") or "")
+        qty = float(r.get("current_stocks", r.get("current_stock", 0)) or 0)
+        ads = float(r.get("avg_daily_sales", 0) or 0)
+        days_cover = (qty / ads) if ads > 0 else float("inf")
+
+        is_fresh = bool(r.get("is_fresh", False)) or any(
+            k in dept.upper() for k in fresh_keys)
+        overstock_limit = 14.0 if is_fresh else 30.0
+
+        if qty <= 0:
+            health = "STOCKOUT"
+        elif ads > 0 and days_cover < 1.0:
+            health = "CRITICAL"
+        elif ads > 0 and days_cover > overstock_limit:
+            health = "OVERSTOCK"
+        else:
+            health = "HEALTHY"
+
+        counts[health] += 1
+        items.append({
+            "health": health, "name": name, "dept": dept,
+            "stock": round(qty, 1), "ads": round(ads, 2),
+            "days_cover": (None if days_cover == float("inf")
+                           else round(days_cover, 1)),
+            "is_fresh": is_fresh,
+        })
+
+    urgency = {"STOCKOUT": 0, "CRITICAL": 1, "OVERSTOCK": 2, "HEALTHY": 3}
+    items.sort(key=lambda x: (urgency[x["health"]],
+                              x["days_cover"] if x["days_cover"] is not None else 1e9))
+    return {"counts": counts, "items": items, "error": None}
+
+
+def live_sales(org_cd: str, days: int = 90,
+               root: Optional[str] = None) -> Dict[str, Any]:
+    """Latest trading day's sales for one store.
+
+    ``fetch_sales_history`` returns LINE ITEMS, not baskets. The line count is
+    reported as what it is; basket value is only computed when the feed carries
+    a bill identifier we can group on, and is ``None`` otherwise. An earlier
+    draft multiplied the line count by a hardcoded 5 to guess a basket size —
+    that is a fabricated KPI and must not reach a client.
+    """
+    try:
+        # fetch_sales_history returns a DataFrame — `df or []` is ambiguous and
+        # raises, so convert before any truth test touches it.
+        raw = get_adapter(root).fetch_sales_history(org_cd, days=days)
+        rows = raw.to_dict("records") if hasattr(raw, "to_dict") else list(raw or [])
+    except Exception as e:
+        return {"error": str(e)[:200], "lines": 0, "revenue": 0.0,
+                "units": 0.0, "skus": 0, "baskets": None,
+                "basket_value": None, "top": [],
+                "trading_day": None}
+
+    norm = [{str(k).lower(): v for k, v in r.items()} for r in rows]
+    if not norm:
+        return {"error": None, "lines": 0, "revenue": 0.0, "units": 0.0,
+                "skus": 0, "baskets": None, "basket_value": None,
+                "top": [], "trading_day": None}
+    if "bill_dt" not in norm[0]:
+        return {"error": "sales feed has no bill_dt column", "lines": 0,
+                "revenue": 0.0, "units": 0.0, "skus": 0, "baskets": None,
+                "basket_value": None,
+                "top": [], "trading_day": None}
+
+    dates = [r["bill_dt"] for r in norm if r.get("bill_dt") is not None]
+    if not dates:
+        return {"error": None, "lines": 0, "revenue": 0.0, "units": 0.0,
+                "skus": 0, "baskets": None, "basket_value": None, "top": [],
+                "trading_day": None}
+    latest = max(dates)
+    today = [r for r in norm if r.get("bill_dt") == latest]
+
+    def _f(r, k):
+        try:
+            return float(r.get(k, 0) or 0)
+        except (TypeError, ValueError):
+            return 0.0
+
+    revenue = sum(_f(r, "net_amt") for r in today)
+    units = sum(_f(r, "qty") for r in today)
+    skus = len({r.get("itm_cd") for r in today if r.get("itm_cd") is not None})
+
+    bill_key = next((k for k in ("bill_no", "bill_id", "invoice_no", "txn_id")
+                     if k in today[0]), None)
+    if bill_key:
+        baskets = len({r.get(bill_key) for r in today})
+        basket_value = (revenue / baskets) if baskets else None
+    else:
+        baskets, basket_value = None, None
+
+    agg: Dict[Any, Dict[str, Any]] = {}
+    for r in today:
+        code = r.get("itm_cd")
+        if code is None:
+            continue
+        e = agg.setdefault(code, {"name": r.get("item_name") or str(code),
+                                  "units": 0.0, "revenue": 0.0})
+        e["units"] += _f(r, "qty")
+        e["revenue"] += _f(r, "net_amt")
+    top = sorted(agg.values(), key=lambda e: -e["units"])[:20]
+
+    return {"error": None, "trading_day": latest, "lines": len(today),
+            "revenue": revenue, "units": units, "skus": skus,
+            "baskets": baskets, "basket_value": basket_value, "top": top}

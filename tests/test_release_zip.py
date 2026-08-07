@@ -124,6 +124,56 @@ class TestReleaseZipContract:
             assert any(n.endswith("/oasis/desktop/" + required) for n in desktop), \
                 f"oasis/desktop/{required} missing from the release zip"
 
+    def test_entrypoint_dashboards_exist_in_zip(self, zip_info):
+        """Catch E-3: Every script entrypoint.py dispatches to must be in the zip."""
+        z_path, names, _ = zip_info
+        try:
+            entrypoint_file = next(n for n in names if n.endswith("/entrypoint.py"))
+        except StopIteration:
+            pytest.fail("entrypoint.py not found in zip")
+        
+        with zipfile.ZipFile(z_path) as zf:
+            content = zf.read(entrypoint_file).decode("utf-8")
+            
+        import ast
+        map_match = re.search(r'DASHBOARD_MAP\s*=\s*({[^}]+})', content)
+        assert map_match, "Could not find DASHBOARD_MAP in entrypoint.py"
+        dash_map = ast.literal_eval(map_match.group(1))
+        
+        root_dir = entrypoint_file.rsplit("/", 1)[0] + "/" if "/" in entrypoint_file else ""
+        
+        for script in dash_map.values():
+            expected = root_dir + script
+            assert expected in names, f"Entrypoint dispatches to {script}, but it is missing from the release zip!"
+
+    def test_every_menu_mode_is_a_real_entrypoint_mode(self, zip_info):
+        """The menu's twin of E-3: a front-door option that cannot run.
+
+        The P3.3 "Demo / sample data" submenu shipped dispatching to
+        --mode demo-single / demo-multi / mock-pos, none of which existed in
+        the argparse choices — so all three options died with a usage error on
+        a client install. The dashboard guard above did not catch it because
+        these are --mode values, not DASHBOARD_MAP scripts.
+        """
+        z_path, names, _ = zip_info
+        entrypoint_file = next(n for n in names if n.endswith("/entrypoint.py"))
+        bat_file = next(n for n in names if n.endswith("/OASIS.bat"))
+
+        with zipfile.ZipFile(z_path) as zf:
+            entry_src = zf.read(entrypoint_file).decode("utf-8")
+            bat_src = zf.read(bat_file).decode("utf-8", errors="replace")
+
+        choices = set(re.findall(r'"([a-z0-9-]+)"',
+                                 re.search(r'--mode",\s*\n?\s*choices=\[(.*?)\]',
+                                           entry_src, re.S).group(1)))
+        assert "desktop" in choices, "failed to parse --mode choices"
+
+        used = set(re.findall(r'--mode\s+([a-z0-9-]+)', bat_src))
+        missing = sorted(used - choices)
+        assert not missing, (
+            f"OASIS.bat dispatches to --mode {missing}, which entrypoint.py "
+            f"does not accept — those menu options fail on a client install")
+
 
 class TestPackagingDecisions:
     """Pure whitelist checks — no built zip needed, so these always run.

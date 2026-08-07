@@ -417,6 +417,110 @@ def module_allowed(module: str, allowed: Optional[set] = None) -> bool:
     return module in (allowed if allowed is not None else allowed_modules())
 
 
+def gate_status(module: str = "core",
+                mgr: Optional["OfflineLicenseManager"] = None) -> dict:
+    """The licensing DECISION for one module, with no UI attached.
+
+    ``console_gate`` used to BE the decision, which made it unreachable from
+    anything that is not Streamlit — so the four browser consoles locked at
+    expiry while the native desktop window (``--mode desktop``, the front door
+    OASIS.bat calls RECOMMENDED) opened straight into store data. Desktop
+    Phase 3 finding R-2. The decision lives here now; each UI renders it.
+
+    Returns ``OfflineLicenseManager.status()`` plus:
+        blocked  — True when the caller MUST show a lock screen and stop
+        notice   — ``(level, text)`` a UI should surface, or None.
+                   level ∈ ``error`` | ``warning`` | ``info``
+    """
+    s = dict((mgr or OfflineLicenseManager()).status(module))
+    mode = s.get("mode")
+
+    if mode == "licensed":
+        left = s.get("days_left")
+        if isinstance(left, int) and left <= 30:
+            s["notice"] = ("warning", f"License renews in {left} day(s).")
+        else:
+            s["notice"] = ("info", f"Licensed to {s.get('tenant')} "
+                                   f"· exp {s.get('expiry')}")
+        s["blocked"] = False
+    elif mode == "evaluation":
+        s["notice"] = ("warning",
+                       f"EVALUATION MODE — {s.get('trial_days_left')} day(s) "
+                       "remaining. Contact iLink for a license key.")
+        s["blocked"] = False
+    else:
+        s["notice"] = ("error",
+                       f"O.A.S.I.S. is locked — {s.get('reason')}.")
+        s["blocked"] = True
+    return s
+
+
+def default_key_path() -> str:
+    """Where an activated license key is written (public accessor)."""
+    return _default_key_path()
+
+
+def activate_key(raw: str) -> tuple:
+    """Validate a pasted/uploaded key and, if valid, install it. ``(ok, detail)``
+
+    The write half of ``render_license_activation``, extracted so the desktop
+    activates a key through the same code path the consoles do — one place
+    that decides what a valid key is, one place that writes it.
+    """
+    ok, detail, key = validate_key_payload(raw)
+    if not ok:
+        return False, detail
+    with open(default_key_path(), "w", encoding="utf-8") as f:
+        json.dump(key, f, indent=2)
+    logger.info("License activated for tenant %s", key.get("tenant_id"))
+    return True, detail
+
+
+def lock_screen_exports(root: Optional[str] = None) -> dict:
+    """The "your data is yours" door, as paths: ``{db, report}`` (None if absent).
+
+    Audit E1/E3: a locked install must still be able to take a full copy of its
+    own records. Both lock screens read this, so the browser and the native
+    window can never disagree about what a locked client may take with them.
+    """
+    out = {"db": None, "report": None}
+    try:
+        from .onboarding import resolved_db_path
+        db = resolved_db_path(root) if root else resolved_db_path()
+        if db and os.path.exists(db):
+            out["db"] = db
+    except Exception as e:
+        logger.warning("Lock-screen export could not resolve the store: %s", e)
+    reports = os.path.join(root or _ROOT, "reports")
+    try:
+        if os.path.isdir(reports):
+            mds = sorted(f for f in os.listdir(reports) if f.endswith(".md"))
+            if mds:
+                out["report"] = os.path.join(reports, mds[-1])
+    except OSError:
+        pass
+    return out
+
+
+def copy_exports(dest_dir: str, root: Optional[str] = None) -> list:
+    """Copy everything ``lock_screen_exports`` offers into ``dest_dir``.
+
+    The desktop equivalent of the console's download buttons — a native window
+    has no browser download, so it writes the files where the operator asks.
+    Returns the paths written.
+    """
+    import shutil
+    written = []
+    os.makedirs(dest_dir, exist_ok=True)
+    for path in lock_screen_exports(root).values():
+        if not path:
+            continue
+        target = os.path.join(dest_dir, os.path.basename(path))
+        shutil.copy2(path, target)
+        written.append(target)
+    return written
+
+
 def render_upsell(st, module: str) -> None:
     """The locked-feature stub — a sales surface, not a dead end."""
     label = MODULE_LABELS.get(module, module.title())
@@ -474,13 +578,10 @@ def render_license_activation(st) -> None:
                        placeholder='{"tenant_id": "...", "authorized_modules": {...}}')
     if st.button("Activate license", type="primary", key="_lic_activate"):
         raw = up.getvalue().decode("utf-8", "replace") if up else (txt or "")
-        ok, detail, key = validate_key_payload(raw)
+        ok, detail = activate_key(raw)
         if not ok:
             st.error(detail)
             return
-        path = _default_key_path()
-        with open(path, "w", encoding="utf-8") as f:
-            json.dump(key, f, indent=2)
         st.success(f"✓ License activated. {detail}")
         st.rerun()
 
@@ -497,26 +598,20 @@ def render_lock_screen(st) -> None:
         render_license_activation(st)
     with b:
         st.caption("Your data is yours, licensed or not. Take a full copy any time.")
-        try:
-            from .onboarding import resolved_db_path
-            db = resolved_db_path()
-            if os.path.exists(db):
-                with open(db, "rb") as f:
-                    st.download_button("⬇ Download my store database (.db)",
-                                       f.read(), file_name=os.path.basename(db),
-                                       key="_lock_export")
-            else:
-                st.info("No store database found yet.")
-        except Exception as e:
-            st.error(f"Export unavailable: {e}")
-        reports = os.path.join(_ROOT, "reports")
-        if os.path.isdir(reports):
-            mds = sorted(f for f in os.listdir(reports) if f.endswith(".md"))
-            if mds:
-                with open(os.path.join(reports, mds[-1]), encoding="utf-8") as f:
-                    st.download_button("⬇ Latest Value Report",
-                                       f.read(), file_name=mds[-1],
-                                       key="_lock_report")
+        exports = lock_screen_exports()
+        if exports["db"]:
+            with open(exports["db"], "rb") as f:
+                st.download_button("⬇ Download my store database (.db)",
+                                   f.read(),
+                                   file_name=os.path.basename(exports["db"]),
+                                   key="_lock_export")
+        else:
+            st.info("No store database found yet.")
+        if exports["report"]:
+            with open(exports["report"], encoding="utf-8") as f:
+                st.download_button("⬇ Latest Value Report", f.read(),
+                                   file_name=os.path.basename(exports["report"]),
+                                   key="_lock_report")
     with c:
         for m in KNOWN_MODULES:
             st.markdown(f"- **{MODULE_LABELS[m]}**"
@@ -534,14 +629,16 @@ def console_gate(st, module: str) -> dict:
     licensed   → quiet caption in the sidebar (renewal warning at ≤30 days)
     evaluation → visible banner with trial days remaining
     locked     → full-page lock screen and st.stop()
+
+    The Streamlit ADAPTER over ``gate_status`` — it renders the decision, it no
+    longer makes it. The desktop gate reads the same ``gate_status``.
     """
-    s = OfflineLicenseManager().status(module)
+    s = gate_status(module)
+    level, text = s["notice"]
     if s["mode"] == "licensed":
         try:
-            if s["days_left"] is not None and s["days_left"] <= 30:
-                st.sidebar.warning(f"License renews in {s['days_left']} day(s).")
-            else:
-                st.sidebar.caption(f"Licensed to {s['tenant']} · exp {s['expiry']}")
+            (st.sidebar.warning if level == "warning"
+             else st.sidebar.caption)(text)
         except Exception:
             pass
     elif s["mode"] == "evaluation":

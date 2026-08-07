@@ -63,10 +63,25 @@ class TestShouldShipClean:
     def test_root_whitelist_ships(self):
         from oasis.logic.release_packager import should_ship_clean
         for f in ("entrypoint.py", "app.py", "ops_dashboard.py",
-                  "home_app.py", "install.bat", "VERSION",
+                  "home_app.py", "install.bat", "OASIS.bat", "VERSION",
                   "requirements.txt", "alembic.ini",
-                  "run_oasis_home.bat", "branding.example.json"):
+                  "serve.bat", "branding.example.json"):
             assert should_ship_clean(f)[0], f
+
+    def test_legacy_launchers_no_longer_ship(self):
+        """P3.3 entrypoint consolidation — one front door, not twelve.
+
+        These hardcoded ``OASIS_DB_PATH``, bypassing ``resolved_db_path()``, so
+        a client who had onboarded to their own store and then double-clicked
+        one was silently looking at the Rhapta demo snapshot (finding E-2).
+        """
+        from oasis.logic.release_packager import should_ship_clean
+        for f in ("run_oasis_home.bat", "run_oasis_live.bat",
+                  "run_oasis_intel_live.bat", "run_command_center_live.bat",
+                  "run_command_center_multi.bat",
+                  "run_market_intelligence_tool.bat",
+                  "run_mock_pos.bat", "run_multi_pos.bat"):
+            assert not should_ship_clean(f)[0], f
 
     def test_root_ad_hoc_scripts_dropped(self):
         from oasis.logic.release_packager import should_ship_clean
