@@ -3,7 +3,7 @@ Vault coarse-prior extractor — a cold-start basket halo from the Obsidian vaul
 
 The vault has no SKU-level co-purchase, but its Supplier nodes carry weighted
 ``[complimentary]:: [[PARTNER]] (Weight: N)`` affinity edges (derived from the real
-Rhapta GRN/supply data). We parse those and project them down to a DEPARTMENT-level
+sample GRN/supply data). We parse those and project them down to a DEPARTMENT-level
 halo prior — {dept: {complementary_dept: weight}} — via each vendor's primary
 department. That gives baskets *some* real, weighted structure at cold-start,
 before live POS co-purchase exists (which then supersedes it with SKU-level
@@ -80,7 +80,7 @@ def load_prior(path: str) -> Dict[str, Dict[str, float]]:
 def build_department_prior(vault_dir: str, data_dir: str, out_path: str) -> dict:
     """Parse vault supplier affinity, project to departments using the real
     catalog vendor->dept map, write basket_prior.json."""
-    from .rhapta_catalog import load_catalog, vendor_departments
+    from .catalog_snapshot import load_catalog, vendor_departments
     rows = load_catalog(data_dir)
     vendor_dept = {_norm(v): d for v, d in vendor_departments(rows).items()}
     sup_edges = parse_supplier_complimentary(vault_dir)

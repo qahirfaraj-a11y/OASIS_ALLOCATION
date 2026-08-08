@@ -1,11 +1,11 @@
 """
-Build a clean mock POS/ERP database from the real Rhapta catalog snapshot.
+Build a clean mock POS/ERP database from a catalogue snapshot.
 
 Reuses the canonical RXL schema (mock_pos_erp.SCHEMA_SQL) and that builder's
 system-table seeds (users / tax / counters / config — so the consoles still log
 in), but replaces the synthetic product/stock generation with the REAL dept_*.xlsx
 catalogue and leaves POS_SALES empty. This is the "stock snapshot from which we
-start running POS sales": a single Rhapta store, real SKUs/departments/vendors/
+start running POS sales": a single sample store, with SKUs/departments/vendors/
 prices/on-hand, ready for the affinity-aware simulator to ring up bills.
 """
 
@@ -13,6 +13,8 @@ from __future__ import annotations
 
 import os
 import sqlite3
+
+from .demo_identity import DEMO_BRANCHES, DEMO_CITY, single_store_name
 from datetime import datetime
 from typing import List, Optional
 
@@ -29,7 +31,7 @@ def _reset_db(db_path: str) -> None:
 
 
 def build_pos_db_from_catalog(rows: List[dict], db_path: str, org_cd: str = "ORG001",
-                              org_name: str = "Chandarana Foodplus - Rhapta Road",
+                              org_name: str = "",
                               reset: bool = True,
                               seed_password: Optional[str] = None) -> dict:
     """Create db_path from catalogue rows. Returns a summary dict.
@@ -41,6 +43,7 @@ def build_pos_db_from_catalog(rows: List[dict], db_path: str, org_cd: str = "ORG
     ``setdefault("OASIS_SEED_PASSWORD", "oasis2026")`` unconditionally, so every
     real catalogue-built store shipped with a publicly-known credential.
     """
+    org_name = org_name or single_store_name()
     if reset:
         _reset_db(db_path)
     os.makedirs(os.path.dirname(os.path.abspath(db_path)), exist_ok=True)
@@ -55,13 +58,13 @@ def build_pos_db_from_catalog(rows: List[dict], db_path: str, org_cd: str = "ORG
     try:
         conn.executescript(SCHEMA_SQL)
 
-        # single Rhapta store
+        # single sample store
         conn.execute(
             "INSERT OR REPLACE INTO ORGANIZATION_MST "
             "(ORG_CD, ORG_NAME, ORG_SHORT_NAME, ORG_ADDRESS, ORG_CITY, ORG_STATE, "
             " ORG_COUNTRY, CURRENCY_CD, LEVEL_NUMBER, ACTIVE_FLAG) "
             "VALUES (?,?,?,?,?,?,?,?,?,?)",
-            (org_cd, org_name, "RHAPTA", "Rhapta Road, Westlands", "Nairobi",
+            (org_cd, org_name, DEMO_BRANCHES[0][1], DEMO_BRANCHES[0][2], DEMO_CITY,
              "Nairobi", "KE", "KES", 1, "Y"))
 
         # reuse the canonical system seeds so the consoles still authenticate.
@@ -128,6 +131,6 @@ def build_pos_db_from_catalog(rows: List[dict], db_path: str, org_cd: str = "ORG
 
 def build_from_xlsx(data_dir: str, db_path: str, org_cd: str = "ORG001") -> dict:
     """Load the dept_*.xlsx catalogue and build the clean POS DB."""
-    from .rhapta_catalog import load_catalog
+    from .catalog_snapshot import load_catalog
     rows = load_catalog(data_dir)
     return build_pos_db_from_catalog(rows, db_path, org_cd=org_cd)

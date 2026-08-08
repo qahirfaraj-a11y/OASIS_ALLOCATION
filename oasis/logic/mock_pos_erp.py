@@ -515,15 +515,15 @@ class MockPosErpBuilder:
         # Fallback if JSON not loaded
         if not orgs:
             orgs = [
-                ('ORG001','Chandarana Foodplus - Rhapta Road','RHAPTA',
-                 'Rhapta Road, Westlands','Nairobi','Nairobi','KE','00100',
-                 '+254-20-1234567','rhapta@chandarana.co.ke','KES',None,1,None),
-                ('ORG002','Chandarana Foodplus - Lavington','LAVINGT',
+                ('ORG001','Meridian Fresh - Parkview','PARKVW',
+                 'Parkview Avenue, Central','Nairobi','Nairobi','KE','00100',
+                 '+254-20-1234567','parkview@meridianfresh.example','KES',None,1,None),
+                ('ORG002','Meridian Fresh - Highgrove','HIGHGR',
                  'James Gichuru Road','Nairobi','Nairobi','KE','00100',
-                 '+254-20-2345678','lavington@chandarana.co.ke','KES',None,1,None),
-                ('ORG003','Chandarana Foodplus - Karen','KAREN',
-                 'Karen Road, Hardy','Nairobi','Nairobi','KE','00200',
-                 '+254-20-3456789','karen@chandarana.co.ke','KES',None,1,None),
+                 '+254-20-2345678','highgrove@meridianfresh.example','KES',None,1,None),
+                ('ORG003','Meridian Fresh - Oakridge','OAKRDG',
+                 'Oakridge Lane, West','Nairobi','Nairobi','KE','00200',
+                 '+254-20-3456789','oakridge@meridianfresh.example','KES',None,1,None),
             ]
 
         conn = self.conn
@@ -601,7 +601,7 @@ class MockPosErpBuilder:
         # ── Source: stores_network reference store (highest dsf = most complete)
         ref_profile: List[dict] = []
         if self.store_meta:
-            # Use the store with dsf >= 1.0 (reference = Rhapta or Yaya)
+            # Use the store with dsf >= 1.0 (reference = Parkview or Yaya)
             ref = next((m for m in self.store_meta if m['dsf'] >= 1.0), self.store_meta[0])
             ref_profile = ref['stock_profile']
 

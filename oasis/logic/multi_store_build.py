@@ -3,7 +3,7 @@ Multi-Store POS Database Builder
 =================================
 
 Creates a SINGLE SQLite database with 5 stores (ORG001–ORG005), each with a
-differentiated stock profile seeded from the real Rhapta dept_*.xlsx catalogue.
+differentiated stock profile seeded from the real sample dept_*.xlsx catalogue.
 
 Differences per store:
     • **Assortment** — some stores carry a subset of the full catalogue.
@@ -84,7 +84,7 @@ def build_multi_store_db(rows: List[dict], db_path: str,
     Parameters
     ----------
     rows : list[dict]
-        Normalised catalogue rows from rhapta_catalog.load_catalog().
+        Normalised catalogue rows from catalog_snapshot.load_catalog().
     db_path : str
         Path to the output SQLite file.
     profiles : list[StoreProfile], optional
@@ -248,6 +248,6 @@ def build_multi_store_from_xlsx(data_dir: str, db_path: str,
                                  profiles: Optional[List[StoreProfile]] = None,
                                  seed: int = 42) -> dict:
     """End-to-end: load catalog from dept_*.xlsx → build multi-store DB."""
-    from .rhapta_catalog import load_catalog
+    from .catalog_snapshot import load_catalog
     rows = load_catalog(data_dir)
     return build_multi_store_db(rows, db_path, profiles=profiles, seed=seed)

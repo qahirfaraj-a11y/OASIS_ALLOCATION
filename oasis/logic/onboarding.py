@@ -1,7 +1,7 @@
 """
 First-run onboarding — how a fresh OASIS install chooses its data source.
 
-Before this existed, ``--mode init`` silently built the Rhapta demo catalogue,
+Before this existed, ``--mode init`` silently built the sample catalogue,
 which (a) masqueraded as real data and (b) broke on a real client install
 because the demo spreadsheets aren't shipped. Onboarding replaces that with an
 explicit first-run choice the operator makes in the Home launcher:
@@ -31,6 +31,17 @@ ONBOARD_FILE = ".oasis_onboarding.json"
 SOURCES = ("demo", "empty", "connect", "init")
 #: sources that represent the operator's OWN data (not the built-in sample).
 REAL_SOURCES = ("empty", "connect", "init")
+
+#: The store files a default install builds. MULTI is the default shape: OASIS
+#: is a network product — transfers, allocation, cluster analysis and the whole
+#: Transfer Intelligence tab need more than one outlet to say anything at all.
+DEFAULT_MULTI_DB = "oasis_network.db"
+DEFAULT_SINGLE_DB = "oasis_store.db"
+#: Names used before the sample data was de-identified. Still resolved so
+#: an existing install is not orphaned by the rename.
+LEGACY_DB_NAMES = ("rhapta_multi_store.db", "rhapta_pos.db")
+#: install profile chosen when nobody says otherwise
+DEFAULT_PROFILE = "multi"
 
 
 def _root() -> str:
@@ -79,7 +90,7 @@ def default_db_path(root: Optional[str] = None) -> str:
     """Where a demo/empty store is built. Honors OASIS_DB_PATH so the consoles
     (which read the same env) pick it up automatically."""
     return os.getenv("OASIS_DB_PATH",
-                     os.path.join(root or _root(), "oasis", "data", "rhapta_pos.db"))
+                     os.path.join(root or _root(), "oasis", "data", DEFAULT_SINGLE_DB))
 
 
 def resolved_db_path(root: Optional[str] = None) -> str:
@@ -90,7 +101,7 @@ def resolved_db_path(root: Optional[str] = None) -> str:
       2. Onboarding state ``db_path`` (set by the first-run wizard)
       3. A connected POS recorded as a local ``sqlite:///`` URL
       4. Install profile ``db_path`` (set by ``--mode init``)
-      5. Default fallback (``oasis/data/rhapta_pos.db``)
+      5. Default fallback (the network DB if built, else the single store)
 
     Every console and the Home app should call this instead of hardcoding
     a default path. This closes W-7 (DB path fragmentation).
@@ -117,7 +128,16 @@ def resolved_db_path(root: Optional[str] = None) -> str:
     ip = load_profile(root)
     if ip.get("db_path") and os.path.exists(ip["db_path"]):
         return ip["db_path"]
-    return os.path.join(root or _root(), "oasis", "data", "rhapta_pos.db")
+    # Last resort. A network install is the default shape, so prefer the
+    # multi-store DB when one exists — a single-store fallback silently drops
+    # an operator into one outlet and makes every network surface (transfers,
+    # allocation, cluster analysis) report that there is nothing to work with.
+    data_dir = os.path.join(root or _root(), "oasis", "data")
+    for name in (DEFAULT_MULTI_DB, DEFAULT_SINGLE_DB, *LEGACY_DB_NAMES):
+        candidate = os.path.join(data_dir, name)
+        if os.path.exists(candidate):
+            return candidate
+    return os.path.join(data_dir, DEFAULT_SINGLE_DB)
 
 
 ADMIN_PW_FLAG = "admin_password_set"
@@ -215,8 +235,25 @@ DEMO_SEED_PASSWORD = "oasis2026"
 #: full profile depth is 62,400 bills across the five stores — minutes of work
 #: behind a first-run button. 14 days at a third of the density still gives the
 #: velocity, cover and imbalance signal the transfer/allocation tour needs.
-DEMO_HISTORY_DAYS = 14
+DEMO_HISTORY_DAYS = 30
+#: Bills/day and department breadth are SCALED to the catalogue. The old fixed
+#: 60/day was tuned for a 34-line catalogue; against the 4,000-line hot-node
+#: catalogue it left 87% of SKUs with no sales at all, so a sample store read
+#: as dead — the exact failure seeding was added to fix. Demand is Zipfian, so
+#: coverage plateaus around half the range in a month: that IS long-tail
+#: retail, and the remaining lines are honestly slow rather than broken.
 DEMO_BILLS_PER_DAY = 60
+DEMO_BILLS_PER_100_SKUS = 10
+DEMO_CORE_PER_DEPT = 30
+
+
+def demo_seeding_params(sku_count: int) -> dict:
+    """Bills/day and department breadth for a catalogue of ``sku_count`` lines."""
+    return {
+        "bills_per_day": max(DEMO_BILLS_PER_DAY,
+                             int(sku_count / 100 * DEMO_BILLS_PER_100_SKUS)),
+        "core_per_dept": DEMO_CORE_PER_DEPT,
+    }
 
 
 def seed_demo_bills(days: int = DEMO_HISTORY_DAYS,
@@ -245,8 +282,19 @@ def seed_demo_bills(days: int = DEMO_HISTORY_DAYS,
             org = row[0] if row else "ORG001"
         except Exception:
             org = "ORG001"
-    return seed_demand_history(db, org=org, days=days,
-                               bills_per_day=bills_per_day)
+    params = demo_seeding_params(_catalogue_size(db))
+    if bills_per_day != DEMO_BILLS_PER_DAY:
+        params["bills_per_day"] = bills_per_day      # explicit caller wins
+    return seed_demand_history(db, org=org, days=days, **params)
+
+
+def _catalogue_size(db: str) -> int:
+    import sqlite3
+    try:
+        with sqlite3.connect(db) as conn:
+            return conn.execute("SELECT COUNT(*) FROM ITEM_MST").fetchone()[0]
+    except Exception:
+        return 0
 
 
 def apply_demo(store_name: str = "OASIS Sample Store",
@@ -268,7 +316,7 @@ def apply_demo(store_name: str = "OASIS Sample Store",
             from .pos_simulator import seed_demand_history
             summary["history"] = seed_demand_history(
                 db, org=summary.get("org", "ORG001"), days=history_days,
-                bills_per_day=DEMO_BILLS_PER_DAY)
+                **demo_seeding_params(int(summary.get("items", 0) or 0)))
         except Exception as e:
             # A catalogue with no history is still a usable store — degrade
             # rather than fail the whole first-run choice.
@@ -292,11 +340,17 @@ def apply_empty(store_name: str = "My Store",
 DEMO_HISTORY_DENSITY = 0.33
 
 
+#: The multi-store demo seeds five stores at once, so it keeps the shorter
+#: window: breadth gives it coverage where the single store needs depth, and a
+#: first-run click must stay fast.
+DEMO_MULTI_HISTORY_DAYS = 14
+
+
 def _demo_history_profiles():
     """STORE_PROFILES with the history depth dialled down for the demo build."""
     from dataclasses import replace
     from .multi_store_profiles import STORE_PROFILES
-    return [replace(p, history_days=DEMO_HISTORY_DAYS,
+    return [replace(p, history_days=DEMO_MULTI_HISTORY_DAYS,
                     history_bills_per_day=max(
                         20, int(p.history_bills_per_day * DEMO_HISTORY_DENSITY)))
             for p in STORE_PROFILES]
@@ -325,7 +379,7 @@ def apply_multi_demo(root: Optional[str] = None) -> dict:
 
     data_dir = os.getenv("OASIS_DATA_DIR",
                          os.path.join(root or _root(), "oasis", "data"))
-    db = os.getenv("OASIS_DB_PATH", os.path.join(data_dir, "rhapta_multi_store.db"))
+    db = os.getenv("OASIS_DB_PATH", os.path.join(data_dir, DEFAULT_MULTI_DB))
 
     # SAMPLE data, so a KNOWN password is the point — exactly as apply_demo
     # does for the single-store card. This was missing, and the multi-store

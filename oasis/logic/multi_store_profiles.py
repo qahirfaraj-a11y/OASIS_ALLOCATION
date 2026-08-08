@@ -2,7 +2,7 @@
 Multi-Store Profile Definitions for O.A.S.I.S.
 ================================================
 
-Five distinct Chandarana Foodplus stores, each with a differentiated stock
+Five distinct sample stores, each with a differentiated stock
 profile, department emphasis, traffic cadence, and assortment strategy. These
 profiles drive:
 
@@ -12,16 +12,18 @@ profiles drive:
 
 Store Archetypes
 ~~~~~~~~~~~~~~~~
-    STORE 1 — Rhapta Road (Flagship)   Full-depth premium supermarket
-    STORE 2 — Lavington (Upscale)      Curated premium, heavy deli/wine
-    STORE 3 — Karen (Family)           Bulk staples, large baskets
-    STORE 4 — Westgate (Mall Express)  Convenience, fast turnover, lean stock
-    STORE 5 — Yaya Centre (Urban)      Downtown impulse, high traffic, narrow range
+    STORE 1 - Parkview (Flagship)   Full-depth premium supermarket
+    STORE 2 - Highgrove (Upscale)      Curated premium, heavy deli/wine
+    STORE 3 - Oakridge (Family)           Bulk staples, large baskets
+    STORE 4 - Northgate Mall (Express)  Convenience, fast turnover, lean stock
+    STORE 5 - Central Plaza (Urban)      Downtown impulse, high traffic, narrow range
 """
 
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+
+from .demo_identity import DEMO_BRANCHES, branch_name
 from typing import Dict, List, Optional
 
 # ── Department emphasis weights ──────────────────────────────────────────────
@@ -105,15 +107,15 @@ class StoreProfile:
 STORE_PROFILES: List[StoreProfile] = [
 
     # ┌─────────────────────────────────────────────────────────────────────┐
-    # │  STORE 1 — Rhapta Road (Flagship)                                  │
+    # │  STORE 1 - Parkview (Flagship)                                  │
     # │  The reference store. Full catalog, deep stock, balanced demand.    │
-    # │  Serves Westlands professionals — premium with broad range.        │
+    # │  Serves the core catchment — premium with broad range.        │
     # └─────────────────────────────────────────────────────────────────────┘
     StoreProfile(
         org_cd="ORG001",
-        name="Chandarana Foodplus – Rhapta Road",
-        short_name="RHAPTA",
-        address="Rhapta Road, Westlands",
+        name=branch_name(0),
+        short_name=DEMO_BRANCHES[0][1],
+        address=DEMO_BRANCHES[0][2],
         assortment_pct=1.00,          # carries EVERYTHING
         stock_depth=1.0,              # catalog baseline
         dept_weights={
@@ -129,15 +131,15 @@ STORE_PROFILES: List[StoreProfile] = [
     ),
 
     # ┌─────────────────────────────────────────────────────────────────────┐
-    # │  STORE 2 — Lavington (Premium Curated)                             │
+    # │  STORE 2 - Highgrove (Premium Curated)                             │
     # │  Upscale neighbourhood: heavy deli, wine, imported goods.          │
     # │  Smaller range but deeper on premium departments.                  │
     # └─────────────────────────────────────────────────────────────────────┘
     StoreProfile(
         org_cd="ORG002",
-        name="Chandarana Foodplus – Lavington",
-        short_name="LAVING",
-        address="James Gichuru Road, Lavington",
+        name=branch_name(1),
+        short_name=DEMO_BRANCHES[1][1],
+        address=DEMO_BRANCHES[1][2],
         assortment_pct=0.72,          # curated — doesn't carry 28% of catalog
         stock_depth=0.85,             # leaner overall (premium, lower volume)
         dept_weights={
@@ -154,15 +156,15 @@ STORE_PROFILES: List[StoreProfile] = [
     ),
 
     # ┌─────────────────────────────────────────────────────────────────────┐
-    # │  STORE 3 — Karen (Family Bulk)                                     │
+    # │  STORE 3 - Oakridge (Family Bulk)                                     │
     # │  Residential suburb: families buying staples in bulk.              │
     # │  Widest assortment on staples + baby; deeper stock.                │
     # └─────────────────────────────────────────────────────────────────────┘
     StoreProfile(
         org_cd="ORG003",
-        name="Chandarana Foodplus – Karen",
-        short_name="KAREN",
-        address="Karen Road, Hardy",
+        name=branch_name(2),
+        short_name=DEMO_BRANCHES[2][1],
+        address=DEMO_BRANCHES[2][2],
         assortment_pct=0.85,
         stock_depth=1.25,             # deeper stock — bulk buying
         dept_weights={
@@ -179,15 +181,15 @@ STORE_PROFILES: List[StoreProfile] = [
     ),
 
     # ┌─────────────────────────────────────────────────────────────────────┐
-    # │  STORE 4 — Westgate Mall (Express Convenience)                     │
+    # │  STORE 4 - Northgate Mall (Express Convenience)                     │
     # │  Mall traffic: small baskets, fast turnover, convenience focus.    │
     # │  Narrow assortment, low depth, high churn.                         │
     # └─────────────────────────────────────────────────────────────────────┘
     StoreProfile(
         org_cd="ORG004",
-        name="Chandarana Foodplus – Westgate",
-        short_name="WESTGT",
-        address="Westgate Shopping Mall, Westlands",
+        name=branch_name(3),
+        short_name=DEMO_BRANCHES[3][1],
+        address=DEMO_BRANCHES[3][2],
         assortment_pct=0.55,          # convenience — only top-movers
         stock_depth=0.60,             # lean — replenishes fast
         dept_weights={
@@ -205,15 +207,15 @@ STORE_PROFILES: List[StoreProfile] = [
     ),
 
     # ┌─────────────────────────────────────────────────────────────────────┐
-    # │  STORE 5 — Yaya Centre (Urban Impulse)                             │
+    # │  STORE 5 - Central Plaza (Urban Impulse)                             │
     # │  CBD-adjacent: lunch crowds, impulse purchases, office workers.    │
     # │  Moderate assortment, emphasis on ready-to-eat / beverages.        │
     # └─────────────────────────────────────────────────────────────────────┘
     StoreProfile(
         org_cd="ORG005",
-        name="Chandarana Foodplus – Yaya Centre",
-        short_name="YAYA",
-        address="Argwings Kodhek Road, Kilimani",
+        name=branch_name(4),
+        short_name=DEMO_BRANCHES[4][1],
+        address="Argwings Kodhek Road, Downtown",
         assortment_pct=0.65,
         stock_depth=0.75,
         dept_weights={

@@ -10,6 +10,7 @@ install can spin up a believable sample store with zero external files.
 Deterministic: no randomness, so the demo store is identical on every machine.
 """
 
+import os
 from typing import List, Dict
 
 # (department, [(name, price_KES, stock, vendor)]) — a compact but plausible
@@ -66,10 +67,56 @@ _DEMO: Dict[str, list] = {
 }
 
 
+#: The generated hot-node catalogue, built by scripts/build_demo_catalog.py.
+#: Carries the SELLING lines (velocity tiers A/B/C) and drops the ~16,600
+#: zero-velocity D-tier a sample store has no business stocking. Gzipped: 4,000
+#: lines is 607 KB raw against a 0.6 MB release, 112 KB packed.
+CATALOG_FILE = "demo_catalog.json.gz"
+
+
+def _generated_catalog() -> List[dict]:
+    """Rows from the shipped hot catalogue, or [] when it is absent.
+
+    The file holds product identity, department, supplier and shelf price —
+    all publicly observable — plus a coarse velocity tier and a SYNTHESISED
+    opening stock. It deliberately carries no revenue, margin, gross profit or
+    real per-SKU demand: that is the retailer's book, not sample data.
+    """
+    import gzip
+    import json
+    path = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                        "..", "data", CATALOG_FILE)
+    path = os.path.normpath(path)
+    if not os.path.exists(path):
+        return []
+    try:
+        with gzip.open(path, "rt", encoding="utf-8") as f:
+            payload = json.load(f)
+    except Exception:
+        return []
+    rows = []
+    for r in payload.get("rows", []):
+        try:
+            rows.append({"itm_cd": r["itm_cd"], "name": r["name"],
+                         "dept": r["dept"], "vendor": r["vendor"],
+                         "price": float(r["price"]),
+                         "stock": float(r["stock"])})
+        except (KeyError, TypeError, ValueError):
+            continue
+    return rows
+
+
 def demo_catalog_rows() -> List[dict]:
     """Return catalogue rows in the shape ``build_pos_db_from_catalog`` expects:
     {itm_cd, name, dept, vendor, price, stock}. Deterministic item codes.
+
+    Prefers the generated hot-node catalogue; falls back to the small built-in
+    set so a source checkout without the generated file still builds a store.
     """
+    generated = _generated_catalog()
+    if generated:
+        return generated
+
     rows: List[dict] = []
     n = 0
     for dept, items in _DEMO.items():

@@ -234,7 +234,7 @@ class OrderEngine(IntelligenceMixin, ProcurementMixin, MaintenanceMixin, DataMix
         # Authoritative Golden Fallback
         self.no_grn_suppliers = [
             "PLU", "LOCAL", "DIRECT", "CONSIGNMENT", "KEBS", "CITY COUNCIL",
-            "JIKONI", "BAKERY FOODPLUS", "BAKERY", "CHANDARANA",
+            "JIKONI", "BAKERY FOODPLUS", "BAKERY", "OWN BRAND",
             "INTERNAL", "TRANSFER", "PROMO", "SAMPLE", "ADJUSTMENT", "CONSIGN"
         ]
         return self.no_grn_suppliers

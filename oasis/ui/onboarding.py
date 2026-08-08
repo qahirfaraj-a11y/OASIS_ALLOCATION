@@ -142,8 +142,8 @@ def render_onboarding(st, project_root: str) -> bool:
 
     st.divider()
     with st.expander("🏬 Running a Multi-Store Network?"):
-        st.caption("Build the **multi-store demo network** (5 outlets: Rhapta, Westgate, "
-                   "Kilimani, Lavington, Karen) to tour transfers, allocation, and "
+        st.caption("Build the **multi-store sample network** (5 outlets: flagship, "
+                   "upscale, family, mall express, urban) to tour transfers, allocation, and "
                    "the Command Center across outlets.")
         if st.button("Build multi-store demo network", key="ob_multi"):
             _execute_setup_with_progress(

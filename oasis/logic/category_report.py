@@ -1,6 +1,6 @@
 """
 Category deep-dive report — a comprehensive analysis of one merchandising
-section from the real Rhapta data (catalogue snapshot + monthly sales).
+section from the real sample data (catalogue snapshot + monthly sales).
 
 Answers the questions a category buyer actually asks:
   * how big is the section (SKUs, stock, capital) and how does it sell;
@@ -33,7 +33,7 @@ CATEGORY_PRESETS: Dict[str, List[str]] = {
                   "MINERAL WATER", "BEVERAGES"],
 }
 
-#: month-file prefix → calendar order (Rhapta uses 'apri' for April)
+#: month-file prefix → calendar order (sample uses 'apri' for April)
 _MONTHS = [("jan", "Jan"), ("feb", "Feb"), ("mar", "Mar"), ("apri", "Apr"),
            ("may", "May"), ("jun", "Jun"), ("jul", "Jul"), ("aug", "Aug"),
            ("sep", "Sep"), ("oct", "Oct"), ("nov", "Nov"), ("dec", "Dec")]
@@ -213,7 +213,7 @@ def write_category_report(data_dir: str, cash_dir: str, category: str,
                           out_dir: str, tenant: str = "",
                           departments: Optional[List[str]] = None,
                           use_grn_costs: bool = True, pdf: bool = False) -> dict:
-    from .rhapta_catalog import load_catalog
+    from .catalog_snapshot import load_catalog
     depts = departments or CATEGORY_PRESETS.get(category.lower())
     if not depts:
         raise SystemExit(f"unknown category '{category}'. Known: "
@@ -240,7 +240,7 @@ def write_category_report(data_dir: str, cash_dir: str, category: str,
     partial_note = (f" (excludes partial-data month(s): {', '.join(a['partial_months'])})"
                     if a["partial_months"] else "")
 
-    md = f"""# O.A.S.I.S. Category Report — {category.title()} · {tenant or 'Chandarana Rhapta'}
+    md = f"""# O.A.S.I.S. Category Report — {category.title()} · {tenant or 'Meridian Fresh sample'}
 
 *Generated {stamp} from the real catalogue + {a['months_used']} complete months of
 sales{partial_note}. Departments: {', '.join(a['departments'])}.*

@@ -92,7 +92,7 @@ def write_assessment(data_dir: str, cash_dir: str, out_dir: str,
                      tenant: str = "") -> dict:
     """Load raw exports, assess, and write the client-facing artifact."""
     from .real_demand import load_monthly_demand
-    from .rhapta_catalog import load_catalog
+    from .catalog_snapshot import load_catalog
     rows = load_catalog(data_dir)
     demand, months, files = load_monthly_demand(cash_dir)
     a = assess(rows, demand, months)

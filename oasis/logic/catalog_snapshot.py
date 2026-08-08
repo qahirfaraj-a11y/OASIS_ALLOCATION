@@ -1,5 +1,5 @@
 """
-Rhapta catalog loader — the real Chandarana Rhapta stock snapshot.
+sample catalog loader — the real Meridian Fresh sample stock snapshot.
 
 Reads the dept_*.xlsx exports (VENDOR_NAME, BARCODE, ITM_NAME, DEPARTMENT,
 SellPrice Prev, SellPrice, STOCK) into a unified, de-duplicated catalogue used to
