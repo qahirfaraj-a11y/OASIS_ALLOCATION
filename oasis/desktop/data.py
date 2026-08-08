@@ -387,6 +387,18 @@ def eod_stock_heuristic(org_cd: str, root: Optional[str] = None) -> Dict[str, An
     return {"items": items, "error": None}
 
 
+#: Why the graph-dependent surfaces are dark on a client install. The store
+#: graph and its trained checkpoint are development assets: neither
+#: network_simulation.py nor models/ is on the release whitelist, and the
+#: store-GNN has not yet beaten baseline on a real-outcome backtest, so it is
+#: deliberately not shipped. Surfaces that need it must say so plainly rather
+#: than report a generic failure the client cannot act on.
+_NO_GRAPH = ("Network graph model is not part of this install — "
+             "store-level risk is shown from inventory instead.")
+_NO_GRAPH_CLUSTER = ("Network graph model is not part of this install, so "
+                     "stores cannot be clustered by learned similarity.")
+
+
 def transfer_intelligence(root: Optional[str] = None) -> Dict[str, Any]:
     """Transfer intelligence using GNN and CTS."""
     try:
@@ -394,7 +406,15 @@ def transfer_intelligence(root: Optional[str] = None) -> Dict[str, Any]:
         
         gnn_model, gnn_sim = get_gnn_resources()
         if not gnn_model or not gnn_sim:
-            return {"error": "GNN resources unavailable."}
+            # Honest, and specific about WHY. The ST-GAT proposal layer needs
+            # the store graph and the trained checkpoint, neither of which is
+            # part of a client release. Store-level risk does NOT need them, so
+            # still hand back the inventory-led risks rather than going dark:
+            # losing the proposals should not cost the client the risk view.
+            fallback = network_risk(root)
+            return {"risks": [{"store_id": s["org_cd"], "risk": s["risk"]}
+                              for s in fallback.get("stores", [])],
+                    "recs": [], "error": _NO_GRAPH}
             
         import torch
         x_t = gnn_sim.get_feature_matrix()
@@ -448,54 +468,100 @@ def transfer_intelligence(root: Optional[str] = None) -> Dict[str, Any]:
         return {"risks": [], "recs": [], "error": str(e)[:200]}
 
 
-def store_intelligence(org_cd: str, root: Optional[str] = None) -> Dict[str, Any]:
+def store_intelligence(org_cd: str, root: Optional[str] = None,
+                       days: int = 90) -> Dict[str, Any]:
+    """Top movers, revenue drivers and category mix from the store's OWN sales.
+
+    ``root`` stays the SECOND positional argument: market_view calls this as
+    ``store_intelligence(org, project_root)``, so slipping a new parameter in
+    front of it passes a path where a day count is expected and the tab dies
+    with "unsupported type for timedelta days component: str".
+
+    This used to read ``sku.total_sales`` off the GNN NetworkSimulator, which
+    was wrong twice over. It sourced a client's store numbers from a
+    *simulation* rather than from their POS; and the simulator's dependencies
+    (``network_simulation``, ``models/``) are not on the release whitelist, so
+    on every client install the tab could only ever say "GNN resources
+    unavailable". Store Intelligence is a sales question and is answered from
+    sales.
+    """
     try:
-        from oasis.logic.gnn_service import get_gnn_resources
-        model, sim = get_gnn_resources()
-        if not model or not sim:
-            return {"error": "GNN resources unavailable"}
-        
-        if not sim.is_hydrated:
-            sim.hydrate_simulators()
-            
-        all_skus = []
-        if org_cd == "ALL":
-            for s_sim in sim.simulators.values():
-                for sku in s_sim.skus.values():
-                    all_skus.append({
-                        "Product": sku.product_name,
-                        "Category": sku.department,
-                        "Units": sku.total_sales,
-                        "Revenue": sku.total_sales * sku.unit_price,
-                        "Stockouts": sku.stockout_days
-                    })
-        else:
-            s_sim = sim.simulators.get(org_cd)
-            if s_sim:
-                for sku in s_sim.skus.values():
-                    all_skus.append({
-                        "Product": sku.product_name,
-                        "Category": sku.department,
-                        "Units": sku.total_sales,
-                        "Revenue": sku.total_sales * sku.unit_price,
-                        "Stockouts": sku.stockout_days
-                    })
-        
-        if not all_skus:
-            return {"top_qty": [], "top_rev": [], "categories": [], "error": None}
-            
-        import pandas as pd
-        df = pd.DataFrame(all_skus)
-        if org_cd == "ALL":
-            df = df.groupby(["Product", "Category"]).sum().reset_index()
-            
-        top_qty = df.sort_values("Units", ascending=False).head(15).to_dict("records")
-        top_rev = df.sort_values("Revenue", ascending=False).head(15).to_dict("records")
-        cat_stats = df.groupby("Category")[["Revenue", "Units"]].sum().reset_index().to_dict("records")
-        
-        return {"top_qty": top_qty, "top_rev": top_rev, "categories": cat_stats, "error": None}
+        adapter = get_adapter(root)
+        orgs = ([s["org_cd"] for s in list_stores(root)] if org_cd == "ALL"
+                else [org_cd])
+        rows: List[Dict[str, Any]] = []
+        for o in orgs:
+            raw = adapter.fetch_sales_history(o, days=days)
+            recs = (raw.to_dict("records") if hasattr(raw, "to_dict")
+                    else list(raw or []))
+            rows.extend({str(k).lower(): v for k, v in r.items()} for r in recs)
     except Exception as e:
-        return {"error": str(e)[:200]}
+        return {"top_qty": [], "top_rev": [], "categories": [],
+                "error": str(e)[:200]}
+
+    if not rows:
+        return {"top_qty": [], "top_rev": [], "categories": [], "error": None}
+
+    # Department comes from the catalogue, not the sales feed. The enriched
+    # product rows key the SKU as `item_code`; the sales rows call it `itm_cd`.
+    # Accept both — keying on the wrong one silently files every product under
+    # "Uncategorised" and the category mix becomes a single meaningless bar.
+    dept: Dict[Any, str] = {}
+    on_hand: Dict[Any, float] = {}
+    try:
+        for o in orgs:
+            for p in (adapter.fetch_enriched_products(o) or []):
+                code = (p.get("item_code") or p.get("itm_cd")
+                        or p.get("ITEM_CODE") or p.get("ITM_CD"))
+                if code is None:
+                    continue
+                if code not in dept:
+                    dept[code] = str(p.get("department")
+                                     or p.get("category") or "Uncategorised")
+                try:
+                    on_hand[code] = on_hand.get(code, 0.0) + float(
+                        p.get("current_stocks", p.get("current_stock", 0)) or 0)
+                except (TypeError, ValueError):
+                    pass
+    except Exception:
+        pass
+
+    def _f(r, k):
+        try:
+            return float(r.get(k, 0) or 0)
+        except (TypeError, ValueError):
+            return 0.0
+
+    agg: Dict[Any, Dict[str, Any]] = {}
+    for r in rows:
+        code = r.get("itm_cd")
+        if code is None:
+            continue
+        e = agg.setdefault(code, {
+            "Product": r.get("item_name") or str(code),
+            "Category": dept.get(code, "Uncategorised"),
+            # What is on the shelf right now. The old simulator-backed version
+            # reported ``sku.stockout_days`` — a count of stockout days inside a
+            # simulation, which said nothing about the client's actual store.
+            "OnHand": on_hand.get(code, 0.0),
+            "Units": 0.0, "Revenue": 0.0})
+        e["Units"] += _f(r, "qty")
+        e["Revenue"] += _f(r, "net_amt")
+
+    items = list(agg.values())
+    cats: Dict[str, Dict[str, Any]] = {}
+    for e in items:
+        c = cats.setdefault(e["Category"],
+                            {"Category": e["Category"], "Revenue": 0.0, "Units": 0.0})
+        c["Revenue"] += e["Revenue"]
+        c["Units"] += e["Units"]
+
+    return {
+        "top_qty": sorted(items, key=lambda e: -e["Units"])[:15],
+        "top_rev": sorted(items, key=lambda e: -e["Revenue"])[:15],
+        "categories": sorted(cats.values(), key=lambda c: -c["Revenue"]),
+        "error": None,
+    }
 
 def cluster_analysis(root: Optional[str] = None) -> Dict[str, Any]:
     try:
@@ -503,7 +569,7 @@ def cluster_analysis(root: Optional[str] = None) -> Dict[str, Any]:
         
         gnn_model, gnn_sim = get_gnn_resources()
         if not gnn_model or not gnn_sim:
-            return {"error": "GNN resources unavailable"}
+            return {"clusters": [], "error": _NO_GRAPH_CLUSTER}
             
         import torch
         from sklearn.decomposition import PCA

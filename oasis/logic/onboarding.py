@@ -203,15 +203,76 @@ def _maybe_restart_trial(root: Optional[str]) -> dict:
 DEMO_SEED_PASSWORD = "oasis2026"
 
 
+#: Sales history seeded into the SAMPLE store. Without bills the sample store
+#: is inert: every SKU has ADS 0, so days-of-cover is infinite, the stockout
+#: scan finds nothing, stock health reads 100% healthy, Live Sales is blank and
+#: the ordering engine has no demand signal to order against. The multi-store
+#: demo already seeded history; the single-store one did not, which is why a
+#: fresh sample install looked like a dead system. 14 days at this density
+#: costs ~0.1s.
+#:
+#: The demo network seeds a shallower history than a real multi-store install:
+#: full profile depth is 62,400 bills across the five stores — minutes of work
+#: behind a first-run button. 14 days at a third of the density still gives the
+#: velocity, cover and imbalance signal the transfer/allocation tour needs.
+DEMO_HISTORY_DAYS = 14
+DEMO_BILLS_PER_DAY = 60
+
+
+def seed_demo_bills(days: int = DEMO_HISTORY_DAYS,
+                    bills_per_day: int = DEMO_BILLS_PER_DAY,
+                    org: Optional[str] = None,
+                    root: Optional[str] = None) -> dict:
+    """Seed sales history into the ACTIVE store, whichever that is.
+
+    Resolves through ``resolved_db_path`` on purpose. The archived
+    ``run_mock_pos.bat`` hardcoded ``OASIS_DB_PATH`` to the Rhapta snapshot, so
+    a client who had onboarded to their own store and ran it was silently
+    generating bills into — and then looking at — demo data (finding E-2).
+
+    Stock is not decremented and today is left empty: history stands for days
+    that were replenished overnight.
+    """
+    from .pos_simulator import seed_demand_history
+    db = resolved_db_path(root)
+    if org is None:
+        import sqlite3
+        try:
+            with sqlite3.connect(db) as conn:
+                row = conn.execute(
+                    "SELECT ORG_CD FROM ORGANIZATION_MST ORDER BY ORG_CD"
+                ).fetchone()
+            org = row[0] if row else "ORG001"
+        except Exception:
+            org = "ORG001"
+    return seed_demand_history(db, org=org, days=days,
+                               bills_per_day=bills_per_day)
+
+
 def apply_demo(store_name: str = "OASIS Sample Store",
-               root: Optional[str] = None) -> dict:
-    """Build the self-contained sample store and record the choice."""
+               root: Optional[str] = None,
+               history_days: int = DEMO_HISTORY_DAYS) -> dict:
+    """Build the self-contained sample store and record the choice.
+
+    Seeds sales history too — see DEMO_BILLS_PER_DAY. Pass ``history_days=0``
+    for a catalogue-only build.
+    """
     from .demo_seed import demo_catalog_rows
     from .mock_pos_build import build_pos_db_from_catalog
     db = default_db_path(root)
     summary = build_pos_db_from_catalog(demo_catalog_rows(), db,
                                         org_name=store_name,
                                         seed_password=DEMO_SEED_PASSWORD)
+    if history_days > 0:
+        try:
+            from .pos_simulator import seed_demand_history
+            summary["history"] = seed_demand_history(
+                db, org=summary.get("org", "ORG001"), days=history_days,
+                bills_per_day=DEMO_BILLS_PER_DAY)
+        except Exception as e:
+            # A catalogue with no history is still a usable store — degrade
+            # rather than fail the whole first-run choice.
+            summary["history"] = {"error": str(e)[:200]}
     _record("demo", root, db_path=db, store_name=store_name,
             skus=summary.get("items", 0))
     return summary
@@ -228,11 +289,6 @@ def apply_empty(store_name: str = "My Store",
     return summary
 
 
-#: the demo network seeds a shallower history than a real multi-store install.
-#: Full profile depth is 62,400 bills across the five stores — minutes of work
-#: behind a first-run button. 14 days at a third of the density still gives the
-#: velocity, cover and imbalance signal the transfer/allocation tour needs.
-DEMO_HISTORY_DAYS = 14
 DEMO_HISTORY_DENSITY = 0.33
 
 

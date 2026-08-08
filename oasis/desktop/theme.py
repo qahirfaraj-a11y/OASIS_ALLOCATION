@@ -94,8 +94,16 @@ def spec_tag(text: str, hot: bool = False) -> ft.Container:
 
 
 def metric_card(label: str, value: str, sub: str = "",
-                status: str = "", help_text: str = "") -> ft.Container:
-    """A single KPI metric card."""
+                status: str = "", help_text: str = "",
+                width: int = 0) -> ft.Container:
+    """A single KPI metric card.
+
+    Cards expand to share their row by default. Pass ``width`` for a fixed size,
+    which is REQUIRED inside a wrapping row: Flutter's Wrap cannot lay out an
+    expanding child, and Flet paints that failure as a blank grey block rather
+    than raising — the Command Center's store-risk strip did exactly this once
+    the multi-store demo pushed it past one line.
+    """
     accent_color = {
         "success": SUCCESS, "warning": WARNING,
         "danger": DANGER, "info": INFO,
@@ -128,7 +136,8 @@ def metric_card(label: str, value: str, sub: str = "",
         border=border,
         padding=16,
         tooltip=help_text or None,
-        expand=True,
+        width=width or None,
+        expand=not width,
     )
 
 

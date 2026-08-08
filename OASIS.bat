@@ -62,14 +62,16 @@ echo.
 echo    These REPLACE the active store with sample data. A store you have
 echo    already onboarded will be overwritten.
 echo.
-echo    1  Build single-store sample data
-echo    2  Build multi-store sample network
-echo    3  Stream mock POS sales into the active store  (Ctrl-C to stop)
+echo    1  Build single-store sample data     (catalogue + 14 days of sales)
+echo    2  Build multi-store sample network   (5 outlets + history)
+echo    3  Add more sales history to the active store
+echo    4  Stream live mock POS sales         (Ctrl-C to stop)
 echo    B  Back to Main Menu
 echo.
 set /p "DCH=  Choose: "
 if /I "!DCH!"=="1" "%PY%" entrypoint.py --mode demo-single & pause
 if /I "!DCH!"=="2" "%PY%" entrypoint.py --mode demo-multi & pause
-if /I "!DCH!"=="3" "%PY%" entrypoint.py --mode pos-stream & pause
+if /I "!DCH!"=="3" "%PY%" entrypoint.py --mode demo-bills & pause
+if /I "!DCH!"=="4" "%PY%" entrypoint.py --mode pos-stream & pause
 if /I "!DCH!"=="B" goto menu
 goto demomenu

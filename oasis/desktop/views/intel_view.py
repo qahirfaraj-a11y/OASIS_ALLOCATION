@@ -85,11 +85,15 @@ def build_intel_view(page: ft.Page, project_root: str) -> ft.Column:
         "OASIS.bat → 3  ·  entrypoint.py --mode intel"))
 
     # ── Backtests ────────────────────────────────────────────────────────
+    # Do NOT point at the dev-only shadow mode here: P3.3 stripped it from the
+    # client build (and shadow_dashboard.py has never shipped), so that
+    # instruction sent a client to a usage error. An honest placeholder must
+    # name something the client can actually run.
     backtests = [_not_migrated(
         "Backtesting not yet in the desktop app",
-        "Shadow-mode comparison and backtest reporting still run in the "
-        "Operations Console's Shadow page and the CLI.",
-        "OASIS.bat → 2 (Shadow)  ·  entrypoint.py --mode shadow")]
+        "Shadow-mode comparison and backtest reporting are development tools "
+        "and are not part of a client install.",
+        "Contact iLink if you need a backtest against your own history.")]
 
     # ── Engine telemetry ─────────────────────────────────────────────────
     tier = str(eng.get("tier", "?"))

@@ -240,27 +240,32 @@ def build_ops_view(page: ft.Page, project_root: str) -> ft.Column:
         transfers = [build_upsell(TAB_MODULES["transfers"])]
     elif multi:
         ti = D.transfer_intelligence(project_root)
-        if ti.get("error"):
+        risks = ti.get("risks", [])
+        recs = ti.get("recs", [])
+
+        if ti.get("error") and not risks:
             transfers = [_error_row(f"Intelligence failure: {ti['error']}")]
         else:
-            risks = ti.get("risks", [])
-            recs = ti.get("recs", [])
-            
+            # Fixed width + wrap: a network is 5-14 stores, and expanding cards
+            # in a wrapping row render as a grey void (see theme.metric_card).
             risk_cards = [
-                T.metric_card(f"{r['store_id']}", f"{r['risk']:.2f}", 
+                T.metric_card(f"{r['store_id']}", f"{r['risk']:.2f}", width=180,
                               status="danger" if r["risk"] > 0.7 else ("warning" if r["risk"] > 0.4 else "success"))
                 for r in risks
             ]
-            
+
             transfers = [
                 T.section_header("Network Risk Status", "🧠"),
-                ft.Row(risk_cards, spacing=12, expand=True),
+                ft.Row(risk_cards, spacing=12, wrap=True, run_spacing=12),
                 ft.Container(height=10),
                 T.section_header("Transfer Proposals (ST-GAT)", "📦"),
             ]
             if recs:
                 rows = [[r["From"], r["To"], r["Score"], r["Priority Index"]] for r in recs]
                 transfers.append(_table(["From", "To", "Score", "Priority"], rows, ""))
+            elif ti.get("error"):
+                # Risk survived, proposals did not — say which, and why.
+                transfers.append(ft.Text(ti["error"], size=12, color=T.TEXT_MUTED))
             else:
                 transfers.append(ft.Text("No viable transfers found.", size=12, color=T.TEXT_MUTED))
     else:

@@ -60,19 +60,21 @@ def build_transfer_intel_tab(page: ft.Page, project_root: str) -> ft.Column:
         controls.append(_warn_card("Store Risk Scores",
                                    f"Risk scores unavailable: {risk['error']}"))
     else:
+        # Fixed width, not expand: this row WRAPS (a demo network is 14 stores)
+        # and an expanding child inside a Wrap renders as a grey void.
         cards = [
             T.metric_card(
                 s["name"][:20], f"{s['risk']:.2f}",
                 status=("danger" if s["risk"] > 0.5
                         else "warning" if s["risk"] > 0.25 else "success"),
-                sub="Risk Score")
+                sub="Risk Score", width=200)
             for s in risk["stores"]
         ]
         controls.append(T.card_container(content=ft.Column([
             T.section_header("Store Risk Scores", ""),
             ft.Text(f"Signal: inventory-led · GNN status: {risk['status']}",
                     size=11, color=T.TEXT_MUTED, font_family="JetBrains Mono"),
-            ft.Row(cards, spacing=12, expand=True, wrap=True),
+            ft.Row(cards, spacing=12, wrap=True, run_spacing=12),
         ], spacing=8)))
 
     # ── Item-level stockout risk ─────────────────────────────────────────

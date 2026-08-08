@@ -75,6 +75,59 @@ def test_apply_demo_builds_a_real_store(root):
     assert n_items == summary["items"] and n_sp == n_items and n_stock == n_items
 
 
+def test_the_sample_store_ships_with_sales_history(root):
+    """A catalogue with no bills is an inert demo, not a sample store.
+
+    Without history every SKU has ADS 0, so days-of-cover is infinite: the
+    stockout scan finds nothing, stock health reads 100% healthy, Live Sales is
+    blank and the ordering engine has no demand to order against. The
+    multi-store demo seeded history from the start; the single-store one did
+    not, and a fresh sample install therefore looked like a dead system.
+    """
+    summary = OB.apply_demo(root=root)
+    assert summary["history"]["bills"] > 0
+    db = OB.default_db_path(root)
+    conn = sqlite3.connect(db)
+    try:
+        bills = conn.execute("SELECT COUNT(*) FROM POS_SALES_DTL").fetchone()[0]
+        ads = conn.execute(
+            "SELECT COUNT(DISTINCT ITM_CD) FROM POS_SALES_DTL").fetchone()[0]
+    finally:
+        conn.close()
+    assert bills > 0, "sample store has no sales lines"
+    assert ads > 1, "sales history covers only one SKU"
+
+
+def test_a_catalogue_only_demo_is_still_available(root):
+    """history_days=0 keeps the old behaviour for callers that want it."""
+    summary = OB.apply_demo(root=root, history_days=0)
+    assert "history" not in summary
+    assert summary["items"] > 0
+
+
+def test_seed_demo_bills_targets_the_resolved_store(root, monkeypatch):
+    """Never a hardcoded path — that was finding E-2.
+
+    run_mock_pos.bat pinned OASIS_DB_PATH to the Rhapta snapshot, so a client
+    who had onboarded to their own store and ran it generated bills into demo
+    data and then looked at demo data.
+    """
+    OB.apply_demo(root=root, history_days=0)
+    before = _count_sales(OB.default_db_path(root))
+    res = OB.seed_demo_bills(days=3, bills_per_day=10, root=root)
+    assert res["bills"] > 0
+    assert _count_sales(OB.default_db_path(root)) > before
+    assert OB.resolved_db_path(root) == OB.default_db_path(root)
+
+
+def _count_sales(db):
+    conn = sqlite3.connect(db)
+    try:
+        return conn.execute("SELECT COUNT(*) FROM POS_SALES_DTL").fetchone()[0]
+    finally:
+        conn.close()
+
+
 def test_apply_empty_builds_schema_with_zero_items(root):
     summary = OB.apply_empty(store_name="Acme Duka", root=root)
     assert summary["items"] == 0

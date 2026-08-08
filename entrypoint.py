@@ -574,7 +574,7 @@ def main():
                                  "issue-license", "license-status",
                                  "backup", "restore", "set-password",
                                  "package-release", "set-branding", "show-branding",
-                                 "init", "demo-single", "demo-multi",
+                                 "init", "demo-single", "demo-multi", "demo-bills",
                                  "value-report", "metering-report", "home",
                                  "version", "upgrade", "assess",
                                  "supplier-scorecard", "category-report",
@@ -956,6 +956,18 @@ def main():
         else:
             summary = _ob.apply_multi_demo()
         print(f"Demo data built ({args.mode}):")
+        for k, v in (summary or {}).items():
+            print(f"  {k}: {v}")
+        print(f"  active store: {_ob.resolved_db_path()}")
+    elif args.mode == "demo-bills":
+        # Top up sales history in whichever store is active. Without bills every
+        # ADS-derived surface is dead (cover infinite, stockout scan empty,
+        # Live Sales blank), so this is the difference between a demo that
+        # shows the product and one that looks broken.
+        from oasis.logic import onboarding as _ob
+        summary = _ob.seed_demo_bills(days=args.days if args.days != 30 else 14,
+                                      org=args.org)
+        print("Demo bills seeded:")
         for k, v in (summary or {}).items():
             print(f"  {k}: {v}")
         print(f"  active store: {_ob.resolved_db_path()}")

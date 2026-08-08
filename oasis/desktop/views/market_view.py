@@ -76,7 +76,11 @@ def build_market_view(page: ft.Page, project_root: str) -> ft.Column:
             top_rev = intel_data.get("top_rev", [])
             cat_stats = intel_data.get("categories", [])
             
-            qty_rows = [[r["Product"], r["Category"], f"{r['Units']:,.0f}", r["Stockouts"]] for r in top_qty]
+            # "On hand" not "Stockouts": the previous column came from the
+            # simulator's stockout-day counter, which described a simulation
+            # rather than this store. Shelf position is real and checkable.
+            qty_rows = [[r["Product"], r["Category"], f"{r['Units']:,.0f}",
+                         f"{r.get('OnHand', 0):,.0f}"] for r in top_qty]
             rev_rows = [[r["Product"], r["Category"], _money(r["Revenue"])] for r in top_rev]
             cat_rows = [[r["Category"], _money(r["Revenue"]), f"{r['Units']:,.0f}"] for r in cat_stats]
             
@@ -85,7 +89,7 @@ def build_market_view(page: ft.Page, project_root: str) -> ft.Column:
                 ft.Row([
                     ft.Column([
                         T.section_header("Top Movers (Velocity)", "🔥"),
-                        _table(["Product", "Category", "Units", "Stockouts"], qty_rows, "No velocity data.")
+                        _table(["Product", "Category", "Units", "On hand"], qty_rows, "No velocity data.")
                     ], expand=True),
                     ft.Column([
                         T.section_header("Top Revenue Drivers", "💰"),
