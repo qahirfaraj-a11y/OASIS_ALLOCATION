@@ -44,6 +44,128 @@ def _error_card(title: str, msg: str) -> ft.Container:
     ], spacing=8))
 
 
+def _scenario_panel(page, project_root: str, org: str, update) -> ft.Control:
+    """What-if levers: supplier disruption, competitor entry, price war.
+
+    Each re-runs the ordering engine over a shocked copy of the catalogue and
+    reports the delta against an unshocked baseline computed in the same call —
+    so the difference is attributable to the shock and not to a stale reference.
+    Nothing here writes: a scenario is a question, not a decision.
+    """
+    result = ft.Container()
+
+    crit = D.critical_suppliers(org, project_root)
+    sup_opts = [
+        ft.dropdown.Option(
+            key=c.get("supplier"),
+            text=f"{c.get('supplier')} — {c.get('department')} "
+                 f"({c.get('share_pct', 0):.0f}% share)")
+        for c in crit.get("suppliers", [])
+    ]
+    supplier_dd = ft.Dropdown(label="Target supplier", width=340, dense=True,
+                              options=sup_opts,
+                              value=sup_opts[0].key if sup_opts else None)
+    mode_dd = ft.Dropdown(label="Failure mode", width=220, dense=True,
+                          options=[ft.dropdown.Option(m) for m in D.FAILURE_MODES],
+                          value=D.FAILURE_MODES[0])
+    duration = ft.Slider(min=3, max=30, divisions=27, value=14,
+                         label="{value} days", width=240)
+
+    comp = D.competitive_scenarios()
+    comp_opts = [ft.dropdown.Option(key=s["key"],
+                                    text=f"{s['name']} ({s['impact_pct']:+.1f}%)")
+                 for s in comp.get("scenarios", [])
+                 if s["key"] != "price_war_aggressive"]
+    comp_dd = ft.Dropdown(label="Competitive scenario", width=340, dense=True,
+                          options=comp_opts,
+                          value=comp_opts[0].key if comp_opts else None)
+
+    def _show(res: dict):
+        if res.get("error"):
+            result.content = _error_card("Scenario", res["error"])
+        else:
+            up = res["delta"] > 0
+            result.content = T.card_container(content=ft.Column([
+                T.section_header(f"Impact — {res['label']}", "⚡"),
+                ft.Text(f"{res['affected']:,} line(s) affected"
+                        + (f" · demand multiplier {res['multiplier']}"
+                           if res["multiplier"] is not None else ""),
+                        size=12, color=T.TEXT_SECONDARY),
+                ft.Row([
+                    T.metric_card("Baseline PO Qty",
+                                  f"{res['baseline_qty']:,.0f}", status="info"),
+                    T.metric_card("Adjusted PO Qty",
+                                  f"{res['adjusted_qty']:,.0f}",
+                                  status="warning" if up else "info",
+                                  sub=f"{res['delta']:+,.0f} units"),
+                    T.metric_card("Change", f"{res['pct_change']:+.1f}%",
+                                  status="warning" if up else "success",
+                                  sub="against baseline"),
+                ], spacing=12, expand=True),
+                ft.Text("Scenario only — nothing was written. Generate and push "
+                        "above to act on it.", size=11, color=T.TEXT_MUTED),
+            ], spacing=8))
+        update()
+
+    def _run(kind, btn, **kw):
+        btn.disabled = True
+        btn.text = "Recalculating…"
+        update()
+        _show(D.simulate_ordering_scenario(org, kind, root=project_root, **kw))
+        btn.disabled = False
+        btn.text = btn.data
+        update()
+
+    sup_btn = ft.ElevatedButton("Apply supplier disruption",
+                                icon=ft.Icons.BOLT, data="Apply supplier disruption")
+    sup_btn.on_click = lambda e: _run("supplier", sup_btn,
+                                      supplier=supplier_dd.value,
+                                      mode=mode_dd.value,
+                                      duration_days=int(duration.value))
+    comp_btn = ft.ElevatedButton("Apply competitive event",
+                                 icon=ft.Icons.STOREFRONT, data="Apply competitive event")
+    comp_btn.on_click = lambda e: _run("competitor", comp_btn,
+                                       template=comp_dd.value)
+    war_btn = ft.ElevatedButton("Apply price war", icon=ft.Icons.TRENDING_DOWN,
+                                data="Apply price war")
+    war_btn.on_click = lambda e: _run("price_war", war_btn)
+
+    supplier_block = (
+        ft.Column([
+            ft.Row([supplier_dd, mode_dd], spacing=12, wrap=True),
+            ft.Row([ft.Text("Duration", size=12, color=T.TEXT_SECONDARY),
+                    duration, sup_btn], spacing=12,
+                   vertical_alignment=ft.CrossAxisAlignment.CENTER),
+        ], spacing=8)
+        if sup_opts else
+        ft.Text("No supplier concentrated enough to model a failure "
+                "(over 30% of a department, or 100K of revenue potential).",
+                size=12, color=T.TEXT_MUTED))
+
+    return T.card_container(content=ft.Column([
+        T.section_header("Scenario Levers", "🧪"),
+        ft.Text("Re-run the ordering engine under a shock and compare against "
+                "the unshocked baseline.", size=12, color=T.TEXT_SECONDARY),
+        ft.Divider(height=1, color=T.OBSIDIAN_BORDER),
+        ft.Text("Supplier disruption", size=13, weight=ft.FontWeight.W_600,
+                color=T.TEXT_PRIMARY),
+        supplier_block,
+        ft.Divider(height=1, color=T.OBSIDIAN_BORDER),
+        ft.Text("Competitor entry", size=13, weight=ft.FontWeight.W_600,
+                color=T.TEXT_PRIMARY),
+        ft.Row([comp_dd, comp_btn], spacing=12, wrap=True,
+               vertical_alignment=ft.CrossAxisAlignment.CENTER),
+        ft.Divider(height=1, color=T.OBSIDIAN_BORDER),
+        ft.Text("Price war", size=13, weight=ft.FontWeight.W_600,
+                color=T.TEXT_PRIMARY),
+        ft.Row([ft.Text("Aggressive commodity price war — cooking oil, rice, "
+                        "sugar and flour hit hardest.", size=12,
+                        color=T.TEXT_SECONDARY, expand=True), war_btn],
+               spacing=12, vertical_alignment=ft.CrossAxisAlignment.CENTER),
+        result,
+    ], spacing=10))
+
+
 def build_smart_ordering_tab(page: ft.Page, project_root: str) -> ft.Column:
     """Smart Ordering tab content."""
 
@@ -190,6 +312,9 @@ def build_smart_ordering_tab(page: ft.Page, project_root: str) -> ft.Column:
         ft.Container(height=10),
         gen_result,
     ], spacing=8)))
+
+    # ── Scenario levers ──────────────────────────────────────────────────
+    controls.append(_scenario_panel(page, project_root, org, _update))
 
     # ── Pending approvals — approve / reject ─────────────────────────────
     pend = D.pending_orders(org, project_root)

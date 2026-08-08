@@ -146,6 +146,86 @@ class TestReleaseZipContract:
             expected = root_dir + script
             assert expected in names, f"Entrypoint dispatches to {script}, but it is missing from the release zip!"
 
+    def test_every_oasis_package_a_shipped_script_imports_is_in_the_zip(self, zip_info):
+        """The package-level twin of E-3, and it was live.
+
+        ops_dashboard.py imports ``from oasis.llm.inference import RuleBasedLLM``
+        at MODULE level, but oasis/llm was not on the release whitelist — so the
+        Streamlit Command Center, OASIS.bat option 4 and the architecture the
+        native app is being built against, died with ModuleNotFoundError before
+        rendering anything on every client install. Nothing caught it: the
+        dashboard-script guard checks scripts, not the packages they import.
+        """
+        z_path, names, _ = zip_info
+        root = next(n for n in names if n.endswith("/entrypoint.py")).rsplit("/", 1)[0] + "/"
+        shipped_roots = [n for n in names
+                         if n.startswith(root) and n.endswith(".py")
+                         and "/" not in n[len(root):]]
+        assert shipped_roots, "no root scripts in the zip"
+
+        shipped_pkgs = {n[len(root) + len("oasis/"):].split("/", 1)[0]
+                        for n in names
+                        if n.startswith(root + "oasis/") and n.endswith(".py")}
+
+        missing = {}
+        with zipfile.ZipFile(z_path) as zf:
+            for script in shipped_roots:
+                src = zf.read(script).decode("utf-8", errors="replace")
+                for pkg in set(re.findall(r"^\s*from oasis\.(\w+)", src, re.M)):
+                    if pkg not in shipped_pkgs:
+                        missing.setdefault(script.rsplit("/", 1)[-1],
+                                           set()).add(pkg)
+        assert not missing, (
+            f"shipped scripts import oasis packages that are not in the zip: "
+            f"{ {k: sorted(v) for k, v in missing.items()} }")
+
+    def test_every_root_module_a_shipped_script_imports_is_in_the_zip(self, zip_info):
+        """Sibling-module twin of the oasis-package guard, and it was also live.
+
+        ``retail_simulator`` sat at the repo root, so default-deny excluded it
+        from every release — while ops_dashboard imported it for the Simulation
+        Lab tab and intraday_sim imported it at MODULE level, which meant that
+        shipped script could not start at all.
+
+        Only modules that exist in the working tree count: a name that is not a
+        local file is a third-party package and pip's problem, not the zip's.
+        """
+        import os as _os
+        z_path, names, _ = zip_info
+        repo = _os.path.dirname(_os.path.dirname(_os.path.abspath(__file__)))
+        local_modules = {f[:-3] for f in _os.listdir(repo) if f.endswith(".py")}
+
+        root = next(n for n in names if n.endswith("/entrypoint.py")).rsplit("/", 1)[0] + "/"
+        shipped = {n[len(root):] for n in names
+                   if n.startswith(root) and "/" not in n[len(root):]}
+        shipped_modules = {f[:-3] for f in shipped if f.endswith(".py")}
+
+        missing = {}
+        with zipfile.ZipFile(z_path) as zf:
+            for script in sorted(f for f in shipped if f.endswith(".py")):
+                src = zf.read(root + script).decode("utf-8", errors="replace")
+                for mod in set(re.findall(
+                        r"^\s*(?:from|import)\s+([a-z_][a-z0-9_]*)", src, re.M)):
+                    if mod in local_modules and mod not in shipped_modules:
+                        missing.setdefault(script, set()).add(mod)
+        assert not missing, (
+            f"shipped scripts import root modules that are not in the zip: "
+            f"{ {k: sorted(v) for k, v in missing.items()} }")
+
+    def test_no_client_trading_data_ships(self):
+        """One retailer's P&L must never land in another's install.
+
+        The allocation scorecard carries per-SKU revenue, margin, GMROI and
+        named supplier terms for a real customer — and competitors of theirs are
+        named in the product's own scenario templates. It is excluded today only
+        by the accident of root files being default-deny; this makes it a rule.
+        """
+        from oasis.logic.release_packager import should_ship_clean
+        for f in ("Full_Product_Allocation_Scorecard_v7.csv",
+                  "Full_Product_Allocation_Scorecard_v3.csv",
+                  "supplier_scorecards.csv", "active_sku_scorecards.csv"):
+            assert not should_ship_clean(f)[0], f
+
     def test_every_menu_mode_is_a_real_entrypoint_mode(self, zip_info):
         """The menu's twin of E-3: a front-door option that cannot run.
 

@@ -631,7 +631,7 @@ def main():
     parser.add_argument("--accent-color", default=None, help="set-branding: hex hover/darker accent")
     parser.add_argument("--welcome-message", default=None, help="set-branding: Home page subtitle")
     # Install profile (init)
-    parser.add_argument("--profile", choices=["single", "multi"], default="single",
+    parser.add_argument("--profile", choices=["single", "multi"], default="multi",
                         help="init: single-store or multi-store install (default: single)")
     # Release packaging
     parser.add_argument("--bundle-runtime", action="store_true",
@@ -783,7 +783,7 @@ def main():
         # NOT _active_db(): this mode CREATES a store, so it must not resolve
         # onto an already-onboarded DB elsewhere and overwrite it (see S7).
         db_path = os.getenv("OASIS_DB_PATH",
-                            os.path.join(root, "oasis", "data", "rhapta_pos.db"))
+                            os.path.join(root, "oasis", "data", _OB.DEFAULT_SINGLE_DB))
         summary = build_from_xlsx(data_dir, db_path)
         # Seed a prior-days demand history (for a normalised ADS baseline) unless
         # disabled. Stock is untouched; today is left empty (start of day).
@@ -1099,7 +1099,7 @@ def main():
         # NOT _active_db(): this mode CREATES a store, so it must not resolve
         # onto an already-onboarded DB elsewhere and overwrite it (see S7).
         db_path = os.getenv("OASIS_DB_PATH",
-                            os.path.join(root, "oasis", "data", "rhapta_multi_store.db"))
+                            os.path.join(root, "oasis", "data", _OB.DEFAULT_MULTI_DB))
         summary = build_multi_store_from_xlsx(data_dir, db_path)
         print(f"Multi-store DB built: {summary['stores']} stores, "
               f"{summary['catalog_skus']} catalog SKUs")

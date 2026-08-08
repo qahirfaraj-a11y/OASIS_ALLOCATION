@@ -382,6 +382,338 @@ def test_transfer_tab_exposes_scan_queue_and_status(network):
     assert "queue transfers to database" in after
 
 
+# ── Executive ROI ────────────────────────────────────────────────────────
+def test_roi_uses_the_consoles_dead_stock_rule(console_src, store):
+    """AMIT: ADS < 0.2 with more than 15 on hand is dead capital."""
+    assert "_ads < 0.2 and _soh > 15" in console_src, \
+        "console changed its dead-stock rule"
+    assert "ads > 0 and soh < 1" in \
+        __import__("inspect").getsource(D.executive_roi).replace("_", "")
+    roi = D.executive_roi(D.default_org(store), store)
+    assert roi["error"] is None
+    assert 0 <= roi["dead_pct"] <= 100 and 0 <= roi["so_pct"] <= 100
+    assert roi["avail"] == pytest.approx(100.0 - roi["so_pct"])
+
+
+def test_weekly_revenue_buckets_real_iso_weeks(store):
+    wk = D.weekly_revenue(D.default_org(store), root=store)
+    assert wk["error"] is None and wk["weeks"]
+    keys = [w["week"] for w in wk["weeks"]]
+    assert keys == sorted(keys)
+    assert all(re.fullmatch(r"\d{4}-W\d{2}", k) for k in keys)
+    assert wk["latest"] is wk["weeks"][-1]
+    assert wk["avg"] == pytest.approx(
+        sum(w["revenue"] for w in wk["weeks"]) / len(wk["weeks"]), rel=1e-6)
+
+
+def test_roi_tab_renders_the_console_panels(store):
+    from oasis.desktop.views.command_tabs.executive_roi_tab import (
+        build_executive_roi_tab)
+    body = _text(build_executive_roi_tab(None, store))
+    assert "executive roi overview" in body
+    assert "dead stock" in body and "recoverable capital" in body
+    assert "weekly revenue trend" in body
+    # The console's showcase override substitutes a configured savings headline
+    # for a measured one. Not ported.
+    assert "showcase" not in body
+
+
+# ── Analytics ────────────────────────────────────────────────────────────
+def test_analytics_and_roi_agree_on_the_weeks(store):
+    """Both read data.weekly_revenue, so they cannot disagree."""
+    org = D.default_org(store)
+    a = D.weekly_revenue(org, root=store)
+    b = D.weekly_revenue(org, root=store)
+    assert [w["week"] for w in a["weeks"]] == [w["week"] for w in b["weeks"]]
+
+
+def test_analytics_tab_shows_trend_and_departments(store):
+    from oasis.desktop.views.command_tabs.analytics_tab import build_analytics_tab
+    body = _text(build_analytics_tab(None, store))
+    assert "weekly revenue" in body
+    assert "wow change" in body
+    assert "department breakdown" in body
+
+
+# ── Supplier Intelligence ────────────────────────────────────────────────
+def test_supplier_concentration_does_not_need_the_unshipped_scorecard(store,
+                                                                      monkeypatch):
+    """The console reads a scorecard CSV that is not in the release whitelist.
+
+    On a client install that tab could only raise FileNotFoundError, so the
+    native one answers from the catalogue every install actually has.
+    """
+    from oasis.logic.release_packager import should_ship_clean
+    assert not should_ship_clean("Full_Product_Allocation_Scorecard_v7.csv")[0]
+
+    import oasis.analytics.supplier_analytics as SA
+    monkeypatch.setattr(SA, "load_scorecard_data",
+                        lambda: (_ for _ in ()).throw(FileNotFoundError()))
+    conc = D.supplier_concentration(D.default_org(store), root=store)
+    assert conc["error"] is None
+    assert conc["suppliers"], "no suppliers from the carried catalogue"
+
+
+def test_hhi_bands_follow_the_console(console_src, store):
+    assert "hhi > 2500" in console_src and "hhi > 1500" in console_src
+    assert D.HHI_HIGH == 2500.0 and D.HHI_MODERATE == 1500.0
+    conc = D.supplier_concentration(D.default_org(store), root=store)
+    shares = [s["share_pct"] for s in conc["suppliers"]]
+    assert conc["hhi"] == pytest.approx(sum(s * s for s in shares), rel=1e-3)
+    assert shares == sorted(shares, reverse=True)
+    # Each share is rounded to 1dp for display, so the sum drifts with the
+    # number of suppliers — 318 of them on the hot catalogue.
+    assert sum(shares) == pytest.approx(100.0, abs=max(1.0, len(shares) * 0.05))
+
+
+def test_supplier_failure_impact_scales_with_share(store):
+    org = D.default_org(store)
+    sups = D.supplier_concentration(org, root=store)["suppliers"]
+    imp = D.supplier_failure_impact(org, sups[0]["supplier"], root=store)
+    assert imp["error"] is None
+    assert imp["severity"] in ("CRITICAL", "HIGH", "MEDIUM", "LOW")
+    assert imp["affected_skus"] == sups[0]["skus"]
+    assert D.supplier_failure_impact(org, "No Such Vendor", root=store)["error"]
+
+
+def test_supplier_tab_renders_hhi_and_the_simulator(store):
+    from oasis.desktop.views.command_tabs.supplier_intel_tab import (
+        build_supplier_intel_tab)
+    body = _text(build_supplier_intel_tab(None, store))
+    assert "hhi score" in body
+    assert "top suppliers by share" in body
+    assert "supplier failure impact simulator" in body
+
+
+# ── Smart Ordering scenario levers ───────────────────────────────────────
+def test_the_scenario_engine_ships(console_src):
+    """All three levers come from oasis/simulation, which is on the whitelist."""
+    from oasis.logic.release_packager import should_ship_clean
+    assert "black_swan_events import SupplierRiskAnalyzer" in console_src
+    assert should_ship_clean("oasis/simulation/black_swan_events.py")[0]
+
+
+def test_supplier_disruption_only_touches_the_target(store):
+    """Every other line must come through untouched, or the delta is noise."""
+    rows = [{"supplier_name": "BIDCO AFRICA", "lead_time_days": 3, "demand_cv": 0.5},
+            {"supplier_name": "OTHER CO", "lead_time_days": 3, "demand_cv": 0.5}]
+    out, affected = D._apply_disruption(rows, "Bidco Africa",
+                                        D.FAILURE_MODES[0], 14)
+    assert affected == 1
+    assert out[0]["lead_time_days"] == 17 and out[0]["demand_cv"] == 1.0
+    assert out[1] == rows[1], "an unrelated supplier was modified"
+
+
+@pytest.mark.parametrize("mode,lead,cv", [
+    (D.FAILURE_MODES[0], 3 + 14, 1.0),      # Complete
+    (D.FAILURE_MODES[1], 3 + 7, 0.75),      # Partial
+    (D.FAILURE_MODES[2], 3 * 2, 0.5),       # Delayed: lead time only
+])
+def test_failure_modes_match_the_console_maths(mode, lead, cv):
+    out, _ = D._apply_disruption(
+        [{"supplier_name": "X", "lead_time_days": 3, "demand_cv": 0.5}],
+        "X", mode, 14)
+    assert out[0]["lead_time_days"] == lead
+    assert out[0]["demand_cv"] == pytest.approx(cv)
+
+
+def test_a_supplier_failure_raises_the_order(store):
+    """Longer lead time and higher variance means more safety stock, not less."""
+    org = D.default_org(store)
+    crit = D.critical_suppliers(org, store)["suppliers"]
+    if not crit:
+        pytest.skip("no concentrated supplier in this store")
+    r = D.simulate_ordering_scenario(org, "supplier",
+                                     supplier=crit[0]["supplier"],
+                                     mode=D.FAILURE_MODES[0], root=store)
+    assert r["error"] is None
+    assert r["affected"] > 0
+    assert r["adjusted_qty"] >= r["baseline_qty"]
+
+
+def test_a_competitor_arriving_lowers_the_order(store):
+    """Negative YoY impact scales demand down, so the PO should shrink."""
+    r = D.simulate_ordering_scenario(D.default_org(store), "competitor",
+                                     template="carrefour_100m", root=store)
+    assert r["error"] is None
+    assert 0 < r["multiplier"] < 1, "expected a demand-suppressing multiplier"
+    assert r["adjusted_qty"] <= r["baseline_qty"]
+    assert "carrefour" in r["label"].lower()
+
+
+def test_a_price_war_lowers_the_order(store):
+    r = D.simulate_ordering_scenario(D.default_org(store), "price_war",
+                                     root=store)
+    assert r["error"] is None and r["multiplier"] < 1
+    assert r["adjusted_qty"] <= r["baseline_qty"]
+
+
+def test_an_unknown_scenario_is_refused(store):
+    assert D.simulate_ordering_scenario(D.default_org(store), "nonsense",
+                                        root=store)["error"]
+
+
+def test_a_scenario_writes_nothing(store):
+    """A scenario is a question. Nothing may reach the approvals queue."""
+    org = D.default_org(store)
+    before = D.pending_orders(org, store)["count"]
+    D.simulate_ordering_scenario(org, "price_war", root=store)
+    assert D.pending_orders(org, store)["count"] == before
+
+
+def test_ordering_tab_offers_all_three_levers(store):
+    from oasis.desktop.views.command_tabs.smart_ordering_tab import (
+        build_smart_ordering_tab)
+    body = _text(build_smart_ordering_tab(None, store))
+    assert "scenario levers" in body
+    assert "supplier disruption" in body
+    assert "competitor entry" in body
+    assert "price war" in body
+
+
+# ── OASIS Processor ──────────────────────────────────────────────────────
+def test_the_decision_engine_ships_now(console_src):
+    """ops_dashboard imports RuleBasedLLM at MODULE level.
+
+    oasis/llm was not on the release whitelist, so the Streamlit Command Center
+    — the reference architecture itself — died with ModuleNotFoundError before
+    rendering a single tab on every client install.
+    """
+    from oasis.logic.release_packager import should_ship_clean
+    assert "from oasis.llm.inference import RuleBasedLLM" in console_src
+    assert should_ship_clean("oasis/llm/inference.py")[0], \
+        "the console's decision engine is missing from client releases"
+
+
+def test_processor_reports_each_file_separately(store, tmp_path):
+    """One unreadable sheet must not sink the batch."""
+    bad = tmp_path / "not_a_spreadsheet.csv"
+    bad.write_text("this is not, a valid[ inventory file\n", encoding="utf-8")
+    res = D.process_inventory_files([str(bad), str(tmp_path / "missing.xlsx")],
+                                    "tester", D.default_org(store), root=store)
+    assert res["error"] is None, "the batch itself failed"
+    assert len(res["results"]) == 2
+    assert all("file" in r and "error" in r for r in res["results"])
+    assert res["processed"] + res["failed"] == 2
+
+
+def test_processing_leaves_the_event_loop_as_it_found_it(store, tmp_path):
+    """asyncio.run() closes its loop and leaves the thread with none.
+
+    The desktop app is one long-lived process, and anything later that reaches
+    for get_event_loop().run_until_complete(...) then dies with "There is no
+    current event loop" — which is exactly what a batch run did to the whole
+    ordering-logic suite.
+    """
+    import asyncio
+    bad = tmp_path / "x.csv"
+    bad.write_text("nope\n", encoding="utf-8")
+    D.process_inventory_files([str(bad)], "tester", D.default_org(store),
+                              root=store)
+    loop = asyncio.get_event_loop_policy().get_event_loop()
+    assert not loop.is_closed(), "a batch run closed the caller's event loop"
+    assert loop.run_until_complete(asyncio.sleep(0)) is None
+
+
+def test_processor_tab_builds_without_a_page(store):
+    """No page means no file picker overlay — the tab must still construct."""
+    from oasis.desktop.views.command_tabs.processor_tab import build_processor_tab
+    body = _text(build_processor_tab(None, store))
+    assert "batch inventory processor" in body
+    assert "choose files" in body
+    assert "no files selected" in body
+
+
+# ── Simulation Lab ───────────────────────────────────────────────────────
+def test_the_simulator_ships_now():
+    """It lived at the repo root, so default-deny kept it out of every release.
+
+    Two shipped scripts import it by that name: ops_dashboard (Simulation Lab)
+    and intraday_sim, the latter at MODULE level — so that script could not
+    start at all on a client install.
+    """
+    from oasis.logic.release_packager import should_ship_clean
+    assert should_ship_clean("oasis/simulation/retail_simulator.py")[0]
+    assert should_ship_clean("retail_simulator.py")[0], "the shim must ship too"
+
+
+def test_the_shim_and_the_package_are_the_same_module():
+    import retail_simulator as shim
+    from oasis.simulation import retail_simulator as pkg
+    assert shim.STORE_UNIVERSES is pkg.STORE_UNIVERSES
+    assert shim.RetailSimulator is pkg.RetailSimulator
+    assert shim.SKUState is pkg.SKUState
+
+
+def test_the_simulator_has_no_hardcoded_developer_paths():
+    """DATA_DIR and SCORECARD_FILE were absolute paths on one machine."""
+    from oasis.simulation import retail_simulator as R
+    src = pathlib.Path(R.__file__).read_text(encoding="utf-8", errors="replace")
+    assert "c:\\Users" not in src and "C:\\Users" not in src, \
+        "a developer's absolute path is still baked into the simulator"
+    assert R.DATA_DIR.lower().endswith(os.path.join("oasis", "data").lower())
+
+
+def test_the_simulator_does_not_require_the_client_scorecard(store, monkeypatch):
+    """The scorecard is one retailer's P&L and ships nowhere.
+
+    A simulation must run from the store's own products regardless.
+    """
+    from oasis.simulation import retail_simulator as R
+    monkeypatch.setattr(R, "SCORECARD_FILE", "/definitely/not/here.csv")
+    r = D.run_simulation_comparison(D.default_org(store), days=7, root=store)
+    assert r["error"] is None, r["error"]
+    assert r["skus"] > 0
+
+
+def test_both_runs_differ_because_risk_actually_reaches_the_bridge(store):
+    """The console once computed the risk and never passed it, so the two runs
+    were identical and the whole comparison was theatre."""
+    r = D.run_simulation_comparison(D.default_org(store), days=7, root=store)
+    assert r["error"] is None
+    assert r["heuristic"] and r["adjusted"]
+    assert set(r["heuristic"]) == {"fill_rate", "stockout_rate", "revenue",
+                                   "turnover", "capital_efficiency"}
+    if r["risk"] > 0:
+        assert r["heuristic"] != r["adjusted"], \
+            "risk-adjusted run is identical to the heuristic one"
+
+
+def test_simulation_tiers_are_config_not_client_data():
+    tiers = D.simulation_tiers()
+    assert tiers["error"] is None and tiers["tiers"]
+    for t in tiers["tiers"]:
+        assert {"key", "budget", "max_skus", "safety_days"} <= set(t)
+
+
+def test_simulation_tab_runs_and_reports(store):
+    from oasis.desktop.views.command_tabs.simulation_lab_tab import (
+        build_simulation_lab_tab)
+    tab = build_simulation_lab_tab(None, store)
+    btn = [c for c in _walk(tab)
+           if getattr(c, "text", "") == "Run comparison simulation"]
+    assert btn, "no way to run the simulation"
+    btn[0].on_click(None)
+    body = _text(tab)
+    assert "side-by-side comparison" in body
+    assert "fill rate" in body and "stockout rate" in body
+
+
+# ── the tab set ──────────────────────────────────────────────────────────
+def test_every_command_tab_names_a_real_module_sku():
+    from oasis.desktop.views.command_view import TAB_MODULES
+    from oasis.logic import license_manager as LM
+    assert set(TAB_MODULES.values()) <= set(LM.KNOWN_MODULES)
+
+
+def test_supplier_tab_is_paywalled_like_the_console(console_src):
+    """ops_dashboard puts supplier_intelligence behind the ordering module."""
+    from oasis.desktop.views.command_view import TAB_MODULES
+    m = re.search(r'"supplier_intelligence":\s*"(\w+)"', console_src)
+    assert m, "console no longer gates supplier_intelligence"
+    assert TAB_MODULES["supplier_intelligence"] == m.group(1)
+
+
 # ── the tabs render what the accessors provide ───────────────────────────
 def test_live_sales_tab_shows_alerts_and_velocity(store):
     from oasis.desktop.views.command_tabs.live_sales_tab import (
@@ -430,3 +762,269 @@ def _text(control) -> str:
             if isinstance(v, str):
                 out.append(v)
     return " ".join(out).lower()
+
+
+# ── the sample dataset must not identify the reference customer ──────────
+def test_the_sample_network_names_no_real_retailer():
+    """The demo estate was the reference customer's actual branch list.
+
+    Chain name plus a real branch list is what made it identifiable — and the
+    release ships source, so a client could read who it was and which of their
+    sites was the flagship. The store SHAPES are the product; the identity is
+    not.
+    """
+    from oasis.logic.demo_identity import IDENTIFYING_TOKENS
+    from oasis.logic.multi_store_profiles import STORE_PROFILES
+    blob = " ".join(f"{p.name} {p.short_name} {p.address}"
+                    for p in STORE_PROFILES).lower()
+    for token in IDENTIFYING_TOKENS:
+        assert token not in blob, f"sample estate still names '{token}'"
+    assert len({p.name for p in STORE_PROFILES}) == len(STORE_PROFILES)
+
+
+def test_a_built_sample_store_names_no_real_retailer(store):
+    import sqlite3
+    from oasis.logic.demo_identity import IDENTIFYING_TOKENS
+    rows = sqlite3.connect(D.store_db_path(store)).execute(
+        "SELECT ORG_NAME, ORG_SHORT_NAME, ORG_ADDRESS FROM ORGANIZATION_MST"
+    ).fetchall()
+    assert rows
+    users = sqlite3.connect(D.store_db_path(store)).execute(
+        "SELECT DISPLAY_NAME, EMAIL FROM OASIS_USERS").fetchall()
+    blob = " ".join(str(c) for r in list(rows) + list(users) for c in r).lower()
+    for token in IDENTIFYING_TOKENS:
+        assert token not in blob, f"the built sample store still names '{token}'"
+
+
+def test_the_sample_network_uses_the_fictional_chain(tmp_path, monkeypatch):
+    """apply_multi_demo names its outlets from demo_identity, not a real chain."""
+    import sqlite3
+    from oasis.logic.demo_identity import DEMO_CHAIN, IDENTIFYING_TOKENS
+    (tmp_path / "oasis" / "data").mkdir(parents=True)
+    monkeypatch.setenv("OASIS_DB_PATH", str(tmp_path / "oasis" / "data" / "n.db"))
+    D.reset_adapter()
+    from oasis.logic import onboarding as OB
+    OB.apply_multi_demo(root=str(tmp_path))
+    D.reset_adapter()
+    rows = sqlite3.connect(D.store_db_path(str(tmp_path))).execute(
+        "SELECT ORG_NAME, ORG_SHORT_NAME, ORG_ADDRESS FROM ORGANIZATION_MST").fetchall()
+    blob = " ".join(str(c) for r in rows for c in r).lower()
+    assert DEMO_CHAIN.lower() in blob
+    for token in IDENTIFYING_TOKENS:
+        assert token not in blob, f"the sample network still names '{token}'"
+    D.reset_adapter()
+
+
+def test_the_ui_that_names_the_sample_network_is_clean():
+    """Tooltips and captions listed the real branches by name."""
+    import pathlib
+    from oasis.logic.demo_identity import IDENTIFYING_TOKENS
+    repo = pathlib.Path(__file__).parent.parent
+    # Scoped to the sample dataset and the UI that names it. Internal column
+    # keys elsewhere ("rhapta_fill_rate") mirror a real client's spreadsheet
+    # format and are read from files they supply — renaming those would break
+    # reading their data to hide a string no client sees.
+    for rel in ("oasis/desktop/views/home_view.py", "oasis/ui/onboarding.py",
+                "oasis/logic/multi_store_profiles.py",
+                "oasis/logic/mock_pos_build.py",
+                "oasis/logic/demo_seed.py"):
+        src = (repo / rel).read_text(encoding="utf-8", errors="replace").lower()
+        for token in IDENTIFYING_TOKENS:
+            assert token not in src, f"{rel} still mentions '{token}'"
+
+
+# ── Allocation Engine / greenfield scorecard ─────────────────────────────
+def test_the_scorecard_builder_needs_no_shipped_client_file():
+    """The whole reason this module exists.
+
+    The console reads a 23,000-row CSV of one retailer's per-SKU revenue,
+    margins and named supplier terms. It cannot ship, so the console's
+    Allocation tab could only ever raise FileNotFoundError on a client install.
+    """
+    from oasis.logic.release_packager import should_ship_clean
+    assert should_ship_clean("oasis/logic/scorecard_builder.py")[0]
+    assert not should_ship_clean("Full_Product_Allocation_Scorecard_v7.csv")[0]
+
+
+def test_network_demand_is_averaged_over_carriers_not_summed():
+    """A new store behaves like an average store, not the whole chain at once.
+
+    Averaging over ALL outlets (rather than the ones that carry a line) would
+    understate a legitimately regional product into nonexistence.
+    """
+    from oasis.logic.scorecard_builder import build_recommendations
+    stock = {
+        "A": [{"item_code": "X", "product_name": "X", "avg_daily_sales": 10,
+               "selling_price": 100, "cost_price": 80, "department": "D",
+               "supplier_name": "S"}],
+        "B": [{"item_code": "X", "product_name": "X", "avg_daily_sales": 20,
+               "selling_price": 100, "cost_price": 80, "department": "D",
+               "supplier_name": "S"}],
+        "C": [{"item_code": "Y", "product_name": "Y", "avg_daily_sales": 5,
+               "selling_price": 50, "cost_price": 40, "department": "D",
+               "supplier_name": "S"}],
+    }
+    recs = {r["item_code"]: r for r in
+            build_recommendations(stock, mode="network")["recs"]}
+    assert recs["X"]["avg_daily_sales"] == pytest.approx(15.0)   # not 30, not 10
+    assert recs["X"]["carried_by"] == 2
+    assert recs["Y"]["avg_daily_sales"] == pytest.approx(5.0)
+
+
+def test_staple_is_revealed_by_carriage_not_asserted():
+    """The old scorecard shipped an Is_Staple column. Carriage is observable."""
+    from oasis.logic.scorecard_builder import (build_recommendations,
+                                               STAPLE_CARRIAGE_RATIO)
+    def _row(code, ads=5):
+        return {"item_code": code, "product_name": code, "avg_daily_sales": ads,
+                "selling_price": 10, "cost_price": 8, "department": "D",
+                "supplier_name": "S"}
+    stock = {f"ORG{i}": [_row("EVERYWHERE")] + ([_row("RARE")] if i == 1 else [])
+             for i in range(1, 6)}
+    recs = {r["item_code"]: r for r in
+            build_recommendations(stock, mode="network")["recs"]}
+    assert recs["EVERYWHERE"]["is_staple_override"] is True
+    assert recs["RARE"]["is_staple_override"] is False
+    assert recs["EVERYWHERE"]["carriage_ratio"] >= STAPLE_CARRIAGE_RATIO
+
+
+def test_store_mode_claims_no_staples():
+    """One outlet cannot reveal a chain-wide range decision."""
+    from oasis.logic.scorecard_builder import build_recommendations
+    stock = {"A": [{"item_code": "X", "product_name": "X",
+                    "avg_daily_sales": 9, "selling_price": 10,
+                    "cost_price": 8, "department": "D", "supplier_name": "S"}]}
+    recs = build_recommendations(stock, mode="store")["recs"]
+    assert recs and all(not r["is_staple_override"] for r in recs)
+
+
+def test_a_new_site_carries_no_order_history():
+    """Leaving a live store's count here makes the engine treat an unopened
+    shop as an established buyer."""
+    from oasis.logic.scorecard_builder import build_recommendations
+    stock = {"A": [{"item_code": "X", "product_name": "X",
+                    "avg_daily_sales": 9, "selling_price": 10, "cost_price": 8,
+                    "department": "D", "supplier_name": "S",
+                    "historical_order_count": 42}]}
+    assert all(r["historical_order_count"] == 0
+               for r in build_recommendations(stock)["recs"])
+
+
+def test_the_builder_output_matches_the_engine_contract(store):
+    """Field-for-field what load_scorecard_recommendations produces."""
+    card = D.greenfield_scorecard(root=store)
+    assert card["error"] is None and card["recs"]
+    required = {"product_name", "selling_price", "avg_daily_sales",
+                "product_category", "pack_size", "moq_floor",
+                "historical_order_count", "is_staple_override", "margin_pct",
+                "supplier_name", "recommended_quantity", "reasoning"}
+    assert required <= set(card["recs"][0])
+
+
+def test_greenfield_allocation_runs_without_any_csv(store):
+    res = D.run_greenfield(1_000_000, root=store)
+    assert res["error"] is None, res["error"]
+    assert res["rows"], "empty opening basket"
+    assert 0 < res["cash_spend"] <= res["budget"]
+    # The basket DataFrame's own column names — reading the wrong ones renders
+    # a table of blanks, which is how the transfers table shipped empty once.
+    assert {"Product", "Qty", "Department"} <= set(res["rows"][0])
+
+
+def test_the_basket_is_a_dataframe_and_must_be_converted(store):
+    """`df or fallback` raises 'truth value of a DataFrame is ambiguous'."""
+    res = D.run_greenfield(500_000, root=store)
+    assert isinstance(res["rows"], list)
+    assert res["error"] is None
+
+
+def test_allocation_tab_renders_the_basket(store):
+    from oasis.desktop.views.command_tabs.allocation_tab import (
+        build_allocation_tab)
+    tab = build_allocation_tab(None, store)
+    btn = [c for c in _walk(tab) if getattr(c, "text", "") == "Run allocation"]
+    assert btn, "no way to run the allocation"
+    btn[0].on_click(None)
+    body = _text(tab)
+    assert "opening basket" in body
+    assert "committed" in body and "lines stocked" in body
+    assert "allocation failed" not in body
+
+
+# ── the hot-node sample catalogue ────────────────────────────────────────
+def test_the_sample_catalogue_carries_no_financials():
+    """Hot = selling. Selecting the selling lines must not drag the book along.
+
+    The scorecard those lines came from holds revenue, margin, gross profit and
+    GMROI per SKU. What ships is identity, department, supplier and shelf price
+    — all publicly observable — plus synthesised opening stock.
+    """
+    import gzip
+    import json
+    import pathlib
+    from oasis.logic.demo_seed import CATALOG_FILE
+    path = (pathlib.Path(__file__).parent.parent / "oasis" / "data" / CATALOG_FILE)
+    if not path.exists():
+        pytest.skip("generated catalogue not built in this checkout")
+    with gzip.open(path, "rt", encoding="utf-8") as f:
+        payload = json.load(f)
+    banned = {"revenue", "margin", "margin_pct", "gross_profit", "gmroi",
+              "avg_daily_sales", "total_revenue", "sales_rank"}
+    for row in payload["rows"][:200]:
+        assert not (banned & {k.lower() for k in row}), row
+    assert payload["rows"], "catalogue is empty"
+
+
+def test_the_sample_catalogue_excludes_dead_lines():
+    """D-tier is ~16,600 near-zero-velocity lines. A sample store carries the
+    range that moves, not the archive."""
+    import gzip
+    import json
+    import pathlib
+    from oasis.logic.demo_seed import CATALOG_FILE
+    path = (pathlib.Path(__file__).parent.parent / "oasis" / "data" / CATALOG_FILE)
+    if not path.exists():
+        pytest.skip("generated catalogue not built in this checkout")
+    with gzip.open(path, "rt", encoding="utf-8") as f:
+        payload = json.load(f)
+    assert "D" not in set(payload.get("tiers", []))
+    assert all(r.get("tier") != "D" for r in payload["rows"])
+
+
+def test_seeding_scales_with_the_catalogue():
+    """60 bills/day was tuned for 34 lines; against 4,000 it left 87% unsold."""
+    from oasis.logic.onboarding import demo_seeding_params
+    small = demo_seeding_params(34)["bills_per_day"]
+    large = demo_seeding_params(4000)["bills_per_day"]
+    assert large > small * 5, "seeding does not scale with catalogue size"
+
+
+def test_a_slow_mover_cannot_raise_a_velocity_alert(store):
+    """One sale of a 0.02-a-day line is a 50x ratio and no information.
+
+    On a realistic long tail that noise buried the signal — 184 of 266 alerts
+    on the sample store were lines selling under a unit a day.
+    """
+    alerts = D.velocity_alerts([
+        {"code": "SLOW", "name": "Sells once a month", "units": 1.0,
+         "ads": 0.02, "velocity_ratio": 50.0},
+        {"code": "TINY", "name": "Two units, low base", "units": 2.0,
+         "ads": 0.5, "velocity_ratio": 4.0},
+    ])
+    assert alerts == []
+
+
+def test_a_real_mover_still_raises_one(store):
+    alerts = D.velocity_alerts([
+        {"code": "FAST", "name": "Genuine spike", "units": 40.0,
+         "ads": 5.0, "velocity_ratio": 8.0},
+    ])
+    assert len(alerts) == 1
+    assert alerts[0]["product_name"] == "Genuine spike"
+
+
+def test_every_alert_clears_both_floors(store):
+    s = D.live_sales(D.default_org(store), root=store)
+    for a in s["alerts"]:
+        assert a["ads"] >= D.VELOCITY_MIN_ADS
+        assert a["units"] >= D.VELOCITY_MIN_UNITS

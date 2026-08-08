@@ -84,6 +84,11 @@ _ROOT_WHITELIST = {
     "entrypoint.py", "app.py", "app_intel.py", "ops_dashboard.py",
     "home_app.py", "st_gat_dashboard.py", "allocation_app.py",
     "intraday_sim.py",
+    # Compatibility shim over oasis/simulation/retail_simulator.py. Both
+    # ops_dashboard (Simulation Lab) and intraday_sim (at module level) import
+    # `retail_simulator` by that name, so without this the Simulation Lab tab
+    # raised ModuleNotFoundError and intraday_sim would not start at all.
+    "retail_simulator.py",
     # install + config
     "install.bat", "OASIS.bat", "serve.bat", "register_service.bat", "unregister_service.bat", "VERSION", "requirements.txt", "alembic.ini",
     "branding.example.json", "oasis_client_config.template.json",
@@ -98,6 +103,13 @@ _OASIS_WHITELIST_SUBPKGS = {
     "__init__.py", "logging_config.py", "models.py",
     "api/", "logic/", "ui/", "simulation/", "analytics/",
     "tools/", "data_validation/",
+    # The rule-based decision engine. ops_dashboard.py imports RuleBasedLLM at
+    # MODULE level, so with oasis/llm absent the Streamlit Command Center —
+    # OASIS.bat option 4 — died with ModuleNotFoundError before rendering a
+    # single tab on every client install. 28 KB, one file, no model weights.
+    # test_release_zip asserts every oasis.* package the shipped root scripts
+    # import is actually in the zip, so this class of hole cannot reopen.
+    "llm/",
     # The native desktop app. This whitelist is default-deny, so a new package
     # ships only when named here — oasis/desktop was absent, and the entire
     # Flet app (which OASIS.bat option 0 and --mode desktop both dispatch into)
@@ -110,6 +122,11 @@ _OASIS_WHITELIST_SUBPKGS = {
 #: exact files from oasis/data that ship (schema code + shipped defaults, never data)
 _OASIS_DATA_WHITELIST = {
     "supplier_calendar.py", "__init__.py",
+    # The generated SAMPLE catalogue: the hot (selling) product set, gzipped.
+    # Identity, department, supplier and shelf price only — no revenue, margin
+    # or real demand. Built by scripts/build_demo_catalog.py, which reads
+    # sources that never ship.
+    "demo_catalog.json.gz",
     # Methodology defaults for the Chapter-11 engine layer. Without this file
     # is_engine_enabled() returns False for every engine and AMIT/LATA/DHARAM/
     # MANDE sit dormant on a client install (deep-analysis finding S1). It holds

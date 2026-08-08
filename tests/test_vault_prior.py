@@ -5,7 +5,7 @@ import sys
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
-from oasis.logic.rhapta_catalog import (
+from oasis.logic.catalog_snapshot import (
     dedupe, normalise_rows, vendor_departments,
 )
 from oasis.logic.vault_prior import (

@@ -97,7 +97,7 @@ def test_multi_demo_builds_with_no_spreadsheets(root, monkeypatch):
     def _boom(*a, **k):
         raise AssertionError("multi demo must not read catalogue spreadsheets")
 
-    monkeypatch.setattr("oasis.logic.rhapta_catalog.load_catalog", _boom)
+    monkeypatch.setattr("oasis.logic.catalog_snapshot.load_catalog", _boom)
     monkeypatch.setattr("oasis.logic.multi_store_pos.seed_multi_store_history",
                         lambda db, **kw: {})          # history is timed separately
     monkeypatch.setenv("OASIS_DATA_DIR", os.path.join(root, "oasis", "data"))
@@ -136,7 +136,10 @@ def test_multi_demo_is_badged_as_sample(root, monkeypatch):
 def test_demo_history_profiles_are_shallower_than_real():
     from oasis.logic.multi_store_profiles import STORE_PROFILES
     demo = OB._demo_history_profiles()
-    assert all(p.history_days == OB.DEMO_HISTORY_DAYS for p in demo)
+    # The multi-store demo has its own (shorter) window: five stores give it
+    # coverage through breadth, so it does not need the single store's depth.
+    assert all(p.history_days == OB.DEMO_MULTI_HISTORY_DAYS for p in demo)
+    assert OB.DEMO_MULTI_HISTORY_DAYS <= OB.DEMO_HISTORY_DAYS
     real_bills = sum(p.history_days * p.history_bills_per_day for p in STORE_PROFILES)
     demo_bills = sum(p.history_days * p.history_bills_per_day for p in demo)
     assert demo_bills < real_bills / 4, "a first-run click must not seed 62k bills"

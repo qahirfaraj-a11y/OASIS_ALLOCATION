@@ -81,7 +81,7 @@ def build_home_view(page: ft.Page, project_root: str) -> ft.Column:
         store_name_field = ft.TextField(
             label="Store / Company Name",
             value=tenant_name if tenant_name != "OASIS" else "",
-            hint_text="e.g. Rhapta Superstore",
+            hint_text="e.g. Parkview Superstore",
             border_color=T.OBSIDIAN_BORDER,
             focused_border_color=T.TEAL,
             color=T.TEXT_PRIMARY,
@@ -134,25 +134,31 @@ def build_home_view(page: ft.Page, project_root: str) -> ft.Column:
                      size=14, color=T.TEXT_SECONDARY),
             ft.Row([store_name_field], expand=True),
             ft.Divider(color=T.OBSIDIAN_BORDER),
+            # Multi-store leads and is the recommended path: OASIS is a network
+            # product. On a single outlet, Transfer Intelligence, Allocation and
+            # cluster analysis have nothing to say, so a single-store default
+            # makes most of the platform look empty on first run.
             ft.Row([
                 ft.ElevatedButton(
-                    "🧪 Sample Store",
-                    tooltip="Load a realistic demo store (~35 SKUs, 7 departments)",
-                    on_click=lambda e: _run_setup("demo", e),
+                    "🏬 Multi-Store Network  (recommended)",
+                    tooltip="Build the 5-outlet sample network (flagship, upscale, "
+                            "family, mall express, urban) with sales history — "
+                            "the shape the transfer and allocation engines work on",
+                    on_click=lambda e: _run_setup("multi_demo", e),
                     style=ft.ButtonStyle(bgcolor=T.OBSIDIAN_RAISE,
                                          color=T.TEAL),
+                ),
+                ft.ElevatedButton(
+                    "🧪 Single Sample Store",
+                    tooltip="One outlet (~35 SKUs, 7 departments) with sales history",
+                    on_click=lambda e: _run_setup("demo", e),
+                    style=ft.ButtonStyle(bgcolor=T.OBSIDIAN_RAISE,
+                                         color=T.TEXT_PRIMARY),
                 ),
                 ft.ElevatedButton(
                     "📭 Start Fresh",
                     tooltip="Create an empty store with the full OASIS schema",
                     on_click=lambda e: _run_setup("empty", e),
-                    style=ft.ButtonStyle(bgcolor=T.OBSIDIAN_RAISE,
-                                         color=T.TEXT_PRIMARY),
-                ),
-                ft.ElevatedButton(
-                    "🏬 Multi-Store Network",
-                    tooltip="Build a 5-outlet demo network (Rhapta, Westgate, Kilimani, Lavington, Karen)",
-                    on_click=lambda e: _run_setup("multi_demo", e),
                     style=ft.ButtonStyle(bgcolor=T.OBSIDIAN_RAISE,
                                          color=T.TEXT_PRIMARY),
                 ),

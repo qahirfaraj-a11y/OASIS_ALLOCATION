@@ -49,7 +49,7 @@ def save_profile(payload: dict, root: Optional[str] = None) -> str:
     return p
 
 
-def init_install(profile: str = "single", tenant: str = "",
+def init_install(profile: str = "", tenant: str = "",
                  root: Optional[str] = None) -> dict:
     """One-shot onboarding for the chosen profile.
 
@@ -61,7 +61,10 @@ def init_install(profile: str = "single", tenant: str = "",
     in the install profile file so launchers autodetect the topology.
     """
     root = root or _root()
-    profile = (profile or "single").lower()
+    # Default is the NETWORK shape — see onboarding.DEFAULT_PROFILE. A
+    # single-store default leaves every cross-store surface with nothing to say.
+    from .onboarding import DEFAULT_PROFILE
+    profile = (profile or DEFAULT_PROFILE).lower()
     if profile not in ("single", "multi"):
         raise SystemExit(f"unknown profile '{profile}' — pick 'single' or 'multi'")
 
@@ -70,8 +73,11 @@ def init_install(profile: str = "single", tenant: str = "",
 
     if profile == "single":
         from .mock_pos_build import build_from_xlsx
+        # NOT resolved_db_path(): this branch CREATES the store, so it must not
+        # follow a resolved path into an existing onboarded DB and overwrite it
+        # (deep-analysis finding S7).
         db_path = os.getenv("OASIS_DB_PATH",
-                            os.path.join(data_dir, "rhapta_pos.db"))
+                            os.path.join(data_dir, DEFAULT_SINGLE_DB))
         summary["db_path"] = db_path
         try:
             r = build_from_xlsx(data_dir, db_path)
@@ -96,7 +102,7 @@ def init_install(profile: str = "single", tenant: str = "",
         from .multi_store_build import build_multi_store_from_xlsx
         from .multi_store_pos import seed_multi_store_history
         db_path = os.getenv("OASIS_DB_PATH",
-                            os.path.join(data_dir, "rhapta_multi_store.db"))
+                            os.path.join(data_dir, DEFAULT_MULTI_DB))
         summary["db_path"] = db_path
         try:
             r = build_multi_store_from_xlsx(data_dir, db_path)

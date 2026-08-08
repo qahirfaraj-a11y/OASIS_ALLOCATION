@@ -13,19 +13,31 @@ import flet as ft
 from .. import data as D
 from .. import theme as T
 from .license_view import build_upsell
+from .command_tabs.executive_roi_tab import build_executive_roi_tab
 from .command_tabs.live_sales_tab import build_live_sales_tab
 from .command_tabs.transfer_intel_tab import build_transfer_intel_tab
 from .command_tabs.stock_review_tab import build_stock_review_tab
 from .command_tabs.smart_ordering_tab import build_smart_ordering_tab
+from .command_tabs.processor_tab import build_processor_tab
+from .command_tabs.allocation_tab import build_allocation_tab
+from .command_tabs.simulation_lab_tab import build_simulation_lab_tab
+from .command_tabs.analytics_tab import build_analytics_tab
+from .command_tabs.supplier_intel_tab import build_supplier_intel_tab
 
 #: tab → module SKU. Mirrors ops_view.TAB_MODULES and ops_dashboard.TAB_MODULES
 #: so all three front doors draw the paywall in the same place. Anything absent
 #: is core and stays visible on every licence.
 TAB_MODULES = {
+    "executive_roi": "core",
     "live_sales": "core",
     "transfers": "network",       # transfer_intelligence
     "stock_review": "core",
     "ordering": "ordering",       # smart_ordering / PO generation
+    "processor": "core",
+    "allocation": "network",   # matches ops_dashboard.TAB_MODULES
+    "simulation": "core",
+    "analytics": "core",
+    "supplier_intelligence": "ordering",   # matches ops_dashboard.TAB_MODULES
 }
 
 
@@ -49,6 +61,13 @@ def build_command_view(page: ft.Page, project_root: str) -> ft.Column:
         selected_index=0,
         animation_duration=300,
         tabs=[
+            # Order follows the console: Executive ROI leads, then the daily
+            # operating tabs, then the analysis ones.
+            ft.Tab(
+                text="Executive ROI",
+                icon=ft.Icons.EMOJI_EVENTS,
+                content=_content("executive_roi", build_executive_roi_tab),
+            ),
             ft.Tab(
                 text="Live Sales",
                 icon=ft.Icons.SHOW_CHART,
@@ -68,6 +87,32 @@ def build_command_view(page: ft.Page, project_root: str) -> ft.Column:
                 text="Ordering",
                 icon=ft.Icons.SHOPPING_CART,
                 content=_content("ordering", build_smart_ordering_tab),
+            ),
+            ft.Tab(
+                text="Processor",
+                icon=ft.Icons.ROCKET_LAUNCH,
+                content=_content("processor", build_processor_tab),
+            ),
+            ft.Tab(
+                text="Allocation",
+                icon=ft.Icons.CALCULATE,
+                content=_content("allocation", build_allocation_tab),
+            ),
+            ft.Tab(
+                text="Simulation",
+                icon=ft.Icons.SCIENCE,
+                content=_content("simulation", build_simulation_lab_tab),
+            ),
+            ft.Tab(
+                text="Analytics",
+                icon=ft.Icons.INSIGHTS,
+                content=_content("analytics", build_analytics_tab),
+            ),
+            ft.Tab(
+                text="Suppliers",
+                icon=ft.Icons.FACTORY,
+                content=_content("supplier_intelligence",
+                                 build_supplier_intel_tab),
             ),
         ],
         expand=1,

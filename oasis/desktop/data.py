@@ -281,6 +281,425 @@ def generate_smart_orders(org_cd: str, thresholds: Optional[Dict[str, Any]] = No
         return {"po_recs": [], "dropped_recs": [], "network_plan": None, "error": str(e)[:200]}
 
 
+def greenfield_scorecard(mode: str = "network",
+                         org_cd: Optional[str] = None,
+                         root: Optional[str] = None) -> Dict[str, Any]:
+    """What a new site should carry, derived from this chain's own trading.
+
+    Replaces the shipped-CSV scorecard, which held another retailer's per-SKU
+    revenue and supplier terms and could never ship. See
+    ``oasis.logic.scorecard_builder``.
+    """
+    try:
+        from oasis.logic.scorecard_builder import build_from_adapter, summarise
+        proj = root or project_root()
+        orgs = ([org_cd] if (mode == "store" and org_cd)
+                else [s["org_cd"] for s in list_stores(proj)])
+        if not orgs:
+            return {"recs": [], "skus": 0, "stores": 0, "summary": {},
+                    "error": "No stores in the active database."}
+        res = build_from_adapter(get_adapter(proj), orgs, mode=mode)
+        res["summary"] = summarise(res)
+        return res
+    except Exception as e:
+        return {"recs": [], "skus": 0, "stores": 0, "summary": {},
+                "error": str(e)[:200]}
+
+
+def run_greenfield(budget: float, mode: str = "network",
+                   org_cd: Optional[str] = None,
+                   root: Optional[str] = None) -> Dict[str, Any]:
+    """Spend an opening budget across the recommended range.
+
+    Two-pass budget-constrained allocation with the engine's efficiency guards
+    — the Allocation Engine tab, minus the CSV.
+    """
+    blank = {"rows": [], "cash_spend": 0.0, "consignment_value": 0.0,
+             "budget": budget, "skus": 0, "summary": {}, "error": None}
+    try:
+        from oasis.logic.order_engine import OrderEngine
+        from oasis.logic.greenfield_runner import run_greenfield_allocation
+
+        card = greenfield_scorecard(mode=mode, org_cd=org_cd, root=root)
+        if card.get("error"):
+            return dict(blank, error=card["error"])
+        if not card["recs"]:
+            return dict(blank, error="No line has enough demand signal to "
+                                     "allocate an opening budget against.")
+
+        proj = root or project_root()
+        engine = OrderEngine(os.path.join(proj, "oasis", "data"))
+        engine.load_local_databases()
+        res = run_greenfield_allocation(engine, card["recs"], budget=float(budget))
+
+        # GreenfieldResult.basket is a DataFrame. `df or fallback` raises
+        # "The truth value of a DataFrame is ambiguous" — convert first, and
+        # never put a frame on either side of a boolean operator.
+        basket = getattr(res, "basket", None)
+        if hasattr(basket, "to_dict"):
+            rows = basket.to_dict("records")
+        else:
+            rows = list(basket or [])
+        cash = float(getattr(res, "cash_spend", 0.0) or 0.0)
+        consign = float(getattr(res, "consignment_value", 0.0) or 0.0)
+        return {"rows": rows, "cash_spend": round(cash, 2),
+                "consignment_value": round(consign, 2),
+                "budget": float(budget), "skus": len(rows),
+                "utilisation": round(cash / float(budget) * 100, 1) if budget else 0.0,
+                "summary": dict(getattr(res, "summary", {}) or {}),
+                "scorecard": card["summary"], "error": None}
+    except Exception as e:
+        return dict(blank, error=str(e)[:200])
+
+
+#: budget bands that pick a simulation tier, as the console picks one
+_SIM_TIERS = ((500_000, "Small_200k"), (5_000_000, "Medium_1M"),
+              (float("inf"), "Large_10M"))
+
+
+def simulation_tiers() -> Dict[str, Any]:
+    """Store archetypes the simulator ships with — pure config, no client data."""
+    try:
+        from oasis.simulation.retail_simulator import STORE_UNIVERSES
+        return {"tiers": [
+            {"key": k, "budget": v.get("budget"), "max_skus": v.get("max_skus"),
+             "safety_days": v.get("safety_days"),
+             "description": v.get("description", k)}
+            for k, v in STORE_UNIVERSES.items()], "error": None}
+    except Exception as e:
+        return {"tiers": [], "error": str(e)[:200]}
+
+
+def run_simulation_comparison(org_cd: str, days: int = 30,
+                              tier: Optional[str] = None,
+                              root: Optional[str] = None) -> Dict[str, Any]:
+    """Heuristic vs risk-adjusted replenishment over the SAME store, same seed.
+
+    Built from the store's own enriched products, never from the allocation
+    scorecard: that file is one retailer's per-SKU revenue and supplier terms
+    and is not part of any install.
+
+    Both runs share a seed and a starting SKU set, so the only difference is
+    whether the store's risk score is fed to the ordering bridge — which is the
+    whole point of the comparison. (The console once computed that risk and
+    never passed it, making both runs identical.)
+    """
+    blank = {"days": days, "tier": None, "skus": 0, "risk": 0.0,
+             "heuristic": None, "adjusted": None, "error": None}
+    try:
+        from oasis.logic.simulation_bridge import SimulationOrderUtil
+        from oasis.simulation.retail_simulator import (RetailSimulator, SKUState,
+                                                       STORE_UNIVERSES)
+        from oasis.logic import gnn_service
+
+        proj = root or project_root()
+        data_dir = os.path.join(proj, "oasis", "data")
+        products = get_adapter(proj).fetch_enriched_products(org_cd) or []
+        if not products:
+            return dict(blank, error="No products found for this store.")
+
+        bridge = SimulationOrderUtil(data_dir)
+        enriched = bridge.prepare_sku_data(products)
+
+        skus = []
+        for p in enriched:
+            try:
+                s = SKUState(
+                    product_name=p.get("product_name", "Unknown"),
+                    supplier=p.get("supplier_name", "Unknown"),
+                    department=p.get("department", "UNKNOWN"),
+                    unit_price=float(p.get("selling_price", p.get("sell_price", 100)) or 100),
+                    cost_price=float(p.get("wac", p.get("cost_price", 50)) or 50),
+                    avg_daily_sales=float(p.get("avg_daily_sales", 0) or 0),
+                    demand_cv=float(p.get("demand_cv", 0.5) or 0.5),
+                    lead_time_days=int(p.get("lead_time_days", 3) or 3),
+                    current_stock=float(p.get("current_stocks", 0) or 0),
+                    is_fresh=bool(p.get("is_fresh", False)),
+                )
+                if s.avg_daily_sales > 0:
+                    skus.append(s)
+            except Exception:
+                continue
+        if not skus:
+            return dict(blank, error="No SKU in this store has a demand signal "
+                                     "to simulate against.")
+
+        budget = sum(s.cost_price * s.current_stock for s in skus)
+        if not tier:
+            tier = next(k for cap, k in _SIM_TIERS if budget < cap)
+        config = dict(STORE_UNIVERSES.get(tier)
+                      or STORE_UNIVERSES.get("Medium_1M") or {})
+        config["budget"] = budget
+
+        risk = float(network_risk(root).get("stores") and
+                     next((s["risk"] for s in network_risk(root)["stores"]
+                           if s["org_cd"] == org_cd), 0.0) or 0.0)
+
+        def _shape(r):
+            return {"fill_rate": round(getattr(r, "avg_fill_rate", 0.0), 2),
+                    "stockout_rate": round(getattr(r, "stockout_rate", 0.0), 2),
+                    "revenue": round(getattr(r, "total_revenue", 0.0), 2),
+                    "turnover": round(getattr(r, "inventory_turnover", 0.0), 2),
+                    "capital_efficiency": round(
+                        getattr(r, "capital_efficiency", 0.0), 2)}
+
+        base = RetailSimulator("Heuristic Baseline", config, seed=42,
+                               bridge=bridge, initial_skus=skus).run(days)
+        adj = RetailSimulator("Risk-Adjusted", config, seed=42, bridge=bridge,
+                              initial_skus=skus,
+                              gnn_risk_score=risk).run(days)
+
+        return {"days": days, "tier": tier, "skus": len(skus),
+                "budget": round(budget, 2), "risk": round(risk, 3),
+                "gnn_status": gnn_service.model_status(),
+                "heuristic": _shape(base), "adjusted": _shape(adj),
+                "error": None}
+    except Exception as e:
+        return dict(blank, error=str(e)[:200])
+
+
+#: file types the batch processor accepts (the console's file_uploader list)
+PROCESSOR_EXTENSIONS = ("xlsx", "xls", "csv")
+
+
+def _run_coroutine(asyncio_mod, coro):
+    """Run one coroutine without disturbing the caller's event loop.
+
+    ``asyncio.run`` closes the loop it creates AND leaves the thread with no
+    current loop, so anything later in the same process that reaches for
+    ``get_event_loop().run_until_complete(...)`` — which the ordering-logic
+    suite does — dies with "There is no current event loop". The desktop app is
+    one long-lived process; a batch run must not sabotage what comes after it.
+    """
+    try:
+        previous = asyncio_mod.get_event_loop_policy().get_event_loop()
+    except Exception:
+        previous = None
+    loop = asyncio_mod.new_event_loop()
+    try:
+        asyncio_mod.set_event_loop(loop)
+        return loop.run_until_complete(coro)
+    finally:
+        loop.close()
+        # Put back whatever was current before, even if that was nothing.
+        try:
+            asyncio_mod.set_event_loop(previous)
+        except Exception:
+            pass
+
+
+def process_inventory_files(paths: List[str], username: str, org_cd: str,
+                            out_dir: Optional[str] = None,
+                            root: Optional[str] = None) -> Dict[str, Any]:
+    """Batch-process picking lists / GRN files into order recommendations.
+
+    The console's pipeline exactly — parse → enrich → RuleBasedLLM decision →
+    Excel report — one entry per file so a bad sheet cannot sink the batch.
+
+    Unlike the browser console this writes the report to a real folder and hands
+    back the path: a desktop app has a filesystem, so a download button would be
+    a worse answer than a file the operator can open.
+    """
+    results: List[Dict[str, Any]] = []
+    try:
+        import asyncio
+        import tempfile
+        from oasis.logic.order_engine import OrderEngine
+        from oasis.llm.inference import RuleBasedLLM
+        from oasis.logic.audit_logger import (log_action, ACTION_FILE_PROCESSED,
+                                              ENTITY_FILE)
+        proj = root or project_root()
+        data_dir = os.path.join(proj, "oasis", "data")
+        out_dir = out_dir or os.path.join(tempfile.gettempdir(), "oasis_processed")
+        os.makedirs(out_dir, exist_ok=True)
+        engine = OrderEngine(data_dir)
+        engine.load_local_databases()
+        llm = RuleBasedLLM()
+    except Exception as e:
+        return {"results": [], "processed": 0, "failed": 0,
+                "out_dir": None, "error": str(e)[:200]}
+
+    for path in paths:
+        name = os.path.basename(path)
+        try:
+            products = engine.parse_inventory_file(path)
+            products = engine.enrich_product_data(products)
+            recs = _run_coroutine(asyncio, llm.analyze(products))
+            out_path = os.path.join(out_dir, f"processed_{name}")
+            engine.generate_excel_report(path, recs, out_path)
+            results.append({"file": name, "products": len(products or []),
+                            "recommendations": len(recs or []),
+                            "output": out_path, "error": None})
+            try:
+                log_action(store_db_path(proj), username, ACTION_FILE_PROCESSED,
+                           ENTITY_FILE, name, org_cd,
+                           {"products": len(products or []),
+                            "recommendations": len(recs or [])})
+            except Exception:
+                pass
+        except Exception as e:
+            results.append({"file": name, "products": 0, "recommendations": 0,
+                            "output": None, "error": str(e)[:200]})
+
+    return {"results": results,
+            "processed": sum(1 for r in results if not r["error"]),
+            "failed": sum(1 for r in results if r["error"]),
+            "out_dir": out_dir, "error": None}
+
+
+#: Supplier failure modes, and what each does to a line's replenishment maths.
+#: Verbatim from the console's Apply Supplier Disruption branch.
+FAILURE_MODES = ("Complete (No Supply)", "Partial (50% Capacity)",
+                 "Delayed (2x Lead Time)")
+#: The day the console evaluates a competitive event's ramp at, and a price war's.
+COMPETITOR_EVAL_DAY = 15
+PRICE_WAR_EVAL_DAY = 7
+
+
+def critical_suppliers(org_cd: str, root: Optional[str] = None) -> Dict[str, Any]:
+    """Suppliers whose failure would actually hurt — the console's shortlist.
+
+    Runs ``SupplierRiskAnalyzer.identify_critical_suppliers`` (>30% share of a
+    department, or >100K revenue potential) over the store's live catalogue.
+    """
+    try:
+        from oasis.simulation.black_swan_events import SupplierRiskAnalyzer
+        products = get_adapter(root).fetch_enriched_products(org_cd) or []
+        inventory = {
+            p.get("product_name", "Unknown"): {
+                "department": p.get("department", "UNKNOWN"),
+                "supplier": p.get("supplier_name", "UNKNOWN"),
+                "avg_daily_sales": p.get("avg_daily_sales", 0),
+                "price": p.get("selling_price", p.get("sell_price", 0)),
+            } for p in products
+        }
+        return {"suppliers": SupplierRiskAnalyzer().identify_critical_suppliers(
+            inventory) or [], "error": None}
+    except Exception as e:
+        return {"suppliers": [], "error": str(e)[:200]}
+
+
+def competitive_scenarios() -> Dict[str, Any]:
+    """The shipped competitive-event templates, as pickable options."""
+    try:
+        from oasis.simulation.black_swan_events import SCENARIO_TEMPLATES
+        out = []
+        for key, ev in SCENARIO_TEMPLATES.items():
+            out.append({
+                "key": key,
+                "name": getattr(ev, "competitor_name", key),
+                "impact_pct": getattr(ev, "impact_pct", 0.0),
+                "ramp_up_days": getattr(ev, "ramp_up_days", 0),
+                "distance_meters": getattr(ev, "distance_meters", None),
+            })
+        return {"scenarios": out, "error": None}
+    except Exception as e:
+        return {"scenarios": [], "error": str(e)[:200]}
+
+
+def _apply_disruption(products: List[dict], supplier: str, mode: str,
+                      duration_days: int) -> tuple:
+    """Copy the catalogue with one supplier's lines degraded. Pure."""
+    out, affected = [], 0
+    target = (supplier or "").upper().strip()
+    for p in products:
+        c = dict(p)
+        if target and target in str(c.get("supplier_name", "")).upper().strip():
+            affected += 1
+            lead = c.get("lead_time_days", 3) or 3
+            cv = c.get("demand_cv", 0.5) or 0.5
+            if "Complete" in mode:
+                c["lead_time_days"] = lead + duration_days
+                c["demand_cv"] = min(2.0, cv * 2.0)
+            elif "Partial" in mode:
+                c["lead_time_days"] = lead + int(duration_days * 0.5)
+                c["demand_cv"] = min(1.5, cv * 1.5)
+            else:                                    # Delayed
+                c["lead_time_days"] = lead * 2
+        out.append(c)
+    return out, affected
+
+
+def simulate_ordering_scenario(org_cd: str, kind: str,
+                               supplier: Optional[str] = None,
+                               mode: str = FAILURE_MODES[0],
+                               duration_days: int = 14,
+                               template: Optional[str] = None,
+                               root: Optional[str] = None) -> Dict[str, Any]:
+    """Re-run the ordering engine under a shock, against an unshocked baseline.
+
+    ``kind`` is ``"supplier"``, ``"competitor"`` or ``"price_war"``. Both runs
+    use the SAME engine and the same gate-compliant risk as a normal
+    generation, so the delta is attributable to the shock and nothing else.
+    """
+    blank = {"baseline_qty": 0.0, "adjusted_qty": 0.0, "delta": 0.0,
+             "pct_change": 0.0, "affected": 0, "label": "", "recs": [],
+             "multiplier": None, "error": None}
+    try:
+        from oasis.logic.order_engine import OrderEngine
+        from oasis.logic.simulation_bridge import SimulationOrderUtil
+        from oasis.logic import gnn_service
+
+        proj = root or project_root()
+        data_dir = os.path.join(proj, "oasis", "data")
+        products = get_adapter(proj).fetch_enriched_products(org_cd) or []
+        if not products:
+            return dict(blank, error="No product data for this store.")
+
+        engine = OrderEngine(data_dir)
+        engine.load_local_databases()
+        util = SimulationOrderUtil(data_dir, engine=engine)
+        enriched = util.prepare_sku_data(products)
+        risk = gnn_service.ordering_risk(products, gnn_risk_score=0.0)
+
+        def _total(recs):
+            return sum(float(r.get("recommended_quantity", 0) or 0)
+                       for r in recs
+                       if float(r.get("recommended_quantity", 0) or 0) > 0)
+
+        baseline = util.finalize_orders(
+            util.calculate_order_quantity(list(enriched), gnn_risk_score=risk))
+
+        affected, multiplier, label = 0, None, ""
+        if kind == "supplier":
+            shocked, affected = _apply_disruption(enriched, supplier or "",
+                                                  mode, duration_days)
+            label = f"{supplier} — {mode}, {duration_days} days"
+        elif kind in ("competitor", "price_war"):
+            from oasis.simulation.black_swan_events import SCENARIO_TEMPLATES
+            key = template or ("price_war_aggressive" if kind == "price_war"
+                               else next(iter(SCENARIO_TEMPLATES)))
+            ev = SCENARIO_TEMPLATES[key]
+            day = (PRICE_WAR_EVAL_DAY if kind == "price_war"
+                   else COMPETITOR_EVAL_DAY)
+            multiplier = round(ev.get_multiplier_for_day(day), 3)
+            shocked = []
+            for p in enriched:
+                c = dict(p)
+                dept = str(c.get("department", "")).upper()
+                c["avg_daily_sales"] = (float(c.get("avg_daily_sales", 0) or 0)
+                                        * ev.get_multiplier_for_day(day, dept))
+                shocked.append(c)
+            affected = len(shocked)
+            label = (f"{getattr(ev, 'competitor_name', key)} at day {day} "
+                     f"({getattr(ev, 'impact_pct', 0):+.1f}% YoY)")
+        else:
+            return dict(blank, error=f"unknown scenario: {kind}")
+
+        adjusted = util.finalize_orders(
+            util.calculate_order_quantity(shocked, gnn_risk_score=risk))
+
+        b, a = _total(baseline), _total(adjusted)
+        return {"baseline_qty": b, "adjusted_qty": a, "delta": a - b,
+                "pct_change": round((a - b) / max(1.0, b) * 100, 1),
+                "affected": affected, "label": label, "multiplier": multiplier,
+                "recs": [r for r in adjusted
+                         if float(r.get("recommended_quantity", 0) or 0) > 0],
+                "error": None}
+    except Exception as e:
+        return dict(blank, error=str(e)[:200])
+
+
 def push_purchase_order(org_cd: str, username: str, po_recs: List[Dict[str, Any]], root: Optional[str] = None) -> Dict[str, Any]:
     try:
         import time
@@ -693,7 +1112,10 @@ def network_stockout_risk(root: Optional[str] = None) -> Dict[str, Any]:
             ads = float(r.get("avg_daily_sales", 0) or 0)
             if ads <= 0:
                 continue
-            days_cover = qty / ads
+            # Round FIRST, then filter: a line at 2.96 days rounds to "3.0"
+            # and would otherwise be listed under a heading that says
+            # "under 3 days" while displaying 3.0.
+            days_cover = round(qty / ads, 1)
             if days_cover >= 3.0:
                 continue
             items.append({
@@ -702,7 +1124,7 @@ def network_stockout_risk(root: Optional[str] = None) -> Dict[str, Any]:
                 "store": s["name"],
                 "stock": round(qty, 1),
                 "ads": round(ads, 2),
-                "days_cover": round(days_cover, 1),
+                "days_cover": days_cover,
             })
 
     order = {"DEPLETED": 0, "CRITICAL": 1, "URGENT": 2, "LOW": 3}
@@ -1115,6 +1537,164 @@ def live_sales(org_cd: str, days: int = 90,
             "alerts": velocity_alerts(list(agg.values()))}
 
 
+def _hhi(shares: List[float]) -> float:
+    """Herfindahl-Hirschman Index over percentage shares (pure)."""
+    return round(sum(s * s for s in shares), 1)
+
+
+#: HHI bands, the competition-authority convention the console also uses.
+HHI_HIGH = 2500.0
+HHI_MODERATE = 1500.0
+
+
+def supplier_concentration(org_cd: str, department: Optional[str] = None,
+                           root: Optional[str] = None) -> Dict[str, Any]:
+    """Supplier concentration for the store's OWN catalogue.
+
+    The console answers this from ``supplier_analytics.load_scorecard_data``,
+    which reads a scorecard CSV that is NOT in the release whitelist — so on a
+    client install that tab could only ever raise FileNotFoundError. This reads
+    the catalogue the store actually carries, which every install has.
+
+    Share is by revenue potential (on-hand valued at selling price) where a
+    price is available, falling back to SKU count.
+    """
+    try:
+        rows = get_adapter(root).fetch_enriched_products(org_cd) or []
+    except Exception as e:
+        return {"suppliers": [], "hhi": 0.0, "band": "unknown",
+                "departments": [], "error": str(e)[:200]}
+
+    depts = sorted({str(r.get("department") or r.get("category") or "").strip()
+                    for r in rows} - {""})
+    if department:
+        rows = [r for r in rows
+                if str(r.get("department") or r.get("category") or "").strip()
+                == department]
+
+    agg: Dict[str, Dict[str, Any]] = {}
+    for r in rows:
+        name = (r.get("supplier_name") or r.get("SUPPLIER_NAME")
+                or r.get("vendor") or "").strip()
+        if not name:
+            continue
+        e = agg.setdefault(name, {"supplier": name, "skus": 0,
+                                  "revenue_potential": 0.0, "on_hand": 0.0})
+        e["skus"] += 1
+        try:
+            qty = float(r.get("current_stocks", r.get("current_stock", 0)) or 0)
+            price = float(r.get("selling_price", 0) or 0) or \
+                float(r.get("cost_price", r.get("wac", 0)) or 0)
+            e["on_hand"] += qty
+            e["revenue_potential"] += qty * price
+        except (TypeError, ValueError):
+            pass
+
+    if not agg:
+        return {"suppliers": [], "hhi": 0.0, "band": "unknown",
+                "departments": depts, "error": None}
+
+    total_rev = sum(e["revenue_potential"] for e in agg.values())
+    total_sku = sum(e["skus"] for e in agg.values())
+    by_revenue = total_rev > 0
+    for e in agg.values():
+        e["share_pct"] = round(
+            (e["revenue_potential"] / total_rev * 100) if by_revenue
+            else (e["skus"] / total_sku * 100), 1)
+
+    suppliers = sorted(agg.values(), key=lambda e: -e["share_pct"])
+    hhi = _hhi([e["share_pct"] for e in suppliers])
+    band = ("Highly Concentrated" if hhi > HHI_HIGH
+            else "Moderately Concentrated" if hhi > HHI_MODERATE
+            else "Unconcentrated (Healthy)")
+    return {"suppliers": suppliers, "hhi": hhi, "band": band,
+            "basis": "revenue potential" if by_revenue else "SKU count",
+            "departments": depts, "error": None}
+
+
+def supplier_failure_impact(org_cd: str, supplier: str,
+                            department: Optional[str] = None,
+                            root: Optional[str] = None) -> Dict[str, Any]:
+    """What losing one supplier costs this store — from its own catalogue."""
+    conc = supplier_concentration(org_cd, department, root)
+    if conc.get("error"):
+        return {"error": conc["error"], "supplier": supplier}
+    match = next((s for s in conc["suppliers"] if s["supplier"] == supplier), None)
+    if not match:
+        return {"error": f"{supplier} carries nothing in this scope",
+                "supplier": supplier}
+    share = match["share_pct"]
+    severity = ("CRITICAL" if share >= 40 else "HIGH" if share >= 25
+                else "MEDIUM" if share >= 10 else "LOW")
+    return {"supplier": supplier, "severity": severity,
+            "affected_skus": match["skus"],
+            "revenue_at_risk": round(match["revenue_potential"], 2),
+            "share_pct": share, "error": None}
+
+
+#: Playbook targets the Executive ROI verdict is judged against.
+ROI_DEAD_STOCK_TARGET_PCT = 5.0
+ROI_STOCKOUT_TARGET_PCT = 2.0
+
+
+def weekly_revenue(org_cd: str, days: int = 90,
+                   root: Optional[str] = None) -> Dict[str, Any]:
+    """Revenue and units bucketed by ISO week — real dates, no simulated clock.
+
+    Shared by the Executive ROI trend and the Analytics tab so the two cannot
+    report different weeks for the same store. ``org_cd="ALL"`` aggregates the
+    whole network.
+    """
+    try:
+        adapter = get_adapter(root)
+        orgs = ([s["org_cd"] for s in list_stores(root)] if org_cd == "ALL"
+                else [org_cd])
+        rows: List[Dict[str, Any]] = []
+        for o in orgs:
+            raw = adapter.fetch_sales_history(o, days=days)
+            recs = (raw.to_dict("records") if hasattr(raw, "to_dict")
+                    else list(raw or []))
+            rows.extend({str(k).lower(): v for k, v in r.items()} for r in recs)
+    except Exception as e:
+        return {"weeks": [], "latest": None, "wow_pct": None, "avg": 0.0,
+                "error": str(e)[:200]}
+
+    from datetime import datetime
+    buckets: Dict[str, Dict[str, Any]] = {}
+    for r in rows:
+        raw_d = r.get("bill_dt")
+        if not raw_d:
+            continue
+        try:
+            d = datetime.strptime(str(raw_d)[:10], "%Y-%m-%d").date()
+        except ValueError:
+            continue
+        iso = d.isocalendar()
+        key = f"{iso[0]}-W{iso[1]:02d}"
+        b = buckets.setdefault(key, {"week": key, "start": str(d),
+                                     "revenue": 0.0, "units": 0.0, "lines": 0})
+        b["start"] = min(b["start"], str(d))
+        try:
+            b["revenue"] += float(r.get("net_amt", 0) or 0)
+            b["units"] += float(r.get("qty", 0) or 0)
+        except (TypeError, ValueError):
+            pass
+        b["lines"] += 1
+
+    weeks = sorted(buckets.values(), key=lambda b: b["week"])
+    if not weeks:
+        return {"weeks": [], "latest": None, "wow_pct": None, "avg": 0.0,
+                "error": None}
+    latest = weeks[-1]
+    wow = None
+    if len(weeks) > 1 and weeks[-2]["revenue"]:
+        wow = round((latest["revenue"] - weeks[-2]["revenue"])
+                    / weeks[-2]["revenue"] * 100, 1)
+    avg = sum(w["revenue"] for w in weeks) / len(weeks)
+    return {"weeks": weeks, "latest": latest, "wow_pct": wow,
+            "avg": round(avg, 2), "error": None}
+
+
 #: The console's trading day: 06:00–20:00, used as the denominator in its
 #: intra-day velocity maths. Kept here so the day-end simplification above is
 #: traceable to the number it came from.
@@ -1122,6 +1702,14 @@ TRADING_DAY_HOURS = 14.0
 #: A line selling at more than this multiple of its daily average is a spike.
 #: Matches ops_dashboard's AlertMonitor(spike_threshold_pct=200.0).
 VELOCITY_SPIKE_PCT = 200.0
+
+#: A ratio is only interpretable when "normal" means something. A line that
+#: sells once a month has an average near 0.02, so the single day it sells
+#: reads as a 50x spike — true arithmetic, no information. On a realistic long
+#: tail that buried the real signal: 184 of 266 alerts on the sample store were
+#: lines below one unit a day. Both floors must clear.
+VELOCITY_MIN_ADS = 1.0
+VELOCITY_MIN_UNITS = 3.0
 
 
 def velocity_alerts(items: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
@@ -1140,6 +1728,9 @@ def velocity_alerts(items: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
     batch, stats = [], {}
     for e in items:
         if not e.get("ads"):
+            continue
+        # Slow movers cannot produce a meaningful ratio — see VELOCITY_MIN_ADS.
+        if e["ads"] < VELOCITY_MIN_ADS or e["units"] < VELOCITY_MIN_UNITS:
             continue
         batch.append({"sku": e["code"], "qty": e["units"]})
         stats[e["code"]] = {"avg_daily_sales": e["ads"],
