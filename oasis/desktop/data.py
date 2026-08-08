@@ -711,6 +711,201 @@ def network_stockout_risk(root: Optional[str] = None) -> Dict[str, Any]:
     return {"items": items, "counts": counts, "error": None}
 
 
+def network_transfer_scan(root: Optional[str] = None) -> Dict[str, Any]:
+    """Cross-store transfer opportunities — the console's Live Network scan.
+
+    Runs ``ConsolidatedTransferService.scan_network_opportunities``, the single
+    shared implementation the Command Center and Smart Ordering both use. Two
+    inputs are what make it honest rather than theoretical:
+
+      * MOQ failures become pull triggers — a line the ordering engine could
+        not buy because of a minimum-order quantity is exactly a line worth
+        moving stock for instead.
+      * REQUESTED / IN_TRANSIT transfers are committed supply. Without them the
+        scan happily re-recommends stock that is already on a truck.
+    """
+    empty = {"store_health": [], "opportunities": [], "totals": {},
+             "error": None}
+    try:
+        from oasis.logic.consolidated_transfer_service import ConsolidatedTransferService
+        from oasis.logic.moq_failure_store import load_moq_failures
+
+        proj = root or project_root()
+        adapter = get_adapter(proj)
+        stores = list_stores(proj)
+        if len(stores) < 2:
+            return dict(empty, error="A single-store install has nothing to "
+                                     "transfer between.")
+
+        org_names = {s["org_cd"]: s["name"] for s in stores}
+        net_stock = {s["org_cd"]: (adapter.fetch_enriched_products(s["org_cd"]) or [])
+                     for s in stores}
+
+        data_dir = os.path.join(proj, "oasis", "data")
+        try:
+            moq_failures = load_moq_failures(os.path.join(data_dir,
+                                                          "moq_failures.json"))
+        except Exception:
+            moq_failures = {}
+
+        pending: List[dict] = []
+        try:
+            df = adapter.fetch_transfers(None)
+            if hasattr(df, "empty") and not df.empty:
+                pending = df.to_dict("records")
+        except Exception:
+            pass
+
+        distance_map = {}
+        coords = os.path.join(proj, "store_coords.json")
+        if os.path.exists(coords):
+            try:
+                import json
+                with open(coords, "r", encoding="utf-8") as fh:
+                    distance_map = json.load(fh)
+            except Exception:
+                pass
+
+        cts = ConsolidatedTransferService(
+            org_names=org_names,
+            stock_data=net_stock,
+            registry_path=os.path.join(data_dir, "network_registry.json"),
+            distance_map=distance_map,
+            cold_node_days=60,
+            hot_node_days=14,
+        )
+        scan = cts.scan_network_opportunities(moq_failures=moq_failures,
+                                              pending_transfers=pending)
+    except Exception as e:
+        return dict(empty, error=str(e)[:200])
+
+    risk = {s["org_cd"]: s["risk"] for s in network_risk(root).get("stores", [])}
+    store_health = []
+    for s in stores:
+        oc = s["org_cd"]
+        st_ = scan.store_stats.get(oc, {})
+        r = float(risk.get(oc, 0.0))
+        store_health.append({
+            "store": s["name"], "org_cd": oc,
+            "total_skus": st_.get("total_skus", 0),
+            "overstock": st_.get("overstock", 0),
+            "deficits": st_.get("deficits", 0),
+            "push_from": st_.get("push_from", 0),
+            "risk": round(r, 3),
+            "status": ("High Risk" if r > 0.5
+                       else "Moderate" if r > 0.25 else "Stable"),
+        })
+    store_health.sort(key=lambda x: -x["deficits"])
+
+    opps = [{
+        "type": o.type,
+        "itm_cd": o.itm_cd,
+        "product": o.product_name,
+        "from_org": o.from_org, "from": org_names.get(o.from_org, o.from_org),
+        "to_org": o.to_org, "to": org_names.get(o.to_org, o.to_org),
+        "qty": o.transfer_qty,
+        "donor_cover": o.donor_days_cover,
+        "recipient_cover": o.recipient_days_cover,
+        "donor_excess": o.donor_excess,
+        "value": o.value_kes,
+        "department": o.department,
+        "supplier": o.supplier,
+        # Fresh lines are surfaced but never auto-queued: a perishable move is
+        # a judgement call about shelf life, not a number.
+        "manual_only": bool(o.manual_only),
+    } for o in scan.opportunities]
+
+    return {
+        "store_health": store_health,
+        "opportunities": opps,
+        "totals": {
+            "stores": len(stores),
+            "overstock_skus": sum(s["overstock"] for s in store_health),
+            "deficit_skus": sum(s["deficits"] for s in store_health),
+            "push_opps": sum(1 for o in opps if o["type"] == "PUSH"),
+            "pending_outbound_units": getattr(scan, "pending_outbound_units", 0.0),
+            "total_value": sum(o["value"] for o in opps),
+            "unique_skus": len({o["itm_cd"] for o in opps}),
+            "store_pairs": len({(o["from_org"], o["to_org"]) for o in opps}),
+            "manual_only": sum(1 for o in opps if o["manual_only"]),
+        },
+        "error": None,
+    }
+
+
+def queue_transfers(opportunities: List[Dict[str, Any]], username: str,
+                    org_cd: str, limit: int = 50,
+                    root: Optional[str] = None) -> Dict[str, Any]:
+    """Write transfer requests to the store so managers can dispatch them.
+
+    Fresh lines are skipped, matching the console: ``manual_only`` opportunities
+    are shown so a human can judge them, never queued automatically.
+    """
+    try:
+        import time
+        from oasis.logic.audit_logger import (log_action, ACTION_TRANSFER_EXECUTED,
+                                              ENTITY_TRANSFER)
+        proj = root or project_root()
+        adapter = get_adapter(proj)
+    except Exception as e:
+        return {"queued": 0, "skipped": 0, "error": str(e)[:200]}
+
+    queued = skipped = 0
+    for o in opportunities[:max(0, int(limit))]:
+        if o.get("manual_only"):
+            skipped += 1
+            continue
+        try:
+            payload = [{
+                "item_code": o["itm_cd"],
+                "product_name": o["product"],
+                "transfer_qty": o["qty"],
+                "transfer_value": o["value"],
+                "urgency": "HIGH" if o.get("recipient_cover", 99) <= 1 else "MEDIUM",
+            }]
+            if adapter.push_transfer_request(o["from_org"], o["to_org"], payload):
+                queued += 1
+        except Exception:
+            skipped += 1
+
+    if queued:
+        try:
+            log_action(store_db_path(proj), username, ACTION_TRANSFER_EXECUTED,
+                       ENTITY_TRANSFER, f"BATCH_{int(time.time())}", org_cd,
+                       {"count": queued})
+        except Exception:
+            pass
+    return {"queued": queued, "skipped": skipped,
+            "error": None if queued else "No transfers were queued."}
+
+
+#: statuses a queued transfer can be moved to, in order
+TRANSFER_STATUSES = ("IN_TRANSIT", "RECEIVED")
+
+
+def set_transfer_status(transfer_id: int, status: str, username: str,
+                        org_cd: str, root: Optional[str] = None) -> Dict[str, Any]:
+    """Advance one transfer (REQUESTED → IN_TRANSIT → RECEIVED), audited."""
+    if status not in TRANSFER_STATUSES:
+        return {"success": False, "error": f"unknown status: {status}"}
+    try:
+        from oasis.logic.audit_logger import log_action, ENTITY_TRANSFER
+        proj = root or project_root()
+        adapter = get_adapter(proj)
+        if not adapter.update_transfer_status(int(transfer_id), status):
+            return {"success": False,
+                    "error": "Transfer not found, or the store rejected it."}
+        try:
+            log_action(store_db_path(proj), username, "TRANSFER_EXECUTED",
+                       ENTITY_TRANSFER, f"TX_{transfer_id}", org_cd,
+                       {"status": status})
+        except Exception:
+            pass
+        return {"success": True, "error": None}
+    except Exception as e:
+        return {"success": False, "error": str(e)[:200]}
+
+
 def transfer_status(org_cd: str, root: Optional[str] = None) -> Dict[str, Any]:
     """Transfer records for a store: ``{rows, error}`` (rows are plain dicts)."""
     try:
@@ -721,53 +916,88 @@ def transfer_status(org_cd: str, root: Optional[str] = None) -> Dict[str, Any]:
         return {"rows": [], "error": str(e)[:200]}
 
 
+#: Stock health bands. These DELIBERATELY differ from ops_dashboard.get_health,
+#: which calls a line a stockout under half a day of cover and critical under
+#: two. A shelf with stock on it is not a stockout — it is about to be one, and
+#: conflating the two costs the operator the distinction they act on. So:
+#: STOCKOUT means nothing left, CRITICAL means under a day of cover.
+#: The overstock horizons DO match the console.
+#: Reviewed and chosen 2026-08-08; the parity test pins the divergence so it is
+#: not silently "corrected" back to the console's ladder.
+CRITICAL_COVER_DAYS = 1.0
+#: A month of cover on fresh milk is spoilage, not depth.
+OVERSTOCK_COVER_DAYS_FRESH = 14.0
+OVERSTOCK_COVER_DAYS_AMBIENT = 30.0
+_FRESH_KEYS = ("MILK", "DAIRY", "FRESH", "MEAT", "BREAD", "BAKERY")
+
+#: what a store with no demand signal looks like — used where cover is infinite
+_NO_DEMAND_COVER = 999.0
+
+
+def is_fresh_line(row: Dict[str, Any]) -> bool:
+    """Perishable? Flag first, department keyword second (the console's rule)."""
+    dept = str(row.get("department") or row.get("category") or "")
+    return bool(row.get("is_fresh", False)) or any(
+        k in dept.upper() for k in _FRESH_KEYS)
+
+
+def classify_health(on_hand: float, days_cover: Optional[float],
+                    is_fresh: bool) -> str:
+    """STOCKOUT | CRITICAL | HEALTHY | OVERSTOCK for one line (pure).
+
+    ``days_cover`` is ``None`` when the line has no demand signal, in which case
+    cover is unbounded rather than zero — a never-sold line is not a stockout.
+    """
+    if on_hand <= 0:
+        return "STOCKOUT"
+    if days_cover is None:
+        return "HEALTHY"
+    limit = (OVERSTOCK_COVER_DAYS_FRESH if is_fresh
+             else OVERSTOCK_COVER_DAYS_AMBIENT)
+    if days_cover < CRITICAL_COVER_DAYS:
+        return "CRITICAL"
+    if days_cover > limit:
+        return "OVERSTOCK"
+    return "HEALTHY"
+
+
 def stock_health(org_cd: str, root: Optional[str] = None) -> Dict[str, Any]:
     """Four-way health split for one store, plus the product detail behind it.
 
-    Overstock is judged against a shorter horizon for perishables — 14 days
-    against 30 — because a month of cover on fresh milk is spoilage, not depth.
+    ``items`` carries everything both the table and the stock-vs-demand scatter
+    need, so neither surface recomputes cover for itself.
     """
     try:
         rows = get_adapter(root).fetch_enriched_products(org_cd) or []
     except Exception as e:
         return {"counts": {}, "items": [], "error": str(e)[:200]}
 
-    fresh_keys = ("MILK", "DAIRY", "FRESH", "MEAT", "BREAD", "BAKERY")
     counts = {"HEALTHY": 0, "CRITICAL": 0, "STOCKOUT": 0, "OVERSTOCK": 0}
     items: List[Dict[str, Any]] = []
 
     for r in rows:
-        name = r.get("product_name", "Unknown")
-        dept = str(r.get("department") or r.get("category") or "")
         qty = float(r.get("current_stocks", r.get("current_stock", 0)) or 0)
         ads = float(r.get("avg_daily_sales", 0) or 0)
-        days_cover = (qty / ads) if ads > 0 else float("inf")
+        days_cover = round(qty / ads, 1) if ads > 0 else None
+        fresh = is_fresh_line(r)
 
-        is_fresh = bool(r.get("is_fresh", False)) or any(
-            k in dept.upper() for k in fresh_keys)
-        overstock_limit = 14.0 if is_fresh else 30.0
-
-        if qty <= 0:
-            health = "STOCKOUT"
-        elif ads > 0 and days_cover < 1.0:
-            health = "CRITICAL"
-        elif ads > 0 and days_cover > overstock_limit:
-            health = "OVERSTOCK"
-        else:
-            health = "HEALTHY"
-
+        health = classify_health(qty, days_cover, fresh)
         counts[health] += 1
         items.append({
-            "health": health, "name": name, "dept": dept,
-            "stock": round(qty, 1), "ads": round(ads, 2),
-            "days_cover": (None if days_cover == float("inf")
-                           else round(days_cover, 1)),
-            "is_fresh": is_fresh,
+            "health": health,
+            "name": r.get("product_name", "Unknown"),
+            "dept": str(r.get("department") or r.get("category") or ""),
+            "stock": round(qty, 1),
+            "ads": round(ads, 2),
+            "days_cover": days_cover,
+            "has_demand": ads > 0,
+            "is_fresh": fresh,
         })
 
     urgency = {"STOCKOUT": 0, "CRITICAL": 1, "OVERSTOCK": 2, "HEALTHY": 3}
     items.sort(key=lambda x: (urgency[x["health"]],
-                              x["days_cover"] if x["days_cover"] is not None else 1e9))
+                              x["days_cover"] if x["days_cover"] is not None
+                              else _NO_DEMAND_COVER))
     return {"counts": counts, "items": items, "error": None}
 
 
@@ -790,24 +1020,24 @@ def live_sales(org_cd: str, days: int = 90,
         return {"error": str(e)[:200], "lines": 0, "revenue": 0.0,
                 "units": 0.0, "skus": 0, "baskets": None,
                 "basket_value": None, "top": [],
-                "trading_day": None}
+                "trend": [], "alerts": [], "trading_day": None}
 
     norm = [{str(k).lower(): v for k, v in r.items()} for r in rows]
     if not norm:
         return {"error": None, "lines": 0, "revenue": 0.0, "units": 0.0,
                 "skus": 0, "baskets": None, "basket_value": None,
-                "top": [], "trading_day": None}
+                "top": [], "trend": [], "alerts": [], "trading_day": None}
     if "bill_dt" not in norm[0]:
         return {"error": "sales feed has no bill_dt column", "lines": 0,
                 "revenue": 0.0, "units": 0.0, "skus": 0, "baskets": None,
                 "basket_value": None,
-                "top": [], "trading_day": None}
+                "top": [], "trend": [], "alerts": [], "trading_day": None}
 
     dates = [r["bill_dt"] for r in norm if r.get("bill_dt") is not None]
     if not dates:
         return {"error": None, "lines": 0, "revenue": 0.0, "units": 0.0,
                 "skus": 0, "baskets": None, "basket_value": None, "top": [],
-                "trading_day": None}
+                "trend": [], "alerts": [], "trading_day": None}
     latest = max(dates)
     today = [r for r in norm if r.get("bill_dt") == latest]
 
@@ -834,12 +1064,98 @@ def live_sales(org_cd: str, days: int = 90,
         code = r.get("itm_cd")
         if code is None:
             continue
-        e = agg.setdefault(code, {"name": r.get("item_name") or str(code),
+        e = agg.setdefault(code, {"code": code,
+                                  "name": r.get("item_name") or str(code),
                                   "units": 0.0, "revenue": 0.0})
         e["units"] += _f(r, "qty")
         e["revenue"] += _f(r, "net_amt")
+
+    # Velocity needs the demand baseline, which lives on the catalogue.
+    ads_by_code: Dict[Any, float] = {}
+    try:
+        for p in (get_adapter(root).fetch_enriched_products(org_cd) or []):
+            code = (p.get("item_code") or p.get("itm_cd")
+                    or p.get("ITEM_CODE") or p.get("ITM_CD"))
+            if code is not None:
+                ads_by_code[code] = float(p.get("avg_daily_sales", 0) or 0)
+    except Exception:
+        pass
+
+    for e in agg.values():
+        # Round FIRST, then divide: the ratio must be reproducible from the
+        # units and ADS actually shown, or an operator checking the arithmetic
+        # on screen gets a different answer than the column claims.
+        ads = round(ads_by_code.get(e["code"], 0.0), 2)
+        e["ads"] = ads
+        # The console computes units / (ads * elapsed_hours/14) against a
+        # synthetic intra-day clock. For a COMPLETED trading day elapsed is the
+        # whole 14 hours, so the term cancels and the ratio is simply today's
+        # units over the daily average — the same number, with nothing invented.
+        e["velocity_ratio"] = round(e["units"] / ads, 1) if ads > 0 else None
+
     top = sorted(agg.values(), key=lambda e: -e["units"])[:20]
+
+    # Day-over-day series (real dates, real totals — no simulated clock).
+    per_day: Dict[Any, Dict[str, float]] = {}
+    for r in norm:
+        d = r.get("bill_dt")
+        if d is None:
+            continue
+        b = per_day.setdefault(d, {"day": d, "revenue": 0.0, "units": 0.0,
+                                   "lines": 0})
+        b["revenue"] += _f(r, "net_amt")
+        b["units"] += _f(r, "qty")
+        b["lines"] += 1
+    trend = sorted(per_day.values(), key=lambda b: b["day"])
 
     return {"error": None, "trading_day": latest, "lines": len(today),
             "revenue": revenue, "units": units, "skus": skus,
-            "baskets": baskets, "basket_value": basket_value, "top": top}
+            "baskets": baskets, "basket_value": basket_value, "top": top,
+            "trend": trend,
+            "alerts": velocity_alerts(list(agg.values()))}
+
+
+#: The console's trading day: 06:00–20:00, used as the denominator in its
+#: intra-day velocity maths. Kept here so the day-end simplification above is
+#: traceable to the number it came from.
+TRADING_DAY_HOURS = 14.0
+#: A line selling at more than this multiple of its daily average is a spike.
+#: Matches ops_dashboard's AlertMonitor(spike_threshold_pct=200.0).
+VELOCITY_SPIKE_PCT = 200.0
+
+
+def velocity_alerts(items: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    """Velocity spikes for one completed trading day.
+
+    Runs the SAME engine the console runs — ``AlertMonitor.check_velocity_spikes``
+    — so an alert means the same thing in both windows. ``elapsed_hours`` is the
+    full trading day because these are settled bills, not a live stream: the
+    console's synthetic clock has no counterpart here and is not imitated.
+    """
+    try:
+        from oasis.logic.alert_monitor import AlertMonitor
+    except Exception:
+        return []
+
+    batch, stats = [], {}
+    for e in items:
+        if not e.get("ads"):
+            continue
+        batch.append({"sku": e["code"], "qty": e["units"]})
+        stats[e["code"]] = {"avg_daily_sales": e["ads"],
+                            "product_name": e["name"]}
+    if not batch:
+        return []
+    try:
+        alerts = AlertMonitor(spike_threshold_pct=VELOCITY_SPIKE_PCT
+                              ).check_velocity_spikes(
+            batch, stats, elapsed_hours=TRADING_DAY_HOURS)
+    except Exception:
+        return []
+    by_code = {e["code"]: e for e in items}
+    for a in alerts:
+        src = by_code.get(a.get("product_id"), {})
+        a["units"] = src.get("units")
+        a["ads"] = src.get("ads")
+        a["velocity_ratio"] = src.get("velocity_ratio")
+    return sorted(alerts, key=lambda a: -(a.get("velocity_ratio") or 0))

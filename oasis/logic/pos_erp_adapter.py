@@ -174,13 +174,22 @@ class PosErpAdapter:
     def fetch_sales_history(self, org_cd: str, days: int = 90) -> pd.DataFrame:
         """
         Fetch raw POS sales detail for the last N days.
-        Returns DataFrame with columns: bill_dt, itm_cd, item_name, qty, sell_price, net_amt
+        Returns DataFrame with columns: bill_dt, bill_no, itm_cd, item_name, qty,
+        sell_price, net_amt
+
+        ``bill_no`` is what makes a BASKET countable. The header was already
+        joined for payment mode; without selecting the bill number every caller
+        could only count line items, so "average basket value" had to be either
+        omitted or guessed (one dashboard multiplied the line count by 5).
+        Note there is no time-of-day anywhere in this schema — BILL_DT is a
+        date — so nothing downstream can derive a real intra-day hour.
         """
         cutoff = (datetime.now() - timedelta(days=days)).strftime("%Y-%m-%d")
 
         query = text("""
-            SELECT 
+            SELECT
                 d.BILL_DT AS bill_dt,
+                d.BILL_NO AS bill_no,
                 d.ITM_CD AS itm_cd,
                 d.ITEM_NAME AS item_name,
                 d.QTY AS qty,

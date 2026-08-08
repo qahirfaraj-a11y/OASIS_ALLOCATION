@@ -25,16 +25,34 @@ def test_custom_store_name_in_onboarding_demo(tmp_path):
         assert mock_rec.call_args[1].get("store_name") == "Rhapta Superstore"
 
 
-def test_onboarding_render_shows_customization_fields():
-    """Verify render_onboarding renders store name and default view preferences."""
+def test_onboarding_render_shows_customization_fields(tmp_path, monkeypatch):
+    """Verify render_onboarding renders store name and default view preferences.
+
+    ``st_mock.button(...)`` returns a MagicMock, which is TRUTHY — so a bare
+    MagicMock makes every button on the wizard read as clicked, and rendering
+    the screen actually RAN the setup actions. With ``project_root="."`` that
+    meant ``apply_multi_demo()`` against the real project: this test deleted and
+    rebuilt the developer's own rhapta_multi_store.db, and rewrote their
+    onboarding record, on every run of the suite. It went unnoticed because it
+    still passed — until the DB happened to be open and Windows refused the
+    delete.
+
+    So: no button is clicked (this test is about the FIELDS), and the project
+    root and DB path are sandboxed under tmp_path as a second line of defence.
+    """
+    monkeypatch.setenv("OASIS_DB_PATH", str(tmp_path / "oasis" / "data" / "s.db"))
+    (tmp_path / "oasis" / "data").mkdir(parents=True)
+
     st_mock = MagicMock()
+    st_mock.button.return_value = False
+    st_mock.form_submit_button.return_value = False
     st_mock.text_input.return_value = "Rhapta Store"
     st_mock.selectbox.return_value = "single"
     st_mock.columns.side_effect = lambda n: [MagicMock() for _ in (range(n) if isinstance(n, int) else range(len(n)))]
     with patch("oasis.logic.onboarding.is_onboarded", return_value=False), \
          patch("oasis.logic.branding.load_branding") as mock_brand:
         mock_brand.return_value = MagicMock(product_name="OASIS", tenant_name="Rhapta Store")
-        res = render_onboarding(st_mock, project_root=".")
+        res = render_onboarding(st_mock, project_root=str(tmp_path))
         assert res is True
         assert st_mock.text_input.called
 
