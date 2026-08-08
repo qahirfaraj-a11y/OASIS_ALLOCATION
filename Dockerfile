@@ -62,14 +62,20 @@ COPY requirements.txt /app/
 COPY alembic.ini /app/
 COPY migrations/ /app/migrations/
 
-# Copy dashboard files
-COPY ops_dashboard.py /app/dashboards/
-COPY approval_dashboard.py /app/dashboards/
-COPY shadow_dashboard.py /app/dashboards/
-COPY kuber_terminal.py /app/dashboards/
-COPY st_gat_dashboard.py /app/dashboards/
-COPY command_center.py /app/dashboards/
-COPY allocation_app.py /app/dashboards/
+# Copy dashboard/console files into CWD (/app) — entrypoint's run_dashboard
+# checks bare filenames against os.path.exists(), so dashboards must NOT go
+# into a subdirectory.
+COPY ops_dashboard.py /app/
+COPY approval_dashboard.py /app/
+COPY shadow_dashboard.py /app/
+COPY kuber_terminal.py /app/
+COPY st_gat_dashboard.py /app/
+COPY allocation_app.py /app/
+COPY app.py /app/
+COPY app_intel.py /app/
+COPY home_app.py /app/
+COPY pitch_app_v2.py /app/
+COPY pitch_app.py /app/
 
 # Copy Flet app
 COPY integrated_app.py /app/flet_app/
@@ -77,7 +83,7 @@ COPY integrated_app.py /app/flet_app/
 # Copy helper modules that dashboards import.
 # (Shared UI components now live in oasis/ui/, already copied via `COPY oasis/`.
 #  The old root-level ui_components.py no longer exists — removed to unbreak the build.)
-COPY shadow_monitor.py /app/dashboards/
+COPY shadow_monitor.py /app/
 
 # Copy entrypoint
 COPY entrypoint.py /app/

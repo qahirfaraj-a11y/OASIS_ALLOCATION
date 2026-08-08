@@ -1,4 +1,4 @@
-import pandas as pd
+﻿import pandas as pd
 import json
 import os
 import glob
@@ -25,7 +25,7 @@ CATEGORY_FILES = {
     "Tomato and Ketchuo.XLSX": "Sauces & Condiments" # Fixing typo in name mapping
 }
 
-DATA_DIR = r"c:\Users\iLink\.gemini\antigravity\scratch\app\data"
+DATA_DIR = r"c:\Users\iLink\.gemini\antigravity\scratch\oasis\data"
 OUTPUT_JSON = r"c:\Users\iLink\.gemini\antigravity\scratch\product_department_map.json"
 
 def get_file_path(filename):

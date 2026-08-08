@@ -1,10 +1,10 @@
-import pandas as pd
+﻿import pandas as pd
 import json
 import os
 import glob
 
 # Data source configuration
-DATA_DIR = r"c:\Users\iLink\.gemini\antigravity\scratch\app\data"
+DATA_DIR = r"c:\Users\iLink\.gemini\antigravity\scratch\oasis\data"
 OUTPUT_JSON = os.path.join(DATA_DIR, "product_department_map.json")
 
 # The specific files provided by the user

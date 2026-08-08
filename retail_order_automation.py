@@ -77,13 +77,13 @@ import httpx
 from openpyxl import load_workbook
 
 # Import OrderEngine
-from app.logic.order_engine import OrderEngine
+from oasis.logic.order_engine import OrderEngine
 import os
 
 # DATA DIRECTORY
-DATA_DIR = os.path.join(os.path.dirname(__file__), "app", "data")
+DATA_DIR = os.path.join(os.path.dirname(__file__), "oasis", "data")
 if not os.path.exists(DATA_DIR):
-    DATA_DIR = os.path.join(os.getcwd(), "app", "data")
+    DATA_DIR = os.path.join(os.getcwd(), "oasis", "data")
 
 
 # Supplier pattern database URL (from 2025 PO history analysis)

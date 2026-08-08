@@ -30,13 +30,39 @@ logger = logging.getLogger("OASIS.Hub.Security")
 _admin_header = APIKeyHeader(name="X-Hub-Admin-Key", auto_error=False)
 _bearer = HTTPBearer(auto_error=False)
 
-_ADMIN_KEY = os.getenv("OASIS_HUB_ADMIN_KEY", "")
-if not _ADMIN_KEY:
-    _ADMIN_KEY = secrets.token_urlsafe(32)
-    logger.warning(
-        "OASIS_HUB_ADMIN_KEY not set — generated ephemeral admin key for this run: "
-        "%s (set OASIS_HUB_ADMIN_KEY for a stable key)", _ADMIN_KEY
-    )
+
+def _load_or_generate_key(env_var: str, key_path: str) -> str:
+    """Env key wins; else reuse a persisted key; else generate + persist so the
+    key survives restarts instead of being a fresh one only visible in logs
+    (finding F-9)."""
+    key = os.getenv(env_var, "")
+    if key:
+        return key
+    if os.path.exists(key_path):
+        with open(key_path, encoding="utf-8") as f:
+            key = f.read().strip()
+    if not key:
+        key = secrets.token_urlsafe(32)
+        try:
+            os.makedirs(os.path.dirname(key_path), exist_ok=True)
+            with open(key_path, "w", encoding="utf-8") as f:
+                f.write(key)
+            logger.warning(
+                "%s not set — generated key saved to %s (set %s for an explicit key)",
+                env_var, key_path, env_var,
+            )
+        except OSError as e:
+            logger.warning("%s not set — could not persist key to %s: %s", env_var, key_path, e)
+    return key
+
+
+_ADMIN_KEY = _load_or_generate_key(
+    "OASIS_HUB_ADMIN_KEY",
+    os.getenv(
+        "OASIS_HUB_ADMIN_KEY_FILE",
+        os.path.join(os.path.dirname(os.path.abspath(__file__)), ".oasis_hub_admin_key"),
+    ),
+)
 
 
 # ── password hashing (suppliers) ─────────────────────────────────────────

@@ -143,3 +143,12 @@ Unique_SKU_Ecosystem_Analysis.docx
 
 # Hub demo provisioning state (contains a live ingest token)
 connectors/odoo/.hub_state.json
+
+# ── 2026-08-01 hygiene: engine/test output that kept dirtying the tree ───
+# All three were TRACKED, so the rules above could never take effect — an
+# ignore rule does nothing to a file already in the index. Untracked with
+# `git rm --cached`; they stay on disk and simply stop being committed.
+# (mock_pos_erp_showcase.db needs no rule of its own — `*.db` above covers it
+# the moment it is out of the index.)
+oasis/data/mande_purge_report.json
+test_shadow_report.docx

@@ -6,7 +6,7 @@ import os
 DATA_DIR = r"c:\Users\iLink\.gemini\antigravity\scratch"
 SUMMARY_FILE = os.path.join(DATA_DIR, "Supplier_Fulfillment_Summary.xlsx")
 OUTPUT_MD = r"C:\Users\iLink\.gemini\antigravity\brain\727303c1-e050-46d0-8394-7f5849b8a103/hayat_supplier_health_deep_dive_2026.md"
-PATTERNS_JSON = os.path.join(DATA_DIR, r"app/data/supplier_patterns_2025 (3).json")
+PATTERNS_JSON = os.path.join(DATA_DIR, r"oasis/data/supplier_patterns_2025 (3).json")
 
 # Constants
 HAYAT_LEAD_TIME = 3.61

@@ -260,12 +260,12 @@ def upgrade() -> None:
 
     op.create_table(
         "OASIS_SESSIONS",
-        sa.Column("SESSION_TOKEN", sa.Text, primary_key=True),
+        sa.Column("SESSION_ID", sa.Text, primary_key=True),
         sa.Column("TENANT_ID", sa.Text, server_default="default_tenant"),
         sa.Column("USERNAME", sa.Text, nullable=False),
         sa.Column("CREATED_DT", sa.Text, nullable=False),
         sa.Column("EXPIRES_DT", sa.Text, nullable=False),
-        sa.Column("IP_ADDRESS", sa.Text),
+        sa.Column("IS_REVOKED", sa.Integer, server_default="0"),
     )
 
     op.create_table(

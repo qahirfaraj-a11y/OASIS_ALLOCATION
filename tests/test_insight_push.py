@@ -87,7 +87,7 @@ def test_run_dry_run_builds_without_pushing(tmp_path):
     assert res["pushed"] is False and res["built"] == 0
 
 
-def test_build_cards_all_10_kinds(tmp_path, monkeypatch):
+def test_build_cards_all_11_kinds(tmp_path, monkeypatch):
     data_dir = tmp_path.as_posix()
 
     # 1. Scorecard -> Reliability
@@ -133,12 +133,18 @@ def test_build_cards_all_10_kinds(tmp_path, monkeypatch):
     with open(os.path.join(data_dir, "cannibalization.json"), "w") as f:
         json.dump({"SUP1": [{"sku_code": "SKU1", "cannibalization_rate": 0.2}]}, f)
 
+    # 11. Quality (SQS store — canonical file name, S8)
+    with open(os.path.join(data_dir, "supplier_quality_scores_2025.json"), "w") as f:
+        json.dump({"SUP1": {"quality_score": 92.0, "delivery_reliability": 0.88,
+                            "notes": "Baseline SQS"}}, f)
+
     cards = IP.build_cards(data_dir, period="2026-07-26")
     kinds = {c["kind"] for c in cards}
     expected = {
         "reliability", "sei", "velocity", "halo", "reorder",
-        "broken_halo", "archetype", "capital_efficiency", "ncp", "cannibalization"
+        "broken_halo", "archetype", "capital_efficiency", "ncp", "cannibalization",
+        "quality"
     }
     assert kinds == expected
-    assert len(cards) == 10
+    assert len(cards) == 11
 

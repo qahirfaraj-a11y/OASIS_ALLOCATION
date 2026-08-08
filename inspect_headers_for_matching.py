@@ -1,8 +1,8 @@
-import pandas as pd
+﻿import pandas as pd
 import os
 import json
 
-DATA_DIR = r'C:\Users\iLink\.gemini\antigravity\scratch\app\data'
+DATA_DIR = r'C:\Users\iLink\.gemini\antigravity\scratch\oasis\data'
 CATEGORIES = ['diapers.xlsx', 'fabricconditioner.xlsx', 'wipes.xlsx', 'sanitarytowels.xlsx']
 DATABASES = [
     'sales_forecasting_2025 (1).json',

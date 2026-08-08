@@ -53,6 +53,23 @@ def _find_config_file() -> Optional[str]:
     return None
 
 
+def _default_db_path() -> str:
+    """Resolve the operational SQLite DB path from the shared config chain.
+
+    Defaulting to ``cwd/oasis.db`` produced an orphan 5-table DB (finding D-7)
+    that ``resolved_db_path()`` and the shells never saw. Falling back to the
+    same resolution the rest of the runtime uses keeps DataGateway on the real
+    store unless an explicit path is configured.
+    """
+    from . import db as oasis_db
+    url = oasis_db.get_db_url()
+    if url.startswith("sqlite"):
+        resolved = oasis_db.sqlite_path_from_url(url)
+        if resolved:
+            return resolved
+    return os.path.join(os.getcwd(), "oasis.db")
+
+
 def _default_config() -> Dict[str, Any]:
     return {
         "client": {"client_id": "dev_local", "client_name": "Development"},
@@ -64,7 +81,7 @@ def _default_config() -> Dict[str, Any]:
         "engines": {"amit": {"enabled": True}, "lata": {"enabled": True},
                      "dharam": {"enabled": True}, "shadow_mode": True},
         "paths": {"data_dir": os.path.join(os.getcwd(), "oasis", "data"),
-                  "db_path": os.path.join(os.getcwd(), "oasis.db")},
+                  "db_path": _default_db_path()},
     }
 
 
@@ -86,7 +103,7 @@ class DataGateway:
         self._sql_bridge = None
         paths = self.config.get("paths", {})
         self.data_dir = paths.get("data_dir", os.path.join(os.getcwd(), "oasis", "data"))
-        self.db_path = paths.get("db_path", os.path.join(os.getcwd(), "oasis.db"))
+        self.db_path = paths.get("db_path", _default_db_path())
         logger.info(f"DataGateway: pathway={self.pathway}, stores={len(self.config.get('stores', []))}")
 
     def _get_sql_bridge(self):

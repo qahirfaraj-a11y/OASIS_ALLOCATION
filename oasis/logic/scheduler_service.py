@@ -381,10 +381,11 @@ class OasisScheduler:
         """Generate PO recommendations for all stores."""
         job_id = "morning_po"
         try:
+            from oasis.logic import db as oasis_db
             from oasis.logic.pos_erp_adapter import PosErpAdapter
             from oasis.logic.db_connector import UniversalConnector
 
-            connector = UniversalConnector(self.db_path)
+            connector = UniversalConnector(oasis_db.to_sqlalchemy_url(self.db_path))
             adapter = PosErpAdapter(connector)
             orgs = adapter.fetch_all_organizations()
 
@@ -414,10 +415,11 @@ class OasisScheduler:
         """Check stock levels and flag critical items."""
         job_id = "hourly_monitor"
         try:
+            from oasis.logic import db as oasis_db
             from oasis.logic.pos_erp_adapter import PosErpAdapter
             from oasis.logic.db_connector import UniversalConnector
 
-            connector = UniversalConnector(self.db_path)
+            connector = UniversalConnector(oasis_db.to_sqlalchemy_url(self.db_path))
             adapter = PosErpAdapter(connector)
             orgs = adapter.fetch_all_organizations()
 
@@ -453,10 +455,11 @@ class OasisScheduler:
         """Generate end-of-day KPI summary."""
         job_id = "evening_summary"
         try:
+            from oasis.logic import db as oasis_db
             from oasis.logic.pos_erp_adapter import PosErpAdapter
             from oasis.logic.db_connector import UniversalConnector
 
-            connector = UniversalConnector(self.db_path)
+            connector = UniversalConnector(oasis_db.to_sqlalchemy_url(self.db_path))
             adapter = PosErpAdapter(connector)
             orgs = adapter.fetch_all_organizations()
 

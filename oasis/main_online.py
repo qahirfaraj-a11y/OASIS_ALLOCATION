@@ -170,7 +170,13 @@ def get_local_ip():
         return "127.0.0.1"
 
 if __name__ == "__main__":
-    port = 8550
+    import os as _os
+    import sys as _sys
+    # 8550 is claimed by --mode api; default to a free port and allow an
+    # explicit override (OASIS_ONLINE_PORT or argv[1]).
+    port = int(_os.environ.get("OASIS_ONLINE_PORT", 8555))
+    if len(_sys.argv) > 1:
+        port = int(_sys.argv[1])
     local_ip = get_local_ip()
     
     print("==================================================")

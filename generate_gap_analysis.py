@@ -1,8 +1,8 @@
-import json
+﻿import json
 import os
 
 # --- CONFIGURATION ---
-DATA_DIR = r"C:\Users\iLink\.gemini\antigravity\scratch\app\data"
+DATA_DIR = r"C:\Users\iLink\.gemini\antigravity\scratch\oasis\data"
 SALES_FORECAST_JSON = os.path.join(DATA_DIR, "sales_forecasting_2025 (1).json")
 GRN_GLOB = os.path.join(DATA_DIR, "grnds_*.xlsx") # Not used for speed, relying on JSON
 

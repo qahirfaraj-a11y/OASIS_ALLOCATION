@@ -108,10 +108,10 @@ from oasis.logic import gnn_service as _gnn_service
 if _gnn_service.model_status() != "trained":
     st.error(
         "⚠️ **GNN is UNTRAINED (random initialization).** `st_gat_v2.pt` was "
-        "missing or incompatible, so all risk scores, demand forecasts, and "
-        "transfer recommendations below are **illustrative only** — do not act "
-        "on them until a trained checkpoint is loaded."
+        "missing or incompatible. Risk scores, demand forecasts, and "
+        "transfer recommendations cannot be rendered safely."
     )
+    st.stop()
 
 # --- 2. Simulation Controls & Scenarios ---
 st.sidebar.header("🎛️ Simulation Controls")

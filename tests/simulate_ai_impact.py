@@ -6,7 +6,7 @@ import time
 
 sys.path.append(os.getcwd())
 
-from app.logic.order_engine import OrderEngine
+from oasis.logic.order_engine import OrderEngine
 
 # Mock data
 MOCK_PRODUCTS = [

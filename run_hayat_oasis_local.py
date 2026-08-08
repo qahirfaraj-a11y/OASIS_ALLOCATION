@@ -1,10 +1,10 @@
-import os
+﻿import os
 import json
 import pandas as pd
 from datetime import datetime
 
 # Configuration
-DATA_DIR = r'C:\Users\iLink\.gemini\antigravity\scratch\app\data'
+DATA_DIR = r'C:\Users\iLink\.gemini\antigravity\scratch\oasis\data'
 CATEGORY_FILES = {
     'Diapers': 'diapers.xlsx',
     'Wipes': 'wipes.xlsx',

@@ -287,3 +287,23 @@ def sei_card(supplier_code: str, mande: Dict[str, Any],
     }
     payload = {k: v for k, v in payload.items() if v is not None}
     return _card(supplier_code, KIND_SEI, payload, source_ref)
+
+
+def quality_card(supplier_code: str, stats: Dict[str, Any],
+                 source_ref: Optional[str] = None) -> Dict[str, Any]:
+    """Supplier Quality Score (Q_s) — the supplier's OWN fill/quality standing.
+
+    Fed by the on-prem SQS store (``data_mixin.update_supplier_quality_scores``:
+    a 85.0 baseline adjusted down by the supplier's own purchase-return events —
+    expiry, damage, short-supply). Retailer-gated like SEI/NCP: only the
+    supplier's own aggregate score and reliability are emitted, never the raw
+    return lines that produced them.
+    """
+    payload = {
+        "quality_score": stats.get("quality_score"),
+        "delivery_reliability": stats.get("delivery_reliability"),
+        "notes": stats.get("notes"),
+        "basis": "derived from the supplier's own delivery and return history — raw return lines stay in-store",
+    }
+    payload = {k: v for k, v in payload.items() if v is not None}
+    return _card(supplier_code, KIND_QUALITY, payload, source_ref)

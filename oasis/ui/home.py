@@ -187,10 +187,14 @@ def render_home_page(st, project_root: str) -> None:
         st.caption(f"▸ {_label} · DB: `{_profile.get('db_path', '—')}`")
 
     # ── launch controls ─────────────────────────────────────────────────
-    from ..logic.console_launcher import start_console, stop_all as _stop_all
+    from ..logic.console_launcher import (start_console, start_service, stop_all as _stop_all,
+                                           is_alive as _is_alive)
     if "_launched_pids" not in st.session_state:
         st.session_state["_launched_pids"] = {}
+    if "_serve_pid" not in st.session_state:
+        st.session_state["_serve_pid"] = None
     _pids = st.session_state["_launched_pids"]
+    _serve_pid = st.session_state["_serve_pid"]
 
     l_col, r_col = st.columns([1, 1])
     with l_col:
@@ -209,6 +213,25 @@ def render_home_page(st, project_root: str) -> None:
             import time
             time.sleep(1)
             st.rerun()
+
+    # Serve the suite's background supervisor — a routine operation that used
+    # to be CLI-only (serve.bat) with no UI affordance (deep-analysis S9).
+    s_col, _spacer = st.columns([1, 1])
+    with s_col:
+        if _serve_pid and _is_alive(_serve_pid):
+            if st.button("🛑  Stop Supervisor", use_container_width=True):
+                from ..logic.console_launcher import stop_console
+                stop_console(_serve_pid)
+                st.session_state["_serve_pid"] = None
+                st.rerun()
+        else:
+            st.session_state["_serve_pid"] = None
+            if st.button("☁  Serve (Supervisor)", use_container_width=True):
+                pid = start_service("serve", db_path=_db)
+                st.session_state["_serve_pid"] = pid
+                st.toast("Supervisor started" if pid else "Supervisor failed to start",
+                         icon="☁" if pid else "⚠")
+                st.rerun()
 
     # ── consoles ────────────────────────────────────────────────────────
     cards = console_cards()

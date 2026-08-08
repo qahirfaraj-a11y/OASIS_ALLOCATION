@@ -1,4 +1,4 @@
-import pandas as pd
+﻿import pandas as pd
 import json
 import os
 import glob
@@ -6,7 +6,7 @@ from openpyxl.styles import Font, Alignment, PatternFill
 from datetime import datetime
 
 # --- CONFIGURATION ---
-DATA_DIR = r'C:\Users\iLink\.gemini\antigravity\scratch\app\data'
+DATA_DIR = r'C:\Users\iLink\.gemini\antigravity\scratch\oasis\data'
 CATEGORY_FILES = {
     'Diapers': 'diapers.xlsx',
     'Wipes': 'wipes.xlsx',

@@ -11,7 +11,7 @@ from reportlab.lib.styles import getSampleStyleSheet
 
 # Ensure app is in path
 sys.path.append(os.getcwd())
-from app.logic.order_engine import OrderEngine
+from oasis.logic.order_engine import OrderEngine
 
 SCORECARD_FILE = r"c:\Users\iLink\.gemini\antigravity\scratch\Full_Product_Allocation_Scorecard_v2.csv"
 

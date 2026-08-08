@@ -13,7 +13,7 @@ import os
 import logging
 from contextlib import contextmanager
 
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, event
 from sqlalchemy.orm import sessionmaker, Session
 
 from .models import Base
@@ -43,6 +43,18 @@ def get_engine():
             # each request still gets its own Session.
             kwargs["connect_args"] = {"check_same_thread": False}
         _engine = create_engine(url, **kwargs)
+        if url.startswith("sqlite"):
+            # Match every other SQLite consumer: WAL gives the FastAPI
+            # threadpool concurrent readers/writers instead of delete-mode.
+            @event.listens_for(_engine, "connect")
+            def _set_sqlite_pragmas(dbapi_conn, _record):
+                cur = dbapi_conn.cursor()
+                try:
+                    cur.execute("PRAGMA journal_mode=WAL")
+                    cur.execute("PRAGMA busy_timeout=5000")
+                    cur.execute("PRAGMA synchronous=NORMAL")
+                finally:
+                    cur.close()
         _SessionLocal = sessionmaker(bind=_engine, expire_on_commit=False,
                                      class_=Session, future=True)
         logger.info("Hub DB engine created: %s", url.split("@")[-1])

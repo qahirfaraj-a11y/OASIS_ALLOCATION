@@ -1,7 +1,7 @@
-import pandas as pd
+﻿import pandas as pd
 import os
 
-path = r'C:\Users\iLink\.gemini\antigravity\scratch\app\data\topselqty.xlsx'
+path = r'C:\Users\iLink\.gemini\antigravity\scratch\oasis\data\topselqty.xlsx'
 if os.path.exists(path):
     print(f"--- Headers for topselqty.xlsx ---")
     df = pd.read_excel(path, nrows=5)

@@ -1,10 +1,10 @@
-import pandas as pd
+﻿import pandas as pd
 import json
 import os
 import numpy as np
 
 # Configuration
-DATA_DIR = r"c:\Users\iLink\.gemini\antigravity\scratch\app\data"
+DATA_DIR = r"c:\Users\iLink\.gemini\antigravity\scratch\oasis\data"
 SCORECARD_PATH = r"c:\Users\iLink\.gemini\antigravity\scratch\Full_Product_Allocation_Scorecard_v2.csv"
 STOCK_PROFILE_PATH = r"c:\Users\iLink\.gemini\antigravity\scratch\capital_allocation_report.xlsx"
 

@@ -17,7 +17,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 from oasis.logic.mock_pos_erp import MockPosErpBuilder, summarize_mock_db
 from oasis.logic.auth_manager import (
     hash_password, verify_password, authenticate,
-    get_user_permissions, get_all_users, seed_users
+    get_user_permissions, get_all_users, seed_users, DEFAULT_USERS
 )
 from oasis.logic.audit_logger import (
     log_action, get_recent_logs, get_action_summary,
@@ -74,7 +74,9 @@ class TestNewSchema:
 
     def test_seed_users_count(self, phase1_db):
         summary = summarize_mock_db(phase1_db)
-        assert summary["OASIS_USERS"] == 5, f"Expected 5 users, got {summary['OASIS_USERS']}"
+        assert summary["OASIS_USERS"] == len(DEFAULT_USERS), (
+            f"Expected {len(DEFAULT_USERS)} seeded users, got {summary['OASIS_USERS']}"
+        )
 
     def test_seed_config_count(self, phase1_db):
         summary = summarize_mock_db(phase1_db)
@@ -258,7 +260,7 @@ class TestMigration:
 class TestUserManagement:
     def test_get_all_users(self, phase1_db):
         users = get_all_users(phase1_db)
-        assert len(users) == 5
+        assert len(users) == len(DEFAULT_USERS)
         # Should not contain password hashes
         for u in users:
             assert "PASSWORD_HASH" not in u

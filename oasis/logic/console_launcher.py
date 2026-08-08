@@ -147,6 +147,36 @@ def start_all(db_path: Optional[str] = None) -> Dict[str, Optional[int]]:
     return {key: start_console(key, db_path=db_path) for key in CONSOLE_DEFS}
 
 
+def start_service(entrypoint_mode: str = "serve",
+                  db_path: Optional[str] = None) -> Optional[int]:
+    """Launch a long-running background service (e.g. the supervisor).
+
+    ``serve`` is a routine operation that used to be CLI-only (reachable only
+    via ``serve.bat``) — this gives Home (and anything else) a programmatic
+    affordance (deep-analysis finding S9). Returns the child PID, or None if
+    launch failed.
+    """
+    env = os.environ.copy()
+    if db_path:
+        env["OASIS_DB_PATH"] = db_path
+    cmd = [_python(), _entrypoint(), "--mode", entrypoint_mode]
+    logger.info("Starting service → %s", " ".join(cmd))
+    try:
+        proc = subprocess.Popen(
+            cmd,
+            cwd=_project_root(),
+            env=env,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            creationflags=getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0),
+        )
+        logger.info("Service started (PID %d)", proc.pid)
+        return proc.pid
+    except Exception as e:
+        logger.error("Failed to start service: %s", e)
+        return None
+
+
 def stop_all(pids: Dict[str, int]) -> int:
     """Send SIGTERM to all tracked PIDs. Returns count of signals sent."""
     count = 0

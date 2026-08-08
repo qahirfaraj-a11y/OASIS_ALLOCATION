@@ -5,7 +5,7 @@ import pandas as pd
 
 sys.path.append(os.getcwd())
 
-from app.logic.order_engine import OrderEngine
+from oasis.logic.order_engine import OrderEngine
 
 # Mock data
 # Same Sales, Same Price, Different Risk Profiles

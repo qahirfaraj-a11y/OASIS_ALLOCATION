@@ -15,18 +15,20 @@ Stdlib only — runs anywhere with Python 3.
 import argparse
 import json
 import os
+import secrets
 import sys
 import urllib.error
 import urllib.request
 
 STATE = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".hub_state.json")
 
-# Demo defaults — must match docker-compose.odoo.yml and configure_and_sync.py.
+# Demo defaults — hub URL only. The admin key must come from --admin /
+# OASIS_HUB_ADMIN_KEY; there is no known demo key (finding F-8).
 DEF_HUB = "http://localhost:8700"
-DEF_ADMIN = "demo-admin"
 TENANT = {"tenant_id": "acme", "name": "Acme Retail Group", "country": "KE"}
 STORE = {"store_code": "ODOO-01", "store_name": "Acme (Odoo)", "city": "Nairobi"}
-SUPPLIER = {"supplier_code": "COKE", "name": "Coca-Cola Beverages", "password": "demo123"}
+SUPPLIER = {"supplier_code": "COKE", "name": "Coca-Cola Beverages",
+            "password": os.getenv("OASIS_HUB_SUPPLIER_PASSWORD") or secrets.token_urlsafe(12)}
 OWNERSHIP = {"match_type": "supplier_cd", "match_value": "SUP_COKE"}
 
 
@@ -51,9 +53,15 @@ def _ok(status):
 
 
 def main(argv=None):
+    admin = os.getenv("OASIS_HUB_ADMIN_KEY", "")
+    if not admin:
+        print("! OASIS_HUB_ADMIN_KEY not set — pass --admin <key> or export "
+              "OASIS_HUB_ADMIN_KEY before running.")
+        return 1
+
     p = argparse.ArgumentParser(description="Provision the OASIS hub for Odoo")
     p.add_argument("--hub", default=os.getenv("OASIS_HUB_URL", DEF_HUB))
-    p.add_argument("--admin", default=os.getenv("OASIS_HUB_ADMIN_KEY", DEF_ADMIN))
+    p.add_argument("--admin", default=admin)
     args = p.parse_args(argv)
     hub, admin = args.hub.rstrip("/"), args.admin
 
@@ -95,7 +103,8 @@ def main(argv=None):
     print(f"  consent granted {'ok' if _ok(st) else 'FAILED '+str(st)}")
 
     state = {"hub": hub, "store_id": store_id, "store_code": STORE["store_code"],
-             "ingest_token": token, "supplier_code": SUPPLIER["supplier_code"]}
+             "ingest_token": token, "supplier_code": SUPPLIER["supplier_code"],
+             "supplier_password": SUPPLIER["password"]}
     with open(STATE, "w") as f:
         json.dump(state, f, indent=2)
 

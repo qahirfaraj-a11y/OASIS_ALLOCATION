@@ -151,7 +151,8 @@ def main(argv=None):
     portal = state["hub"] + "/portal-app/"
     print("\n" + "=" * 56)
     print(f"  Live. Open the portal:  {portal}")
-    print(f"  Login:  {state['supplier_code']} / demo123")
+    print(f"  Login:  {state['supplier_code']} / "
+          f"{state.get('supplier_password', '<see bootstrap_hub.py output>')}")
     print("=" * 56)
     return 0
 

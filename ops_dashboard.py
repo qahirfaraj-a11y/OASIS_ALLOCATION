@@ -197,7 +197,14 @@ def load_env_local(env_path=".env"):
 load_env_local()
 
 DATA_DIR = os.getenv("DATA_DIR", os.path.join(os.getcwd(), "oasis", "data"))
-DB_PATH = os.getenv("OASIS_DB_PATH", os.path.join(DATA_DIR, "mock_pos_erp.db"))
+# Resolve the active store the same way the shells and Home do (finding D-8):
+# OASIS_DB_PATH wins, otherwise onboarding/profile state decides. Never default
+# to a different file than the transactional consoles.
+try:
+    from oasis.logic.onboarding import resolved_db_path
+    DB_PATH = resolved_db_path()
+except Exception:
+    DB_PATH = os.getenv("OASIS_DB_PATH", os.path.join(DATA_DIR, "mock_pos_erp.db"))
 showcase_mode = os.getenv('OASIS_SHOWCASE_MODE', 'false').lower() == 'true'
 # Live run: time-of-day is not dragged on a slider — it accrues automatically in
 # line with the mock POS stream (the more sales rung up today, the later the day).

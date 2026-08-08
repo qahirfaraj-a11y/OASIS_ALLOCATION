@@ -1,10 +1,10 @@
-import pandas as pd
+﻿import pandas as pd
 import json
 import os
 import sys
 
 # Configuration
-DATA_DIR = r'C:\Users\iLink\.gemini\antigravity\scratch\app\data'
+DATA_DIR = r'C:\Users\iLink\.gemini\antigravity\scratch\oasis\data'
 CATEGORIES = {
     'Diapers': 'diapers.xlsx',
     'Fabric Conditioner': 'fabricconditioner.xlsx',

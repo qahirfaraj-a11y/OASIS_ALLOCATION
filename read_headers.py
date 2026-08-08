@@ -1,7 +1,7 @@
-from openpyxl import load_workbook
+﻿from openpyxl import load_workbook
 import os
 
-fpath = 'c:/Users/iLink/.gemini/antigravity/scratch/app/data/prts_1.xlsx'
+fpath = 'c:/Users/iLink/.gemini/antigravity/scratch/oasis/data/prts_1.xlsx'
 if os.path.exists(fpath):
     wb = load_workbook(fpath, read_only=True, data_only=True)
     ws = wb.active

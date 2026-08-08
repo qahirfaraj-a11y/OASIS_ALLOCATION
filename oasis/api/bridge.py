@@ -49,23 +49,40 @@ online_ingestor = OnlineSalesIngestor()
 # --- LOAD REAL INTELLIGENCE DATA ---
 # v2.0: Replace hardcoded mock data with actual intelligence JSON
 historical_stats: dict = {}
-_sales_intel_path = os.path.join(DATA_DIR, "sales_intelligence_2025.json")
-if os.path.exists(_sales_intel_path):
+# The exact file name drifted across runs (finding F-5): glob the real
+# producers instead of one fixed name so the velocity monitor always gets a
+# history when a report exists.
+_sales_intel_path = None
+import glob as _glob
+for _pattern in ("sales_profitability_intelligence_2025*.json",
+                 "sales_forecasting_2025*.json",
+                 "sales_intelligence_*.json"):
+    _matches = _glob.glob(os.path.join(DATA_DIR, _pattern))
+    if _matches:
+        _sales_intel_path = sorted(_matches)[-1]
+        break
+if _sales_intel_path:
     try:
         with open(_sales_intel_path, 'r', encoding='utf-8') as f:
             _raw_intel = json.load(f)
         # Normalize into AlertMonitor format: {product_id: {avg_daily_sales, product_name}}
         for key, data in _raw_intel.items():
             if isinstance(data, dict):
+                qty = data.get('total_qty_sold') or data.get('total_qty') or 0
+                avg = data.get('avg_daily_sales')
+                if avg is None and qty:
+                    avg = float(qty) / 90
+                if avg is None:
+                    continue
                 historical_stats[key] = {
-                    'avg_daily_sales': data.get('avg_daily_sales', data.get('total_qty', 0) / 90),
+                    'avg_daily_sales': avg,
                     'product_name': data.get('product_name', key),
                 }
-        logger.info(f"Loaded {len(historical_stats)} items from sales intelligence for alert monitoring.")
+        logger.info(f"Loaded {len(historical_stats)} items from {os.path.basename(_sales_intel_path)} for alert monitoring.")
     except Exception as e:
         logger.warning(f"Failed to load sales intelligence: {e}. Alert monitor will use empty history.")
 else:
-    logger.warning(f"Sales intelligence file not found at {_sales_intel_path}. Alert monitor will use empty history.")
+    logger.warning("No sales intelligence file found in data dir. Alert monitor will use empty history.")
 
 # In-memory state
 in_memory_alerts = []

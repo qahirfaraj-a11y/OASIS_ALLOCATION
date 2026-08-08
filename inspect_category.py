@@ -1,7 +1,7 @@
-import pandas as pd
+﻿import pandas as pd
 import os
 
-file_path = r"c:\Users\iLink\.gemini\antigravity\scratch\app\data\Cooking.XLSX"
+file_path = r"c:\Users\iLink\.gemini\antigravity\scratch\oasis\data\Cooking.XLSX"
 
 try:
     df = pd.read_excel(file_path, nrows=5)

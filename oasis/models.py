@@ -258,12 +258,12 @@ class OasisUsers(Base):
 
 class OasisSessions(Base):
     __tablename__ = "OASIS_SESSIONS"
-    SESSION_TOKEN = Column(Text, primary_key=True)
+    SESSION_ID = Column(Text, primary_key=True)
     TENANT_ID = Column(Text, default="default_tenant")
     USERNAME = Column(Text, nullable=False)
     CREATED_DT = Column(Text, nullable=False)
     EXPIRES_DT = Column(Text, nullable=False)
-    IP_ADDRESS = Column(Text)
+    IS_REVOKED = Column(Integer, server_default="0", default=0)
 
 
 class OasisAuditLog(Base):

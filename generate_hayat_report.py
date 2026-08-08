@@ -1,4 +1,4 @@
-import json
+﻿import json
 import os
 from datetime import datetime
 try:
@@ -11,7 +11,7 @@ except ImportError:
     exit(1)
 
 # --- CONFIGURATION ---
-DATA_DIR = r"C:\Users\iLink\.gemini\antigravity\scratch\app\data"
+DATA_DIR = r"C:\Users\iLink\.gemini\antigravity\scratch\oasis\data"
 SALES_FORECAST_JSON = os.path.join(DATA_DIR, "sales_forecasting_2025 (1).json")
 OUTPUT_FILE = r"C:\Users\iLink\.gemini\antigravity\scratch\Hayat_Kimya_Logistics_Report_2025_v2.docx"
 

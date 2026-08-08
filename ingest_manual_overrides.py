@@ -1,9 +1,9 @@
-import pandas as pd
+﻿import pandas as pd
 import json
 import os
 
 SCORECARD_PATH = r"c:\Users\iLink\.gemini\antigravity\scratch\Full_Product_Allocation_Scorecard_v2.csv"
-MAP_PATH = r"c:\Users\iLink\.gemini\antigravity\scratch\app\data\product_department_map.json"
+MAP_PATH = r"c:\Users\iLink\.gemini\antigravity\scratch\oasis\data\product_department_map.json"
 
 def main():
     if not os.path.exists(SCORECARD_PATH):

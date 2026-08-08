@@ -18,6 +18,21 @@ from typing import Optional, Dict, Any
 logger = logging.getLogger("OASIS.Heartbeat")
 
 
+def _default_db_path() -> str:
+    """Resolve the operational SQLite DB path from the shared config chain.
+
+    The previous ``"oasis.db"`` default silently created a separate orphan DB
+    in the process cwd (finding D-7), invisible to the shells and preflight.
+    """
+    from . import db as oasis_db
+    url = oasis_db.get_db_url()
+    if url.startswith("sqlite"):
+        resolved = oasis_db.sqlite_path_from_url(url)
+        if resolved:
+            return resolved
+    return os.path.join(os.getcwd(), "oasis.db")
+
+
 class HeartbeatService:
     """
     Periodic telemetry sender for OASIS client deployments.
@@ -38,7 +53,7 @@ class HeartbeatService:
         self.interval_hours = hb_cfg.get("interval_hours", 6)
         self.client_id = config.get("client", {}).get("client_id", "UNKNOWN")
         self.client_name = config.get("client", {}).get("client_name", "Unknown")
-        self.db_path = config.get("paths", {}).get("db_path", "oasis.db")
+        self.db_path = config.get("paths", {}).get("db_path", _default_db_path())
         self.data_dir = config.get("paths", {}).get("data_dir", "oasis/data")
 
         self._timer: Optional[threading.Timer] = None

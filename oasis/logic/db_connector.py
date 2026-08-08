@@ -414,7 +414,7 @@ def ensure_oasis_tables(db_path: str):
         USERNAME      TEXT UNIQUE NOT NULL,
         PASSWORD_HASH TEXT NOT NULL,
         DISPLAY_NAME  TEXT NOT NULL,
-        ROLE          TEXT NOT NULL CHECK(ROLE IN ('branch_manager','regional_manager','ops_admin')),
+        ROLE          TEXT NOT NULL CHECK(ROLE IN ('branch_manager','regional_manager','ops_admin','ilink_operator','executive','finance','approval_manager')),
         ASSIGNED_ORG  TEXT,
         EMAIL         TEXT,
         ACTIVE_FLAG   TEXT DEFAULT 'Y',
@@ -459,6 +459,25 @@ def ensure_oasis_tables(db_path: str):
         CREATED_DT    TEXT,
         COMPLETED_DT  TEXT
     );
+
+    CREATE TABLE IF NOT EXISTS INTEGRATION_PURCHASE_ORDERS (
+    TENANT_ID TEXT DEFAULT 'default_tenant',
+        PO_ID           INTEGER PRIMARY KEY AUTOINCREMENT,
+        ORG_CD          TEXT,
+        ITM_CD          TEXT,
+        PRODUCT_NAME    TEXT,
+        SUPPLIER_CD     TEXT,
+        QUANTITY        REAL DEFAULT 0,
+        UNIT_COST       REAL DEFAULT 0,
+        TOTAL_COST      REAL DEFAULT 0,
+        REASONING       TEXT,
+        STATUS          TEXT DEFAULT 'PENDING',
+        CREATED_DT      TEXT,
+        APPROVED_DT     TEXT,
+        APPROVED_BY     TEXT,
+        BATCH_ID        TEXT
+    );
+
     CREATE TABLE IF NOT EXISTS OASIS_SESSIONS (
     TENANT_ID TEXT DEFAULT 'default_tenant',
         SESSION_ID    TEXT PRIMARY KEY,

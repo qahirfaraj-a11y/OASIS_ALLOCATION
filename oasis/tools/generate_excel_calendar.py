@@ -7,7 +7,7 @@ from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
 import sys
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
 
-from app.logic.calendar_analyzer import CalendarAnalyzer
+from oasis.logic.calendar_analyzer import CalendarAnalyzer
 
 def generate_excel_calendar(output_path: str, year: int = 2026):
     """Generate the Supplier Order Calendar Excel file."""

@@ -1,10 +1,10 @@
-import json
+﻿import json
 import os
 import pandas as pd
 import numpy as np
 
 # --- Configuration ---
-DATA_DIR = r"c:\Users\iLink\.gemini\antigravity\scratch\app\data"
+DATA_DIR = r"c:\Users\iLink\.gemini\antigravity\scratch\oasis\data"
 OUTPUT_FILE = r"c:\Users\iLink\.gemini\antigravity\scratch\synthetic_core_profile.json"
 
 FILES = {

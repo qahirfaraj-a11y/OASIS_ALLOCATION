@@ -6,7 +6,7 @@ import logging
 # Ensure app is in path
 sys.path.append(os.getcwd())
 
-from app.logic.order_engine import OrderEngine
+from oasis.logic.order_engine import OrderEngine
 
 # Configure logging to see OrderEngine output
 logging.basicConfig(level=logging.INFO, format='%(message)s')

@@ -1,7 +1,7 @@
-import json
+﻿import json
 import pandas as pd
 
-file_path = r"C:\Users\iLink\.gemini\antigravity\scratch\app\data\supplier_patterns_2025 (3).json"
+file_path = r"C:\Users\iLink\.gemini\antigravity\scratch\oasis\data\supplier_patterns_2025 (3).json"
 
 target_suppliers = [
     "HAYAT KIMYA  K  H PRODUCTS LTD",

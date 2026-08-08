@@ -172,3 +172,23 @@ def get_sqlalchemy_url(db_url: Optional[str] = None) -> str:
     if url.startswith("postgres://"):
         url = url.replace("postgres://", "postgresql://", 1)
     return url
+
+
+def to_sqlalchemy_url(path_or_url: Optional[str]) -> str:
+    """Return a SQLAlchemy URL for either a plain path or an existing URL.
+
+    Accepts a full database URL (``sqlite:///...``, ``postgresql://...``) or a
+    plain filesystem path — which is interpreted as a SQLite file — so callers
+    can hand either form to SQLAlchemy engines. This closes the scheduler
+    wiring gap (finding D-3): job handlers and the engine runner previously
+    passed a raw path to ``UniversalConnector``, whose ``create_engine`` then
+    raised ``ArgumentError: Could not parse SQLAlchemy URL``.
+    """
+    raw = str(path_or_url or "").strip()
+    if not raw:
+        return get_db_url()
+    if "://" in raw:
+        if raw.startswith("postgres://"):
+            raw = raw.replace("postgres://", "postgresql://", 1)
+        return raw
+    return f"sqlite:///{raw}"

@@ -59,26 +59,24 @@ def get_scorecard_data():
 
 
 def handle_handoff(store_id, store_name, lat, lon):
-    """Call the Mosaic API to register this expansion site for full reliance."""
-    import requests
+    """Promote an expansion site to full reliance (Track 2).
+
+    The Mosaic API gateway (formerly reached at :8000/api/v1/operations/register)
+    was removed as dead surface (review F-1). Promotion is recorded locally in
+    session state so the wizard flow still works without a backend dependency.
+    """
     try:
-        # Mosaic API base is configurable; defaults to local dev instance
-        mosaic_base = os.getenv("MOSAIC_API_BASE", "http://127.0.0.1:8000")
-        api_url = f"{mosaic_base}/api/v1/operations/register"
-        payload = {
+        st.session_state.setdefault("promoted_sites", [])
+        st.session_state["promoted_sites"].append({
             "id": store_id,
             "name": store_name,
             "lat": float(lat),
-            "lon": float(lon)
-        }
-        response = requests.post(api_url, json=payload, timeout=5)
-        if response.status_code == 200:
-            st.success(f"🚀 **HANDOFF SUCCESS**: Site '{store_id}' promoted to Resilience Hub (Track 2).")
-            st.balloons()
-        else:
-            st.error(f"Handoff Failed: {response.text}")
+            "lon": float(lon),
+        })
+        st.success(f"🚀 **HANDOFF SUCCESS**: Site '{store_id}' promoted to Resilience Hub (Track 2).")
+        st.balloons()
     except Exception as e:
-        st.error(f"API Connection Error: {e}")
+        st.error(f"Handoff Failed: {e}")
 
 def convert_recommendations_to_skustate(recommendations, demand_scale_factor=1.0):
     """

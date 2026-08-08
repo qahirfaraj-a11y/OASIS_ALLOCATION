@@ -5,8 +5,8 @@ The OASIS service — keep the suite alive without a human (audit H1/H2/H3).
 ``register_service.bat`` wires it to Windows Task Scheduler at logon so a
 reboot brings OASIS back on its own. It:
 
-  * starts the configured consoles (Home, Operations, Command, Intelligence —
-    plus the Cloud Hub when ``OASIS_SERVE_HUB=1``),
+  * starts the configured consoles (Home, Operations, Command, Market
+    Intelligence, Intelligence — plus the Cloud Hub when ``OASIS_SERVE_HUB=1``),
   * watches process liveness AND port responsiveness, restarting anything that
     dies (two consecutive failed port probes = hung → restart),
   * sends a fire-and-forget alert to ``OASIS_ALERT_WEBHOOK`` (if set) on every
@@ -32,7 +32,7 @@ from .console_launcher import CONSOLE_DEFS, port_live, start_console
 
 logger = logging.getLogger("OASIS.Supervisor")
 
-DEFAULT_SERVICES = ("home", "ops", "command", "intel")
+DEFAULT_SERVICES = ("home", "ops", "command", "stgat", "intel")
 CHECK_INTERVAL_S = 20
 PORT_STRIKES_FOR_RESTART = 2          # consecutive failed probes = hung
 STARTUP_GRACE_TICKS = 3               # ticks before a fresh start is probed

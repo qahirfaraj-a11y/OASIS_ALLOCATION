@@ -1,11 +1,11 @@
-import asyncio
+﻿import asyncio
 import os
 import json
 import pandas as pd
-from app.logic.order_engine import OrderEngine
+from oasis.logic.order_engine import OrderEngine
 
 # Configuration
-DATA_DIR = r'C:\Users\iLink\.gemini\antigravity\scratch\app\data'
+DATA_DIR = r'C:\Users\iLink\.gemini\antigravity\scratch\oasis\data'
 CATEGORY_FILES = {
     'Diapers': 'diapers.xlsx',
     'Wipes': 'wipes.xlsx',

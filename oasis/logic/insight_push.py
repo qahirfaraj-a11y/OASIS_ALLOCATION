@@ -261,6 +261,24 @@ def build_cards(data_dir: str, *, period: str = "",
     except Exception as e:
         logger.warning("Cannibalization cards skipped: %s", e)
 
+    # 11. Quality — Supplier Quality Score (Q_s) from the SQS store.
+    try:
+        for fname in ("supplier_quality_scores_2025.json", "supplier_quality_scores.json"):
+            path = os.path.join(data_dir, fname)
+            if os.path.exists(path):
+                with open(path, "r", encoding="utf-8") as f:
+                    data = json.load(f) or {}
+                stats_by_supp = data if isinstance(data, dict) else {}
+                for code, stats in stats_by_supp.items():
+                    if wanted and code not in wanted:
+                        continue
+                    if isinstance(stats, dict) and stats:
+                        cards.append(IE.quality_card(
+                            code, stats, source_ref=f"quality:{period}" if period else None))
+                break
+    except Exception as e:
+        logger.warning("Quality cards skipped: %s", e)
+
     logger.info("Built %d insight card(s) from %s", len(cards), data_dir)
     return cards
 

@@ -4,7 +4,7 @@ import json
 import pandas as pd
 import sys
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from app.logic.order_engine import OrderEngine
+from oasis.logic.order_engine import OrderEngine
 
 # Configuration
 DATA_DIR = r'C:\Users\iLink\.gemini\antigravity\scratch\app\data'

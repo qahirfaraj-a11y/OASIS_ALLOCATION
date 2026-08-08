@@ -9,12 +9,14 @@
 #
 # Run from this directory (connectors/odoo/):
 #   docker compose -f docker-compose.odoo.yml up -d --build
+#   export OASIS_HUB_ADMIN_KEY=$(openssl rand -hex 16)   # or set in .env
 #   python bootstrap_hub.py            # provision hub, prints the ingest token
 #   python configure_and_sync.py       # point Odoo at the hub, seed + sync
-# Then open the portal:  http://localhost:8700/portal-app/   (COKE / demo123)
+# Then open the portal:  http://localhost:8700/portal-app/
+#   (login printed by bootstrap_hub.py — no fixed demo password)
 #
 # Odoo reaches the hub in-network at http://oasis-hub:8700.
-# Secrets default to demo values; override via a .env next to this file.
+# Secrets must be provided via .env / environment (no fixed demo values).
 # ============================================================
 
 name: oasis-odoo
@@ -82,8 +84,9 @@ services:
     environment:
       OASIS_HUB_DB_URL: sqlite:////data/oasis_hub.db
       OASIS_LICENSE_SALT: ${OASIS_LICENSE_SALT:-demo-salt}
-      OASIS_HUB_ADMIN_KEY: ${OASIS_HUB_ADMIN_KEY:-demo-admin}
-      OASIS_HUB_TOKEN_SECRET: ${OASIS_HUB_TOKEN_SECRET:-demo-secret}
+      # No fixed admin key (finding F-8): compose fails fast until one is set.
+      OASIS_HUB_ADMIN_KEY: ${OASIS_HUB_ADMIN_KEY:?set OASIS_HUB_ADMIN_KEY in .env or the shell}
+      OASIS_HUB_TOKEN_SECRET: ${OASIS_HUB_TOKEN_SECRET:?set OASIS_HUB_TOKEN_SECRET in .env or the shell}
     volumes:
       - oasis-hub-data:/data
     ports:

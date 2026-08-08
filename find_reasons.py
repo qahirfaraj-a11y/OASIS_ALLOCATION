@@ -1,8 +1,8 @@
-from openpyxl import load_workbook
+﻿from openpyxl import load_workbook
 import os
 import glob
 
-data_dir = 'c:/Users/iLink/.gemini/antigravity/scratch/app/data'
+data_dir = 'c:/Users/iLink/.gemini/antigravity/scratch/oasis/data'
 files = glob.glob(os.path.join(data_dir, 'prts_*.xlsx'))
 
 reasons = set()
