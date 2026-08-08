@@ -327,7 +327,22 @@ def apply_multi_demo(root: Optional[str] = None) -> dict:
                          os.path.join(root or _root(), "oasis", "data"))
     db = os.getenv("OASIS_DB_PATH", os.path.join(data_dir, "rhapta_multi_store.db"))
 
-    r = build_multi_store_db(demo_catalog_rows(), db)
+    # SAMPLE data, so a KNOWN password is the point — exactly as apply_demo
+    # does for the single-store card. This was missing, and the multi-store
+    # demo therefore seeded every account with a random one-time password that
+    # was logged once and never shown again. It went unnoticed only because
+    # OASIS.bat used to export OASIS_SEED_PASSWORD unconditionally; removing
+    # that (correctly — it was handing REAL stores a published credential)
+    # left this path with no way in. Set it explicitly, and only here.
+    _prev = os.environ.get("OASIS_SEED_PASSWORD")
+    os.environ["OASIS_SEED_PASSWORD"] = DEMO_SEED_PASSWORD
+    try:
+        r = build_multi_store_db(demo_catalog_rows(), db)
+    finally:
+        if _prev is None:
+            os.environ.pop("OASIS_SEED_PASSWORD", None)
+        else:
+            os.environ["OASIS_SEED_PASSWORD"] = _prev
     summary = {"profile": "multi", "db_path": db,
                "stores": r.get("stores", 0),
                "catalog": f"{r.get('stores', 0)} stores, "

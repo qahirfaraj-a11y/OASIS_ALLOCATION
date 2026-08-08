@@ -527,19 +527,42 @@ def seed_users(db_path: str, password: Optional[str] = None):
     conn = get_auth_db_conn(db_path)
     now = datetime.now().isoformat()
 
+    # Which accounts already exist. This MUST be checked before resolving a
+    # password, not left to INSERT OR IGNORE: _resolve_seed_password generates
+    # a fresh random password and LOGS it as the way in. When the row already
+    # existed the insert was ignored, the old hash stayed, and the operator was
+    # handed a password that had never been stored — every boot printing a new
+    # plausible-looking credential that could not work. Locked people out of
+    # their own store, and the "Seeded 9 default users" line said it had worked.
+    try:
+        existing = {r[0] for r in conn.execute(
+            "SELECT USERNAME FROM OASIS_USERS").fetchall()}
+    except Exception:
+        existing = set()
+
+    seeded = 0
     for user in DEFAULT_USERS:
+        if user["username"] in existing:
+            continue                    # keep the password this account has
         pw_hash = hash_password(password or _resolve_seed_password(user["username"]))
         try:
             conn.execute(
-                """INSERT OR IGNORE INTO OASIS_USERS 
+                """INSERT OR IGNORE INTO OASIS_USERS
                    (USERNAME, PASSWORD_HASH, DISPLAY_NAME, ROLE, ASSIGNED_ORG, EMAIL, CREATED_DT)
                    VALUES (?, ?, ?, ?, ?, ?, ?)""",
-                (user["username"], pw_hash, user["display_name"], 
+                (user["username"], pw_hash, user["display_name"],
                  user["role"], user["assigned_org"], user["email"], now)
             )
+            seeded += 1
         except Exception as e:
             logger.error(f"Failed to seed user {user['username']}: {e}")
-    
+
     conn.commit()
     conn.close()
-    logger.info(f"Seeded {len(DEFAULT_USERS)} default users")
+    if seeded:
+        logger.info(f"Seeded {seeded} default users")
+    else:
+        logger.info(f"All {len(DEFAULT_USERS)} default users already exist — "
+                    "no passwords generated or changed "
+                    "(use --mode set-password to rotate one)")
+    return seeded

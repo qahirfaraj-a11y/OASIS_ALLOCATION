@@ -70,6 +70,67 @@ def test_sample_store_stays_frictionless(root):
     assert OB.is_demo(root), "…and must carry the SAMPLE banner"
 
 
+def test_multi_store_sample_stays_frictionless_too(root):
+    """The same promise for the OTHER demo card — which did not keep it.
+
+    apply_demo passed DEMO_SEED_PASSWORD; apply_multi_demo never did, so every
+    account in the 5-store demo got a random one-time password logged once at
+    build time. It stayed invisible while OASIS.bat exported
+    OASIS_SEED_PASSWORD unconditionally; removing that (right, because it gave
+    REAL stores a published credential) left this path with no way in and the
+    operator locked out of their own demo network.
+    """
+    OB.apply_multi_demo(root=root)
+    db = OB.resolved_db_path(root)
+    assert AM.authenticate("ops_admin", OB.DEMO_SEED_PASSWORD, db), \
+        "the multi-store sample must log in out of the box"
+    assert OB.is_demo(root), "…and must carry the SAMPLE banner"
+
+
+def test_reseeding_never_announces_a_password_it_did_not_store(root, caplog):
+    """The lockout bug: told a password that was never written.
+
+    seed_users generated a fresh random password per user on EVERY call and
+    logged it as the way in — then INSERT OR IGNORE discarded it because the
+    row already existed, leaving the old hash in place. Every boot printed a
+    new plausible credential that could not work, and "Seeded 9 default users"
+    claimed success. The operator could not log into their own store and no
+    logged password would ever match.
+    """
+    import logging
+    from oasis.logic.db_connector import ensure_oasis_tables
+    db = os.environ["OASIS_DB_PATH"]
+    os.makedirs(os.path.dirname(db), exist_ok=True)
+    ensure_oasis_tables(db)
+    AM.set_password(db, "ops_admin", "OperatorChosen123")
+
+    with caplog.at_level(logging.WARNING):
+        caplog.clear()
+        AM.seed_users(db)                      # a re-seed over existing rows
+
+    announced = [r.message for r in caplog.records
+                 if "one-time password" in r.message]
+    assert not announced, \
+        f"announced a password for an account it did not write: {announced}"
+    # …and the existing password is untouched.
+    assert AM.authenticate("ops_admin", "OperatorChosen123", db)
+
+
+def test_seed_users_reports_what_it_actually_wrote(root):
+    from oasis.logic.db_connector import ensure_oasis_tables
+    db = os.environ["OASIS_DB_PATH"]
+    os.makedirs(os.path.dirname(db), exist_ok=True)
+    ensure_oasis_tables(db)
+    assert AM.seed_users(db) == 0, "re-seed claimed to write rows it skipped"
+
+
+def test_the_demo_password_does_not_leak_into_the_environment(root):
+    """Setting it for the build must not leave it set for whatever runs next."""
+    before = os.environ.get("OASIS_SEED_PASSWORD")
+    OB.apply_multi_demo(root=root)
+    assert os.environ.get("OASIS_SEED_PASSWORD") == before
+
+
 # ── the first-run set-password path ──────────────────────────────────────
 def test_first_run_password_gives_the_operator_control(root):
     """Exactly what the desktop first-run screen does.

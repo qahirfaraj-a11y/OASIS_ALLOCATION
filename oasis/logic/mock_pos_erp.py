@@ -285,12 +285,14 @@ CREATE TABLE IF NOT EXISTS OASIS_USERS (
     USERNAME      TEXT UNIQUE NOT NULL,
     PASSWORD_HASH TEXT NOT NULL,
     DISPLAY_NAME  TEXT NOT NULL,
-    ROLE          TEXT NOT NULL CHECK(ROLE IN ('branch_manager','regional_manager','ops_admin')),
+    ROLE          TEXT NOT NULL CHECK(ROLE IN ('branch_manager','regional_manager','ops_admin','ilink_operator','executive','finance','approval_manager')),
     ASSIGNED_ORG  TEXT,
     EMAIL         TEXT,
     ACTIVE_FLAG   TEXT DEFAULT 'Y',
     CREATED_DT    TEXT,
     LAST_LOGIN_DT TEXT,
+    FAILED_ATTEMPTS INTEGER DEFAULT 0,
+    LOCKOUT_UNTIL   TEXT,
     FOREIGN KEY (ASSIGNED_ORG) REFERENCES ORGANIZATION_MST(ORG_CD)
 );
 
@@ -335,6 +337,16 @@ CREATE TABLE IF NOT EXISTS INTEGRATION_TRANSFER_ORDERS (
     COMPLETED_DT  TEXT,
     FOREIGN KEY (FROM_ORG_CD) REFERENCES ORGANIZATION_MST(ORG_CD),
     FOREIGN KEY (TO_ORG_CD) REFERENCES ORGANIZATION_MST(ORG_CD)
+);
+
+-- OASIS Sessions (auth hardening)
+CREATE TABLE IF NOT EXISTS OASIS_SESSIONS (
+    TENANT_ID TEXT DEFAULT 'default_tenant',
+    SESSION_ID    TEXT PRIMARY KEY,
+    USERNAME      TEXT NOT NULL,
+    CREATED_DT    TEXT NOT NULL,
+    EXPIRES_DT    TEXT NOT NULL,
+    IS_REVOKED    INTEGER DEFAULT 0
 );
 """
 
@@ -1129,21 +1141,35 @@ class MockPosErpBuilder:
                 DEFAULT_USERS = []
 
         now = datetime.now().isoformat()
+        assert self.conn is not None
+        # Skip accounts that already exist BEFORE resolving a password.
+        # _resolve_seed_password generates a random one and logs it as the way
+        # in; behind INSERT OR IGNORE that password is discarded while the
+        # operator is told to use it. See seed_users() for the same fix.
+        try:
+            existing = {r[0] for r in self.conn.execute(
+                "SELECT USERNAME FROM OASIS_USERS").fetchall()}
+        except Exception:
+            existing = set()
+
         rows = []
         for user in DEFAULT_USERS:
+            if user["username"] in existing:
+                continue
             pw_hash = hash_password(_resolve_seed_password(user["username"]))
             rows.append((
                 user["username"], pw_hash, user["display_name"],
                 user["role"], user["assigned_org"], user["email"], now
             ))
-        assert self.conn is not None
-        self.conn.executemany(
-            """INSERT OR IGNORE INTO OASIS_USERS
-               (USERNAME, PASSWORD_HASH, DISPLAY_NAME, ROLE, ASSIGNED_ORG, EMAIL, CREATED_DT)
-               VALUES (?,?,?,?,?,?,?)""",
-            rows
-        )
-        logger.info(f"  OASIS Users: {len(rows)}")
+        if rows:
+            self.conn.executemany(
+                """INSERT OR IGNORE INTO OASIS_USERS
+                   (USERNAME, PASSWORD_HASH, DISPLAY_NAME, ROLE, ASSIGNED_ORG, EMAIL, CREATED_DT)
+                   VALUES (?,?,?,?,?,?,?)""",
+                rows
+            )
+        logger.info(f"  OASIS Users: {len(rows)} seeded, "
+                    f"{len(existing & {u['username'] for u in DEFAULT_USERS})} kept")
 
     # ------------------------------------------------------------------
     # Seed: System Config (editable thresholds)
