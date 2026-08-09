@@ -1,7 +1,7 @@
 # O.A.S.I.S. — Handover
 
 **Date:** 2026-08-09 · **Version:** 2.3.0 · **Branch:** `pre-mosaic-backup`
-**Head:** `b25e4cb7` · **Tests:** 1,093 passing · **Release:** 0.8 MB / 181 files
+**Head:** `ce468142` · **Tests:** 1,099 passing · **Release:** 0.8 MB / 182 files
 
 Everything below was verified against a **freshly built release zip, extracted
 into a clean directory**, not against the working tree. Three times in this
@@ -34,6 +34,7 @@ on a client machine**. None were visible from a developer checkout.
 | `99532a5c` | Role gating, a greenfield SKU, the last of the whitewash, and ODbL |
 | `e20e8c9b` | Whitewash: catch the own-brand lines, and hand over |
 | `b25e4cb7` | Location pillar: interpretable site selection, no model, no client data |
+| `ce468142` | Velocity floors in both front doors, ODbL notices, ignore machine state |
 
 ---
 
@@ -275,11 +276,19 @@ is in the module docstring, in the verdict text, and in the tab's own footnote.
 
 ## 9. Open items
 
-1. **Velocity-alert floors in the Streamlit console** — the fix landed natively
-   only; the console still emits the noise.
-2. **OSM licence confirmation** before a commercial release.
-3. **`oasis/data/network_registry.json`** is machine state and deliberately
-   untracked — keep it that way.
+**None outstanding.** The three that were open at the previous revision are
+closed in `ce468142`:
+
+* velocity-alert floors now live in `oasis/logic/alert_monitor.py` and are used
+  by BOTH front doors (the console was still emitting the noise);
+* the OpenStreetMap position is recorded in `THIRD_PARTY_NOTICES.md`, which
+  ships with the release. **Three questions are marked there for legal
+  sign-off** — attribution placement in exported work, Overpass fair-use at
+  commercial volume, and what reattaches if a competitor set is ever bundled.
+  Those are the only known blockers to a commercial release, and they are not
+  engineering ones;
+* machine state and client-owned data (`network_registry.json`,
+  `store_locations.json`, `competitor_network.csv`) are gitignored with a test.
 
 ---
 
