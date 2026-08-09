@@ -94,8 +94,17 @@ def _generated_catalog() -> List[dict]:
             payload = json.load(f)
     except Exception:
         return []
+    # Tests build this store hundreds of times; a 4,000-line catalogue turned
+    # a 5-minute suite into a 20-minute one. Production keeps the full range.
+    try:
+        cap = int(os.getenv("OASIS_DEMO_MAX_SKUS", "0") or 0)
+    except ValueError:
+        cap = 0
+
     rows = []
     for r in payload.get("rows", []):
+        if cap and len(rows) >= cap:
+            break
         try:
             rows.append({"itm_cd": r["itm_cd"], "name": r["name"],
                          "dept": r["dept"], "vendor": r["vendor"],

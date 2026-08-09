@@ -87,7 +87,12 @@ def verify_password(password: str, stored_hash: str, username: str = None, db_pa
 ROLE_PERMISSIONS = {
     "branch_manager": {
         "tabs": {
-            "live_sales": True,
+                        # Absent from this table until 2026-08-08, so user_perms["tabs"].get()
+            # returned None for every role and the console's Executive ROI
+            # tab was unreachable outside showcase mode.
+            "executive_roi": False,
+            "supplier_intelligence": False,
+"live_sales": True,
             "transfer_intelligence": False,
             "stock_review": True,
             "smart_ordering": True,
@@ -105,7 +110,9 @@ ROLE_PERMISSIONS = {
     },
     "regional_manager": {
         "tabs": {
-            "live_sales": True,
+                        "executive_roi": True,
+            "supplier_intelligence": True,
+"live_sales": True,
             "transfer_intelligence": True,
             "stock_review": True,
             "smart_ordering": True,
@@ -123,7 +130,9 @@ ROLE_PERMISSIONS = {
     },
     "ops_admin": {
         "tabs": {
-            "live_sales": True,
+                        "executive_roi": True,
+            "supplier_intelligence": True,
+"live_sales": True,
             "transfer_intelligence": True,
             "stock_review": True,
             "smart_ordering": True,
@@ -143,6 +152,7 @@ ROLE_PERMISSIONS = {
     # legacy roles above, which are retained for backward compatibility. ──
     "ilink_operator": {  # internal implementation/admin — full access
         "tabs": {
+            "executive_roi": True, "supplier_intelligence": True,
             "live_sales": True, "transfer_intelligence": True, "stock_review": True,
             "smart_ordering": True, "oasis_processor": True, "allocation_engine": True,
             "simulation_validation": True, "analytics": True, "settings": True,
@@ -155,6 +165,7 @@ ROLE_PERMISSIONS = {
     },
     "executive": {  # oversight: view + approve gates, no engine config
         "tabs": {
+            "executive_roi": True, "supplier_intelligence": False,
             "live_sales": True, "transfer_intelligence": True, "stock_review": True,
             "smart_ordering": False, "oasis_processor": False, "allocation_engine": False,
             "simulation_validation": True, "analytics": True, "settings": False,
@@ -167,6 +178,7 @@ ROLE_PERMISSIONS = {
     },
     "finance": {  # capital recovery + analytics, read-mostly
         "tabs": {
+            "executive_roi": True, "supplier_intelligence": False,
             "live_sales": False, "transfer_intelligence": False, "stock_review": False,
             "smart_ordering": False, "oasis_processor": False, "allocation_engine": False,
             "simulation_validation": False, "analytics": True, "settings": False,
@@ -179,6 +191,7 @@ ROLE_PERMISSIONS = {
     },
     "approval_manager": {  # the buyer → daily PO approval + operations
         "tabs": {
+            "executive_roi": True, "supplier_intelligence": True,
             "live_sales": True, "transfer_intelligence": True, "stock_review": True,
             "smart_ordering": True, "oasis_processor": True, "allocation_engine": True,
             "simulation_validation": False, "analytics": True, "settings": False,

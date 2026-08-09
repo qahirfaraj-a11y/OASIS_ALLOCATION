@@ -3,7 +3,7 @@ Native store-graph export (client onboarding, headless).
 
 Builds ``stores_network.json`` — the *store-level* graph the GNN / store-risk and
 the Market Intelligence Tool read — from the client's own organisations
-(`ORGANIZATION_MST`), so a new client's stores (not the demo's 14 Chandarana
+(`ORGANIZATION_MST`), so a new client's stores (not the demo's 14 the reference client
 stores) drive the GNN surfaces.
 
 Crucially each node's ``store_id`` is set to the client's ``ORG_CD``, so the

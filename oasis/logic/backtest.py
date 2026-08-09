@@ -210,7 +210,7 @@ def supplier_failure_pairs(h1_stats: dict, h2_fail: dict) -> List[Pair]:
 def run_backtest(data_dir: str, *, anchor="2026-01-20", horizon: int = 7,
                  stride: int = 7, min_ads: float = 0.3, sample_cap: int = 3000,
                  calibrate: bool = True) -> dict:
-    """Reconstruct the real Rhapta series and measure the P3 baseline (integration).
+    """Reconstruct the real the anchor store series and measure the P3 baseline (integration).
 
     Samples SKUs with meaningful demand (ads >= min_ads), reconstructs daily
     on-hand from the anchor-derived opening, and pools (risk, label) pairs.

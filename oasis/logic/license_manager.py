@@ -28,13 +28,20 @@ logger = logging.getLogger("OASIS.LicenseManager")
 
 #: the sellable module SKUs. "core" is the mandatory base every install needs;
 #: the rest gate feature groups (pages/tabs/CLI modes) via CAPABILITIES below.
-KNOWN_MODULES = ("core", "ordering", "network", "revenue", "api")
+KNOWN_MODULES = ("core", "ordering", "network", "revenue", "greenfield", "api")
 
 MODULE_LABELS = {
     "core": "OASIS Core",
     "ordering": "Smart Ordering",
-    "network": "Network (Transfers & Allocation)",
+    "network": "Network (Transfers)",
     "revenue": "Revenue Intelligence",
+    # Opening a SITE, not running one: what a new store should carry and how to
+    # spend an opening budget. Different buyer (expansion/finance, not store
+    # ops), different cadence (once per site, not daily), and a different data
+    # situation — greenfield means no history exists yet. It rode the network
+    # SKU, which meant a chain could not buy site planning without also buying
+    # inter-store transfers.
+    "greenfield": "Greenfield (Site Planning & Allocation)",
     "api": "Integrations (REST API)",
 }
 
@@ -42,6 +49,8 @@ MODULE_LABELS = {
 BUNDLES = {
     "starter": ("core",),
     "pro": ("core", "ordering", "revenue"),
+    # Site planning sells to a chain that has not bought transfers.
+    "expansion": ("core", "greenfield"),
     "enterprise": KNOWN_MODULES,
 }
 
@@ -50,8 +59,10 @@ BUNDLES = {
 PAGE_MODULES = {
     "ordering": "ordering", "suppliers": "ordering",
     "smart_ordering": "ordering", "supplier_intelligence": "ordering",
-    "shadow": "network", "transfers": "network", "allocation": "network",
-    "transfer_intelligence": "network", "allocation_engine": "network",
+    "shadow": "network", "transfers": "network",
+    "transfer_intelligence": "network",
+    "allocation": "greenfield", "allocation_engine": "greenfield",
+    "greenfield": "greenfield", "simulation_validation": "greenfield",
     "baskets": "revenue",
 }
 

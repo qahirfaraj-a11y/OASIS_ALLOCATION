@@ -263,7 +263,7 @@ def seed_demo_bills(days: int = DEMO_HISTORY_DAYS,
     """Seed sales history into the ACTIVE store, whichever that is.
 
     Resolves through ``resolved_db_path`` on purpose. The archived
-    ``run_mock_pos.bat`` hardcoded ``OASIS_DB_PATH`` to the Rhapta snapshot, so
+    ``run_mock_pos.bat`` hardcoded ``OASIS_DB_PATH`` to the anchor-store snapshot, so
     a client who had onboarded to their own store and ran it was silently
     generating bills into — and then looking at — demo data (finding E-2).
 
@@ -299,7 +299,7 @@ def _catalogue_size(db: str) -> int:
 
 def apply_demo(store_name: str = "OASIS Sample Store",
                root: Optional[str] = None,
-               history_days: int = DEMO_HISTORY_DAYS) -> dict:
+               history_days: int = -1) -> dict:
     """Build the self-contained sample store and record the choice.
 
     Seeds sales history too — see DEMO_BILLS_PER_DAY. Pass ``history_days=0``
@@ -307,6 +307,14 @@ def apply_demo(store_name: str = "OASIS Sample Store",
     """
     from .demo_seed import demo_catalog_rows
     from .mock_pos_build import build_pos_db_from_catalog
+    if history_days < 0:
+        # Tests build this store hundreds of times and do not need a month of
+        # it; OASIS_DEMO_HISTORY_DAYS lets the suite ask for less.
+        try:
+            history_days = int(os.getenv("OASIS_DEMO_HISTORY_DAYS",
+                                         DEMO_HISTORY_DAYS))
+        except ValueError:
+            history_days = DEMO_HISTORY_DAYS
     db = default_db_path(root)
     summary = build_pos_db_from_catalog(demo_catalog_rows(), db,
                                         org_name=store_name,

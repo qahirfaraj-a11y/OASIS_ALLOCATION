@@ -1,7 +1,7 @@
 """
-Real demand from Rhapta's monthly sales (the *_cash.xlsx exports).
+Real demand from the anchor store's monthly sales (the *_cash.xlsx exports).
 
-These ten files are the REAL monthly units-sold per SKU at Rhapta (027). We use
+These ten files are the REAL monthly units-sold per SKU at the anchor store (org 027). We use
 them to derive a genuine Average-Daily-Sales (ADS) baseline instead of simulated
 history, then seed it into the snapshot so OASIS's ordering normalises demand
 against real numbers.

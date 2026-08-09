@@ -58,7 +58,7 @@ def process_sales(intel_data):
         
         logger.info(f"Reading {f}")
         df = pd.read_excel(f)
-        # Columns: ['Department', 'Item Name', 'Itm Code', '027 - Rhapta Road']
+        # Column header comes from the CLIENT's own workbook.
         store_col = '027 - Rhapta Road'
         if store_col not in df.columns:
             logger.error(f"Column '{store_col}' not found in {f}")

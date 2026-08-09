@@ -44,7 +44,7 @@ from .vault_prior import load_prior
 # -- Helpers ------------------------------------------------------------------
 
 def _store_tag(profile: StoreProfile) -> str:
-    """Short log prefix: ORG001/RHAPTA."""
+    """Short log prefix: ORG001/ANCHOR."""
     return f"{profile.org_cd}/{profile.short_name}"
 
 

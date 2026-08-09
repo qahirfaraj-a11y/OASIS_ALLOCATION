@@ -104,7 +104,7 @@ class NetworkAvailabilityMap:
         G8 Fix: Dynamic excess ratio — fast movers (ADS > 5) use 1.5×,
         slow movers (ADS ≤ 1) use 2.5×, otherwise default ratio.
         
-        Warehouse-Hub Priority: Stores flagged as warehouse hubs (e.g. Baba Dogo)
+        Warehouse-Hub Priority: Stores flagged as warehouse hubs
         receive a 3× score boost — they exist as distribution points.
         
         Dead-Stock Bonus: Donors where days_since_delivery > 45 and velocity_ratio < 0.05
@@ -258,7 +258,7 @@ class FulfillmentDecider:
         self.fresh_transfer_max_hours = fresh_transfer_max_hours
         self.distance_map = distance_map or {}
         self.risk_threshold = risk_threshold
-        # Warehouse hub org codes (e.g. ["016"] for Baba Dogo)
+        # Warehouse hub org codes (e.g. ["016"])
         self.warehouse_hubs = warehouse_hubs or []
 
     def _calculate_distance_km(self, org1: str, org2: str) -> float:

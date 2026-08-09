@@ -21,6 +21,8 @@ import pytest
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
 from oasis.desktop import data as D
+from oasis.desktop.views.command_view import build_command_view
+from oasis.logic import license_manager as LM
 
 CONSOLE = pathlib.Path(__file__).parent.parent / "ops_dashboard.py"
 
@@ -1028,3 +1030,193 @@ def test_every_alert_clears_both_floors(store):
     for a in s["alerts"]:
         assert a["ads"] >= D.VELOCITY_MIN_ADS
         assert a["units"] >= D.VELOCITY_MIN_UNITS
+
+
+# ── role-based tab visibility ────────────────────────────────────────────
+class _RolePage:
+    """Enough ft.Page for the view to read a role, headless."""
+    class _S:
+        def __init__(self, role): self.role = role
+        def get(self, key): return self.role if key == "role" else None
+        def contains_key(self, key): return key == "role"
+    def __init__(self, role): self.session = self._S(role)
+    def update(self): pass
+
+
+def _tab_labels(view):
+    return sorted(c.text for c in _walk(view) if type(c).__name__ == "Tab")
+
+
+def test_every_native_tab_maps_to_a_real_permission_key():
+    """A typo would silently hide a tab from every role."""
+    from oasis.desktop.views.command_view import TAB_MODULES, TAB_ROLE_KEYS
+    from oasis.logic.auth_manager import ROLE_PERMISSIONS
+    known = set(ROLE_PERMISSIONS["ops_admin"]["tabs"])
+    assert set(TAB_ROLE_KEYS.values()) <= known
+    assert set(TAB_ROLE_KEYS) == set(TAB_MODULES), \
+        "a tab is gated by module but not by role, or the reverse"
+
+
+def test_executive_roi_and_suppliers_are_now_in_the_permission_table():
+    """They were absent, so user_perms['tabs'].get() returned None for every
+    role — which made the CONSOLE's Executive ROI tab unreachable outside
+    showcase mode. Fixing it in the shared table fixes both surfaces."""
+    from oasis.logic.auth_manager import ROLE_PERMISSIONS
+    for role, perms in ROLE_PERMISSIONS.items():
+        assert "executive_roi" in perms["tabs"], role
+        assert "supplier_intelligence" in perms["tabs"], role
+
+
+def test_a_branch_manager_sees_fewer_tabs_than_an_admin(store, monkeypatch):
+    monkeypatch.setattr(D, "allowed_modules", lambda: set(LM.KNOWN_MODULES))
+    admin = _tab_labels(build_command_view(_RolePage("ops_admin"), store))
+    branch = _tab_labels(build_command_view(_RolePage("branch_manager"), store))
+    assert len(admin) > len(branch)
+    assert set(branch) < set(admin)
+    # The console denies a branch manager transfers, simulation and analytics.
+    for denied in ("Transfers", "Simulation", "Analytics", "Suppliers"):
+        assert denied not in branch
+
+
+def test_role_visibility_matches_the_permission_table(store, monkeypatch):
+    from oasis.desktop.views.command_view import TAB_ROLE_KEYS, TAB_SPEC
+    from oasis.logic.auth_manager import ROLE_PERMISSIONS
+    monkeypatch.setattr(D, "allowed_modules", lambda: set(LM.KNOWN_MODULES))
+    labels = {key: label for key, label, _i, _b in TAB_SPEC}
+    for role, perms in ROLE_PERMISSIONS.items():
+        shown = set(_tab_labels(build_command_view(_RolePage(role), store)))
+        for key, perm_key in TAB_ROLE_KEYS.items():
+            expected = bool(perms["tabs"].get(perm_key, False))
+            assert (labels[key] in shown) is expected, (role, key)
+
+
+def test_an_unknown_role_gets_the_least_privilege(store, monkeypatch):
+    """get_user_permissions falls back to branch_manager. Fail closed."""
+    monkeypatch.setattr(D, "allowed_modules", lambda: set(LM.KNOWN_MODULES))
+    unknown = _tab_labels(build_command_view(_RolePage("nonsense_role"), store))
+    branch = _tab_labels(build_command_view(_RolePage("branch_manager"), store))
+    assert unknown == branch
+
+
+def test_role_and_module_are_independent_gates(store, monkeypatch):
+    """Both must pass. A role cannot buy a module; a licence cannot grant a role."""
+    monkeypatch.setattr(D, "allowed_modules", lambda: {"core"})
+    body = _text(build_command_view(_RolePage("ops_admin"), store))
+    # Licensed-out tabs still appear, as upsells — they can be bought.
+    assert "smart ordering module" in body
+    # A role-denied tab is not built at all.
+    branch = _tab_labels(build_command_view(_RolePage("branch_manager"), store))
+    assert "Suppliers" not in branch
+
+
+def test_a_role_with_no_command_tabs_is_told_why(store, monkeypatch):
+    monkeypatch.setattr(D, "allowed_modules", lambda: set(LM.KNOWN_MODULES))
+    monkeypatch.setattr(D, "role_tabs", lambda role: {})
+    body = _text(build_command_view(_RolePage("stranger"), store))
+    assert "no command center access" in body
+    assert "administrator" in body
+
+
+# ── the greenfield SKU ───────────────────────────────────────────────────
+def test_greenfield_is_its_own_sellable_module():
+    """Allocation rode the network SKU, so a chain could not buy site planning
+    without also buying inter-store transfers — different buyer, different
+    cadence, different data situation."""
+    assert "greenfield" in LM.KNOWN_MODULES
+    assert LM.MODULE_LABELS["greenfield"]
+    assert LM.PAGE_MODULES["allocation_engine"] == "greenfield"
+    assert LM.PAGE_MODULES["transfer_intelligence"] == "network"
+    assert "expansion" in LM.BUNDLES
+    assert "greenfield" in LM.BUNDLES["expansion"]
+    assert "greenfield" in LM.BUNDLES["enterprise"]
+
+
+def test_the_allocation_tab_is_gated_on_greenfield(store, monkeypatch):
+    from oasis.desktop.views.command_view import TAB_MODULES
+    assert TAB_MODULES["allocation"] == "greenfield"
+    monkeypatch.setattr(D, "allowed_modules", lambda: {"core", "network"})
+    body = _text(build_command_view(_RolePage("ops_admin"), store))
+    assert "greenfield (site planning" in body, \
+        "a network-only licence must not unlock site planning"
+
+
+def test_a_network_licence_still_unlocks_transfers(store, monkeypatch):
+    monkeypatch.setattr(D, "allowed_modules", lambda: {"core", "network"})
+    body = _text(build_command_view(_RolePage("ops_admin"), store))
+    assert "network (transfers) module" not in body
+
+
+def test_the_customer_name_survives_only_where_it_must(console_src):
+    """What is left is deliberate, and each case has a reason.
+
+    Everything user-facing is gone. The residue is: the guard's own vocabulary,
+    a one-release back-compat alias for a field WE write (graph_export emits
+    it, three engines read it), the legacy store-file names so an existing
+    install is not orphaned, one genuine client spreadsheet column header, and
+    the Streamlit console — the untouched reference.
+    """
+    import pathlib
+    import re
+    from oasis.logic.demo_identity import IDENTIFYING_TOKENS
+    repo = pathlib.Path(__file__).parent.parent
+    allowed = {
+        "oasis/logic/demo_identity.py",        # the token list itself
+        "oasis/logic/amit_gatekeeper.py",      # back-compat read alias
+        "oasis/logic/dharam_revenue.py",
+        "oasis/logic/graph_export.py",
+        "oasis/logic/lata_shield.py",
+        "oasis/logic/data_mixin.py",           # a client's own column header
+        "oasis/tools/merge_additional_data.py",  # ditto
+        "oasis/logic/onboarding.py",           # LEGACY_DB_NAMES
+        "oasis/logic/release_packager.py",     # legacy exclusion glob
+        "ops_dashboard.py",                    # the untouched reference
+    }
+    pat = re.compile("|".join(IDENTIFYING_TOKENS), re.I)
+    offenders = []
+    for path in list((repo / "oasis").rglob("*.py")) + [repo / "ops_dashboard.py"]:
+        rel = path.relative_to(repo).as_posix()
+        if rel in allowed or "__pycache__" in rel:
+            continue
+        if pat.search(path.read_text(encoding="utf-8", errors="replace")):
+            offenders.append(rel)
+    assert not offenders, f"new customer-identifying references: {offenders}"
+
+
+# ── third-party geographic data (ODbL) ───────────────────────────────────
+def test_no_openstreetmap_extract_is_redistributed():
+    """OSM is ODbL. Shipping an extract means shipping a Derivative Database,
+    which obliges us to license THAT database under ODbL and attribute.
+    A score computed from it is a Produced Work and carries no such obligation
+    — so OASIS ships the scoring and the client fetches their own region."""
+    from oasis.logic.release_packager import should_ship_clean
+    for f in ("competitor_network.csv", "oasis/data/competitor_network.csv",
+              "competitor_fetcher.py"):
+        assert not should_ship_clean(f)[0], f
+
+
+def test_attribution_exists_and_names_osm():
+    from oasis.logic.geo_sources import OSM_ATTRIBUTION
+    assert "OpenStreetMap" in OSM_ATTRIBUTION
+    assert "ODbL" in OSM_ATTRIBUTION
+
+
+def test_a_missing_competitor_cache_reads_as_not_fetched_yet(tmp_path):
+    """Absent data is a client who has not fetched, not an absence of
+    competition — the caller must be able to say which."""
+    from oasis.logic.geo_sources import load_competitors
+    res = load_competitors(root=str(tmp_path))
+    assert res["rows"] == []
+    assert res["error"] and "fetch" in res["error"].lower()
+    assert res["attribution"]
+
+
+def test_a_cached_extract_loads_with_its_attribution(tmp_path):
+    from oasis.logic.geo_sources import load_competitors, cache_path
+    p = cache_path(str(tmp_path))
+    os.makedirs(os.path.dirname(p), exist_ok=True)
+    with open(p, "w", encoding="utf-8") as f:
+        f.write("Store_Name,Latitude,Longitude,Chain,Source\n"
+                "Rival A,-1.3,36.8,Rival,OSM_Overpass\n")
+    res = load_competitors(root=str(tmp_path))
+    assert len(res["rows"]) == 1 and res["error"] is None
+    assert "OpenStreetMap" in res["attribution"]

@@ -18,7 +18,7 @@ class ObsidianMixin:
             os.makedirs(os.path.join(self.vault_path, folder), exist_ok=True)
 
     def _format_link(self, entity_type: str, entity_id: str) -> str:
-        """Helper to format Obsidian links, e.g., [[Store_Rhapta]]."""
+        """Helper to format Obsidian links, e.g., [[Store_Parkview]]."""
         if not entity_id or str(entity_id).upper() == 'UNKNOWN':
              return "[[Unknown]]"
         safe_id = str(entity_id).strip().replace(" ", "_").replace("[", "").replace("]", "")

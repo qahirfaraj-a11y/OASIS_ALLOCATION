@@ -9,7 +9,7 @@ import sys
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
-from oasis.logic.ledger_loader import norm_barcode, org_matches, RHAPTA
+from oasis.logic.ledger_loader import norm_barcode, org_matches, ANCHOR
 
 
 class TestNormBarcode:
@@ -29,7 +29,7 @@ class TestNormBarcode:
 class TestOrgMatches:
     def test_matches_rhapta(self):
         assert org_matches("027 - Rhapta Road") is True
-        assert org_matches("027 - Rhapta Road", RHAPTA) is True
+        assert org_matches("027 - Rhapta Road", ANCHOR) is True
 
     def test_rejects_other_org(self):
         assert org_matches("001 - HEAD OFFICE") is False

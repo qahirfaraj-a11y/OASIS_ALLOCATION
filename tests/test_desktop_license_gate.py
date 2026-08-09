@@ -216,7 +216,7 @@ def test_core_only_licence_paywalls_the_paid_tabs_but_not_the_core_ones(
     body = _text(build_ops_view(None, store))
     # the paid tabs became upsell stubs …
     assert "smart ordering module" in body
-    assert "network (transfers & allocation) module" in body
+    assert "network (transfers) module" in body
     # … while the core stock cards stayed visible.
     assert "stockouts" in body and "stock value" in body
 
@@ -238,7 +238,7 @@ def test_every_gated_tab_names_a_real_module_sku():
 
 def test_upsell_sells_the_module_it_actually_locked():
     body = _text(build_upsell("network"))
-    assert "network (transfers & allocation)" in body
+    assert "network (transfers)" in body
     assert "contact ilink" in body
 
 

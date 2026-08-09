@@ -71,7 +71,7 @@ def load_nodes(nn_path: str) -> Dict[str, Dict[str, Any]]:
                 "velocity_ads": float(row.get("velocity_ads", 0) or 0),
                 "revenue": float(row.get("revenue", 0) or 0),
                 "sales_rank": float(row.get("sales_rank", 99999) or 99999),
-                "rhapta_fill_rate": float(row.get("rhapta_fill_rate", 0) or 0),
+                "store_fill_rate": float(row.get("store_fill_rate", row.get("rhapta_fill_rate", 0)) or 0),
                 "total_quantity": float(row.get("total_quantity", 0) or 0),
             }
 
@@ -194,7 +194,7 @@ def calculate_ghost_demand_patches(
         if not anchor:
             continue
 
-        fill_rate = anchor["rhapta_fill_rate"]
+        fill_rate = anchor["store_fill_rate"]
 
         if fill_rate < stockout_threshold:
             # Substitution Offset (Chapter 11 Upgrade)
@@ -203,7 +203,7 @@ def calculate_ghost_demand_patches(
             for sub_id in substitutes:
                 sub_node = nodes.get(sub_id)
                 if sub_node:
-                    best_sub_fill = max(best_sub_fill, sub_node.get("rhapta_fill_rate", 0.0))
+                    best_sub_fill = max(best_sub_fill, sub_node.get("store_fill_rate", 0.0))
             
             # Composite fill rate: The customer's experience of 'availability' for this need.
             # v1.1 FIX: Use configurable Brand Loyalty factor

@@ -113,7 +113,7 @@ def load_supplier_fill_rates(nn_path: str) -> Dict[str, float]:
             for row in reader:
                 supplier = row.get("supplier", "Unknown").strip("[]").strip().upper()
                 try:
-                    fr = float(row.get("rhapta_fill_rate", 1.0) or 1.0)
+                    fr = float(row.get("store_fill_rate", row.get("rhapta_fill_rate", 1.0)) or 1.0)
                     supplier_rates[supplier].append(fr)
                 except (ValueError, TypeError):
                     continue

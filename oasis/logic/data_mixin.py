@@ -69,8 +69,8 @@ class DataMixin:
                 col_map = {h: i+1 for i, h in enumerate(headers) if h}
                 
                 # Check if it's a standard format or Picking List
-                # v2025: Strictly check for RR PREV and RHAPTA to trigger authoritative logic
-                is_picking_list = ('RR PREV' in col_map) and ('RHAPTA' in col_map)
+                # v2025: Strictly check for RR PREV and ANCHOR to trigger authoritative logic
+                is_picking_list = ('RR PREV' in col_map) and ('ANCHOR' in col_map)
                 
                 if is_picking_list:
                     # 3. Parse product data starting Row 4
@@ -87,7 +87,7 @@ class DataMixin:
                             "item_code": str(ws.cell(row=row_idx, column=col_map.get('ITEM CODE', 0)).value or '').strip() if col_map.get('ITEM CODE') else '',
                             "barcode": str(ws.cell(row=row_idx, column=col_map.get('BARCODE', 0)).value or '').strip() if col_map.get('BARCODE') else '',
                             "supplier_name": supplier_name,
-                            "current_stocks": self._safe_float(ws.cell(row=row_idx, column=col_map.get('RHAPTA', 0)).value) if col_map.get('RHAPTA') else 0.0,
+                            "current_stocks": self._safe_float(ws.cell(row=row_idx, column=col_map.get('ANCHOR', 0)).value) if col_map.get('ANCHOR') else 0.0,
                             "units_sold_last_month": rr_prev,
                             "estimated_daily_sales": rr_prev / 30.0 if rr_prev > 0 else 0.0,
                             "last_days_since_last_delivery": self._safe_int(ws.cell(row=row_idx, column=col_map.get('RR GRN', 0)).value) if col_map.get('RR GRN') else 0,
@@ -100,7 +100,9 @@ class DataMixin:
                             "RR PREV": rr_prev,
                             "RR GRN": self._safe_int(ws.cell(row=row_idx, column=col_map.get('RR GRN', 0)).value) if col_map.get('RR GRN') else 0,
                             "RR PB": pb_val,
-                            "Rhapta": self._safe_float(ws.cell(row=row_idx, column=col_map.get('RHAPTA', 0)).value) if col_map.get('RHAPTA') else 0.0,
+                            # Client spreadsheet column header — theirs, not ours. Renaming it
+                            # to de-identify would simply stop us reading their file.
+                            "RHAPTA": self._safe_float(ws.cell(row=row_idx, column=col_map.get('RHAPTA', 0)).value) if col_map.get('RHAPTA') else 0.0,
                             "Space": ws.cell(row=row_idx, column=col_map.get('SPACE', 0)).value if col_map.get('SPACE') else ''
                         }
                         products.append(product)
@@ -138,7 +140,8 @@ class DataMixin:
             
             p['current_stocks'] = self._safe_float(
                 p.get('current_stocks') or p_lower.get('current_stock') or p_lower.get('stock_on_hand') or 
-                p_lower.get('soh') or p_lower.get('027_-_rhapta_road') or 0
+                p_lower.get('soh') or p_lower.get('anchor_store_soh')
+                or p_lower.get('027_-_rhapta_road') or 0
             )
             
             # v10.10: Capture Live Sales Data from Forensic Exports

@@ -58,7 +58,7 @@ class ERPExtractionHandler(FileSystemEventHandler):
         df = pd.read_csv(file_path)
         
         # Auto-normalize production scorecard column names to standard schema
-        # This handles the real Chandarana format (Product/Current_Stock/etc.)
+        # This handles the real the reference client format (Product/Current_Stock/etc.)
         normalize_map = {
             "Product": "Item_Name",
             "Current_Stock": "SOH",

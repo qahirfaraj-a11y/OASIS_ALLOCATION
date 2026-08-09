@@ -34,16 +34,66 @@ TAB_MODULES = {
     "stock_review": "core",
     "ordering": "ordering",       # smart_ordering / PO generation
     "processor": "core",
-    "allocation": "network",   # matches ops_dashboard.TAB_MODULES
-    "simulation": "core",
+    # Site planning is its own SKU: a chain buying "where should the next
+    # store go and what should it carry" is not necessarily buying inter-store
+    # transfers. See license_manager.MODULE_LABELS["greenfield"].
+    "allocation": "greenfield",
+    "simulation": "greenfield",
     "analytics": "core",
     "supplier_intelligence": "ordering",   # matches ops_dashboard.TAB_MODULES
 }
 
 
+#: tab → the ROLE permission key in auth_manager.ROLE_PERMISSIONS["tabs"].
+#: Role and module are independent gates and BOTH must pass: a module SKU says
+#: the install bought the capability, a role says this person may use it.
+#: They fail differently on purpose — an unlicensed tab shows an upsell (it can
+#: be bought), a forbidden one is not built at all (it cannot).
+TAB_ROLE_KEYS = {
+    "executive_roi": "executive_roi",
+    "live_sales": "live_sales",
+    "transfers": "transfer_intelligence",
+    "stock_review": "stock_review",
+    "ordering": "smart_ordering",
+    "processor": "oasis_processor",
+    "allocation": "allocation_engine",
+    "simulation": "simulation_validation",
+    "analytics": "analytics",
+    "supplier_intelligence": "supplier_intelligence",
+}
+
+
+#: (tab key, label, icon, builder) — the console's order.
+TAB_SPEC = [
+    ("executive_roi", "Executive ROI", ft.Icons.EMOJI_EVENTS, build_executive_roi_tab),
+    ("live_sales", "Live Sales", ft.Icons.SHOW_CHART, build_live_sales_tab),
+    ("transfers", "Transfers", ft.Icons.SWAP_HORIZ, build_transfer_intel_tab),
+    ("stock_review", "Stock Review", ft.Icons.INVENTORY_2, build_stock_review_tab),
+    ("ordering", "Ordering", ft.Icons.SHOPPING_CART, build_smart_ordering_tab),
+    ("processor", "Processor", ft.Icons.ROCKET_LAUNCH, build_processor_tab),
+    ("allocation", "Allocation", ft.Icons.CALCULATE, build_allocation_tab),
+    ("simulation", "Simulation", ft.Icons.SCIENCE, build_simulation_lab_tab),
+    ("analytics", "Analytics", ft.Icons.INSIGHTS, build_analytics_tab),
+    ("supplier_intelligence", "Suppliers", ft.Icons.FACTORY, build_supplier_intel_tab),
+]
+
+
 def build_command_view(page: ft.Page, project_root: str) -> ft.Column:
     """Main Command Center view."""
     mods = D.allowed_modules()
+    try:
+        role = (page.session.get("role") if page is not None else None) or "ops_admin"
+    except Exception:
+        role = "ops_admin"
+    permitted = D.role_tabs(role)
+
+    def _allowed_for_role(tab_key: str) -> bool:
+        key = TAB_ROLE_KEYS.get(tab_key)
+        if key is None:
+            return True
+        # Absent key = not granted. get_user_permissions already falls back to
+        # the least-privileged role for an unknown one.
+        return bool(permitted.get(key, False))
 
     def _content(tab_key: str, builder):
         """The tab's real content, or the upsell that replaces it when locked.
@@ -57,64 +107,32 @@ def build_command_view(page: ft.Page, project_root: str) -> ft.Column:
                              expand=True)
         return builder(page, project_root)
 
+
+    # A role the operator does not hold removes the tab entirely — the console
+    # never builds it either. Licensing shows an upsell instead, because an
+    # unlicensed capability can be bought and a forbidden one cannot.
+    visible = [t for t in TAB_SPEC if _allowed_for_role(t[0])]
+    if not visible:
+        return ft.Column([
+            ft.Row([
+                ft.Icon(ft.Icons.SHIELD, size=32, color=T.TEAL),
+                ft.Text("Command Center", size=28, weight=ft.FontWeight.W_700,
+                        color=T.TEXT_PRIMARY),
+            ], vertical_alignment=ft.CrossAxisAlignment.CENTER),
+            T.card_container(content=ft.Column([
+                ft.Icon(ft.Icons.LOCK_OUTLINE, size=30, color=T.WARNING),
+                ft.Text("Your account has no Command Center access.", size=14,
+                        color=T.TEXT_PRIMARY),
+                ft.Text(f"Signed in as {role}. Ask an administrator to grant "
+                        "the tabs you need.", size=12, color=T.TEXT_SECONDARY),
+            ], spacing=8, horizontal_alignment=ft.CrossAxisAlignment.CENTER)),
+        ], spacing=12, expand=True)
+
     tabs = ft.Tabs(
         selected_index=0,
         animation_duration=300,
-        tabs=[
-            # Order follows the console: Executive ROI leads, then the daily
-            # operating tabs, then the analysis ones.
-            ft.Tab(
-                text="Executive ROI",
-                icon=ft.Icons.EMOJI_EVENTS,
-                content=_content("executive_roi", build_executive_roi_tab),
-            ),
-            ft.Tab(
-                text="Live Sales",
-                icon=ft.Icons.SHOW_CHART,
-                content=_content("live_sales", build_live_sales_tab),
-            ),
-            ft.Tab(
-                text="Transfers",
-                icon=ft.Icons.SWAP_HORIZ,
-                content=_content("transfers", build_transfer_intel_tab),
-            ),
-            ft.Tab(
-                text="Stock Review",
-                icon=ft.Icons.INVENTORY_2,
-                content=_content("stock_review", build_stock_review_tab),
-            ),
-            ft.Tab(
-                text="Ordering",
-                icon=ft.Icons.SHOPPING_CART,
-                content=_content("ordering", build_smart_ordering_tab),
-            ),
-            ft.Tab(
-                text="Processor",
-                icon=ft.Icons.ROCKET_LAUNCH,
-                content=_content("processor", build_processor_tab),
-            ),
-            ft.Tab(
-                text="Allocation",
-                icon=ft.Icons.CALCULATE,
-                content=_content("allocation", build_allocation_tab),
-            ),
-            ft.Tab(
-                text="Simulation",
-                icon=ft.Icons.SCIENCE,
-                content=_content("simulation", build_simulation_lab_tab),
-            ),
-            ft.Tab(
-                text="Analytics",
-                icon=ft.Icons.INSIGHTS,
-                content=_content("analytics", build_analytics_tab),
-            ),
-            ft.Tab(
-                text="Suppliers",
-                icon=ft.Icons.FACTORY,
-                content=_content("supplier_intelligence",
-                                 build_supplier_intel_tab),
-            ),
-        ],
+        tabs=[ft.Tab(text=label, icon=icon, content=_content(key, builder))
+              for key, label, icon, builder in visible],
         expand=1,
     )
 

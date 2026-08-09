@@ -77,6 +77,21 @@ _REAL_DATA_DIR = os.path.join(os.path.dirname(os.path.dirname(
     os.path.abspath(__file__))), "oasis", "data")
 
 
+#: Tests do not need 4,000 SKUs to prove a control tree builds or an accessor
+#: returns the right shape — and paying for the full catalogue on every store
+#: fixture took the suite from five minutes to twenty. Anything that genuinely
+#: needs the full range can setenv it back.
+DEMO_SKUS_IN_TESTS = "150"
+DEMO_HISTORY_DAYS_IN_TESTS = "7"
+
+
+@pytest.fixture(autouse=True)
+def _small_demo_catalogue(monkeypatch):
+    monkeypatch.setenv("OASIS_DEMO_MAX_SKUS", DEMO_SKUS_IN_TESTS)
+    monkeypatch.setenv("OASIS_DEMO_HISTORY_DAYS", DEMO_HISTORY_DAYS_IN_TESTS)
+    yield
+
+
 @pytest.fixture(autouse=True)
 def _never_touch_the_real_store(monkeypatch, tmp_path_factory, request):
     """Point store writes away from the install unless a test opts in.

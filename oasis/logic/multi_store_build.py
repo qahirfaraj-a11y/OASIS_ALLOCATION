@@ -8,7 +8,7 @@ differentiated stock profile seeded from the real sample dept_*.xlsx catalogue.
 Differences per store:
     • **Assortment** — some stores carry a subset of the full catalogue.
     • **Stock depth** — multiplied by per-department weights (e.g. Karen stocks
-      heavy on staples, Westgate is lean everywhere).
+      heavy on staples, the mall express store is lean everywhere).
     • **Pricing** — slight variance (+/- 3%) reflecting location premiums.
     • **Same ITEM_MST** — all five stores share the same item master (barcodes),
       but STOCK_MASTER / BASIC_SP_MST / BASIC_CP_MST rows are per-org.
@@ -70,7 +70,7 @@ def _stock_qty(catalog_qty: float, profile: StoreProfile,
 def _price_variant(base_price: float, profile: StoreProfile,
                    rng: random.Random) -> float:
     """Slight store-level price variation (+/- 3%)."""
-    # Lavington charges a premium; Westgate a small one too (mall markup).
+    # The upscale store charges a premium; the mall express a small one too.
     premiums = {"ORG002": 1.03, "ORG004": 1.02, "ORG005": 1.01}
     mult = premiums.get(profile.org_cd, 1.0) * rng.uniform(0.98, 1.02)
     return round(base_price * mult, 2)

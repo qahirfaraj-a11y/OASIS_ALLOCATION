@@ -45,7 +45,13 @@ class TestAllocationPermissions:
         """With allocation_engine, each role should have 9 tab permissions."""
         from oasis.logic.auth_manager import ROLE_PERMISSIONS
         for role, perms in ROLE_PERMISSIONS.items():
-            assert len(perms["tabs"]) == 9, f"{role} has {len(perms['tabs'])} tabs, expected 9"
+            # Every role must answer for EVERY tab — the count follows the table
+            # rather than a literal, since executive_roi and
+            # supplier_intelligence were missing from it entirely and so
+            # returned None for every role.
+            expected = set(ROLE_PERMISSIONS["ops_admin"]["tabs"])
+            assert set(perms["tabs"]) == expected, (
+                f"{role} does not answer for {expected ^ set(perms['tabs'])}")
 
 
 # ── 4.2: Scheduler Tests ────────────────────────────────────────────

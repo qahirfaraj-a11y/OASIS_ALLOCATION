@@ -412,7 +412,7 @@ def write_sku_deepdive(files: List[str], cash_dir: str, data_dir: str,
     reduce_ = sorted(pick("REDUCE"), key=lambda s: s["Capital (KES)"], reverse=True)
     core = sorted(pick("RETAIN-CORE"), key=lambda s: s["Rev/Day"], reverse=True)
 
-    md = f"""# O.A.S.I.S. SKU Deep Dive — {section.title()} · {tenant or 'Chandarana Rhapta'}
+    md = f"""# O.A.S.I.S. SKU Deep Dive — {section.title()} · {tenant or 'the reference client the anchor store'}
 
 *Snapshot of {a['n_skus']:,} SKUs (deduplicated across {len(files)} files, {dupes}
 duplicate lines dropped) crossed with {a['months_used']} complete months of real

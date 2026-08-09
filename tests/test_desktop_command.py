@@ -117,7 +117,7 @@ def test_core_only_licence_locks_ordering_and_transfers(store, monkeypatch):
     monkeypatch.setattr(D, "allowed_modules", lambda: {"core"})
     body = _text(build_command_view(None, store))
     assert "smart ordering module" in body
-    assert "network (transfers & allocation) module" in body
+    assert "network (transfers) module" in body
     # …while the core tabs still render their own content.
     assert "top movers" in body or "no sales recorded" in body
     assert "product detail" in body or "no product data" in body

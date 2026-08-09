@@ -78,7 +78,7 @@ def load_nodes(nn_path: str) -> List[Dict[str, Any]]:
                 "sales_rank": float(row.get("sales_rank", 99999) or 99999),
                 "velocity_ads": float(row.get("velocity_ads", 0) or 0),
                 "total_quantity": float(row.get("total_quantity", 0) or 0),
-                "rhapta_fill_rate": float(row.get("rhapta_fill_rate", 0) or 0),
+                "store_fill_rate": float(row.get("store_fill_rate", row.get("rhapta_fill_rate", 0)) or 0),
             })
 
     logger.info(f"Loaded {len(nodes)} SKU nodes from neural network.")

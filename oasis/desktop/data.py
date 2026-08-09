@@ -178,6 +178,26 @@ def license_gate(module: str = "core") -> Dict[str, Any]:
                 "trial_days_left": 0}
 
 
+def role_tabs(role: Optional[str]) -> Dict[str, bool]:
+    """Which tabs this ROLE may see — the console's ROLE_PERMISSIONS table.
+
+    Distinct from :func:`allowed_modules`, and both must pass. A module SKU
+    answers "has this install bought the capability"; a role answers "is this
+    person allowed to use it". Conflating them would let a branch manager see
+    a licensed capability that is not theirs, or paywall an admin who simply
+    has not bought a module.
+
+    Fails CLOSED to the least-privileged role, for the same reason the licence
+    gate does: an unknown role is not an authorised one.
+    """
+    try:
+        from oasis.logic.auth_manager import ROLE_PERMISSIONS, get_user_permissions
+        perms = get_user_permissions(role or "")
+        return dict(perms.get("tabs") or {})
+    except Exception:
+        return {}
+
+
 def allowed_modules() -> set:
     """Module SKUs this install may use right now — ``{"core"}`` if unknowable.
 

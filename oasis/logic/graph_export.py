@@ -40,7 +40,7 @@ from typing import Dict, List
 
 NODE_COLUMNS = ["type", "department", "supplier", "price", "margin_pct", "revenue",
                 "gross_profit", "sales_rank", "velocity_ads", "total_quantity",
-                "rhapta_fill_rate", "id"]
+                "store_fill_rate", "id"]
 _PRICE_WINDOW = 30   # candidate neighbours by price before composite refine
 
 
@@ -136,7 +136,7 @@ def build_graph(records: List[dict], k: int = 8) -> tuple:
             "sales_rank": r.get("sales_rank", 99999) or 99999,
             "velocity_ads": r.get("velocity_ads", 0) or 0,
             "total_quantity": r.get("total_quantity", 0) or 0,
-            "rhapta_fill_rate": r.get("rhapta_fill_rate", 0) or 0,
+            "store_fill_rate": r.get("store_fill_rate", r.get("rhapta_fill_rate", 0)) or 0,
             "id": r["id"],
         })
     for s in sorted(suppliers):
@@ -200,7 +200,7 @@ def load_node_records(data_dir: str) -> List[dict]:
                 "gross_profit": float(pr.get("gross_profit", 0) or 0),
                 "sales_rank": float(pr.get("sales_rank", 99999) or 99999),
                 "total_quantity": float(pr.get("total_qty_sold", 0) or 0),
-                "rhapta_fill_rate": 0.0,
+                "store_fill_rate": 0.0,
             }
     return list(records.values())
 

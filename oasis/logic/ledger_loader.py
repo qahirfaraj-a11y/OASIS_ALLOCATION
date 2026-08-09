@@ -1,7 +1,7 @@
 """
 Ledger loader (Risk-Scoring Redesign, P1b).
 
-Parses the real Rhapta data files into the per-SKU ``DayFlow`` stream that the
+Parses the real anchor-store data files into the per-SKU ``DayFlow`` stream that the
 pure ledger engine (:mod:`oasis.logic.stockout_ledger`) consumes, and joins in
 the demand signal. This is the messy-I/O boundary, deliberately kept separate
 from the pure engine so the engine stays CI-testable without the data.
@@ -12,7 +12,7 @@ Join strategy (verified coverage 2026-06-18):
   * **demand keyed by item name** — `corrected_ads_from_pos.json` is keyed by
     name, joined to the master name at ~86%.
 
-Flows for one organisation (default Rhapta, org 027):
+Flows for one organisation (default the anchor store, org 027):
   receipts = GRN Qty (grnds_*) + transfer-IN STI Qty (trn_*, To Org == org)
   outflow  = transfer-OUT STO Qty (trout_*, From Org == org) + return Rejc Qty (prts_*)
   demand   = ADS (corrected_ads, by name) spread across the period
@@ -31,7 +31,7 @@ from typing import Dict
 
 from .stockout_ledger import DayFlow, simulate_ledger, stockout_summary
 
-RHAPTA = "027"
+ANCHOR = "027"
 
 
 # ── pure helpers (unit tested) ─────────────────────────────────────────────
@@ -52,7 +52,7 @@ def norm_barcode(v) -> str:
     return s
 
 
-def org_matches(cell, org: str = RHAPTA) -> bool:
+def org_matches(cell, org: str = ANCHOR) -> bool:
     """True if an 'NNN - Name' org cell refers to ``org`` (pure)."""
     return str(cell).strip().startswith(str(org))
 
@@ -93,7 +93,7 @@ def load_master(data_dir: str) -> Dict[str, dict]:
     return master
 
 
-def load_movements(data_dir: str, org: str = RHAPTA) -> Dict[str, Dict[object, DayFlow]]:
+def load_movements(data_dir: str, org: str = ANCHOR) -> Dict[str, Dict[object, DayFlow]]:
     """barcode -> {date: DayFlow(receipts, outflow)} for one org (demand attached later)."""
     rec = defaultdict(lambda: defaultdict(float))   # receipts by (bc, date)
     out = defaultdict(lambda: defaultdict(float))    # outflow by (bc, date)
@@ -170,7 +170,7 @@ def load_demand_ads(data_dir: str) -> Dict[str, float]:
     return out
 
 
-def feasibility_report(data_dir: str, org: str = RHAPTA) -> dict:
+def feasibility_report(data_dir: str, org: str = ANCHOR) -> dict:
     """Load real flows + demand, run the ledger engine, and report join coverage,
     flow magnitudes, and a turnover-consistency check (the P1b validation).
 
