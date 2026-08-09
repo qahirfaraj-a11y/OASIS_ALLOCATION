@@ -78,10 +78,24 @@ def main() -> int:
     # figure away. Selection is not disclosure; the ordering would be.
     df = df.sort_values("ads_sort", ascending=False).head(args.max_skus)
 
-    rows, seen = [], set()
+    # Own-brand lines carry the retailer's name in the PRODUCT name — branded
+    # carrier bags and the like. Field-level checks miss those entirely, so
+    # filter on the text a client actually reads.
+    from oasis.logic.demo_identity import IDENTIFYING_TOKENS
+
+    def _identifies(*parts) -> bool:
+        blob = " ".join(str(x or "") for x in parts).lower()
+        return any(tok in blob for tok in IDENTIFYING_TOKENS)
+
+    rows, seen, dropped = [], set(), 0
     for i, r in enumerate(df.to_dict("records"), start=1):
         name = str(r.get("Product", "") or "").strip()
         if not name or name.upper() in seen:
+            continue
+        dept_raw = str(r.get("Department", "") or "GENERAL").strip().title()
+        vendor_raw = str(r.get("Supplier", "") or "Unknown").strip().title()
+        if _identifies(name, dept_raw, vendor_raw):
+            dropped += 1
             continue
         seen.add(name.upper())
         tier = r["tier_band"]
@@ -94,8 +108,8 @@ def main() -> int:
         rows.append({
             "itm_cd": f"DEMO{i:05d}",
             "name": name,
-            "dept": str(r.get("Department", "") or "GENERAL").strip().title(),
-            "vendor": str(r.get("Supplier", "") or "Unknown").strip().title(),
+            "dept": dept_raw,
+            "vendor": vendor_raw,
             "price": round(price, 2),
             "stock": round(ads * rng.uniform(c_lo, c_hi), 0),
             "tier": tier,
@@ -115,6 +129,7 @@ def main() -> int:
         by_tier[r["tier"]] = by_tier.get(r["tier"], 0) + 1
     print(f"[OK] {len(rows):,} hot SKUs -> {args.out} ({size_kb:,.0f} KB)")
     print(f"     tiers: {by_tier}")
+    print(f"     dropped {dropped} own-brand line(s) naming the retailer")
     print(f"     departments: {len({r['dept'] for r in rows})}, "
           f"suppliers: {len({r['vendor'] for r in rows})}")
     return 0

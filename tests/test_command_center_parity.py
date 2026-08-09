@@ -977,6 +977,43 @@ def test_the_sample_catalogue_carries_no_financials():
     assert payload["rows"], "catalogue is empty"
 
 
+def test_no_catalogue_line_names_the_retailer():
+    """The field-level check was not enough.
+
+    The earlier guards asserted the catalogue carried no FINANCIAL fields and
+    that the store estate was renamed — and both passed while two own-brand
+    lines ("... FOODPLUS CARRIER BAG", "... PRINTED") sat in the product names,
+    which is the text a client actually reads. Check the words, not the schema.
+    """
+    import gzip
+    import json
+    import pathlib as _p
+    from oasis.logic.demo_seed import CATALOG_FILE
+    from oasis.logic.demo_identity import IDENTIFYING_TOKENS
+    path = (_p.Path(__file__).parent.parent / "oasis" / "data" / CATALOG_FILE)
+    if not path.exists():
+        pytest.skip("generated catalogue not built in this checkout")
+    with gzip.open(path, "rt", encoding="utf-8") as f:
+        payload = json.load(f)
+    offenders = [r for r in payload["rows"]
+                 if any(tok in f"{r['name']} {r['vendor']} {r['dept']}".lower()
+                        for tok in IDENTIFYING_TOKENS)]
+    assert not offenders, [r["name"] for r in offenders[:5]]
+
+
+def test_a_built_store_names_the_retailer_nowhere(store):
+    """End of the chain: the DATABASE a client browses, not the source."""
+    import sqlite3
+    from oasis.logic.demo_identity import IDENTIFYING_TOKENS
+    conn = sqlite3.connect(D.store_db_path(store))
+    blob = " ".join(
+        str(cell)
+        for table in ("ORGANIZATION_MST", "OASIS_USERS", "ITEM_MST")
+        for row in conn.execute(f"SELECT * FROM {table}")
+        for cell in row).lower()
+    assert not [t for t in IDENTIFYING_TOKENS if t in blob]
+
+
 def test_the_sample_catalogue_excludes_dead_lines():
     """D-tier is ~16,600 near-zero-velocity lines. A sample store carries the
     range that moves, not the archive."""
