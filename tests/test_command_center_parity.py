@@ -1257,3 +1257,105 @@ def test_a_cached_extract_loads_with_its_attribution(tmp_path):
     res = load_competitors(root=str(tmp_path))
     assert len(res["rows"]) == 1 and res["error"] is None
     assert "OpenStreetMap" in res["attribution"]
+
+
+# ── the location pillar ──────────────────────────────────────────────────
+def test_the_scoring_uses_no_model_and_ships():
+    """The expansion RandomForest was trained on np.random against a
+    hand-written target. It leaks nothing but predicts nothing, and costs 20x
+    the release. The geography is interpretable instead."""
+    from oasis.logic.release_packager import should_ship_clean
+    import oasis.logic.site_scoring as SS
+    assert should_ship_clean("oasis/logic/site_scoring.py")[0]
+    assert not should_ship_clean("expansion_model.joblib")[0]
+    assert not should_ship_clean("store_coords.json")[0]
+    # Check the CODE, not the prose — the module's own docstring explains at
+    # length why there is no model, and naming the thing you refuse to use is
+    # not using it.
+    src = pathlib.Path(SS.__file__).read_text(encoding="utf-8")
+    code = chr(10).join(line for line in src.splitlines()
+                        if not line.lstrip().startswith("#"))
+    code = re.sub(r'""".*?"""', "", code, flags=re.S)
+    for banned in ("import joblib", "import sklearn", "from sklearn",
+                   ".predict(", "torch"):
+        assert banned not in code, f"site scoring pulled in {banned}"
+
+
+def test_haversine_is_a_real_distance():
+    from oasis.logic.site_scoring import haversine_km
+    assert haversine_km(-1.2641, 36.7865, -1.2936, 36.7800) == pytest.approx(3.36, abs=0.1)
+    assert haversine_km(0, 0, 0, 0) == 0.0
+
+
+def test_demand_is_sampled_around_the_site_not_on_it():
+    """Placing the demand point ON the candidate gives it distance ~0 and so
+    near-infinite utility — the site beats every competitor by construction and
+    an empty desert scores 100%. The console's expansion engine does exactly
+    that (`{'S': ..., 'dist': 0.1}`); this must not."""
+    from oasis.logic.site_scoring import score_site
+    own = [{"lat": -1.2641, "lon": 36.7865, "size_sqft": 12000}]
+    crowded = score_site(-1.2645, 36.7870, own,
+                         [{"Latitude": -1.2650, "Longitude": 36.7875,
+                           "Chain": "Naivas"}])
+    open_ground = score_site(-1.2000, 36.8600, own, [])
+    assert crowded["capture_pct"] < open_ground["capture_pct"], \
+        "competitor proximity did not reduce capture"
+    assert crowded["capture_pct"] < 50.0
+
+
+def test_an_isolated_site_says_it_cannot_know():
+    """100% of an empty catchment is still 100%, and means nothing — OASIS has
+    no population data and cannot tell a suburb from a field."""
+    from oasis.logic.site_scoring import rank_sites
+    out = rank_sites([{"name": "Middle of nowhere", "lat": -3.5, "lon": 39.9}],
+                     [{"lat": -1.26, "lon": 36.78}], [])
+    site = out[0]
+    assert site["isolated"] is True
+    assert "no evidence of demand" in site["verdict"].lower()
+    assert "unknown" in site["format"].lower(), \
+        "an empty field was recommended a store format"
+
+
+def test_cannibalisation_is_reported_separately_from_capture():
+    """A site can score well and still be a bad decision if the trade merely
+    moves from your own store across the road."""
+    from oasis.logic.site_scoring import score_site
+    own = [{"lat": -1.2641, "lon": 36.7865, "size_sqft": 12000}]
+    next_door = score_site(-1.2645, 36.7870, own, [])
+    far = score_site(-1.1500, 36.9000, own, [])
+    assert next_door["cannibalisation_pct"] > far["cannibalisation_pct"]
+    assert "your own store" in next_door["verdict"].lower()
+
+
+def test_sites_cannot_be_scored_before_the_estate_is_placed(store):
+    """Every distance is measured from the client's stores; without them there
+    is nothing to measure against."""
+    res = D.score_sites([{"name": "X", "lat": -1.23, "lon": 36.82}], root=store)
+    assert res["sites"] == []
+    assert res["error"] and "place your existing stores" in res["error"].lower()
+
+
+def test_placing_a_store_validates_its_coordinates(store):
+    assert not D.set_store_location("ORG001", 999, 36.8, root=store)["saved"]
+    assert not D.set_store_location("ORG001", "abc", 36.8, root=store)["saved"]
+    assert D.set_store_location("ORG001", -1.26, 36.78, root=store)["saved"]
+
+
+def test_a_store_without_coordinates_is_listed_not_dropped(store):
+    """Silently omitting it would leave it out of every distance calculation
+    while the map looked complete."""
+    D.set_store_location(D.default_org(store), -1.26, 36.78, root=store)
+    m = D.store_map(store)
+    assert m["located"]
+    assert all("org_cd" in s for s in m["missing"])
+
+
+def test_the_location_tab_builds_and_is_greenfield_gated(store, monkeypatch):
+    from oasis.desktop.views.command_view import TAB_MODULES
+    assert TAB_MODULES["location"] == "greenfield"
+    monkeypatch.setattr(D, "allowed_modules", lambda: set(LM.KNOWN_MODULES))
+    from oasis.desktop.views.command_tabs.location_tab import build_location_tab
+    body = _text(build_location_tab(None, store))
+    assert "your estate" in body
+    assert "score a candidate site" in body
+    assert "place store" in body

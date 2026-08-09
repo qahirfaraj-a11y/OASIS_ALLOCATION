@@ -301,6 +301,65 @@ def generate_smart_orders(org_cd: str, thresholds: Optional[Dict[str, Any]] = No
         return {"po_recs": [], "dropped_recs": [], "network_plan": None, "error": str(e)[:200]}
 
 
+def store_map(root: Optional[str] = None) -> Dict[str, Any]:
+    """Where this client's stores are, and which still need placing."""
+    try:
+        from oasis.logic.store_locations import merge_with_stores
+        return merge_with_stores(list_stores(root), root=root)
+    except Exception as e:
+        return {"located": [], "missing": [], "error": str(e)[:200]}
+
+
+def set_store_location(org_cd: str, lat: float, lon: float,
+                       size_sqft: float = 10_000.0,
+                       root: Optional[str] = None) -> Dict[str, Any]:
+    try:
+        from oasis.logic.store_locations import save_location
+        return save_location(org_cd, lat, lon, size_sqft, root=root)
+    except Exception as e:
+        return {"saved": False, "error": str(e)[:200]}
+
+
+def competitor_set(root: Optional[str] = None) -> Dict[str, Any]:
+    """The client's own OSM competitor extract. See oasis.logic.geo_sources."""
+    try:
+        from oasis.logic.geo_sources import load_competitors
+        return load_competitors(root=root)
+    except Exception as e:
+        return {"rows": [], "attribution": None, "error": str(e)[:200]}
+
+
+def score_sites(candidates: List[Dict[str, Any]],
+                size_sqft: float = 10_000.0,
+                root: Optional[str] = None) -> Dict[str, Any]:
+    """Rank candidate sites against this client's estate and competitors.
+
+    Interpretable geography only — no model. See ``oasis.logic.site_scoring``
+    for what this deliberately cannot tell you (it has no population data, so
+    it ranks how contested a catchment is, not how big it is).
+    """
+    try:
+        from oasis.logic.site_scoring import rank_sites
+        placed = store_map(root)
+        if placed.get("error"):
+            return {"sites": [], "error": placed["error"]}
+        if not placed["located"]:
+            return {"sites": [], "missing": placed["missing"],
+                    "error": "No store locations recorded yet — place your "
+                             "existing stores first, so a candidate can be "
+                             "scored against them."}
+        comps = competitor_set(root)
+        ranked = rank_sites(candidates, placed["located"],
+                            comps.get("rows") or [], size_sqft=size_sqft)
+        return {"sites": ranked, "own_stores": len(placed["located"]),
+                "missing": placed["missing"],
+                "competitors": len(comps.get("rows") or []),
+                "attribution": comps.get("attribution"),
+                "competitor_error": comps.get("error"), "error": None}
+    except Exception as e:
+        return {"sites": [], "error": str(e)[:200]}
+
+
 def greenfield_scorecard(mode: str = "network",
                          org_cd: Optional[str] = None,
                          root: Optional[str] = None) -> Dict[str, Any]:

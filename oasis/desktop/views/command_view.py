@@ -19,6 +19,7 @@ from .command_tabs.transfer_intel_tab import build_transfer_intel_tab
 from .command_tabs.stock_review_tab import build_stock_review_tab
 from .command_tabs.smart_ordering_tab import build_smart_ordering_tab
 from .command_tabs.processor_tab import build_processor_tab
+from .command_tabs.location_tab import build_location_tab
 from .command_tabs.allocation_tab import build_allocation_tab
 from .command_tabs.simulation_lab_tab import build_simulation_lab_tab
 from .command_tabs.analytics_tab import build_analytics_tab
@@ -37,6 +38,7 @@ TAB_MODULES = {
     # Site planning is its own SKU: a chain buying "where should the next
     # store go and what should it carry" is not necessarily buying inter-store
     # transfers. See license_manager.MODULE_LABELS["greenfield"].
+    "location": "greenfield",
     "allocation": "greenfield",
     "simulation": "greenfield",
     "analytics": "core",
@@ -56,6 +58,7 @@ TAB_ROLE_KEYS = {
     "stock_review": "stock_review",
     "ordering": "smart_ordering",
     "processor": "oasis_processor",
+    "location": "allocation_engine",
     "allocation": "allocation_engine",
     "simulation": "simulation_validation",
     "analytics": "analytics",
@@ -71,6 +74,7 @@ TAB_SPEC = [
     ("stock_review", "Stock Review", ft.Icons.INVENTORY_2, build_stock_review_tab),
     ("ordering", "Ordering", ft.Icons.SHOPPING_CART, build_smart_ordering_tab),
     ("processor", "Processor", ft.Icons.ROCKET_LAUNCH, build_processor_tab),
+    ("location", "Site Selection", ft.Icons.PLACE, build_location_tab),
     ("allocation", "Allocation", ft.Icons.CALCULATE, build_allocation_tab),
     ("simulation", "Simulation", ft.Icons.SCIENCE, build_simulation_lab_tab),
     ("analytics", "Analytics", ft.Icons.INSIGHTS, build_analytics_tab),

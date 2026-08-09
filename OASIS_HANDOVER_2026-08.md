@@ -223,7 +223,7 @@ Two `conftest.py` guards worth knowing about:
 |---|---|
 | **Allocation** | **Done.** Network-derived via `oasis/logic/scorecard_builder.py` |
 | **Simulation** | **Done.** Shipped; dev paths removed |
-| **Location** | **Designed and audited, not built** |
+| **Location** | **Done.** `site_scoring` + `store_locations` + `geo_sources`, Site Selection tab |
 
 `scorecard_builder` has two modes. In `network` mode demand is averaged over
 the stores that **carry** a line — not summed, and not averaged over the whole
@@ -232,7 +232,27 @@ outlets that never stocked a line would understate a regional product into
 nonexistence. "Staple" is then **revealed by carriage** (≥4 of 5 outlets)
 rather than asserted by a shipped column.
 
-### Location pillar — the audit result
+### Location pillar — built
+
+`oasis/logic/site_scoring.py` — Huff gravity share, pure and interpretable, no
+model. `store_locations.py` holds the client's estate (entered once per
+install; `ORGANIZATION_MST` has an address but no coordinates and OASIS will
+not geocode-and-guess). `geo_sources.py` fetches their region's competitors.
+Site Selection is the 11th Command Center tab, gated on `greenfield`.
+
+**A real bug was found porting the console's expansion engine.** It places the
+demand point ON the candidate site (`{'S': ..., 'dist': 0.1}`), which hands the
+site a 267x utility advantage by construction — an empty field scored 100% and
+was recommended a "Hyper / Flagship". Demand is now sampled on rings *around*
+the site, so competitor proximity actually bites. An isolated site reports
+"Nothing within 10 km — no competition, but no evidence of demand either"
+rather than implying an opportunity.
+
+**What it deliberately cannot do:** OASIS has no population or footfall data,
+so this ranks how CONTESTED a catchment is, not how big it is. That limitation
+is in the module docstring, in the verdict text, and in the tab's own footnote.
+
+### The audit that led there
 
 * `competitor_network.csv` — 335 sites, 100% OpenStreetMap. Public, but ODbL
   (see §5). Fetched per-client, not shipped.
