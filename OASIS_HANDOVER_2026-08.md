@@ -1,7 +1,7 @@
 # O.A.S.I.S. — Handover
 
 **Date:** 2026-08-09 · **Version:** 2.3.0 · **Branch:** `pre-mosaic-backup`
-**Head:** `99532a5c` · **Tests:** 1,082 passing · **Release:** 0.8 MB / 178 files
+**Head:** `b25e4cb7` · **Tests:** 1,093 passing · **Release:** 0.8 MB / 181 files
 
 Everything below was verified against a **freshly built release zip, extracted
 into a clean directory**, not against the working tree. Three times in this
@@ -14,8 +14,8 @@ is what caught all three, and it is the single most important habit to keep.
 
 The native Flet desktop app went from a **read-only viewer** to the operating
 surface of the product. Command Center parity with the Streamlit console is
-complete: all 11 console tabs are migrated (10 native tabs + Settings in its
-own view).
+complete: all 11 console tabs are migrated, plus Site Selection which the
+console never had (11 native tabs + Settings in its own view).
 
 Along the way, **five defects were found that made the shipped product not work
 on a client machine**. None were visible from a developer checkout.
@@ -32,10 +32,12 @@ on a client machine**. None were visible from a developer checkout.
 | `34dee3d5` | Sample data: de-identify the estate, stock it from the hot product set |
 | `9d7ec8cd` | Housekeeping: import paths, container copy layout, connector fixes |
 | `99532a5c` | Role gating, a greenfield SKU, the last of the whitewash, and ODbL |
+| `e20e8c9b` | Whitewash: catch the own-brand lines, and hand over |
+| `b25e4cb7` | Location pillar: interpretable site selection, no model, no client data |
 
 ---
 
-## 2. The Command Center (10 tabs)
+## 2. The Command Center (11 tabs)
 
 Every tab passes **two independent gates**, and they fail differently on
 purpose:
@@ -53,12 +55,13 @@ purpose:
 | Stock Review | core | **Deliberate** band divergence — see §5 |
 | Ordering | ordering | Generate → push → approve, + 3 scenario levers |
 | Processor | core | Same pipeline; native file picker |
+| Site Selection | **greenfield** | Huff scoring; client's estate + their OSM fetch |
 | Allocation | **greenfield** | Network-derived, no CSV |
 | Simulation | greenfield | Store's own products |
 | Analytics | core | Shares the weekly accessor with ROI |
 | Suppliers | ordering | Client's own catalogue |
 
-Role visibility: `ops_admin` 10 tabs · `executive` 6 · `branch_manager` 5 ·
+Role visibility: `ops_admin` 11 tabs · `executive` 6 · `branch_manager` 5 ·
 `finance` 2.
 
 **Guarded by 107 parity tests** (`tests/test_command_center_parity.py`) which
@@ -272,14 +275,10 @@ is in the module docstring, in the verdict text, and in the tab's own footnote.
 
 ## 9. Open items
 
-1. **Location pillar** — build on the audited design above. From-scratch work:
-   extract the scoring into a shippable module (as was done for the simulator),
-   generate client coords from their org master, wire the Overpass fetch, add
-   the tab.
-2. **Velocity-alert floors in the Streamlit console** — the fix landed natively
+1. **Velocity-alert floors in the Streamlit console** — the fix landed natively
    only; the console still emits the noise.
-3. **OSM licence confirmation** before a commercial release.
-4. **`oasis/data/network_registry.json`** is machine state and deliberately
+2. **OSM licence confirmation** before a commercial release.
+3. **`oasis/data/network_registry.json`** is machine state and deliberately
    untracked — keep it that way.
 
 ---
