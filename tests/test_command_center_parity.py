@@ -1359,3 +1359,71 @@ def test_the_location_tab_builds_and_is_greenfield_gated(store, monkeypatch):
     assert "your estate" in body
     assert "score a candidate site" in body
     assert "place store" in body
+
+
+# ── the alert floors are one definition, not two ─────────────────────────
+def test_both_front_doors_share_the_velocity_floors(console_src):
+    """The fix landed natively first; the console kept emitting the noise.
+
+    Defining the floors in the shared engine means the two surfaces cannot
+    disagree about what an alert is — which is the same discipline the parity
+    tests exist to enforce everywhere else.
+    """
+    from oasis.logic import alert_monitor as AM
+    assert AM.VELOCITY_MIN_ADS == 1.0 and AM.VELOCITY_MIN_UNITS == 3.0
+    # the desktop re-exports the very same objects
+    assert D.VELOCITY_MIN_ADS is AM.VELOCITY_MIN_ADS
+    assert D.VELOCITY_MIN_UNITS is AM.VELOCITY_MIN_UNITS
+    # …and the console imports them rather than hardcoding its own
+    assert "VELOCITY_MIN_ADS" in console_src, "console does not use the floors"
+    assert "VELOCITY_MIN_UNITS" in console_src
+    assert "from oasis.logic.alert_monitor import" in console_src
+
+
+def test_the_console_filters_slow_movers_out_of_its_spike_set(console_src):
+    """The mask must sit on the candidate selection, not after the fact."""
+    import re as _re
+    m = _re.search(r"spike_items = all_items\[(.*?)\]\.sort_values", console_src,
+                   _re.S)
+    assert m, "console no longer selects spike_items the way this test expects"
+    mask = m.group(1)
+    assert "VELOCITY_MIN_ADS" in mask and "VELOCITY_MIN_UNITS" in mask
+
+
+def test_is_alertable_agrees_with_the_mask():
+    from oasis.logic.alert_monitor import is_alertable
+    assert not is_alertable(0.02, 1)      # sells once a month
+    assert not is_alertable(5.0, 2)       # real mover, trivial volume
+    assert not is_alertable(0.9, 40)      # high volume, no baseline
+    assert is_alertable(1.0, 3)           # exactly on both floors
+    assert is_alertable(5.0, 40)
+
+
+# ── licence + machine-state hygiene ──────────────────────────────────────
+def test_third_party_notices_records_the_odbl_position():
+    import pathlib
+    p = pathlib.Path(__file__).parent.parent / "THIRD_PARTY_NOTICES.md"
+    assert p.exists(), "no third-party notices file"
+    text = p.read_text(encoding="utf-8")
+    for required in ("ODbL", "OpenStreetMap", "Derivative Database",
+                     "Produced Work", "Overpass"):
+        assert required in text, f"notices omit {required}"
+
+
+def test_client_and_machine_state_files_are_gitignored():
+    """network_registry is written at run time; the other two are the client's
+    own data. None are source, and a stray `git add -A` must not take them."""
+    import pathlib
+    ignored = (pathlib.Path(__file__).parent.parent / ".gitignore"
+               ).read_text(encoding="utf-8")
+    for f in ("oasis/data/network_registry.json",
+              "oasis/data/store_locations.json",
+              "oasis/data/competitor_network.csv"):
+        assert f in ignored, f"{f} is not gitignored"
+
+
+def test_the_attribution_notice_ships_with_the_product():
+    """An OSM notice that stays in the source repo does not discharge ODbL 4.3
+    for a client who only ever sees the zip."""
+    from oasis.logic.release_packager import should_ship_clean
+    assert should_ship_clean("THIRD_PARTY_NOTICES.md")[0]

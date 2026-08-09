@@ -96,6 +96,10 @@ _ROOT_WHITELIST = {
     # (Removed in Phase 3.3 entrypoint consolidation)
     # doc
     "README.md",
+    # Attribution obligations travel WITH the product — an OSM notice that
+    # stays in the source repo does not discharge ODbL 4.3 for a client who
+    # only ever sees the zip.
+    "THIRD_PARTY_NOTICES.md",
 }
 
 #: oasis/ sub-packages that ship (schema modules only from oasis/data)

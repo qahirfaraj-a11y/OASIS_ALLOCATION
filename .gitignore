@@ -127,6 +127,12 @@ oasis/data/.oasis_install_profile.json
 oasis/data/.oasis_onboarding.json
 oasis/data/grn_intelligence_cache.json
 oasis/data/journey_state.json
+# Written by ConsolidatedTransferService at run time — machine state, not source.
+oasis/data/network_registry.json
+# The client's own estate map, entered per install (Site Selection).
+oasis/data/store_locations.json
+# The client's own OSM competitor extract, fetched for THEIR region (ODbL).
+oasis/data/competitor_network.csv
 oasis/data/moq_failures.json
 oasis/data/transfers_registry.json
 oasis/data/outputs/

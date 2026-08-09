@@ -4,6 +4,27 @@ from datetime import datetime
 
 logger = logging.getLogger("OasisAlertMonitor")
 
+#: A ratio is only interpretable when "normal" means something. A line that
+#: sells once a month has an average near 0.02, so the single day it sells
+#: reads as a 50x spike — true arithmetic, carrying no information. On a
+#: realistic long tail that noise buries the signal: 184 of 266 alerts on a
+#: 4,000-line sample store were lines selling under one unit a day.
+#:
+#: Both floors must clear. Defined here rather than in either front door so the
+#: desktop and the Streamlit console cannot disagree about what an alert is.
+VELOCITY_MIN_ADS = 1.0
+VELOCITY_MIN_UNITS = 3.0
+
+
+def is_alertable(avg_daily_sales: float, units: float) -> bool:
+    """True when a line has enough regular demand for a ratio to mean anything."""
+    try:
+        return (float(avg_daily_sales or 0) >= VELOCITY_MIN_ADS
+                and float(units or 0) >= VELOCITY_MIN_UNITS)
+    except (TypeError, ValueError):
+        return False
+
+
 class AlertMonitor:
     """
     Monitors sales streams for anomalies and generates Alerts.

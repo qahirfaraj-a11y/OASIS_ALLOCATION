@@ -37,7 +37,8 @@ sys.path.insert(0, os.getcwd())
 
 from oasis.logic.db_connector import UniversalConnector, SchemaMapper, load_system_config, load_system_config_full, save_system_config, ensure_oasis_tables
 from oasis.logic.pos_erp_adapter import PosErpAdapter
-from oasis.logic.alert_monitor import AlertMonitor
+from oasis.logic.alert_monitor import (AlertMonitor, VELOCITY_MIN_ADS,
+                                       VELOCITY_MIN_UNITS)
 from oasis.logic.order_engine import OrderEngine
 from oasis.llm.inference import RuleBasedLLM
 from oasis.data.supplier_calendar import SupplierCalendar
@@ -1397,7 +1398,15 @@ if "live_sales" in tab_map:
             with col_alerts:
                 st.markdown("#### ⚠️ Velocity Alerts")
                 monitor = AlertMonitor(spike_threshold_pct=200.0)
-                spike_items = all_items[all_items["velocity_ratio"] > 2.0].sort_values("velocity_ratio", ascending=False)
+                # Slow movers cannot produce a meaningful ratio: a line selling
+                # 0.02/day reads as a 50x spike the one day it sells. Without
+                # these floors that noise buries the signal on a realistic long
+                # tail. Same rule the desktop applies — see alert_monitor.
+                spike_items = all_items[
+                    (all_items["velocity_ratio"] > 2.0)
+                    & (all_items["ads"] >= VELOCITY_MIN_ADS)
+                    & (all_items["units"] >= VELOCITY_MIN_UNITS)
+                ].sort_values("velocity_ratio", ascending=False)
                 realtime_batch = []
                 hist_stats = {}
                 for _, row in spike_items.iterrows():

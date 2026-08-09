@@ -1782,13 +1782,10 @@ TRADING_DAY_HOURS = 14.0
 #: Matches ops_dashboard's AlertMonitor(spike_threshold_pct=200.0).
 VELOCITY_SPIKE_PCT = 200.0
 
-#: A ratio is only interpretable when "normal" means something. A line that
-#: sells once a month has an average near 0.02, so the single day it sells
-#: reads as a 50x spike — true arithmetic, no information. On a realistic long
-#: tail that buried the real signal: 184 of 266 alerts on the sample store were
-#: lines below one unit a day. Both floors must clear.
-VELOCITY_MIN_ADS = 1.0
-VELOCITY_MIN_UNITS = 3.0
+#: Re-exported from the shared engine so both front doors mean the same thing
+#: by construction. See oasis.logic.alert_monitor for why the floors exist.
+from oasis.logic.alert_monitor import (VELOCITY_MIN_ADS,  # noqa: E402
+                                       VELOCITY_MIN_UNITS, is_alertable)
 
 
 def velocity_alerts(items: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
@@ -1808,8 +1805,8 @@ def velocity_alerts(items: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
     for e in items:
         if not e.get("ads"):
             continue
-        # Slow movers cannot produce a meaningful ratio — see VELOCITY_MIN_ADS.
-        if e["ads"] < VELOCITY_MIN_ADS or e["units"] < VELOCITY_MIN_UNITS:
+        # Slow movers cannot produce a meaningful ratio — see is_alertable.
+        if not is_alertable(e["ads"], e["units"]):
             continue
         batch.append({"sku": e["code"], "qty": e["units"]})
         stats[e["code"]] = {"avg_daily_sales": e["ads"],
