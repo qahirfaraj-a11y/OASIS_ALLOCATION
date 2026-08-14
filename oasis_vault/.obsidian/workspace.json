@@ -37,7 +37,9 @@
               "type": "file-explorer",
               "state": {
                 "sortOrder": "alphabetical",
-                "autoReveal": false
+                "autoReveal": false,
+                "showSearch": false,
+                "searchQuery": ""
               },
               "icon": "lucide-folder-closed",
               "title": "Files"
@@ -176,8 +178,9 @@
       "bases:Create new base": false
     }
   },
-  "active": "aad403d395a5a1f5",
+  "active": "c1f593e2552c0cf1",
   "lastOpenFiles": [
+    "Decisions/OASIS_ERP_Agnostic_2026-08.md",
     "Kenyan_Retail_Bible/Chapter_1_The_Retail_Continuum.md",
     "Kenyan_Retail_Bible/Old_Drafts/Chapter_8_Basket_Affinity.md",
     "Kenyan_Retail_Bible/Old_Drafts/Chapter_7_Mapping_the_SKU_Universe.md",
@@ -203,7 +206,6 @@
     "Nodes/SKU_DNA_Profiles/ZIVA M.PAIN RELIEF PATCH 3PK.md",
     "Nodes/SKU_DNA_Profiles/ZESTA 700ML SOY SAUCE.md",
     "Nodes/SKU_DNA_Profiles/ZESTA 700ML BROWN VINEGAR.md",
-    "Nodes/SKU_DNA_Profiles/ZESTA 700G TOMATO SAUCE.md",
-    "Nodes/SKU_DNA_Profiles/ZESTA 700G TOMATO KETCHUP.md"
+    "Nodes/SKU_DNA_Profiles/ZESTA 700G TOMATO SAUCE.md"
   ]
 }

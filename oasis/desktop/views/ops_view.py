@@ -57,6 +57,24 @@ def _not_migrated(title: str, detail: str, uses: str) -> ft.Container:
     )
 
 
+def _actions_live_elsewhere(title: str, detail: str) -> ft.Container:
+    """Read-only notice: this view shows the state, another one changes it.
+
+    Distinct from _not_migrated — nothing is missing here. Ordering has ONE
+    front door by design (the Command Center); Operations reports on it.
+    """
+    return T.card_container(
+        content=ft.Column([
+            ft.Row([
+                ft.Icon(ft.Icons.VISIBILITY, size=18, color=T.TEAL),
+                ft.Text(title, size=15, weight=ft.FontWeight.W_600,
+                        color=T.TEXT_PRIMARY),
+            ], spacing=8),
+            ft.Text(detail, size=12, color=T.TEXT_SECONDARY),
+        ], spacing=6),
+    )
+
+
 def _error_row(msg: str) -> ft.Container:
     return T.card_container(
         content=ft.Row([
@@ -132,82 +150,28 @@ def build_ops_view(page: ft.Page, project_root: str) -> ft.Column:
     if not _ok("ordering_actions"):
         ordering.append(build_upsell(TAB_MODULES["ordering_actions"]))
     else:
-        def _on_generate(e):
-            e.control.disabled = True
-            e.control.text = "Generating..."
-            page.update()
-            res = D.generate_smart_orders(org, project_root)
-            if res.get("error"):
-                gen_result.content = _error_row(f"Generation failed: {res['error']}")
-            else:
-                recs = [r for r in res["po_recs"] if float(r.get("recommended_quantity", 0)) > 0]
-                if not recs:
-                    gen_result.content = ft.Text("No orders recommended at this time.", color=T.TEXT_MUTED, size=12)
-                else:
-                    def _on_push(ev):
-                        ev.control.disabled = True
-                        ev.control.text = "Pushing..."
-                        page.update()
-                        username = page.session.get("username", "system")
-                        push_res = D.push_purchase_order(org, username, recs, project_root)
-                        if push_res.get("success"):
-                            ev.control.text = f"Pushed {push_res['pushed_count']} items"
-                            ev.control.icon = ft.Icons.CHECK
-                        else:
-                            ev.control.text = "Push Failed"
-                        page.update()
-
-                    rows = [[r.get("product_name", ""), str(r.get("recommended_quantity", 0)), r.get("supplier_name", "")] for r in recs[:20]]
-                    if len(recs) > 20: rows.append([f"... and {len(recs)-20} more", "", ""])
-                    gen_result.content = ft.Column([
-                        _table(["Product", "Qty", "Supplier"], rows, ""),
-                        ft.Container(height=10),
-                        ft.ElevatedButton("Push to PENDING Approvals", icon=ft.Icons.CLOUD_UPLOAD,
-                                          on_click=_on_push, bgcolor=T.TEAL, color=T.DEEP_SPACE)
-                    ])
-            e.control.disabled = False
-            e.control.text = "Regenerate Orders"
-            page.update()
-
-        gen_result = ft.Container()
-        ordering.append(T.card_container(content=ft.Column([
-            T.section_header("Smart Ordering (PO Generation)", "🚀"),
-            ft.Text("Run the ordering pipeline: Engine → Network Intelligence → MOQ Gate", size=12, color=T.TEXT_SECONDARY),
-            ft.ElevatedButton("Generate Orders", icon=ft.Icons.AUTO_AWESOME, on_click=_on_generate),
-            ft.Container(height=10),
-            gen_result
-        ])))
-
-        def _on_approve(e):
-            pid, row_idx = e.control.data
-            username = page.session.get("username", "system")
-            D.update_po_status(pid, "APPROVED", username, org, root=project_root)
-            app_result.controls[row_idx].disabled = True
-            page.update()
-
-        def _on_reject(e):
-            pid, row_idx = e.control.data
-            username = page.session.get("username", "system")
-            D.update_po_status(pid, "REJECTED", username, org, root=project_root)
-            app_result.controls[row_idx].disabled = True
-            page.update()
-
-        app_result = ft.Column(spacing=4)
-        if pend.get("rows"):
-            for i, p_row in enumerate(pend["rows"]):
-                pid = p_row.get("PO_ID")
-                app_result.controls.append(ft.Row([
-                    ft.Text(f"PO #{pid} | {p_row.get('SUPPLIER_CD', 'Unk')} | Qty: {p_row.get('QUANTITY', 0)}", size=12, color=T.TEXT_PRIMARY, expand=True),
-                    ft.IconButton(ft.Icons.CHECK_CIRCLE, icon_color=T.SUCCESS, on_click=_on_approve, data=(pid, i), tooltip="Approve"),
-                    ft.IconButton(ft.Icons.CANCEL, icon_color=T.DANGER, on_click=_on_reject, data=(pid, i), tooltip="Reject")
-                ]))
-        else:
-            app_result.controls.append(ft.Text("No pending orders awaiting approval.", size=12, color=T.TEXT_MUTED))
-
+        # READ-ONLY BY DESIGN. Operations reports on the order book; it does not
+        # write to it. Generating, pushing and approving POs happen in ONE place
+        # — the Command Center — so there is a single audit trail and an
+        # operator cannot push the same PO from two screens.
+        po_rows = [
+            [f"#{p.get('PO_ID', '?')}",
+             str(p.get("PRODUCT_NAME") or p.get("ITM_CD") or "—"),
+             str(p.get("SUPPLIER_CD") or "—"),
+             f"{float(p.get('QUANTITY') or 0):,.0f}"]
+            for p in pend.get("rows", [])
+        ]
         ordering.append(T.card_container(content=ft.Column([
             T.section_header("Pending Approvals", "✅"),
-            app_result
+            _table(["PO", "Product", "Supplier", "Qty"], po_rows,
+                   "No pending orders awaiting approval."),
         ])))
+        ordering.append(_actions_live_elsewhere(
+            "Ordering actions are in the Command Center",
+            "This view is read-only. Generate, push and approve purchase "
+            "orders in Command Center → Smart Ordering, which owns the "
+            "ordering pipeline and the approval trail.",
+        ))
 
 
     # ── Stock (EOD) ──────────────────────────────────────────────────────

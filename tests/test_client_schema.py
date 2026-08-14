@@ -99,10 +99,19 @@ class TestRxlProfile:
         assert validate_profile(prof)["ok"] is True
         ddl = generate_view_ddl(prof, create_clause_for("mssql"))
         joined = "\n".join(ddl)
-        # the key real->canonical remaps are present
+        # the key real->canonical remaps are present. These were VERIFIED
+        # against a real RXL database (TESTING11) on 2026-08-11 — the two
+        # stock/price ones were already correct.
         assert "SM_CURR_STK_QTY AS SM_QTY" in joined
         assert "BSP_SELL_PRICE AS BSP_SP" in joined
-        assert "VENDOR_CD AS SUPPLIER_CD" in joined
-        assert "FROM VENDOR_ADDRESS_MST" in joined
+        # SUPPLIER_CD is NOT a column on RXL's ITEM_MST. This test used to
+        # assert "VENDOR_CD AS SUPPLIER_CD", which no real RXL could satisfy.
+        # The item/vendor link is BASIC_CP_MST.BCP_VEND_CD, joined in.
+        assert "BCP_VEND_CD AS SUPPLIER_CD" in joined
+        assert "VENDOR_CD AS SUPPLIER_CD" not in joined
+        # and the vendor master is keyed VAM_*, not VENDOR_*
+        assert "VAM_CD AS SUPPLIER_CD" in joined
+        assert "VAM_NAME AS SUPPLIER_NAME" in joined
+        assert "VENDOR_ADDRESS_MST" in joined
         # synthetic attrs provided as literals so the adapter SELECT resolves
         assert "NULL AS LEAD_TIME_DAYS" in joined

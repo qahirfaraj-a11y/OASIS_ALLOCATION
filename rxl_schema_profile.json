@@ -1,35 +1,30 @@
 {
-  "_README": "RXL/iRetail -> OASIS canonical schema profile. Feed to `OASIS_SCHEMA_PROFILE=rxl_schema_profile.json python entrypoint.py --mode build-views > rxl_views.sql`; a DBA runs rxl_views.sql (read-only views) on the RXL DB, then OASIS reads the canonical names unchanged. `literals` provide attributes RXL doesn't carry (adapter defaults then apply). `where` pins multi-level masters to the store tier — set :store_level per install. Confirm column existence (ITM_SHORT_NAME/UOM_DESC/WEIGHT_FLAG/TAX_AMT/PAYMENT_MODE/CUST_CD) against the client DB; literal-NULL any that are absent.",
+  "_README": "RXL/iRetail -> OASIS canonical schema profile. VERIFIED 2026-08-11 against a real RXL database (TESTING11, 999 tables) rather than against documentation. Usage: OASIS_VIEW_SCHEMA=OASIS OASIS_STORE_LEVEL=<your store tier> OASIS_SCHEMA_PROFILE=rxl_schema_profile.json OASIS_DB_DIALECT=mssql python entrypoint.py --mode build-views > rxl_views.sql ; a DBA runs rxl_views.sql, then sets the OASIS login's DEFAULT_SCHEMA to OASIS so the adapter's unqualified reads resolve to these views. The views are read-only and touch nothing in dbo.",
+  "_verified_against": "TESTING11 (RXL 7.0.0.0 schema, empty), SQL Server 2019, 2026-08-11",
+  "_corrections": "Earlier drafts of this file assumed ITEM_MST.DEPARTMENT / ACTIVE_FLAG / SCAN_ITM_CD / VENDOR_CD, VENDOR_ADDRESS_MST.VENDOR_CD / VENDOR_NAME, POS_SALES_DTL.NET_AMT / TOTAL_VALUE and a GRN_HDR table. NONE of those exist. Real names are below; GRN_HDR has no equivalent in this schema and is omitted (it is a RECOMMENDED table, so preflight WARNs rather than fails).",
 
   "ITEM_MST": {
-    "source": "ITEM_MST",
-    "columns": {
-      "ITM_CD": "ITM_CD", "ITM_LONG_NAME": "ITM_LONG_NAME",
-      "SCAN_ITM_CD": "SCAN_ITM_CD", "CATEGORY": "CATEGORY",
-      "DEPARTMENT": "DEPARTMENT", "ACTIVE_FLAG": "ACTIVE_FLAG",
-      "SUPPLIER_CD": "VENDOR_CD"
-    },
-    "literals": {
-      "ITM_SHORT_NAME": "ITM_LONG_NAME", "UOM_CD": "'EA'",
-      "UOM_DESC": "'EACH'", "WEIGHT_FLAG": "'N'"
-    }
+    "sql": "SELECT i.ITM_CD AS ITM_CD, i.ITM_LONG_NAME AS ITM_LONG_NAME, i.ITM_NAME AS ITM_SHORT_NAME, i.ITM_CD AS SCAN_ITM_CD, i.ITM_CATEGORY_CD AS CATEGORY, COALESCE(d.DIV_DESC, i.ITM_DIV_CD) AS DEPARTMENT, CASE WHEN i.ITM_STATUS = 'O' THEN 'Y' ELSE 'N' END AS ACTIVE_FLAG, cp.BCP_VEND_CD AS SUPPLIER_CD, i.ITM_STOCK_UOM AS UOM_CD, i.ITM_STOCK_UOM AS UOM_DESC, 'N' AS WEIGHT_FLAG FROM dbo.ITEM_MST i LEFT JOIN dbo.DIVISION_MST d ON d.DIV_ID = i.ITM_DIV_CD OUTER APPLY (SELECT TOP 1 BCP_VEND_CD FROM dbo.BASIC_CP_MST c WHERE c.BCP_ITEM_CD = i.ITM_CD AND c.BCP_VEND_CD IS NOT NULL ORDER BY c.BCP_LAST_UPD_DATE DESC) cp",
+    "provides": ["ITM_CD", "ITM_LONG_NAME", "ITM_SHORT_NAME", "SCAN_ITM_CD",
+                 "CATEGORY", "DEPARTMENT", "ACTIVE_FLAG", "SUPPLIER_CD",
+                 "UOM_CD", "UOM_DESC", "WEIGHT_FLAG"],
+    "_why_sql": "SUPPLIER_CD is NOT on ITEM_MST in RXL — the item/vendor link is BASIC_CP_MST.BCP_VEND_CD, and an item can have several, so we take the most recently updated. DEPARTMENT is a code (ITM_DIV_CD) resolved to a name via DIVISION_MST. Neither can be expressed as a 1:1 column rename.",
+    "_why_case": "ACTIVE_FLAG is VALUE-normalised, not just renamed. RXL marks an active item ITM_STATUS='O' (open); the OASIS contract means 'Y'. Mapping the column straight through returned 39,728 rows that the adapter then filtered to ZERO on `WHERE ACTIVE_FLAG='Y'` — a silent empty result, not an error. Mapping a schema means mapping the VOCABULARY, not only the column names."
   },
 
   "STOCK_MASTER": {
-    "source": "STOCK_MASTER",
-    "columns": {
-      "SM_ITM_CD": "SM_ITM_CD", "SM_ORG_CD": "SM_ORG_CD",
-      "SM_QTY": "SM_CURR_STK_QTY", "SM_WAC": "SM_WT_AVG_COST"
-    },
-    "literals": { "SM_LAST_RECV_DT": "NULL" },
-    "where": "SM_LEVEL_NUMBER = :store_level"
+    "sql": "SELECT s.SM_ITM_CD AS SM_ITM_CD, s.SM_ORG_CD AS SM_ORG_CD, s.SM_CURR_STK_QTY AS SM_QTY, s.SM_WT_AVG_COST AS SM_WAC, COALESCE(mv.LAST_RECV, i.ITM_LAST_PURCH_DT) AS SM_LAST_RECV_DT FROM dbo.STOCK_MASTER s LEFT JOIN dbo.ITEM_MST i ON i.ITM_CD = s.SM_ITM_CD OUTER APPLY (SELECT MAX(m.TXN_DATE) AS LAST_RECV FROM dbo.ITEM_MOVEMENT_DATE m WHERE m.ITM_CD = s.SM_ITM_CD AND m.ORG_CD = s.SM_ORG_CD AND m.RECEIVED_QTY > 0) mv WHERE s.SM_LEVEL_NUMBER = :store_level",
+    "provides": ["SM_ITM_CD", "SM_ORG_CD", "SM_QTY", "SM_WAC", "SM_LAST_RECV_DT"],
+    "_why_sql": "SM_LAST_RECV_DT drives days_since_delivery, which drives the DEAD-STOCK and STALE-FRESH guards. Mapping it to NULL (the earlier draft) set days_since_delivery=0 for every SKU, so `days_since_delivery > 200` was never true and BOTH guards were silently disabled — the engine then recommended ~6,800 never-sold, zero-stock lines. It fails OPEN: a disabled guard over-orders. RXL does carry the data, just not on STOCK_MASTER: ITEM_MOVEMENT_DATE is a per-store/per-item/per-day movement ledger (RECEIVED_QTY), with ITEM_MST.ITM_LAST_PURCH_DT as a per-item fallback."
   },
 
   "BASIC_SP_MST": {
     "source": "BASIC_SP_MST",
     "columns": {
-      "BSP_ITEM_CD": "BSP_ITEM_CD", "BSP_ORG_CD": "BSP_ORG_CD",
-      "BSP_SP": "BSP_SELL_PRICE", "BSP_MRP": "BSP_MRP"
+      "BSP_ITEM_CD": "BSP_ITEM_CD",
+      "BSP_ORG_CD": "BSP_ORG_CD",
+      "BSP_SP": "BSP_SELL_PRICE",
+      "BSP_MRP": "BSP_MRP"
     },
     "where": "BSP_LEVEL_NUMBER = :store_level"
   },
@@ -37,49 +32,67 @@
   "BASIC_CP_MST": {
     "source": "BASIC_CP_MST",
     "columns": {
-      "BCP_ITEM_CD": "BCP_ITEM_CD", "BCP_ORG_CD": "BCP_ORG_CD",
+      "BCP_ITEM_CD": "BCP_ITEM_CD",
+      "BCP_ORG_CD": "BCP_ORG_CD",
       "BCP_CP": "BCP_COST_PRICE"
-    }
+    },
+    "where": "BCP_LEVEL_NUMBER = :store_level"
   },
 
   "SUPPLIER_MST": {
     "source": "VENDOR_ADDRESS_MST",
-    "columns": { "SUPPLIER_CD": "VENDOR_CD", "SUPPLIER_NAME": "VENDOR_NAME" },
+    "columns": {
+      "SUPPLIER_CD": "VAM_CD",
+      "SUPPLIER_NAME": "VAM_NAME"
+    },
     "literals": {
-      "LEAD_TIME_DAYS": "NULL", "RELIABILITY_SCORE": "NULL",
+      "LEAD_TIME_DAYS": "NULL",
+      "RELIABILITY_SCORE": "NULL",
       "ORDER_FREQUENCY": "NULL"
-    }
+    },
+    "_note": "RXL carries none of lead time / reliability / order frequency. OASIS derives them from its own supplier patterns, NOT from the ERP."
   },
 
   "POS_SALES_DTL": {
     "source": "POS_SALES_DTL",
     "columns": {
-      "ORG_CD": "ORG_CD", "ITM_CD": "ITM_CD", "BILL_NO": "BILL_NO",
-      "BILL_DT": "BILL_DT", "QTY": "QTY", "SELL_PRICE": "SELL_PRICE",
-      "NET_AMT": "NET_AMT", "TOTAL_VALUE": "TOTAL_VALUE", "VOID_FLAG": "VOID_FLAG"
+      "ORG_CD": "ORG_CD",
+      "ITM_CD": "ITM_CD",
+      "BILL_NO": "BILL_NO",
+      "BILL_DT": "BILL_DT",
+      "QTY": "QTY",
+      "SELL_PRICE": "SELL_PRICE",
+      "NET_AMT": "NET_VALUE",
+      "TOTAL_VALUE": "TOTAL_AMT",
+      "TAX_AMT": "TAX_AMT",
+      "SERIAL_NO": "SERIAL_NO",
+      "VOID_FLAG": "VOID_FLAG",
+      "SCAN_ITM_CD": "SITM_CD"
     },
-    "literals": { "ITEM_NAME": "''", "TAX_AMT": "0", "SERIAL_NO": "0" }
+    "literals": {"ITEM_NAME": "NULL"},
+    "where": "LEVEL_NUMBER = :store_level"
   },
 
   "POS_SALES_HDR": {
     "source": "POS_SALES_HDR",
     "columns": {
-      "ORG_CD": "ORG_CD", "BILL_NO": "BILL_NO", "BILL_DT": "BILL_DT",
+      "ORG_CD": "ORG_CD",
+      "BILL_NO": "BILL_NO",
+      "BILL_DT": "BILL_DT",
       "VOID_FLAG": "VOID_FLAG"
     },
-    "literals": { "PAYMENT_MODE": "''", "CUST_CD": "''" }
-  },
-
-  "GRN_HDR": {
-    "source": "GRN_HDR",
-    "columns": { "SUPPLIER_CD": "VENDOR_CD", "ORG_CD": "ORG_CD",
-                 "GRN_NO": "GRN_NO" },
-    "literals": { "TOTAL_AMT": "0" }
+    "literals": {"PAYMENT_MODE": "NULL", "CUST_CD": "NULL"},
+    "where": "LEVEL_NUMBER = :store_level"
   },
 
   "ORGANIZATION_MST": {
     "source": "ORGANIZATION_MST",
-    "columns": { "ORG_CD": "ORG_CD", "ORG_NAME": "ORG_NAME",
-                 "ACTIVE_FLAG": "ACTIVE_FLAG" }
+    "columns": {
+      "ORG_CD": "ORG_CD",
+      "ORG_NAME": "ORG_NAME"
+    },
+    "literals": {"ACTIVE_FLAG": "'Y'"},
+    "where": "ORG_LEVEL_NUMBER = :store_level",
+    "_note": "RXL has no ACTIVE_FLAG on ORGANIZATION_MST; the level filter already selects live store rows."
   }
 }

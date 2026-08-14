@@ -1203,7 +1203,6 @@ def test_the_customer_name_survives_only_where_it_must(console_src):
         "oasis/logic/graph_export.py",
         "oasis/logic/lata_shield.py",
         "oasis/logic/data_mixin.py",           # a client's own column header
-        "oasis/tools/merge_additional_data.py",  # ditto
         "oasis/logic/onboarding.py",           # LEGACY_DB_NAMES
         "oasis/logic/release_packager.py",     # legacy exclusion glob
         "ops_dashboard.py",                    # the untouched reference

@@ -80,7 +80,20 @@ echo "[7/8] --mode license-status (trial mode — no key yet)"
 
 echo
 echo "[8/8] --mode preflight (installation health)"
-.venv/bin/python entrypoint.py --mode preflight || echo "  (preflight can WARN on a fresh install — that's expected pre-onboarding)"
+# Require the REPORT, not the exit code — see cold_start_proof_local.sh. A FAIL
+# verdict pre-onboarding is expected (no POS connected yet); preflight failing
+# to RUN is not, and the old blanket `|| echo ...` could not tell the two apart.
+# It hid exactly that: argparse rejected `preflight` while this proof said PASS.
+PREFLIGHT_OUT=$(.venv/bin/python entrypoint.py --mode preflight 2>&1) || true
+echo "$PREFLIGHT_OUT"
+if ! grep -q "OVERALL:" <<<"$PREFLIGHT_OUT"; then
+    echo
+    echo "  preflight did not produce a report — it could not run at all."
+    echo "=== cold-start proof: FAIL (preflight did not execute) ==="
+    exit 1
+fi
+echo "  (preflight ran. A FAIL verdict pre-onboarding is expected: no POS is"
+echo "   connected on a fresh unpack.)"
 
 echo
 echo "=== cold-start proof: PASS ==="

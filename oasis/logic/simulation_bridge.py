@@ -283,6 +283,27 @@ class SimulationOrderUtil:
             days_since_delivery = p.get('days_since_delivery', 0)
             is_fresh = p.get('is_fresh', False)
             sales_90d = p.get('total_units_sold_last_90d', 0)
+
+            # 1a. DISCONTINUED: no stock AND nothing sold in 90 days.
+            # OPT-IN, default OFF — Golden Logic behaviour is unchanged unless a
+            # client sets block_discontinued. Configured like every other
+            # threshold here rather than hardcoded, so this is a tuning knob and
+            # not a new branch in the default hot path.
+            #
+            # Why it exists: the dead-stock rule below keys on
+            # days_since_delivery, which some POS backends cannot supply (RXL has
+            # no SM_LAST_RECV_DT). When that field defaults to 0, `> 200` is never
+            # true and the guard is silently inert. This rule holds on stock and
+            # sales alone — data every POS has — so it cannot be disabled by a
+            # missing column.
+            if self.thresholds.get('block_discontinued', False):
+                _stock_now = float(p.get('current_stock')
+                                   if p.get('current_stock') is not None
+                                   else p.get('current_stocks', 0) or 0)
+                if _stock_now <= 0 and float(sales_90d or 0) <= 0 and not is_halo_protected:
+                    rec['reasoning'] = "Blocked: Discontinued (no stock, no sales in 90d)"
+                    recommendations.append(rec)
+                    continue
             
             # G4 Fix: Configurable thresholds (can be loaded from DB/Settings)
             fresh_stale_days = self.thresholds.get('fresh_stale_days', 120)

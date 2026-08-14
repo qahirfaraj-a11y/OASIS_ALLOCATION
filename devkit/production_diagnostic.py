@@ -6,8 +6,8 @@ import sqlite3
 from datetime import datetime
 
 # Setup paths
-ROOT = os.path.dirname(os.path.abspath(__file__))
-sys.path.append(ROOT)
+ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))  # devkit/ -> repo root
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))  # devkit/ -> repo root
 
 logger = logging.getLogger("OASIS.Diagnostics")
 logging.basicConfig(level=logging.INFO, format="[%(levelname)s] %(message)s")

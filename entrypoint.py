@@ -469,12 +469,24 @@ def run_showcase(port: int = 8505):
     os.environ.setdefault("OASIS_DB_PATH", showcase_db)
 
     # Regenerate demo data
-    gen_script = os.path.join(os.path.dirname(__file__), "generate_showcase_scenario.py")
+    gen_script = _devkit("generate_showcase_scenario.py")
     if os.path.exists(gen_script):
         logger.info("Resetting showcase narrative...")
         subprocess.run([sys.executable, gen_script], check=False)
 
     run_dashboard("command", port)
+
+
+def _devkit(script: str) -> str:
+    """Absolute path to a dev-toolkit script.
+
+    devkit/ holds the tooling that is NOT part of a client install - scenario
+    simulators, the shadow daemon, showcase seeding, diagnostics. The release
+    packager ships nothing outside oasis/ and the root whitelist, so these are
+    absent from every client zip BY DESIGN. Modes that need one must therefore
+    degrade with an honest message rather than a bare traceback.
+    """
+    return os.path.join(os.path.dirname(__file__), "devkit", script)
 
 
 # ── Mode: Shadow (with background daemon) ────────────────────────────
@@ -489,7 +501,8 @@ def run_shadow_full(port: int = 8506, pathway: str = "file"):
 
     # Background daemon
     daemon_log = os.path.join("shadow_logs", "shadow_daemon_console.log")
-    daemon_cmd = [sys.executable, "shadow_monitor.py", "--mode", pathway, "--root", "."]
+    daemon_cmd = [sys.executable, _devkit("shadow_monitor.py"),
+                  "--mode", pathway, "--root", "."]
     try:
         with open(daemon_log, "a") as f:
             daemon = subprocess.Popen(daemon_cmd, stdout=f, stderr=subprocess.STDOUT)
@@ -501,7 +514,9 @@ def run_shadow_full(port: int = 8506, pathway: str = "file"):
             daemon.wait(timeout=10)
             logger.info("Shadow daemon stopped.")
     except FileNotFoundError:
-        logger.error(f"Failed to launch shadow daemon. Dev script not found.")
+        logger.error("Failed to launch shadow daemon: devkit/shadow_monitor.py "
+                     "not found. --mode shadow is DEV-TOOLKIT ONLY; devkit/ is "
+                     "not part of a client install.")
 
 
 # ── Mode: Simulation ─────────────────────────────────────────────────
@@ -510,9 +525,13 @@ def run_simulation(scenario: str = "Baseline", days: int = 30,
                    budget: int = 300000, month: str = "NOV"):
     """Run a simulation scenario via the CLI runner."""
     logger.info(f"Starting simulation: {scenario} ({days}d, {budget} KES, {month})")
-    script = os.path.join(os.path.dirname(__file__), "run_simulation_scenario.py")
+    script = _devkit("run_simulation_scenario.py")
     if not os.path.exists(script):
-        logger.error(f"Simulation runner not found: {script}")
+        logger.error(
+            "Simulation runner not found: %s | "
+            "--mode simulation is DEV-TOOLKIT ONLY: devkit/ is not part "
+            "of a client install. The shipping simulation surface is the "
+            "Simulation Lab tab in the Command Center.", script)
         sys.exit(1)
 
     cmd = [sys.executable, script,
@@ -564,6 +583,18 @@ def main():
     parser.add_argument("--mode",
                         choices=["full", "engine", "dashboard",                                  "desktop", "bootstrap",
                                  "api", "bridge", "hub", "migrate", "shell", "intel",
+                                 # preflight has had a dispatch branch and a
+                                 # docstring entry all along, but was absent
+                                 # HERE — so argparse rejected the documented
+                                 # install step before it could ever run.
+                                 "preflight", "erp-status",
+                                 # Dev-toolkit modes: each drives a script in
+                                 # devkit/, which never ships. They dispatch
+                                 # fine here and degrade with an explicit
+                                 # "DEV-TOOLKIT ONLY" message on a client
+                                 # install. They had dispatch branches but no
+                                 # choices entry — same defect as preflight.
+                                 "simulation", "shadow", "showcase",
                                  "build-views", "bootstrap-intel",
                                  "bootstrap-governance", "build-graph",
                                  "build-store-graph", "build-baskets", "build-prior",
@@ -572,7 +603,8 @@ def main():
                                  "build-multi-store-db", "seed-multi-history",
                                  "multi-pos-stream",
                                  "issue-license", "license-status",
-                                 "backup", "restore", "set-password",
+                                 "backup", "restore", "list-backups",
+                                 "set-password",
                                  "package-release", "set-branding", "show-branding",
                                  "init", "demo-single", "demo-multi", "demo-bills",
                                  "value-report", "metering-report", "home",
@@ -660,7 +692,7 @@ def main():
 
     # Optional pre-flight diagnostics
     if args.mode in ("dashboard", "showcase", "shadow") and not args.skip_diag:
-        diag = os.path.join(os.path.dirname(__file__), "production_diagnostic.py")
+        diag = _devkit("production_diagnostic.py")
         if os.path.exists(diag):
             logger.info("Running pre-flight diagnostics...")
             result = subprocess.run([sys.executable, diag])
@@ -703,16 +735,100 @@ def main():
         report = run_preflight()
         print(format_report(report))
         sys.exit(0 if report["overall"] != "FAIL" else 2)
+    elif args.mode == "erp-status":
+        # What can OASIS actually SEE in the client's ERP? An adapter is
+        # otherwise opaque: "no recommendations" could be a dead connection, an
+        # empty catalogue, missing demand or unset costs, and each needs a
+        # different fix. Read-only.
+        erp = (os.getenv("OASIS_ERP") or "").strip().lower()
+        if erp != "odoo":
+            print("OASIS_ERP is not set to 'odoo' — nothing to report.")
+            print("Set OASIS_ERP=odoo (and ODOO_URL / ODOO_DB / ODOO_USER / "
+                  "ODOO_PASSWORD) to inspect an Odoo instance.")
+            sys.exit(0)
+        from oasis.logic.odoo_adapter import OdooAdapter
+        d = OdooAdapter().diagnose(args.org)
+        print("\nO.A.S.I.S. — ERP Status (Odoo)")
+        print("=" * 46)
+        print(f"{'endpoint':<22}{d['url']}  db={d['db']}  user={d['user']}")
+        if not d.get("connected"):
+            print(f"{'connection':<22}FAILED — {d.get('error')}")
+            sys.exit(2)
+        print(f"{'connection':<22}OK ({d['latency_ms']}ms)")
+        print(f"{'organisations':<22}{', '.join(d['organisations']) or '(none)'}")
+        print("-" * 46)
+        rows = [("products", d["products"]), ("with stock", d["with_stock"]),
+                ("negative stock", d["negative_stock"]), ("with demand (ADS>0)", d["with_demand"]),
+                ("with cost price", d["with_cost"]), ("with selling price", d["with_price"]),
+                ("with supplier", d["with_supplier"]),
+                ("with receipt date", d["with_receipt_date"]),
+                ("departments", d["departments"]), ("categories", d["categories"]),
+                ("open PO lines", d["open_po_lines"])]
+        for label, val in rows:
+            print(f"  {label:<24}{val}")
+        print("-" * 46)
+        if d["warnings"]:
+            for w in d["warnings"]:
+                print(f"  [WARN] {w}")
+        else:
+            print("  no issues detected")
+        sys.exit(0)
     elif args.mode == "build-views":
         from oasis.logic.client_schema import (
             load_profile, identity_profile, validate_profile,
-            generate_view_ddl, create_clause_for,
+            generate_view_ddl, create_clause_for, batch_separator_for,
+            substitute_params, unresolved_params,
         )
         profile_path = os.getenv("OASIS_SCHEMA_PROFILE")
         profile = load_profile(profile_path) if profile_path else identity_profile()
         v = validate_profile(profile)
         dialect = os.getenv("OASIS_DB_DIALECT", "ansi")
-        print("\n".join(generate_view_ddl(profile, create_clause_for(dialect))))
+        schema = os.getenv("OASIS_VIEW_SCHEMA", "")
+        clashes = v.get("self_referencing") or []
+        if clashes and not schema:
+            # Emitting this DDL unqualified hands the DBA a script that cannot
+            # run: a view may not share a name with the table it reads from,
+            # and RXL uses the canonical names already. Refuse, with the fix.
+            sys.stderr.write(
+                "ERROR: these canonical tables have a source of the SAME name, "
+                "so the views would collide with them:\n"
+                f"  {', '.join(clashes)}\n"
+                "Emit into a dedicated schema instead, e.g.:\n"
+                "  OASIS_VIEW_SCHEMA=OASIS OASIS_SCHEMA_PROFILE=... "
+                "--mode build-views\n"
+                "then set the OASIS service account's DEFAULT schema to it, so "
+                "the adapter's unqualified queries resolve to the views.\n")
+            sys.exit(2)
+        if schema:
+            print(f"-- Views target schema '{schema}'. Create it first, grant the")
+            print("-- OASIS account SELECT on it, and set that account's DEFAULT")
+            print(f"-- schema to '{schema}' so unqualified reads resolve here.")
+        # Default the source schema to dbo whenever we emit into a view schema
+        # on SQL Server: an unqualified source inside a non-default-schema view
+        # binds to the view itself ("contains a self-reference").
+        source_schema = os.getenv("OASIS_SOURCE_SCHEMA", "")
+        if not source_schema and schema and dialect.lower() == "mssql":
+            source_schema = "dbo"
+        stmts = generate_view_ddl(profile, create_clause_for(dialect),
+                                  schema=schema, source_schema=source_schema)
+        # Profiles use :placeholders (e.g. :store_level pins a multi-level
+        # master to the store tier). A bind parameter cannot appear in CREATE
+        # VIEW, so resolve it to a literal here or the DBA gets a script that
+        # will not parse.
+        params = {}
+        if os.getenv("OASIS_STORE_LEVEL"):
+            params["store_level"] = os.getenv("OASIS_STORE_LEVEL")
+        stmts = substitute_params(stmts, params)
+        left = unresolved_params(stmts)
+        if left:
+            sys.stderr.write(
+                "ERROR: the generated DDL still contains bind placeholders, "
+                "which CREATE VIEW cannot use:\n"
+                f"  {', '.join(':' + p for p in left)}\n"
+                "Supply a literal, e.g. OASIS_STORE_LEVEL=1 for :store_level.\n")
+            sys.exit(2)
+        sep = batch_separator_for(dialect)
+        print(("\n" + sep + "\n").join(stmts) + ("\n" + sep if sep else ""))
         if not v["ok"]:
             sys.stderr.write(f"WARN: profile does not satisfy the required contract: {v}\n")
         sys.exit(0 if v["ok"] else 2)
@@ -778,6 +894,7 @@ def main():
         print(f"Department halo prior built: {build_department_prior(vault, data_dir, out)}")
     elif args.mode == "build-pos-db":
         from oasis.logic.mock_pos_build import build_from_xlsx
+        from oasis.logic import onboarding as _OB   # DEFAULT_SINGLE_DB below
         root = os.path.dirname(__file__)
         data_dir = os.getenv("OASIS_DATA_DIR", os.path.join(root, "oasis", "data"))
         # NOT _active_db(): this mode CREATES a store, so it must not resolve
@@ -948,7 +1065,7 @@ def main():
         # The OASIS.bat "Demo / sample data" submenu (P3.3). These go through
         # onboarding, NOT through a hardcoded OASIS_DB_PATH: the archived
         # run_*.bat launchers pinned the demo DB and so silently switched an
-        # onboarded client onto the Rhapta snapshot (finding E-2). Routing here
+        # onboarded client onto the the anchor store snapshot (finding E-2). Routing here
         # also records provenance, so the SAMPLE badge appears everywhere.
         from oasis.logic import onboarding as _ob
         if args.mode == "demo-single":
@@ -1030,13 +1147,41 @@ def main():
         db_path = _active_db(root)
         keep = int(os.getenv("OASIS_BACKUP_KEEP", "10"))
         print(f"Backup complete: {backup_db(db_path, keep=keep)}")
+    elif args.mode == "list-backups":
+        from oasis.logic.backup_util import list_backups
+        root = os.path.dirname(__file__)
+        entries = list_backups(_active_db(root))
+        if not entries:
+            print("No backups yet. Create one with:  --mode backup")
+        else:
+            print(f"{len(entries)} backup(s), newest first:\n")
+            for e in entries:
+                print(f"  [{e['index']:>2}]  {e['taken']}   {e['size_mb']:>6} MB   "
+                      f"{os.path.basename(e['path'])}")
+            print("\nRestore one with:  --mode restore --file <number>")
     elif args.mode == "restore":
-        from oasis.logic.backup_util import restore_db
-        if not args.file:
-            raise SystemExit("restore requires --file <backup path>")
+        from oasis.logic.backup_util import restore_db, list_backups, resolve_backup
         root = os.path.dirname(__file__)
         db_path = _active_db(root)
-        print(f"Restore complete: {restore_db(db_path, args.file)}")
+        if not args.file:
+            # Do NOT just error. Restore is run mid-incident by someone who
+            # does not know the backup filename; show them what they have.
+            entries = list_backups(db_path)
+            if not entries:
+                raise SystemExit(
+                    "No backups found for the active store. "
+                    "Backups are created by --mode backup and by the "
+                    "supervised service (--mode serve).")
+            print("Available backups (newest first):\n")
+            for e in entries:
+                print(f"  [{e['index']:>2}]  {e['taken']}   {e['size_mb']:>6} MB   "
+                      f"{os.path.basename(e['path'])}")
+            raise SystemExit(
+                "\nRe-run with the one you want, e.g.:"
+                "\n    --mode restore --file 1        (newest)"
+                "\n    --mode restore --file <full path>")
+        target = resolve_backup(db_path, str(args.file))
+        print(f"Restore complete: {restore_db(db_path, target)}")
     elif args.mode == "set-password":
         import getpass
         import sqlite3 as _sq
@@ -1093,6 +1238,7 @@ def main():
                      org=args.org, sku_count=args.sku_count)
     elif args.mode == "build-multi-store-db":
         from oasis.logic.multi_store_build import build_multi_store_from_xlsx
+        from oasis.logic import onboarding as _OB   # DEFAULT_MULTI_DB below
         root = os.path.dirname(__file__)
         data_dir = os.getenv("OASIS_DATA_DIR",
                              os.path.join(root, "oasis", "data"))

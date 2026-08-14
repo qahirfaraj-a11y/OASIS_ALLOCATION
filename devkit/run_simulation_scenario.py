@@ -33,8 +33,8 @@ from typing import List, Dict, Optional
 
 # Setup Path to import oasis
 # v10.5: Using workspace-relative path logic
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-sys.path.append(BASE_DIR)
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))  # devkit/ -> repo root
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))  # devkit/ -> repo root
 
 from oasis.logic.order_engine import OrderEngine
 from oasis.simulation.simulation_engine import SalesSimulator, InventoryTracker, RiskModel, ReplenishmentLogic

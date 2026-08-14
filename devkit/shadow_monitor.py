@@ -13,7 +13,7 @@ from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
 from logging.handlers import RotatingFileHandler
 
-sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))  # devkit/ -> repo root
 from oasis.logic.shadow_mode import ShadowModeEngine
 from oasis.logic.simulation_pipeline import SimulationEngine
 from shadow_report_generator import generate_shadow_report

@@ -145,3 +145,41 @@ def test_zero_pending_orders_reads_differently_from_a_read_failure():
     assert (val_ok, status_ok) == ("0", "success")
     assert val_err == "—" and status_err == "danger"
     assert sub_ok != sub_err
+
+
+# ── ordering has ONE front door ──────────────────────────────────────────
+#: the three write paths in oasis.desktop.data. Ordering is generated, pushed
+#: and approved in the Command Center's Smart Ordering tab and NOWHERE else, so
+#: there is a single audit trail and an operator cannot push the same PO twice
+#: from two screens. Operations reports on the order book; it never writes to it.
+_ORDER_WRITES = ("generate_smart_orders", "push_purchase_order",
+                 "update_po_status")
+
+
+def test_operations_view_never_writes_to_the_order_book():
+    """/ops is read-only for orders. A re-added button must fail here."""
+    import inspect
+    from oasis.desktop.views import ops_view
+    src = inspect.getsource(ops_view)
+    for fn in _ORDER_WRITES:
+        assert fn not in src, (
+            f"ops_view calls {fn}: ordering must stay in the Command Center"
+        )
+
+
+def test_the_command_center_still_owns_those_writes():
+    """The other half of the invariant — read-only /ops must not mean nobody
+    can order at all. If this fails, the capability was lost, not moved."""
+    import inspect
+    from oasis.desktop.views.command_tabs import smart_ordering_tab
+    src = inspect.getsource(smart_ordering_tab)
+    for fn in _ORDER_WRITES:
+        assert fn in src, f"Smart Ordering lost {fn} — ordering has no front door"
+
+
+def test_operations_still_shows_the_order_book_read_only(store):
+    """Read-only is not blank: the pending queue is still reported."""
+    from tests.test_desktop_license_gate import _text
+    body = _text(build_ops_view(None, store))
+    assert "pending approvals" in body
+    assert "command center" in body, "must say where the actions moved to"

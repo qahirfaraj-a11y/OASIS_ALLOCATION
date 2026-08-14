@@ -11,15 +11,10 @@ import pandas as pd
 import time
 from datetime import datetime
 
-# Ensure app path
-current_dir = os.path.dirname(os.path.abspath(__file__))
-if current_dir not in sys.path:
-    sys.path.insert(0, current_dir)
-
-# Also add the parent directory if oasis is not found
-parent_dir = os.path.dirname(current_dir)
-if parent_dir not in sys.path:
-    sys.path.insert(0, parent_dir)
+# Ensure app path. The old two-step dance (own dir, then parent "if oasis is
+# not found") pointed at the repo root only by accident of living there; from
+# devkit/ the parent step reached ABOVE the repo. One explicit hop instead.
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))  # devkit/ -> repo root
 
 from oasis.simulation.simulation_engine import SalesSimulator, InventoryTracker, ReplenishmentLogic
 from oasis.logic.order_engine import OrderEngine
@@ -35,7 +30,7 @@ TIERS = {
 
 DAYS_TO_SIMULATE = 30 
 OUTPUT_DIR = "simulation_reports"
-DATA_DIR = current_dir
+DATA_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))  # repo root
 SCORECARD_FILE = os.path.join(DATA_DIR, "Full_Product_Allocation_Scorecard_v3.csv")
 
 if not os.path.exists(OUTPUT_DIR):

@@ -17,8 +17,11 @@ one verified accessor is how that stops happening.
 
 from __future__ import annotations
 
+import logging
 import os
 from typing import Any, Dict, List, Optional
+
+logger = logging.getLogger("OasisDesktopData")
 
 _ADAPTER = None
 _ADAPTER_KEY = None
@@ -35,13 +38,34 @@ def store_db_path(root: Optional[str] = None) -> str:
 
 
 def get_adapter(root: Optional[str] = None):
-    """PosErpAdapter for the active store, built exactly as shell._pos_adapter.
+    """The data source for the active store.
 
-    Cached per resolved DB path, so re-onboarding to a different store rebuilds
-    it instead of serving a stale handle.
+    Defaults to PosErpAdapter (direct POS/ERP database), built exactly as
+    shell._pos_adapter. Set OASIS_ERP=odoo to read an Odoo instance over
+    XML-RPC instead — no database credentials, no schema bridge, and Odoo
+    supplies cost price and real receipt dates natively.
+
+    Cached per resolved source, so re-onboarding or switching ERP rebuilds it
+    instead of serving a stale handle.
     """
     global _ADAPTER, _ADAPTER_KEY
     db = store_db_path(root)
+
+    erp = (os.getenv("OASIS_ERP") or "").strip().lower()
+    if erp == "odoo":
+        key = "odoo:" + os.getenv("ODOO_URL", "http://localhost:8069") + "/" + \
+              os.getenv("ODOO_DB", "oasis")
+        if _ADAPTER is not None and _ADAPTER_KEY == key:
+            return _ADAPTER
+        from oasis.logic.db_connector import SchemaMapper, UniversalConnector
+        from oasis.logic.odoo_adapter import OdooAdapter
+        # OASIS's own store (POs it tracks, audit, users) stays local — the
+        # client's ERP is read, never used as OASIS's bookkeeping database.
+        store_conn = UniversalConnector(f"sqlite:///{db}", SchemaMapper.for_pos_erp())
+        _ADAPTER = OdooAdapter(store_connector=store_conn)
+        _ADAPTER_KEY = key
+        return _ADAPTER
+
     if _ADAPTER is not None and _ADAPTER_KEY == db:
         return _ADAPTER
 
@@ -63,9 +87,28 @@ def get_adapter(root: Optional[str] = None):
 
 
 def reset_adapter() -> None:
-    """Drop the cached adapter (after re-onboarding / a data-source change)."""
+    """Drop the cached adapter (after re-onboarding / a data-source change).
+
+    DISPOSE the engines first. Dropping the reference alone leaves SQLAlchemy's
+    connection pool holding the SQLite file until garbage collection, which on
+    Windows means the file stays locked: switching data source in Settings
+    leaked a pool per switch, and restoring a backup in-process failed with
+    "used by another process" even though the caller had reset the adapter.
+    """
     global _ADAPTER, _ADAPTER_KEY
-    _ADAPTER, _ADAPTER_KEY = None, None
+    adapter, _ADAPTER, _ADAPTER_KEY = _ADAPTER, None, None
+    if adapter is None:
+        return
+    seen = set()
+    for attr in ("engine", "store_engine"):
+        engine = getattr(adapter, attr, None)
+        if engine is None or id(engine) in seen:
+            continue
+        seen.add(id(engine))
+        try:
+            engine.dispose()
+        except Exception:      # never let cleanup break a data-source switch
+            pass
 
 
 def list_stores(root: Optional[str] = None) -> List[dict]:
@@ -288,12 +331,33 @@ def generate_smart_orders(org_cd: str, thresholds: Optional[Dict[str, Any]] = No
             except Exception:
                 pass
                 
+        # An empty po_recs is ambiguous on its own: "nothing needed today" and
+        # "the pipeline lost everything" look identical to the caller, and that
+        # cost real debugging time on the Odoo path (45 products in, 0 out —
+        # which turned out to be one 1-unit line correctly failing the MOQ gate).
+        # Report where the funnel narrowed so the answer is legible without a
+        # debugger. Counts only — no change to what is recommended.
+        funnel = {
+            "products_read": len(products),
+            "priced_and_enriched": len(enriched),
+            "after_network": len(network_adjusted_recs),
+            "ordered": len(mot_result["po_recs"]),
+            "below_moq": len(dropped_recs),
+            "no_order_needed": len(mot_result.get("no_order", [])),
+            "min_order_units": sim_util.thresholds.get("min_order_units", 10),
+        }
+        if not mot_result["po_recs"]:
+            logger.info("No PO lines for %s — read=%d, below_moq=%d, no_order=%d",
+                        org_cd, funnel["products_read"], funnel["below_moq"],
+                        funnel["no_order_needed"])
+
         return {
             "po_recs": mot_result["po_recs"],
             "dropped_recs": dropped_recs,
             "network_plan": network_plan,
             "org_name_map": org_name_map,
             "enriched_network_stock": enriched_network_stock,
+            "funnel": funnel,
             "generated_at": datetime.now().strftime("%H:%M:%S"),
             "error": None
         }

@@ -36,6 +36,8 @@ echo    6  Cloud Hub       server   :8700
 echo    7  OASIS Service   supervisor
 echo    8  License status
 echo    9  Demo / sample data options...
+echo    M  Maintenance ^& recovery options...
+echo    I  Integrations (mobile API / manager bridge)...
 echo    Q  Quit
 echo.
 set /p "CH=  Choose: "
@@ -49,6 +51,8 @@ if /I "!CH!"=="6" start "OASIS Hub"          cmd /c "%PY% entrypoint.py --mode h
 if /I "!CH!"=="7" start "OASIS Service"      cmd /c "%PY% entrypoint.py --mode serve"
 if /I "!CH!"=="8" "%PY%" entrypoint.py --mode license-status & pause
 if /I "!CH!"=="9" goto demomenu
+if /I "!CH!"=="M" goto maintmenu
+if /I "!CH!"=="I" goto intmenu
 if /I "!CH!"=="Q" exit /b 0
 goto menu
 
@@ -75,3 +79,80 @@ if /I "!DCH!"=="3" "%PY%" entrypoint.py --mode demo-bills & pause
 if /I "!DCH!"=="4" "%PY%" entrypoint.py --mode pos-stream & pause
 if /I "!DCH!"=="B" goto menu
 goto demomenu
+
+:maintmenu
+cls
+echo.
+echo  ============================================================
+echo     Maintenance ^& Recovery
+echo  ============================================================
+echo.
+echo    Your data lives in oasis\data. Back it up before any upgrade.
+echo.
+echo    1  Back up the active store now
+echo    2  List available backups
+echo    3  Restore from a backup        (asks which one first)
+echo    4  Upgrade this installation
+echo    5  Health check                 (day-0 assessment)
+echo    6  Value report
+echo    7  Change a user's password
+echo    B  Back to Main Menu
+echo.
+set /p "MCH=  Choose: "
+if /I "!MCH!"=="1" "%PY%" entrypoint.py --mode backup & pause
+if /I "!MCH!"=="2" "%PY%" entrypoint.py --mode list-backups & pause
+if /I "!MCH!"=="3" goto restoreprompt
+if /I "!MCH!"=="4" "%PY%" entrypoint.py --mode upgrade & pause
+if /I "!MCH!"=="5" "%PY%" entrypoint.py --mode assess & pause
+if /I "!MCH!"=="6" "%PY%" entrypoint.py --mode value-report & pause
+if /I "!MCH!"=="7" goto pwprompt
+if /I "!MCH!"=="B" goto menu
+goto maintmenu
+
+:restoreprompt
+cls
+echo.
+echo  RESTORE — this REPLACES the active store with a backup.
+echo  The current database is kept alongside it as .pre_restore.
+echo  Close every OASIS console first: restore refuses to run while
+echo  a console holds the database open.
+echo.
+"%PY%" entrypoint.py --mode restore
+echo.
+set /p "BK=  Backup number to restore (blank = cancel): "
+if "!BK!"=="" goto maintmenu
+"%PY%" entrypoint.py --mode restore --file "!BK!"
+pause
+goto maintmenu
+
+:pwprompt
+cls
+echo.
+set /p "UN=  Username to change the password for (blank = cancel): "
+if "!UN!"=="" goto maintmenu
+"%PY%" entrypoint.py --mode set-password --username "!UN!"
+pause
+goto maintmenu
+
+:intmenu
+cls
+echo.
+echo  ============================================================
+echo     Integrations
+echo  ============================================================
+echo.
+echo    These publish an authenticated HTTP API on ALL network
+echo    interfaces. Every endpoint requires the X-API-Key header.
+echo    The key is OASIS_API_KEY, or a generated one stored in
+echo    oasis\data\.oasis_api_key if you have not set that.
+echo    Only start these if you intend other machines to connect.
+echo.
+echo    1  Mobile API       :8550
+echo    2  Manager Bridge   :8600
+echo    B  Back to Main Menu
+echo.
+set /p "ICH=  Choose: "
+if /I "!ICH!"=="1" start "OASIS Mobile API"     cmd /c "%PY% entrypoint.py --mode api"
+if /I "!ICH!"=="2" start "OASIS Manager Bridge" cmd /c "%PY% entrypoint.py --mode bridge"
+if /I "!ICH!"=="B" goto menu
+goto intmenu

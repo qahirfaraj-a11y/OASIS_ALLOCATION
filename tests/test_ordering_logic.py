@@ -267,3 +267,92 @@ class TestEngineBlockedHandling:
         )]
         results = _run(rule_engine.analyze(products))
         assert results[0]['recommended_quantity'] == 0
+
+
+class TestDiscontinuedBlock:
+    """No stock AND no 90-day sales => discontinued. Never replenish.
+
+    OPT-IN: `block_discontinued` defaults to False so Golden Logic behaviour is
+    unchanged. These tests enable it explicitly via the engine's own thresholds
+    mechanism — the same way dry_dead_days and dry_dead_min_sales are tuned.
+
+    Operator policy, 2026-08-13. The pre-existing dead-stock rule keys on
+    days_since_delivery, which comes from the client's POS and is not always
+    available — RXL has no SM_LAST_RECV_DT at all. When that field defaulted to
+    0, `days_since_delivery > 200` was never true and the guard was silently
+    inert: against a real RXL store it recommended ~6,800 never-sold, zero-stock
+    lines worth ~KES 20M. These tests pin a rule that holds on stock and sales
+    alone, so it cannot be disabled by a column a client cannot supply.
+    """
+
+    @staticmethod
+    def _on(engine):
+        """Enable the opt-in rule the way a client would."""
+        engine.thresholds = dict(getattr(engine, "thresholds", {}) or {})
+        engine.thresholds["block_discontinued"] = True
+        return engine
+
+    def test_default_is_off_so_golden_logic_is_unchanged(self, rule_engine):
+        """Parity guard: without the flag, this rule must not fire at all."""
+        products = [_make_product(product_name='Discontinued Line',
+                                  current_stocks=0, total_units_sold_last_90d=0,
+                                  avg_daily_sales=0)]
+        results = _run(rule_engine.analyze(products))
+        assert 'Discontinued' not in str(results[0].get('reasoning', ''))
+
+    def test_no_stock_no_sales_is_blocked(self, rule_engine):
+        rule_engine = self._on(rule_engine)
+        products = [_make_product(
+            product_name='Discontinued Line',
+            current_stocks=0,
+            total_units_sold_last_90d=0,
+            avg_daily_sales=0,
+        )]
+        results = _run(rule_engine.analyze(products))
+        assert results[0]['recommended_quantity'] == 0
+
+    def test_blocked_even_when_receipt_date_is_missing(self, rule_engine):
+        rule_engine = self._on(rule_engine)
+        """The exact RXL shape: days_since_delivery unavailable, so 0.
+
+        This is the case the old >200d rule could not catch.
+        """
+        products = [_make_product(
+            product_name='Discontinued, No Receipt Date',
+            current_stocks=0,
+            total_units_sold_last_90d=0,
+            avg_daily_sales=0,
+            last_days_since_last_delivery=0,
+        )]
+        results = _run(rule_engine.analyze(products))
+        assert results[0]['recommended_quantity'] == 0
+
+    def test_stock_on_hand_with_no_sales_is_not_this_rule(self, rule_engine):
+        rule_engine = self._on(rule_engine)
+        """Holding stock is a different problem (dead stock to clear, not to
+        block from ordering). This rule must not swallow that case — it only
+        fires when there is NOTHING on hand."""
+        products = [_make_product(
+            product_name='Slow But Stocked',
+            current_stocks=50,
+            total_units_sold_last_90d=0,
+            avg_daily_sales=0,
+            last_days_since_last_delivery=10,
+        )]
+        results = _run(rule_engine.analyze(products))
+        assert 'Discontinued' not in str(results[0].get('reasoning', ''))
+
+    def test_a_seller_with_no_stock_still_orders(self, rule_engine):
+        rule_engine = self._on(rule_engine)
+        """The inverse guard: out-of-stock but SELLING is the most urgent
+        replenishment case there is. It must never be mistaken for dead."""
+        products = [_make_product(
+            product_name='Stocked Out Fast Mover',
+            current_stocks=0,
+            total_units_sold_last_90d=450,
+            avg_daily_sales=5.0,
+            avg_daily_sales_last_30d=5.0,
+            last_days_since_last_delivery=3,
+        )]
+        results = _run(rule_engine.analyze(products))
+        assert results[0]['recommended_quantity'] > 0

@@ -26,6 +26,7 @@ Profile JSON shape:
 from __future__ import annotations
 
 import json
+import re
 from typing import Dict, List
 
 from .preflight import RECOMMENDED_POS_TABLES, REQUIRED_POS_TABLES
@@ -43,9 +44,21 @@ _CREATE_CLAUSE = {
 }
 
 
+#: Dialects where each CREATE VIEW must be its own batch. SQL Server rejects
+#: "Incorrect syntax near the keyword 'CREATE'" on the SECOND statement
+#: onwards, because CREATE OR ALTER VIEW has to be first in its batch — so a
+#: script without separators silently creates only view #1.
+_BATCH_SEPARATOR = {"mssql": "GO"}
+
+
 def create_clause_for(dialect: str) -> str:
     """The CREATE-VIEW prefix for a SQL dialect (pure)."""
     return _CREATE_CLAUSE.get(str(dialect or "").lower(), "CREATE VIEW")
+
+
+def batch_separator_for(dialect: str) -> str:
+    """Statement batch separator for a dialect, '' when none is needed (pure)."""
+    return _BATCH_SEPARATOR.get(str(dialect or "").lower(), "")
 
 
 def identity_profile() -> dict:
@@ -61,9 +74,21 @@ def load_profile(path: str) -> dict:
 
 
 def _mapped_columns(spec: dict) -> set:
-    """Canonical columns a spec provides — via real-column map OR literal."""
-    return (set((spec or {}).get("columns", {}) or {})
-            | set((spec or {}).get("literals", {}) or {}))
+    """Canonical columns a spec provides — via real-column map OR literal.
+
+    A malformed spec (a string, a list) provides nothing; it must not raise.
+    validate_profile is what a DBA runs to find out whether their hand-written
+    profile is usable, so it has to survive bad input and report, not explode.
+    """
+    if not isinstance(spec, dict):
+        return set()
+    if spec.get("sql"):
+        # A raw-SQL view cannot be parsed reliably, so it must declare what it
+        # provides. Without this, validate_profile would call every hand-written
+        # view empty and report the whole contract as missing.
+        return set(spec.get("provides") or [])
+    return (set(spec.get("columns", {}) or {})
+            | set(spec.get("literals", {}) or {}))
 
 
 def validate_profile(profile: dict) -> dict:
@@ -88,10 +113,59 @@ def validate_profile(profile: dict) -> dict:
         "ok": not missing_tables and not missing_columns,
         "missing_tables": missing_tables,
         "missing_columns": missing_columns,
+        "self_referencing": self_referencing_tables(profile),
     }
 
 
-def generate_view_ddl(profile: dict, create_clause: str = "CREATE VIEW") -> List[str]:
+def self_referencing_tables(profile: dict) -> List[str]:
+    """Canonical tables whose source has the SAME name (pure).
+
+    Each one is a DDL collision unless the views are emitted into their own
+    schema: a view cannot share a name with the table it selects from. RXL hits
+    this on nearly every table, because it already uses the canonical names and
+    only the COLUMNS differ. Silently emitting that DDL hands a DBA a script
+    that cannot run.
+    """
+    out = []
+    for canon_table, spec in (profile or {}).items():
+        if canon_table.startswith("_") or not isinstance(spec, dict):
+            continue
+        source = str(spec.get("source") or "")
+        # compare on the bare object name, so dbo.ITEM_MST still counts
+        if source.rsplit(".", 1)[-1].upper() == canon_table.upper():
+            out.append(canon_table)
+    return sorted(out)
+
+
+_PARAM_RE = re.compile(r":([A-Za-z_][A-Za-z0-9_]*)")
+
+
+def substitute_params(statements: List[str], params: Dict[str, str]) -> List[str]:
+    """Replace ``:name`` placeholders with literal values (pure).
+
+    Profiles use bind-style placeholders in ``where`` clauses (``:store_level``
+    pins a multi-level master to the store tier). A bind parameter is NOT valid
+    inside CREATE VIEW — the server has nothing to bind it to — so the DDL has
+    to carry a literal before a DBA can run it.
+    """
+    out = []
+    for sql in statements:
+        for name, value in (params or {}).items():
+            sql = re.sub(rf":{re.escape(name)}\b", str(value), sql)
+        out.append(sql)
+    return out
+
+
+def unresolved_params(statements: List[str]) -> List[str]:
+    """Placeholder names still present after substitution (pure, sorted)."""
+    found = set()
+    for sql in statements:
+        found.update(_PARAM_RE.findall(sql))
+    return sorted(found)
+
+
+def generate_view_ddl(profile: dict, create_clause: str = "CREATE VIEW",
+                      schema: str = "", source_schema: str = "") -> List[str]:
     """Emit one CREATE VIEW statement per mapped table (pure).
 
     Each view exposes the client's table under the canonical name. Three spec
@@ -102,10 +176,42 @@ def generate_view_ddl(profile: dict, create_clause: str = "CREATE VIEW") -> List
                        the adapter's defaults then apply)
       * ``where``    : optional filter (e.g. pin a multi-level master to the
                        store tier: ``"SM_LEVEL_NUMBER = 1"``)
+
+    ``schema`` qualifies the VIEW name only, never the source. This matters:
+    RXL already calls its tables ITEM_MST, STOCK_MASTER, POS_SALES_DTL and so
+    on, so an unqualified view would collide with the very table it selects
+    from ("There is already an object named 'ITEM_MST'"). Emit into a dedicated
+    schema — ``OASIS_VIEW_SCHEMA=OASIS`` — and set the OASIS service account's
+    DEFAULT schema to it. The adapter queries unqualified names, so they then
+    resolve to the views first and fall back to the client's own objects for
+    anything not overridden, with no adapter change and no writes to dbo.
+
+    ``source_schema`` then becomes MANDATORY, not cosmetic. Inside a view body,
+    an unqualified name resolves against the VIEW's schema first — so
+    ``CREATE VIEW OASIS.ITEM_MST AS SELECT ... FROM ITEM_MST`` binds to itself
+    and SQL Server refuses it: "contains a self-reference". The source must be
+    qualified (``dbo.ITEM_MST``) so the view reads the real table.
     """
     stmts: List[str] = []
     for canon_table, spec in (profile or {}).items():
-        spec = spec or {}
+        # Profiles carry documentation alongside table specs — the shipped RXL
+        # profile leads with a "_README" string. `spec or {}` keeps a non-empty
+        # string, so .get() raised AttributeError and build-views died on the
+        # only real profile we have. Metadata keys are not tables: skip anything
+        # that is not a mapping, and any key the author marked private with "_".
+        if canon_table.startswith("_") or not isinstance(spec, dict):
+            continue
+        # Escape hatch: a canonical table whose data cannot be produced by
+        # renaming columns on ONE source. Real RXL needs this — SUPPLIER_CD is
+        # not on ITEM_MST (it lives on BASIC_CP_MST.BCP_VEND_CD) and the
+        # department NAME is in DIVISION_MST — so a 1:1 mapping cannot express
+        # it at all. `sql` is emitted verbatim as the view body.
+        raw = spec.get("sql")
+        if raw:
+            view_name = f"{schema}.{canon_table}" if schema else canon_table
+            stmts.append(f"{create_clause} {view_name} AS {raw.strip().rstrip(';')};")
+            continue
+
         source = spec.get("source")
         cols = spec.get("columns", {}) or {}
         literals = spec.get("literals", {}) or {}
@@ -114,7 +220,12 @@ def generate_view_ddl(profile: dict, create_clause: str = "CREATE VIEW") -> List
             continue
         parts = [f"{src} AS {canon}" for canon, src in cols.items()]
         parts += [f"{expr} AS {canon}" for canon, expr in literals.items()]
-        sql = f"{create_clause} {canon_table} AS SELECT {', '.join(parts)} FROM {source}"
+        view_name = f"{schema}.{canon_table}" if schema else canon_table
+        # Qualify the SOURCE unless the profile already did. Without this, a
+        # view in a non-default schema binds its own name and self-references.
+        src = source if "." in source else (
+            f"{source_schema}.{source}" if source_schema else source)
+        sql = f"{create_clause} {view_name} AS SELECT {', '.join(parts)} FROM {src}"
         if where:
             sql += f" WHERE {where}"
         stmts.append(sql + ";")

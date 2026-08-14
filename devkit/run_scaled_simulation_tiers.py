@@ -5,6 +5,12 @@ import pandas as pd
 import json
 import logging
 import warnings
+
+# devkit/ -> repo root. This worked transitively before (the sibling import
+# below bootstraps it), which is exactly the kind of accident that breaks the
+# day someone imports this module instead of running it.
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 from run_simulation_scenario import run_simulation
 
 # Suppress warnings

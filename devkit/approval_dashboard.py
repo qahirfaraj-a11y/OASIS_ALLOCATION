@@ -13,7 +13,7 @@ import io
 from datetime import datetime, timedelta
 from oasis.logic.shadow_mode import ShadowModeEngine
 
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))  # devkit/ -> repo root
 
 st.set_page_config(page_title="O.A.S.I.S. PO Approval Center", layout="wide", initial_sidebar_state="expanded")
 
@@ -23,7 +23,7 @@ st.set_page_config(page_title="O.A.S.I.S. PO Approval Center", layout="wide", in
 from oasis.ui.auth import require_login, logout as _oasis_logout  # noqa: E402
 _AUTH_DB = os.getenv(
     "OASIS_DB_PATH",
-    os.path.join(os.path.dirname(os.path.abspath(__file__)), "oasis", "data", "mock_pos_erp.db"),
+    os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "oasis", "data", "mock_pos_erp.db"),
 )
 _oasis_user = require_login(
     st, _AUTH_DB, app_title="PO Approval Center",
@@ -38,7 +38,7 @@ with st.sidebar:
 st.title("O.A.S.I.S. Purchase Order Approval Center")
 st.markdown("**Daily Procurement Workflow** - Review, modify, and approve auto-generated purchase orders.")
 
-base_dir = os.path.dirname(os.path.abspath(__file__))
+base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))  # devkit/ -> repo root
 # Redirect pipeline_logs and governance tracking directly into the central oasis/data pipeline
 pipeline_dir = os.path.join(base_dir, 'oasis', 'data', 'pipeline_logs')
 governance_dir = os.path.join(base_dir, 'oasis', 'data', 'amit_governance')

@@ -1044,7 +1044,6 @@ def export_to_excel(results: List[SimulationResult], output_file: str):
                 "Lost Sales KES": round(r.total_lost_sales, 0),
                 "Substituted Sales KES": round(sum(sku.substituted_sales * sku.unit_price for sku in r.final_sku_states.values()), 0), # New Metric
                 "Inventory Turns": round(r.inventory_turnover, 1),
-                "Inventory Turns": round(r.inventory_turnover, 1),
                 "Capital Efficiency %": round(r.capital_efficiency, 1),
                 "ROI %": round(r.roi, 1)
             })

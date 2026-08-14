@@ -9,13 +9,14 @@ Usage:
     python run_supplier_failure_scenario.py --store-type Online_5M --days 30
 """
 
+import os
 import sys
 import argparse
 import pandas as pd
 from pathlib import Path
 
 # Add parent path for imports
-sys.path.insert(0, str(Path(__file__).parent))
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))  # devkit/ -> repo root
 
 from oasis.analytics.supplier_analytics import (
     get_top_suppliers_by_department,

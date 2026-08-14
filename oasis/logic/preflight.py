@@ -86,6 +86,34 @@ def evaluate_pos_schema(found_tables: Set[str],
     return checks
 
 
+def evaluate_store_separation(pos_url: str, store_url: str) -> dict:
+    """Is OASIS's own store a DIFFERENT database from the client's POS? (pure)
+
+    Every OASIS write (INTEGRATION_PURCHASE_ORDERS, the audit log, users) goes
+    to the store connection. If the operator has not configured a distinct POS
+    source, that connection IS the client's live POS — so OASIS silently
+    CREATEs its own tables inside a production retail database. Nothing else
+    catches this: the store is writable, every schema check passes, and the
+    install looks healthy right up until a DBA asks why there are OASIS_ tables
+    in the POS.
+
+    WARN, not FAIL: single-database IS the supported shape for the demo and for
+    a sample install. It is only wrong against a live POS, which preflight
+    cannot tell apart from a mock one by URL alone.
+    """
+    same = bool(pos_url) and pos_url == store_url
+    if not same:
+        return {"check": "POS / OASIS store separation", "status": "PASS",
+                "detail": "OASIS writes to its own database"}
+    return {
+        "check": "POS / OASIS store separation", "status": "WARN",
+        "detail": ("POS and OASIS store are the SAME database — OASIS will "
+                   "create its tables inside it. Correct for a demo; against "
+                   "a live POS set OASIS_POS_DB_URL (read-only) so writes go "
+                   "elsewhere."),
+    }
+
+
 def evaluate_sales_history(history_days: Optional[int],
                            min_days: int = MIN_SALES_HISTORY_DAYS) -> dict:
     """Classify sales-history depth (pure)."""
@@ -133,8 +161,23 @@ def run_preflight(pos_url: Optional[str] = None, store_url: Optional[str] = None
                                  f"{pos_health.get('tables_found')} tables"})
         from sqlalchemy import inspect, text
         insp = inspect(conn.engine)
+        # VIEWS COUNT. `--mode build-views` is our documented way to bridge a
+        # client whose schema differs from the canonical contract, and it emits
+        # VIEWS. Inspecting only get_table_names() reported every required table
+        # as missing on exactly the installs we tell clients to build — verified
+        # against real RXL, where the canonical set is 8 views and 0 tables.
         tables = set(insp.get_table_names())
-        cols = {t: {c["name"] for c in insp.get_columns(t)} for t in tables}
+        try:
+            tables |= set(insp.get_view_names())
+        except Exception:      # some dialects/drivers cannot enumerate views
+            pass
+        cols = {}
+        for t in tables:
+            try:
+                cols[t] = {c["name"] for c in insp.get_columns(t)}
+            except Exception:
+                cols[t] = set()   # unreadable object: report as missing columns,
+                                  # never abort the whole preflight
         checks.extend(evaluate_pos_schema(tables, cols))
 
         # sales-history depth + a couple of row counts (best-effort)
@@ -152,6 +195,9 @@ def run_preflight(pos_url: Optional[str] = None, store_url: Optional[str] = None
         checks.append(evaluate_sales_history(hist_days))
     except Exception as e:
         checks.append({"check": "POS connection", "status": "FAIL", "detail": str(e)[:160]})
+
+    # --- OASIS store: separate database from the POS? ---
+    checks.append(evaluate_store_separation(pos_url, store_url))
 
     # --- OASIS store (writable?) ---
     try:

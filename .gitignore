@@ -158,3 +158,12 @@ connectors/odoo/.hub_state.json
 # the moment it is out of the index.)
 oasis/data/mande_purge_report.json
 test_shadow_report.docx
+
+# ── 2026-08-14: RXL port leftovers that must never enter history ─────────
+# SQL Server database dumps taken while porting onto RXL. The TESTING11 one
+# alone is 86MB, and git keeps a blob forever once committed — a single
+# `git add -A` would be unrecoverable without rewriting history.
+*.bak
+# The hub's live admin key. Same class as connectors/odoo/.hub_state.json
+# above: a real credential that happens to live inside the tree.
+oasis_hub/.oasis_hub_admin_key

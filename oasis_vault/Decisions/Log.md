@@ -27,3 +27,13 @@ Tracking technical changes and the rationale behind them.
     - **Spoilage Hard Capping**: Explicitly blocked `is_fresh` items from Pass 4 "Mop-Up" limits to prevent them from soaking 60 days of buffer.
     - **Dynamic Scrutiny**: Stripped away all static fallback metrics (`0.1`, `0.5`, `3.0`, `6.0`) across Pass 1, 2B, 4, and CV calculations. Replaced them with intelligent, price-ceiling driven baseline velocities.
 - **Outcome**: Target allocations are precise, natively intelligent even with zero historical forecast, and department structures correctly mirror database ground truths.
+
+## [2026-08-13] Live RXL POS Integration
+- **Problem**: The RXL schema profile had only ever been written against documentation; the live-port path had never been executed.
+- **Solution**: Verified everything against a real RXL database (TESTING11, 999 tables). Six DDL/mapping blockers fixed; local RXL install brought up and Console login achieved.
+- **Outcome**: See [[RXL_Integration_Log_2026-08]] for the full log, and [[OASIS_Port_Method]] for the repeatable procedure for future POS vendors.
+
+## [2026-08-13] OASIS Made ERP-Agnostic (Odoo Adapter)
+- **Problem**: Ordering intelligence was reachable ONLY via `PosErpAdapter` (direct POS database access). Verified nothing in `oasis/` reads `hub_stock_movement`, and the hub is deliberately supplier-facing (no cost price, no item master). So an Odoo/Zoho client could push data but never get Smart Ordering.
+- **Solution**: Built `oasis/logic/odoo_adapter.py` — PosErpAdapter's contract over XML-RPC, verified against a live Odoo 16 throughout. Added a 3-level product hierarchy (fixing `department` being an entire path string), `--mode erp-status` for adapter observability, a `funnel` diagnostic on `generate_smart_orders`, and made `get_adapter()` pluggable via `OASIS_ERP=odoo`.
+- **Outcome**: Full cycle proven — Odoo -> adapter -> engine -> DRAFT purchase.orders back into Odoo, with NO schema bridge, NO views and NO database credentials. Odoo natively supplies cost price and real receipt dates, which the hub excludes by design and RXL does not have at all. Dead-stock and stale-fresh guards went from structurally dead to firing (19 + 6). See [[OASIS_ERP_Agnostic_2026-08]].

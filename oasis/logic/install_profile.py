@@ -17,6 +17,13 @@ import os
 from datetime import datetime
 from typing import Optional
 
+# The canonical store filenames live in onboarding. init_install() referenced
+# both names without importing them, and because they sit inside os.getenv()
+# DEFAULT arguments — which Python evaluates eagerly, set or not — `--mode init`
+# raised NameError on EVERY run, for both profiles. Import, do not redefine:
+# a second copy here would drift from the names onboarding actually resolves.
+from .onboarding import DEFAULT_MULTI_DB, DEFAULT_SINGLE_DB
+
 PROFILE_FILE = ".oasis_install_profile.json"
 
 

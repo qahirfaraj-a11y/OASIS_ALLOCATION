@@ -30,8 +30,13 @@ TEST_DB_URI = f"sqlite:///{TEST_DB_PATH}"
 
 @pytest.fixture(scope="module")
 def mock_db():
-    """Create mock DB once for all tests in this module."""
-    builder = MockPosErpBuilder(db_path=TEST_DB_PATH, seed=42)
+    """Create mock DB once for all tests in this module.
+
+    fast_mode caps the catalogue and the store count: every assertion below is
+    a shape/invariant check (>=100 items, >=3 stores), so the full 14-store,
+    23.5k-SKU build buys nothing but fixture time.
+    """
+    builder = MockPosErpBuilder(db_path=TEST_DB_PATH, seed=42, fast_mode=True)
     builder.build(reset=True)
     yield TEST_DB_PATH
     # Cleanup after all tests (best-effort on Windows due to file locks)

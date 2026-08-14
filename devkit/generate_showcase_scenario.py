@@ -12,7 +12,7 @@ import random
 from datetime import datetime, timedelta
 
 # Add project root
-sys.path.insert(0, os.getcwd())
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))  # devkit/ -> repo root
 
 from oasis.logic.mock_pos_erp import MockPosErpBuilder, DEFAULT_DB_PATH
 

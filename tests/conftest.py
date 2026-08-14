@@ -119,6 +119,34 @@ def _never_touch_the_real_store(monkeypatch, tmp_path_factory, request):
         f"under tmp_path, or mark the test @pytest.mark.real_store.")
 
 
+#: The env vars that repoint OASIS at a data source OTHER than the one a test
+#: set up. ``_never_touch_the_real_store`` above pins OASIS_DB_PATH, but these
+#: three outrank it: OASIS_POS_DB_URL makes ``has_distinct_pos()`` true, and
+#: OASIS_ERP=odoo bypasses the store database entirely.
+_DATA_SOURCE_ENV = ("OASIS_POS_DB_URL", "OASIS_DB_URL", "OASIS_ERP")
+
+
+@pytest.fixture(autouse=True)
+def _no_inherited_data_source(monkeypatch):
+    """Ignore whatever POS/ERP the DEVELOPER has configured.
+
+    Porting work leaves these set as persistent user environment variables —
+    after the RXL port, OASIS_POS_DB_URL pointed at a SQL Server in Docker on
+    the dev machine. Any test that built a store under tmp_path then read it
+    back through ``desktop.data.get_adapter`` got an adapter aimed at THAT
+    server instead, and when the container was not running the read failed and
+    was swallowed into an empty list: a five-store network asserted as zero
+    stores, with the traceback nowhere in the output.
+
+    Several test files already delenv'd these one by one, which is the same fix
+    written five times and forgotten on the sixth. A test that genuinely wants
+    one of them sets it itself — this fixture runs first, so that still wins.
+    """
+    for var in _DATA_SOURCE_ENV:
+        monkeypatch.delenv(var, raising=False)
+    yield
+
+
 def _snapshot_real_store() -> dict:
     """mtimes of the installed store DBs and onboarding record."""
     out = {}

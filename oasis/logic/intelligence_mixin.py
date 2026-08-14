@@ -545,7 +545,13 @@ class IntelligenceMixin:
             p['target_coverage_days'] = self.calculate_replenishment_target_stock(p, profile)
             
             # GOLDEN PARITY: Missing default fields (Regression #10, #11)
-            p['on_order_qty'] = 0
+            # DEFAULT it, do not CLOBBER it. PosErpAdapter.fetch_enriched_products
+            # sets on_order_qty from open POs (PENDING + APPROVED) so the net
+            # requirement is (target - current - on_order); assigning 0 here
+            # threw that away on every run, and calculate_order_quantity then
+            # re-ordered everything already in transit. Ordering once looked
+            # fine — the damage only appears on day 2, compounding daily.
+            p['on_order_qty'] = float(p.get('on_order_qty') or 0)
             p['expiry_risk'] = 'high' if is_fresh else 'low'
             p['moq_floor'] = 0
             p['min_presentation_stock'] = 0

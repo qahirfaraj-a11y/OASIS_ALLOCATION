@@ -209,7 +209,21 @@ class UniversalConnector:
                 # Add pooling for remote DBs (Postgres/MySQL)
                 engine_kwargs["pool_size"] = 10
                 engine_kwargs["max_overflow"] = 20
-                
+
+            # The legacy "SQL Server" ODBC driver (the one Windows ships with,
+            # and often the only one on a client machine) cannot handle
+            # SQLAlchemy's setinputsizes: schema inspection dies with
+            # HY104 "Invalid precision value (0)" before a single table is read.
+            # Verified against a real RXL install. ODBC Driver 17/18 does not
+            # need this, and is what we should recommend — but a client should
+            # not be blocked because they only have the in-box driver.
+            if "driver=SQL+Server" in self.connection_string or \
+               "driver=SQL Server" in self.connection_string:
+                engine_kwargs["use_setinputsizes"] = False
+                logger.info("Legacy 'SQL Server' ODBC driver detected — "
+                            "disabling setinputsizes (HY104 workaround). "
+                            "ODBC Driver 17+ is recommended.")
+
             self.engine = create_engine(self.connection_string, **engine_kwargs)
             logger.info(f"Database Engine initialized (Back-end: {'SQLite' if 'sqlite' in self.connection_string else 'Remote'}).")
         except Exception as e:

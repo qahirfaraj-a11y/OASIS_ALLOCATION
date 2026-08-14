@@ -20,7 +20,10 @@ profiles = [
 
 days = 10
 month = "FEB"
-script_path = "run_simulation_scenario.py"
+# Sibling in devkit/, not the cwd — this ran from the repo root before the
+# dev toolkit was split out, and a bare relative name silently stopped resolving.
+script_path = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                           "run_simulation_scenario.py")
 
 print(f"--- STARTING BATCH SIMULATION (Duration: {days} Days, Month: {month}) ---")
 

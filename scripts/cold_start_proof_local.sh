@@ -92,7 +92,28 @@ $PY entrypoint.py --mode license-status
 echo
 
 echo "[8/8] --mode preflight"
-$PY entrypoint.py --mode preflight || echo "  (preflight can WARN pre-onboarding — that's expected on a fresh install)"
+# What this step proves is that preflight RUNS, not that it is happy. A fresh
+# unpack has no POS connected, so a FAIL verdict here is correct and expected
+# — onboarding is what fixes it.
+#
+# The old guard was `|| echo "(preflight can WARN...)"`, which swallowed every
+# non-zero exit. That could not distinguish the expected FAIL verdict from
+# "the command never ran at all", and for an unknown period it hid the latter:
+# `preflight` was missing from --mode choices, so argparse exited 2 and this
+# proof still printed PASS.
+#
+# So: require the REPORT, not the exit code. If preflight cannot execute there
+# is no "OVERALL:" line, and that is a real failure of the release.
+PREFLIGHT_OUT=$($PY entrypoint.py --mode preflight 2>&1) || true
+echo "$PREFLIGHT_OUT"
+if ! grep -q "OVERALL:" <<<"$PREFLIGHT_OUT"; then
+    echo
+    echo "  preflight did not produce a report — it could not run at all."
+    echo "=== cold-start proof: FAIL (preflight did not execute) ==="
+    exit 1
+fi
+echo "  (preflight ran. A FAIL verdict pre-onboarding is expected: no POS is"
+echo "   connected on a fresh unpack.)"
 
 echo
 echo "=== cold-start proof: PASS ==="

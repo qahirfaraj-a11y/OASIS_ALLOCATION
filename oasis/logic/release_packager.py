@@ -96,6 +96,11 @@ _ROOT_WHITELIST = {
     # (Removed in Phase 3.3 entrypoint consolidation)
     # doc
     "README.md",
+    # The RXL/iRetail -> canonical schema profile. `--mode build-views` is a
+    # documented onboarding step and is useless without a profile to feed it,
+    # so a client porting to a live POS previously had to be sent this file
+    # out of band. It is a mapping template, no client data.
+    "rxl_schema_profile.json",
     # Attribution obligations travel WITH the product — an OSM notice that
     # stays in the source repo does not discharge ODbL 4.3 for a client who
     # only ever sees the zip.
@@ -106,7 +111,10 @@ _ROOT_WHITELIST = {
 _OASIS_WHITELIST_SUBPKGS = {
     "__init__.py", "logging_config.py", "models.py",
     "api/", "logic/", "ui/", "simulation/", "analytics/",
-    "tools/", "data_validation/",
+    # ("tools/" removed: its only three modules — the PDF/Excel calendar
+    #  generators and merge_additional_data — had no importer anywhere in the
+    #  tree and were deleted. The directory no longer exists.)
+    "data_validation/",
     # The rule-based decision engine. ops_dashboard.py imports RuleBasedLLM at
     # MODULE level, so with oasis/llm absent the Streamlit Command Center —
     # OASIS.bat option 4 — died with ModuleNotFoundError before rendering a
@@ -137,6 +145,23 @@ _OASIS_DATA_WHITELIST = {
     # flags/thresholds only — no client data. The tuned per-install
     # oasis_engines_config.json is machine state and still never ships.
     "oasis_engines_config.default.json",
+}
+
+#: modules inside an otherwise-shipping sub-package that are DEV-ONLY.
+#: The sub-package whitelist above is all-or-nothing, so a module whose only
+#: importers are unshipped root scripts still rode along into every client zip.
+#: These are reachable in the working tree (dev scenario tooling) but provably
+#: unreachable from anything the client receives — verified by walking the
+#: import graph from the shipped root scripts. Keep the importer listed so the
+#: next person can tell "dead" from "dev-only" without re-deriving it.
+_OASIS_DEV_ONLY = {
+    # imported by run_simulation_scenario.py / run_all_tiers_simulation.py /
+    # run_supplier_failure_scenario.py — none of which are on _ROOT_WHITELIST.
+    # The Simulation Lab that DOES ship runs oasis/simulation/retail_simulator.py.
+    "oasis/simulation/simulation_engine.py",
+    # imported by approval_dashboard.py and shadow_monitor.py, neither shipped.
+    # Distinct from oasis/simulation/simulation_engine.py despite the class name.
+    "oasis/logic/simulation_pipeline.py",
 }
 
 #: files that ship in BOTH modes, overriding the blacklist globs above
@@ -174,6 +199,8 @@ def should_ship_clean(relpath: str, size_bytes: int = 0) -> Tuple[bool, str]:
         sub = rel[len("oasis/"):]
         if "__pycache__" in sub or name.endswith(".pyc"):
             return False, "pycache"
+        if rel in _OASIS_DEV_ONLY:
+            return False, "dev-only module (no shipped importer)"
         # allow the top-level files (logging_config.py etc.)
         top = sub.split("/", 1)[0]
         if "/" not in sub:  # oasis/<file>

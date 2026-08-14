@@ -223,6 +223,26 @@ class PosErpAdapter:
     # ------------------------------------------------------------------
     # 4. Sales Intelligence  →  dict matching sales_forecasting JSON format
     # ------------------------------------------------------------------
+    def _year_month_expr(self, col: str) -> str:
+        """SQL for the 'YYYY-MM' bucket of a date column, per dialect (pure).
+
+        There is no portable spelling of this. SQLite stores dates as TEXT and
+        needs string slicing; SQL Server, Postgres and MySQL store real dates
+        and each spell the conversion differently. Defaults to the SQLite form,
+        which is what the bundled mock uses.
+        """
+        try:
+            name = self.engine.dialect.name.lower()
+        except Exception:
+            name = "sqlite"
+        if name.startswith("mssql"):
+            return "CONVERT(varchar(7), %s, 120)" % col      # 120 = ISO yyyy-mm-dd
+        if name.startswith("postgres"):
+            return "TO_CHAR(%s, 'YYYY-MM')" % col
+        if name.startswith("mysql") or name.startswith("mariadb"):
+            return "DATE_FORMAT(%s, '%%Y-%%m')" % col
+        return "SUBSTR(%s, 1, 7)" % col
+
     def fetch_sales_intelligence(self, org_cd: str, days: int = 300) -> dict:
         """
         Aggregate POS sales into the exact format OrderEngine.databases['sales_forecasting'] expects:
@@ -240,23 +260,31 @@ class PosErpAdapter:
         """
         cutoff = (datetime.now() - timedelta(days=days)).strftime("%Y-%m-%d")
 
+        # Year-month bucket, per dialect. This used to be a hardcoded
+        # SUBSTR(d.BILL_DT, 1, 7), which is doubly SQLite-specific: SQL Server
+        # has no SUBSTR at all ("'SUBSTR' is not a recognized built-in function"),
+        # and on a real POS BILL_DT is a DATETIME, not the 'YYYY-MM-DD' TEXT the
+        # SQLite mock stores — so string slicing is meaningless there. Found
+        # against a live RXL/SQL Server install; the mock could never surface it.
+        ym = self._year_month_expr("d.BILL_DT")
+
         # Query monthly aggregation from BI_SALES_REPORT if available, else raw POS
         query = text("""
-            SELECT 
+            SELECT
                 i.ITM_LONG_NAME AS product_name,
                 d.ITM_CD AS itm_cd,
-                SUBSTR(d.BILL_DT, 1, 7) AS year_month,
+                {ym} AS year_month,
                 SUM(d.QTY) AS total_qty,
                 SUM(d.TOTAL_VALUE) AS total_revenue,
                 COUNT(DISTINCT d.BILL_NO) AS transaction_count
             FROM POS_SALES_DTL d
             JOIN ITEM_MST i ON i.ITM_CD = d.ITM_CD
-            WHERE d.ORG_CD = :org_cd 
+            WHERE d.ORG_CD = :org_cd
                 AND d.BILL_DT >= :cutoff
                 AND d.VOID_FLAG = 'F'
-            GROUP BY d.ITM_CD, i.ITM_LONG_NAME, SUBSTR(d.BILL_DT, 1, 7)
+            GROUP BY d.ITM_CD, i.ITM_LONG_NAME, {ym}
             ORDER BY d.ITM_CD, year_month
-        """)
+        """.format(ym=ym))
 
         # v2026 Optimization: Chunked aggregation to save memory
         chunk_size = 5000

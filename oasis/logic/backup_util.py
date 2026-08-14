@@ -58,6 +58,54 @@ def _prune(backup_dir: str, stem: str, keep: int) -> List[str]:
     return doomed
 
 
+def list_backups(db_path: str, backup_dir: Optional[str] = None) -> List[dict]:
+    """Newest-first list of this DB's backups: ``{index, path, size_mb, taken}``.
+
+    Restore is the one command an operator runs on their worst day, and it
+    needs a path they do not have memorised. Without a way to SEE the backups,
+    ``--mode restore`` was reachable only by someone who already knew the
+    filename — which is nobody, mid-incident.
+    """
+    backup_dir = backup_dir or os.path.join(
+        os.path.dirname(os.path.abspath(db_path)), "backups")
+    if not os.path.isdir(backup_dir):
+        return []
+    stem = os.path.splitext(os.path.basename(db_path))[0]
+    names = sorted((f for f in os.listdir(backup_dir)
+                    if f.startswith(stem + "_") and f.endswith(".db")),
+                   reverse=True)
+    out = []
+    for i, name in enumerate(names, start=1):
+        full = os.path.join(backup_dir, name)
+        try:
+            st = os.stat(full)
+        except OSError:
+            continue
+        out.append({
+            "index": i,
+            "path": full,
+            "size_mb": round(st.st_size / 1e6, 1),
+            "taken": datetime.fromtimestamp(st.st_mtime).strftime("%Y-%m-%d %H:%M:%S"),
+        })
+    return out
+
+
+def resolve_backup(db_path: str, ref: str, backup_dir: Optional[str] = None) -> str:
+    """Resolve a backup reference — either a path or a 1-based index from
+    :func:`list_backups` — to an absolute path. Pure lookup; touches nothing."""
+    if os.path.exists(ref):
+        return ref
+    if ref.isdigit():
+        entries = list_backups(db_path, backup_dir)
+        idx = int(ref)
+        if 1 <= idx <= len(entries):
+            return entries[idx - 1]["path"]
+        raise FileNotFoundError(
+            f"no backup #{idx}; there are {len(entries)}. "
+            f"Run --mode list-backups to see them.")
+    raise FileNotFoundError(ref)
+
+
 def restore_db(db_path: str, backup_file: str) -> dict:
     """Restore backup_file over db_path (after a safety copy of the current DB)."""
     if not os.path.exists(backup_file):
