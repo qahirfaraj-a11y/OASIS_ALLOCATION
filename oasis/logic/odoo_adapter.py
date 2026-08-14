@@ -100,6 +100,7 @@ class OdooAdapter:
         self.store_engine = getattr(store_connector, "engine", None)
         self._uid = None
         self._models = None
+        self._wh_cache: Dict[str, Optional[dict]] = {}
 
     # ── connection ────────────────────────────────────────────────────────
     def _connect(self):
@@ -141,6 +142,44 @@ class OdooAdapter:
             return []
 
     # ── internal reads ────────────────────────────────────────────────────
+    def _warehouse(self, org_cd: Optional[str]) -> Optional[dict]:
+        """The warehouse behind an OASIS org code, or None for company-wide.
+
+        Cached per adapter because one ``fetch_enriched_products`` resolves the
+        site three times over (stock, receipts, demand) and the answer cannot
+        change mid-call.
+
+        ``in_type_id`` is carried alongside the location because the WRITE side
+        needs it: a purchase order is aimed at a site by its receipt operation
+        type, not by a location.
+        """
+        if not org_cd:
+            return None
+        key = str(org_cd)
+        if key in self._wh_cache:
+            return self._wh_cache[key]
+        try:
+            whs = self._ex("stock.warehouse", "search_read",
+                           [["|", ["code", "=", key], ["name", "=", key]]],
+                           {"fields": ["name", "code", "view_location_id", "in_type_id"],
+                            "limit": 1}) or []
+        except Exception as e:
+            # Reached if this Odoo version does not carry one of those fields.
+            # Callers sit inside fetch_enriched_products' try/except, so letting
+            # this propagate would blank the whole CATALOGUE and report it as
+            # "no products" — a schema problem disguised as an empty store.
+            logger.error("warehouse lookup failed for %r (%s) — reading "
+                         "company-wide; site scoping is NOT in effect",
+                         org_cd, str(e)[:120])
+            self._wh_cache[key] = None
+            return None
+        wh = whs[0] if whs else None
+        if wh is None:
+            logger.warning("warehouse %r not found — falling back to company-wide",
+                           org_cd)
+        self._wh_cache[key] = wh
+        return wh
+
     def _warehouse_scope(self, org_cd: Optional[str]) -> Optional[int]:
         """The warehouse's ROOT view location, or None for company-wide.
 
@@ -151,15 +190,22 @@ class OdooAdapter:
         `lot_stock_id`, which is only the default stock location and misses
         input/quality/output sub-locations.
         """
-        if not org_cd:
-            return None
-        whs = self._ex("stock.warehouse", "search_read",
-                       [["|", ["code", "=", org_cd], ["name", "=", org_cd]]],
-                       {"fields": ["view_location_id"], "limit": 1}) or []
-        if not whs:
-            logger.warning("warehouse %r not found — reading company-wide", org_cd)
-            return None
-        return _id_of(whs[0].get("view_location_id"))
+        wh = self._warehouse(org_cd)
+        return _id_of(wh.get("view_location_id")) if wh else None
+
+    def _po_site_domain(self, org_cd: Optional[str]) -> list:
+        """Domain fragment restricting purchase orders to one site.
+
+        A PO belongs to the site it will be RECEIVED at, which Odoo records as
+        the order's picking type. Reading POs company-wide is not a cosmetic
+        problem for ``fetch_pending_po_by_sku``: that feeds ``on_order_qty``, so
+        stock inbound to one store would suppress ordering at every other store
+        in the chain — the same silent under-ordering the read path had.
+        """
+        wh = self._warehouse(org_cd)
+        if not wh:
+            return []
+        return [["order_id.picking_type_id.warehouse_id", "=", wh["id"]]]
 
     def _on_hand(self, org_cd: Optional[str] = None) -> Dict[int, float]:
         """product_id -> quantity in INTERNAL locations, scoped to one site.
@@ -341,7 +387,7 @@ class OdooAdapter:
         return out
 
     def fetch_sales_history(self, org_cd: str = None, days: int = 90) -> List[dict]:
-        sales = self._sales_by_product(days)
+        sales = self._sales_by_product(days, org_cd)
         return [{"item_code": str(pid), "units": v["units"], "revenue": v["revenue"]}
                 for pid, v in sales.items()]
 
@@ -351,6 +397,12 @@ class OdooAdapter:
 
         Draft, never confirmed: OASIS proposes, a human approves in Odoo. Writing
         a confirmed PO would commit a client's money without review.
+
+        The order is aimed at ``org_cd``'s own receipt operation type. Without
+        that Odoo silently applies the DEFAULT warehouse's, so a PO computed
+        from one store's stock and demand is received into another — goods
+        physically arriving at the wrong site, with nothing in the run to show
+        it. The read path is scoped per site, so the write path must be too.
         """
         by_supplier: Dict[Any, List[dict]] = defaultdict(list)
         for rec in recommendations:
@@ -359,6 +411,12 @@ class OdooAdapter:
             by_supplier[rec.get("supplier_cd") or ""].append(rec)
         if not by_supplier:
             return 0
+
+        wh = self._warehouse(org_cd)
+        picking_type = _id_of(wh.get("in_type_id")) if wh else None
+        if org_cd and picking_type is None:
+            logger.warning("no receipt operation type for site %r — Odoo will use "
+                           "the default warehouse for these POs", org_cd)
 
         codes = [r.get("item_code") for recs in by_supplier.values() for r in recs]
         found = self._ex("product.product", "search_read",
@@ -390,8 +448,10 @@ class OdooAdapter:
                 if partner is None:
                     logger.warning("no vendor partner available — skipping %s", supplier_cd)
                     continue
-                self._ex("purchase.order", "create",
-                         [{"partner_id": partner, "order_line": lines}])
+                vals = {"partner_id": partner, "order_line": lines}
+                if picking_type:
+                    vals["picking_type_id"] = picking_type
+                self._ex("purchase.order", "create", [vals])
                 written += len(lines)
             except Exception as e:
                 logger.error("push_purchase_order failed for %s: %s", supplier_cd, str(e)[:160])
@@ -399,10 +459,11 @@ class OdooAdapter:
         return written
 
     def fetch_pending_pos(self, org_cd: str = None):
-        """Draft/sent purchase orders — OASIS's 'pending approval' equivalent."""
+        """Draft/sent purchase orders for one site — OASIS's 'pending approval'."""
         try:
-            rows = self._ex("purchase.order.line", "search_read",
-                            [[["order_id.state", "in", ["draft", "sent"]]]],
+            dom = [["order_id.state", "in", ["draft", "sent"]]]
+            dom += self._po_site_domain(org_cd)
+            rows = self._ex("purchase.order.line", "search_read", [dom],
                             {"fields": ["product_id", "product_qty", "price_unit",
                                         "order_id"], "limit": 5000}) or []
         except Exception as e:
@@ -477,8 +538,9 @@ class OdooAdapter:
         """
         out: Dict[str, dict] = {}
         try:
-            rows = self._ex("purchase.order.line", "search_read",
-                            [[["order_id.state", "in", ["draft", "sent", "purchase"]]]],
+            dom = [["order_id.state", "in", ["draft", "sent", "purchase"]]]
+            dom += self._po_site_domain(org_cd)
+            rows = self._ex("purchase.order.line", "search_read", [dom],
                             {"fields": ["product_id", "product_qty", "qty_received"],
                              "limit": 20000}) or []
         except Exception:
