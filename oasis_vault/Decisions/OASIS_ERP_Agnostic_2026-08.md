@@ -248,8 +248,62 @@ Genuinely different positions per site.
   destination warehouse, so goods land at the default. **Fix this first** before
   any real multi-site deployment.
 
+---
+
+## MULTI-SITE [2026-08-14] The accept-and-ignore bug was in FIVE methods
+
+Picking up item 1 below. `push_purchase_order` was not the only survivor —
+grepping every method that takes `org_cd` found the same shape four more times:
+the parameter is accepted, never read, and the whole company's answer comes
+back with no error.
+
+| method | what unscoped actually costs |
+|---|---|
+| `push_purchase_order` | Odoo applies the DEFAULT warehouse's receipt type, so a PO computed from one store's stock is **received at another**. Goods arrive at the wrong site. |
+| `fetch_sales_history` | passed `days` to `_sales_by_product` but dropped `org_cd` — every site reports identical ADS |
+| **`fetch_pending_po_by_sku`** | feeds `on_order_qty`: stock inbound to ONE store **suppresses ordering at EVERY store** in the chain |
+| `fetch_pending_pos` | pending-approval counts were chain-wide |
+| `_on_hand` / `_last_receipt` | already fixed 08-13; now has regression cover |
+
+POs are scoped by the order's **picking type**, not by a location — that is what
+decides where goods land. `_warehouse()` resolves the site once and caches it
+(one `fetch_enriched_products` resolves the scope three times over).
+
+**A failed warehouse lookup no longer propagates.** Its callers sit inside
+`fetch_enriched_products`' try/except, so an unknown field would have blanked
+the entire CATALOGUE and reported it as "no products" — a schema fault wearing
+the costume of an empty store. Same silent-zero family as `ACTIVE_FLAG` and
+`SM_LAST_RECV_DT`. It now logs "site scoping is NOT in effect" and reads
+company-wide.
+
+### NOT VERIFIED — the honest state
+**Docker would not start this session, so none of this has run against live
+Odoo.** The tests drive a stub, and *the stub encodes the same assumption the
+code does*. Two field names come from model knowledge, not from checking:
+
+- `stock.warehouse.in_type_id`
+- `purchase.order.picking_type_id`
+
+If either is wrong **the tests still pass** and the adapter silently falls back
+to company-wide. The network here could not reach the Odoo source to confirm.
+This is exactly the [[oasis-assumed-api-trap]] shape: a green suite proving only
+that the code agrees with itself.
+
+**First thing next session: start Docker, run `--mode erp-status`, and confirm
+both field names against the live instance.** Then re-run the 5 draft POs and
+check `picking_type_id` actually landed.
+
+What the tests DO prove: `org_cd` reaches every domain instead of being dropped.
+All five bugs fail them on the previous commit (verified by stashing the fix).
+
+Commits: `ab8e20ac` (the whole RXL + Odoo day, which had never been committed),
+`62d9cb4f` (this).
+
+---
+
 ## Next session — starting points
-1. Site-scope `push_purchase_order` (destination warehouse / picking type).
+1. ~~Site-scope `push_purchase_order`~~ — done in `62d9cb4f`, **but unverified
+   against live Odoo**. Confirm the two field names FIRST (see above).
 2. Implement the three declared-but-missing contract methods for Odoo:
    `update_po_status`, `fetch_transfers`, `push_transfer_request`.
 3. Multi-company support, if the target deployment needs it.
