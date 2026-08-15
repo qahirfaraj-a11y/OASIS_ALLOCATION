@@ -330,10 +330,10 @@ Commits: `ab8e20ac` (the whole RXL + Odoo day, which had never been committed),
 ## Next session — starting points
 1. ~~Site-scope `push_purchase_order`~~ — **DONE and live-verified** (`62d9cb4f`,
    evidence above). Five methods, not one.
-2. Implement the three declared-but-missing contract methods for Odoo:
-   `update_po_status`, `fetch_transfers`, `push_transfer_request`.
-   **Read the XML-RPC gotcha below before writing `update_po_status`** — it
-   will call exactly the methods that trip it.
+2. ~~`update_po_status`~~ — **DONE and live-verified** (see below).
+   Still missing: `fetch_transfers` and `push_transfer_request` (inter-store
+   movement). Read the XML-RPC gotcha below first — `push_transfer_request`
+   will drive `stock.picking` action methods that return None the same way.
 3. Multi-company support, if the target deployment needs it. Note the ambiguity
    found while verifying: warehouse `WH` is NAMED "YourCompany", so its receipt
    type reads "YourCompany: Receipts" — fine as an id, confusing in any UI that
@@ -371,6 +371,53 @@ discipline that proved the PO write-back in the first place.
 Deletion order also matters: Odoo refuses to `unlink` a purchase order that is
 not cancelled ("you must cancel it first"), so the sequence is
 cancel -> verify state -> unlink.
+
+## MILESTONE [2026-08-14] `update_po_status` implemented for Odoo
+
+Next-session item 2, first of the three missing contract methods.
+
+### The id-space trap, found before it bit
+`po_id` on this contract is whatever `fetch_pending_pos` handed the console —
+and on the Odoo path that returns `{"PO_ID": <purchase.order.LINE id>}`, while
+PosErpAdapter's `PO_ID` is an `INTEGRATION_PURCHASE_ORDERS` key. **Same
+parameter name, two different id spaces.** A "not found, fall back to the store
+table" convenience would have hit an unrelated OASIS row with a coincidentally
+equal id and reported success. A missing line now returns False and says so.
+
+### The decision that needed making: what does APPROVED mean?
+The obvious implementation calls `button_confirm`. **It must not.** The design
+premise recorded throughout this document is *OASIS proposes, a human approves
+in Odoo* — confirming from the desktop console would commit a client's money
+without anyone opening the ERP, from a button labelled "approve" in a different
+application. So:
+
+| decision | effect in Odoo |
+|---|---|
+| APPROVED | applies any quantity override; posts the decision + who made it to the order's chatter; **leaves it draft** |
+| REJECTED | removes the line; cancels the order if that emptied it (an empty draft PO is litter that still reads as real) |
+| confirmed order | **refused** — returns False, changes nothing |
+| unknown status | refused, not guessed — defaulting a typo to "approve" is not a failure mode worth having |
+
+The chatter note is the useful part: whoever confirms in Odoo sees what OASIS
+decided and who decided it, without opening OASIS.
+
+### Live-verified against Odoo 16
+| scenario | result |
+|---|---|
+| APPROVED + qty override | qty 10 -> 42, order state still `draft` |
+| chatter | "OASIS: approved by qahir. Quantity 10 -> 42. Line: ... Left as draft for confirmation in Odoo." |
+| REJECTED, 2 lines | line dropped, 1 left, order still `draft` |
+| REJECTED, last line | 0 lines left, order `cancel` |
+| unknown status / missing id | False, nothing written |
+| REJECT a **confirmed** order | False, line count unchanged — committed spend untouched |
+
+Test POs P00015-P00017 created by this verification were cancelled and deleted;
+the database is back to the pre-existing P00001-P00008.
+
+### A Windows detail worth keeping
+The approval note first used `→` (U+2192). It goes to the LOGGER as well as to
+Odoo, and OASIS logs to a Windows console whose cp1252 codec cannot encode it —
+it crashed the verification script on the way past. Log strings stay ASCII.
 
 ## HOUSEKEEPING [2026-08-14] Test POs cleared
 P00009-P00013 (08-13 write-back proof) and P00014 (08-14 site-scoping proof)

@@ -25,9 +25,20 @@ Mirrors the subset of PosErpAdapter the ordering path actually uses::
 
     fetch_enriched_products   fetch_all_organizations   fetch_sales_history
     push_purchase_order       fetch_pending_pos         update_po_status
+    fetch_pending_po_by_sku
+
+Still declared on PosErpAdapter but NOT implemented here: ``fetch_transfers``
+and ``push_transfer_request`` (inter-store movement).
 
 Product dicts are emitted in exactly the shape PosErpAdapter produces, so the
 engine is unchanged — the source is swapped, the intelligence is not.
+
+WRITES
+------
+Everything this adapter writes is reversible and stops short of committing
+money: purchase orders are created DRAFT, approval never confirms them, and a
+confirmed order is refused rather than edited. OASIS proposes; a human presses
+the button in Odoo.
 """
 
 from __future__ import annotations
@@ -457,6 +468,139 @@ class OdooAdapter:
                 logger.error("push_purchase_order failed for %s: %s", supplier_cd, str(e)[:160])
         logger.info("Odoo: wrote %d PO lines as DRAFT", written)
         return written
+
+    #: what the consoles actually send (oasis/ui/shell.py, smart_ordering_tab).
+    #: An unrecognised status is refused rather than guessed at — defaulting to
+    #: "approve" on a typo is not a failure mode worth having.
+    _APPROVE = frozenset({"APPROVED", "APPROVE", "ACCEPTED"})
+    _REJECT = frozenset({"REJECTED", "REJECT", "DECLINED", "CANCELLED"})
+
+    def _post_note(self, order_id: int, body: str) -> None:
+        """Leave OASIS's decision on the order's chatter. Never fatal.
+
+        The point is that whoever confirms in Odoo can see what OASIS decided
+        and who decided it, without having to open OASIS.
+        """
+        try:
+            self._ex("purchase.order", "message_post", [[order_id]],
+                     {"body": body})
+        except Exception as e:
+            logger.warning("could not post note to PO %s: %s", order_id, str(e)[:100])
+
+    def update_po_status(self, po_id: int, status: str, approved_by: str,
+                         new_quantity: Optional[float] = None,
+                         reason: Optional[str] = None) -> bool:
+        """Apply an OASIS approval decision to a pending Odoo order line.
+
+        ``po_id`` is a **purchase.order.line** id — that is what
+        ``fetch_pending_pos`` hands the console, and what the console hands
+        back. It is NOT PosErpAdapter's ``INTEGRATION_PURCHASE_ORDERS.PO_ID``;
+        the two are different id spaces over the same parameter name, so this
+        must never fall back to the store table on a miss. It would find an
+        unrelated row with a coincidentally equal id and report success.
+
+        APPROVED applies any quantity override and records the decision. It
+        deliberately does **not** call ``button_confirm``: OASIS proposes and a
+        human confirms in Odoo, and confirming here would let the desktop UI
+        commit a client's money without anyone opening the ERP.
+
+        REJECTED drops the line from the order, and cancels the order if that
+        emptied it — an empty draft PO is litter that looks like a real one.
+
+        Only draft/sent orders are touched. A confirmed order is somebody's
+        committed spend and is refused, not silently edited.
+        """
+        decision = (status or "").strip().upper()
+        if decision not in self._APPROVE and decision not in self._REJECT:
+            logger.error("update_po_status: unknown status %r for line %s — "
+                         "refusing (expected one of %s)", status, po_id,
+                         sorted(self._APPROVE | self._REJECT))
+            return False
+
+        try:
+            rows = self._ex("purchase.order.line", "read", [[int(po_id)]],
+                            {"fields": ["product_id", "product_qty", "order_id",
+                                        "state"]}) or []
+        except Exception as e:
+            logger.error("update_po_status: could not read line %s: %s",
+                         po_id, str(e)[:140])
+            return False
+        if not rows:
+            logger.error("update_po_status: purchase.order.line %s not found "
+                         "(is this a PosErpAdapter PO_ID?)", po_id)
+            return False
+
+        line = rows[0]
+        order_id = _id_of(line.get("order_id"))
+        order_name = _name_of(line.get("order_id"))
+        state = line.get("state")
+        product = _name_of(line.get("product_id")) or f"line {po_id}"
+
+        if state not in ("draft", "sent"):
+            logger.error("update_po_status: %s is in state %r — refusing to "
+                         "modify a committed order", order_name, state)
+            return False
+
+        who = approved_by or "OASIS"
+        tail = f"<br/>Reason: {reason}" if reason else ""
+
+        try:
+            if decision in self._APPROVE:
+                old_qty = float(line.get("product_qty") or 0)
+                changed = ""
+                if new_quantity is not None and float(new_quantity) > 0:
+                    self._ex("purchase.order.line", "write",
+                             [[int(po_id)], {"product_qty": float(new_quantity)}])
+                    # ASCII arrow deliberately: this string goes to the logger
+                    # as well as to Odoo, and OASIS logs to a Windows console
+                    # whose cp1252 codec cannot encode U+2192.
+                    changed = f" Quantity {old_qty:g} -> {float(new_quantity):g}."
+                self._post_note(order_id,
+                                f"<b>OASIS: approved</b> by {who}.{changed} "
+                                f"Line: {product}. Left as {state} for "
+                                f"confirmation in Odoo.{tail}")
+                logger.info("Odoo: line %s (%s) APPROVED by %s%s",
+                            po_id, order_name, who, changed)
+                return True
+
+            # ── rejection ────────────────────────────────────────────────
+            self._post_note(order_id,
+                            f"<b>OASIS: rejected</b> by {who}. "
+                            f"Removed line: {product}.{tail}")
+            self._ex("purchase.order.line", "unlink", [[int(po_id)]])
+            remaining = self._ex("purchase.order.line", "search_count",
+                                 [[["order_id", "=", order_id]]])
+            if not remaining:
+                self._cancel_order(order_id, order_name)
+            logger.info("Odoo: line %s (%s) REJECTED by %s — %d lines left",
+                        po_id, order_name, who, remaining)
+            return True
+        except Exception as e:
+            logger.error("update_po_status failed for line %s: %s",
+                         po_id, str(e)[:160])
+            return False
+
+    def _cancel_order(self, order_id: int, order_name: str = "") -> None:
+        """Cancel an order left empty by rejection.
+
+        ``button_cancel`` returns None and Odoo's XML-RPC endpoint serialises
+        with allow_none=False, so a SUCCESSFUL cancel raises "cannot marshal
+        None". Setting allow_none on our proxy does not help — the server is
+        the one serialising. So the exception is swallowed and the outcome is
+        confirmed by READING THE STATE BACK, never inferred from the return.
+        """
+        try:
+            self._ex("purchase.order", "button_cancel", [[order_id]])
+        except xmlrpc.client.Fault as e:
+            if "cannot marshal None" not in str(e):
+                raise
+        state = (self._ex("purchase.order", "read", [[order_id]],
+                          {"fields": ["state"]}) or [{}])[0].get("state")
+        if state == "cancel":
+            logger.info("Odoo: %s had no lines left — cancelled", order_name)
+        else:
+            logger.warning("Odoo: %s is empty but state is %r, not cancelled",
+                           order_name, state)
 
     def fetch_pending_pos(self, org_cd: str = None):
         """Draft/sent purchase orders for one site — OASIS's 'pending approval'."""

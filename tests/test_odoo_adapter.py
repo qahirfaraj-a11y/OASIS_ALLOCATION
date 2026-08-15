@@ -1,5 +1,5 @@
 """
-OdooAdapter: every org_cd on the contract must actually SCOPE something.
+OdooAdapter contract tests: site scoping, and the approval write path.
 
 `fetch_enriched_products` once accepted org_cd and ignored it, so every store
 in a chain read the whole company's stock and ordered as though it held it —
@@ -7,6 +7,11 @@ systematic under-ordering, no error. Four more methods had the same shape.
 These tests assert on the DOMAIN the adapter sends to Odoo, because that is
 where the bug lived: the call succeeded and returned rows, they were just the
 wrong site's rows.
+
+The `update_po_status` half pins the decisions that would be easy to regress
+into something dangerous — above all that approving in OASIS does not confirm
+a purchase order in Odoo. Both halves drive a stub; the live proof against
+Odoo 16 is recorded in the vault.
 """
 
 import os
@@ -165,3 +170,119 @@ def test_the_warehouse_is_resolved_once_per_site(adapter):
         adapter._warehouse_scope("WH")
     lookups = [c for c in adapter.recorder.calls if c["model"] == "stock.warehouse"]
     assert len(lookups) == 1
+
+
+# ── update_po_status ─────────────────────────────────────────────────────
+# po_id here is a purchase.order.LINE id — what fetch_pending_pos returns and
+# what the console hands back. Live behaviour is proven in the vault; these
+# pin the decisions that are easy to regress.
+class _POStub(_Recorder):
+    """An Odoo with one draft order (id 50) holding two lines (60, 61)."""
+
+    def __init__(self, state="draft", lines=(60, 61)):
+        super().__init__()
+        self.state = state
+        self.lines = list(lines)
+
+    def __call__(self, model, method, args, kw=None):
+        self.calls.append({"model": model, "method": method,
+                           "args": args, "kw": kw or {}})
+        if model == "purchase.order.line" and method == "read":
+            wanted = args[0][0]
+            if wanted not in self.lines:
+                return []
+            return [{"id": wanted, "product_qty": 10.0, "state": self.state,
+                     "order_id": [50, "P00099"], "product_id": [5, "Coke"]}]
+        if model == "purchase.order.line" and method == "unlink":
+            for i in args[0]:
+                if i in self.lines:
+                    self.lines.remove(i)
+            return True
+        if model == "purchase.order.line" and method == "search_count":
+            return len(self.lines)
+        if model == "purchase.order" and method == "read":
+            return [{"id": 50, "state": self.state}]
+        if model == "purchase.order" and method == "button_cancel":
+            self.state = "cancel"
+            return None
+        return True
+
+    def did(self, model, method):
+        return any(c["model"] == model and c["method"] == method for c in self.calls)
+
+
+def _adapter_with(stub):
+    a = OdooAdapter(url="http://stub", db="stub", user="u", password="p")
+    a._ex = stub
+    return a
+
+
+def test_approval_never_confirms_the_order():
+    """The invariant: OASIS proposes, a human confirms in Odoo. Approving from
+    the console must not commit a client's money."""
+    stub = _POStub()
+    assert _adapter_with(stub).update_po_status(60, "APPROVED", "qahir") is True
+    assert not stub.did("purchase.order", "button_confirm")
+    assert stub.state == "draft"
+
+
+def test_approval_applies_a_quantity_override(adapter=None):
+    stub = _POStub()
+    _adapter_with(stub).update_po_status(60, "APPROVED", "qahir", new_quantity=42)
+    write = [c for c in stub.calls if c["method"] == "write"][0]
+    assert write["args"][1] == {"product_qty": 42.0}
+
+
+def test_rejection_removes_the_line_but_keeps_a_non_empty_order():
+    stub = _POStub(lines=(60, 61))
+    assert _adapter_with(stub).update_po_status(60, "REJECTED", "qahir") is True
+    assert stub.lines == [61]
+    assert not stub.did("purchase.order", "button_cancel")
+
+
+def test_rejecting_the_last_line_cancels_the_empty_order():
+    """An empty draft PO is litter that still reads as a real order."""
+    stub = _POStub(lines=(60,))
+    _adapter_with(stub).update_po_status(60, "REJECTED", "qahir")
+    assert stub.lines == []
+    assert stub.state == "cancel"
+
+
+def test_a_committed_order_is_refused():
+    """Confirmed spend is somebody's money — refuse, do not silently edit."""
+    stub = _POStub(state="purchase")
+    assert _adapter_with(stub).update_po_status(60, "REJECTED", "qahir") is False
+    assert stub.lines == [60, 61], "a committed order was modified"
+
+
+def test_unknown_status_is_refused_not_guessed():
+    stub = _POStub()
+    assert _adapter_with(stub).update_po_status(60, "MAYBE", "qahir") is False
+    assert not stub.did("purchase.order.line", "unlink")
+    assert not stub.did("purchase.order.line", "write")
+
+
+def test_a_missing_line_does_not_fall_back_to_the_store_table():
+    """po_id is a purchase.order.line id here, but PosErpAdapter's PO_ID is an
+    INTEGRATION_PURCHASE_ORDERS key. Same parameter, different id spaces — a
+    fallback would hit an unrelated row with an equal id and report success."""
+    stub = _POStub()
+    assert _adapter_with(stub).update_po_status(99999999, "APPROVED", "q") is False
+
+
+def test_a_successful_cancel_that_raises_is_not_treated_as_failure():
+    """button_cancel returns None and Odoo's XML-RPC dumps with
+    allow_none=False, so a cancel that COMMITTED still raises."""
+    import xmlrpc.client
+
+    class _Marshalling(_POStub):
+        def __call__(self, model, method, args, kw=None):
+            if model == "purchase.order" and method == "button_cancel":
+                self.state = "cancel"          # the write DID land
+                raise xmlrpc.client.Fault(
+                    1, "TypeError: cannot marshal None unless allow_none is enabled")
+            return super().__call__(model, method, args, kw)
+
+    stub = _Marshalling(lines=(60,))
+    assert _adapter_with(stub).update_po_status(60, "REJECTED", "qahir") is True
+    assert stub.state == "cancel"
