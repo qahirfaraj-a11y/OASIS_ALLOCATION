@@ -276,25 +276,51 @@ the costume of an empty store. Same silent-zero family as `ACTIVE_FLAG` and
 `SM_LAST_RECV_DT`. It now logs "site scoping is NOT in effect" and reads
 company-wide.
 
-### NOT VERIFIED — the honest state
-**Docker would not start this session, so none of this has run against live
-Odoo.** The tests drive a stub, and *the stub encodes the same assumption the
-code does*. Two field names come from model knowledge, not from checking:
+### VERIFIED against live Odoo 16 (16.0-20250909)
 
-- `stock.warehouse.in_type_id`
-- `purchase.order.picking_type_id`
+The fix was written while Docker was down, so it shipped on two ASSUMED field
+names with a stub test that encoded the same assumption — a green suite proving
+only that the code agreed with itself ([[oasis-assumed-api-trap]]). Docker came
+up later the same day and both were checked with `fields_get`:
 
-If either is wrong **the tests still pass** and the adapter silently falls back
-to company-wide. The network here could not reach the Odoo source to confirm.
-This is exactly the [[oasis-assumed-api-trap]] shape: a green suite proving only
-that the code agrees with itself.
+| assumed | real |
+|---|---|
+| `stock.warehouse.in_type_id` | ✔ many2one -> `stock.picking.type`, "In Type" |
+| `purchase.order.picking_type_id` | ✔ many2one -> `stock.picking.type`, "Deliver To", **`required: True`** |
 
-**First thing next session: start Docker, run `--mode erp-status`, and confirm
-both field names against the live instance.** Then re-run the 5 draft POs and
-check `picking_type_id` actually landed.
+**`required: True` is the whole bug in one flag.** The field can never be
+empty, so omitting it does not fail — Odoo fills in the default warehouse's
+receipt type. Every PO in the database, P00001-P00013 included, carries
+`[1, 'YourCompany: Receipts']`: yesterday's ordering run for any site landed
+at WH, silently.
 
-What the tests DO prove: `org_cd` reaches every domain instead of being dropped.
-All five bugs fail them on the previous commit (verified by stashing the fix).
+### Measured per-site, through OASIS's own adapter
+
+| | WH | CHIC1 | company-wide |
+|---|---|---|---|
+| stock | 63,031.8 | 200.0 | — |
+| ADS | 3,434.0 | 14.6 | — |
+| `fetch_sales_history` | 302 SKUs / 309,056 u | 5 SKUs / 1,310 u | — |
+| **`fetch_pending_po_by_sku`** | 16 SKUs / 7,571 | **0** | 16 / 7,571 |
+
+The `on_order_qty` row is the costly one made concrete: unscoped, CHIC1 saw
+7,571 units "already on order" that were physically inbound to WH, and would
+have skipped replenishing them. `org_cd=None` still reads company-wide, so
+single-site installs are untouched.
+
+**Write test — the actual proof:** `push_purchase_order("CHIC1", ...)` created
+**P00014, draft, `picking_type=[7, 'Chicago 1: Receipts']`**. Before the fix it
+would have read `[1, 'YourCompany: Receipts']` like all thirteen before it.
+
+`--mode erp-status`: 345 products, 285 with stock, 0 negative, 306 with demand,
+343 with receipt dates, 54 departments, 22 open PO lines — **no issues detected**.
+
+Unknown warehouse still returns None and warns, so a typo'd site code degrades
+to company-wide rather than an empty store.
+
+What the stub tests prove independently: `org_cd` reaches every domain instead
+of being dropped. All five bugs fail them on the previous commit (verified by
+stashing the fix).
 
 Commits: `ab8e20ac` (the whole RXL + Odoo day, which had never been committed),
 `62d9cb4f` (this).
@@ -302,11 +328,18 @@ Commits: `ab8e20ac` (the whole RXL + Odoo day, which had never been committed),
 ---
 
 ## Next session — starting points
-1. ~~Site-scope `push_purchase_order`~~ — done in `62d9cb4f`, **but unverified
-   against live Odoo**. Confirm the two field names FIRST (see above).
+1. ~~Site-scope `push_purchase_order`~~ — **DONE and live-verified** (`62d9cb4f`,
+   evidence above). Five methods, not one.
 2. Implement the three declared-but-missing contract methods for Odoo:
    `update_po_status`, `fetch_transfers`, `push_transfer_request`.
-3. Multi-company support, if the target deployment needs it.
+3. Multi-company support, if the target deployment needs it. Note the ambiguity
+   found while verifying: warehouse `WH` is NAMED "YourCompany", so its receipt
+   type reads "YourCompany: Receipts" — fine as an id, confusing in any UI that
+   shows the label. Worth checking before a client sees it.
 4. Optional, from the iAnalytics analysis: negative-stock + data-quality checks
    in preflight (`CHK_LIST_*` equivalent), and a price-change audit trail.
-5. Housekeeping: 5 draft POs (P00009-P00013) left in the `oasis` database.
+5. Housekeeping: draft POs left in the `oasis` database — P00009-P00013 from the
+   08-13 write-back test, plus **P00014** from the 08-14 site-scoping proof.
+   All draft, all commit nothing.
+6. `oasis-odoo-odoo-db-1` had exited (255) while the Odoo container stayed up,
+   which looks exactly like "Odoo is broken". Check the DB container first.
