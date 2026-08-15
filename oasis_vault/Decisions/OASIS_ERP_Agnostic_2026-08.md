@@ -332,6 +332,8 @@ Commits: `ab8e20ac` (the whole RXL + Odoo day, which had never been committed),
    evidence above). Five methods, not one.
 2. Implement the three declared-but-missing contract methods for Odoo:
    `update_po_status`, `fetch_transfers`, `push_transfer_request`.
+   **Read the XML-RPC gotcha below before writing `update_po_status`** — it
+   will call exactly the methods that trip it.
 3. Multi-company support, if the target deployment needs it. Note the ambiguity
    found while verifying: warehouse `WH` is NAMED "YourCompany", so its receipt
    type reads "YourCompany: Receipts" — fine as an id, confusing in any UI that
@@ -343,3 +345,36 @@ Commits: `ab8e20ac` (the whole RXL + Odoo day, which had never been committed),
    All draft, all commit nothing.
 6. `oasis-odoo-odoo-db-1` had exited (255) while the Odoo container stayed up,
    which looks exactly like "Odoo is broken". Check the DB container first.
+
+---
+
+## GOTCHA [2026-08-14] An Odoo button that SUCCEEDS still raises over XML-RPC
+
+Found while clearing the test POs. `purchase.order.button_cancel` returns
+`None`, and Odoo's XML-RPC endpoint dumps responses with `allow_none=False`:
+
+```
+TypeError: cannot marshal None unless allow_none is enabled
+```
+
+**The cancel had already committed.** Setting `allow_none=True` on OUR
+ServerProxy does not help — it is the SERVER serialising the reply. So any
+Odoo action method returning `None` looks like a hard failure to the caller
+while having fully succeeded, and a naive retry re-runs a write that already
+happened.
+
+This matters directly for `update_po_status` (next-session item 2), which will
+call `button_confirm` / `button_cancel`. The rule: **never infer an Odoo write
+from its return value or its exception — read the record back.** Same
+discipline that proved the PO write-back in the first place.
+
+Deletion order also matters: Odoo refuses to `unlink` a purchase order that is
+not cancelled ("you must cancel it first"), so the sequence is
+cancel -> verify state -> unlink.
+
+## HOUSEKEEPING [2026-08-14] Test POs cleared
+P00009-P00013 (08-13 write-back proof) and P00014 (08-14 site-scoping proof)
+cancelled and unlinked, confirmed by reading back: none remain. The database
+holds only the pre-existing P00001-P00008, which were NOT touched — P00004 is
+`sent` and P00008 is `purchase`, and confirmed orders are never in scope for
+cleanup. Open PO lines 23 -> 17.
