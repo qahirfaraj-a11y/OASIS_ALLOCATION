@@ -330,14 +330,14 @@ Commits: `ab8e20ac` (the whole RXL + Odoo day, which had never been committed),
 ## Next session — starting points
 1. ~~Site-scope `push_purchase_order`~~ — **DONE and live-verified** (`62d9cb4f`,
    evidence above). Five methods, not one.
-2. ~~`update_po_status`~~ — **DONE and live-verified** (see below).
-   Still missing: `fetch_transfers` and `push_transfer_request` (inter-store
-   movement). Read the XML-RPC gotcha below first — `push_transfer_request`
-   will drive `stock.picking` action methods that return None the same way.
-3. Multi-company support, if the target deployment needs it. Note the ambiguity
-   found while verifying: warehouse `WH` is NAMED "YourCompany", so its receipt
-   type reads "YourCompany: Receipts" — fine as an id, confusing in any UI that
-   shows the label. Worth checking before a client sees it.
+2. ~~`update_po_status`, `fetch_transfers`, `push_transfer_request`~~ —
+   **ALL DONE and live-verified.** The eight-method contract is covered.
+3. Multi-company: partly answered by the transfer work. Reads cross companies
+   fine; internal transfers CANNOT and are now refused with a clear reason.
+   Real inter-company movement (sale/purchase pair, or a transit location) is
+   an unbuilt feature — decide whether any target deployment needs it.
+   Note also: warehouse `WH` is NAMED "YourCompany", so its receipt type reads
+   "YourCompany: Receipts" — fine as an id, confusing in any UI showing labels.
 4. Optional, from the iAnalytics analysis: negative-stock + data-quality checks
    in preflight (`CHK_LIST_*` equivalent), and a price-change audit trail.
 5. Housekeeping: draft POs left in the `oasis` database — P00009-P00013 from the
@@ -418,6 +418,95 @@ the database is back to the pre-existing P00001-P00008.
 The approval note first used `→` (U+2192). It goes to the LOGGER as well as to
 Odoo, and OASIS logs to a Windows console whose cp1252 codec cannot encode it —
 it crashed the verification script on the way past. Log strings stay ASCII.
+
+## MILESTONE [2026-08-16] Transfers implemented — the contract is now covered
+
+`fetch_transfers`, `push_transfer_request` and `update_transfer_status`
+(the third came along because without it the console renders transfer rows it
+cannot advance). All eight contract methods now exist for Odoo.
+
+### Mapping
+| OASIS | Odoo |
+|---|---|
+| a transfer | ONE internal `stock.picking`, source warehouse's `int_type_id`, `lot_stock_id` -> `lot_stock_id` |
+| REQUESTED | picking `draft` |
+| IN_TRANSIT | `waiting` / `confirmed` / `assigned` |
+| RECEIVED | `done` |
+| URGENCY HIGH | `priority = '1'` |
+| TRANSFER_ID | **the picking id** — see below |
+
+**One picking per request, not per line.** Odoo's unit of work is the picking;
+splitting one shipment into N pickings makes the warehouse pick, pack and
+validate N times for one van. Consequently `TRANSFER_ID` is shared by all the
+item rows of a shipment, which DIFFERS from PosErpAdapter (one id per item
+row). The console only uses the id to identify what to advance, and advancing a
+whole shipment is the correct grain in Odoo.
+
+`VALUE_KES` is derived at **cost** here (PosErpAdapter stores a value the caller
+passed in) — cost is what actually moves off one store's books onto another's.
+
+### THE FINDING: WH and CHIC1 are DIFFERENT COMPANIES
+This instance is Odoo's demo multi-company setup:
+
+- `WH` -> company 1, "My Company (San Francisco)"
+- `CHIC1` -> company 2, "My Company (Chicago)"
+
+Odoo **creates** a cross-company internal picking happily and then refuses to
+CONFIRM it: *"Incompatible companies on records ... 'Destination Location'
+belongs to another company."* Left alone, OASIS would strand a draft that reads
+as REQUESTED in the console forever and fails every attempt to advance —
+another silent-trap shape. `push_transfer_request` now checks `company_id` on
+both ends and refuses up front, naming the reason. Moving stock between legal
+entities is a sale/purchase pair in Odoo, not a transfer; implementing that is
+a separate feature, not a bug fix.
+
+**This also updates the multi-company entry above.** Reads across companies DO
+work (the admin user carries both in `company_ids`), which is why the 08-14
+site-scoping numbers for WH vs CHIC1 were real. Writes are the constrained
+half.
+
+### Live-verified against Odoo 16
+A second warehouse `WH2` was created in company 1 to exercise the same-company
+path, since the two that shipped are in different companies.
+
+| step | result |
+|---|---|
+| cross-company WH -> CHIC1 | refused, **no orphan draft created** |
+| push WH -> WH2 | one draft picking, 2 lines |
+| fetch_transfers | 2 rows, one shared TRANSFER_ID, `WH`->`WH2`, REQUESTED/HIGH, matched from BOTH ends |
+| -> IN_TRANSIT | Odoo `assigned`, stock unchanged |
+| -> RECEIVED | Odoo `done`, **stock really moved: WH 70 -> 67, WH2 0 -> 3** |
+| refusals | already-done, unknown status, missing id, unknown warehouse, unknown SKU, zero qty — all False |
+
+Two implementation details found only by running it:
+
+1. `_warehouse()` cached only the fields the PO path needed, so `lot_stock_id`
+   and `int_type_id` came back empty and the first transfer attempt failed on
+   its own guard. Cache the whole set once.
+2. `product_uom` is **required** on `stock.move` and is NOT defaulted when the
+   move is created through the picking's one2many.
+
+Also: without setting `quantity_done`, `button_validate` answers with an
+"Immediate Transfer" WIZARD (a dict) instead of validating — the picking stays
+open while the call looks like it worked. Same read-back-the-state discipline.
+
+### Left in the instance
+Warehouse `WH2` ("OASIS Test Depot", company 1) and a validated picking that
+really moved 3 units of two SKUs from WH. A validated move cannot be undone,
+only reversed.
+
+## FIXTURE [2026-08-16] The suite depended on the trial not having lapsed
+`test_operations_still_shows_the_order_book_read_only` went red overnight with
+nothing changed in the code. `.oasis_install_state.json` records
+`first_run: 2026-08-02`, `OASIS_TRIAL_DAYS` defaults to 14, and 08-02 + 14 is
+08-16 — the evaluation trial expired, the module gates closed, and the ops view
+swapped its order book for "contact iLink to activate Network (Transfers)".
+
+Same family as the `OASIS_POS_DB_URL` fix: ambient machine state leaking into
+assertions. A new autouse `_trial_is_not_a_clock` fixture pins `_first_run` to
+today, so the suite no longer depends on WHEN it runs relative to the
+developer's install date. Tests that are about licensing set their own posture
+afterwards and still win.
 
 ## HOUSEKEEPING [2026-08-14] Test POs cleared
 P00009-P00013 (08-13 write-back proof) and P00014 (08-14 site-scoping proof)

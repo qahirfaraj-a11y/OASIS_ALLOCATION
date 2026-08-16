@@ -25,10 +25,10 @@ Mirrors the subset of PosErpAdapter the ordering path actually uses::
 
     fetch_enriched_products   fetch_all_organizations   fetch_sales_history
     push_purchase_order       fetch_pending_pos         update_po_status
-    fetch_pending_po_by_sku
+    fetch_pending_po_by_sku   fetch_transfers           push_transfer_request
+    update_transfer_status
 
-Still declared on PosErpAdapter but NOT implemented here: ``fetch_transfers``
-and ``push_transfer_request`` (inter-store movement).
+The contract is now fully covered for the ordering and transfer paths.
 
 Product dicts are emitted in exactly the shape PosErpAdapter produces, so the
 engine is unchanged — the source is swapped, the intelligence is not.
@@ -160,9 +160,11 @@ class OdooAdapter:
         site three times over (stock, receipts, demand) and the answer cannot
         change mid-call.
 
-        ``in_type_id`` is carried alongside the location because the WRITE side
-        needs it: a purchase order is aimed at a site by its receipt operation
-        type, not by a location.
+        The write side needs more than the location, so the whole set is
+        fetched once: ``in_type_id`` aims a purchase order at a site (a PO is
+        routed by receipt operation type, not by location), and
+        ``lot_stock_id`` / ``int_type_id`` are the source and destination of an
+        inter-store transfer.
         """
         if not org_cd:
             return None
@@ -172,7 +174,9 @@ class OdooAdapter:
         try:
             whs = self._ex("stock.warehouse", "search_read",
                            [["|", ["code", "=", key], ["name", "=", key]]],
-                           {"fields": ["name", "code", "view_location_id", "in_type_id"],
+                           {"fields": ["name", "code", "view_location_id",
+                                       "in_type_id", "lot_stock_id", "int_type_id",
+                                       "company_id"],
                             "limit": 1}) or []
         except Exception as e:
             # Reached if this Odoo version does not carry one of those fields.
@@ -583,17 +587,11 @@ class OdooAdapter:
     def _cancel_order(self, order_id: int, order_name: str = "") -> None:
         """Cancel an order left empty by rejection.
 
-        ``button_cancel`` returns None and Odoo's XML-RPC endpoint serialises
-        with allow_none=False, so a SUCCESSFUL cancel raises "cannot marshal
-        None". Setting allow_none on our proxy does not help — the server is
-        the one serialising. So the exception is swallowed and the outcome is
+        ``button_cancel`` returns None, which raises over XML-RPC even though
+        the cancel committed — see ``_call_ignoring_none``. The outcome is
         confirmed by READING THE STATE BACK, never inferred from the return.
         """
-        try:
-            self._ex("purchase.order", "button_cancel", [[order_id]])
-        except xmlrpc.client.Fault as e:
-            if "cannot marshal None" not in str(e):
-                raise
+        self._call_ignoring_none("purchase.order", "button_cancel", [[order_id]])
         state = (self._ex("purchase.order", "read", [[order_id]],
                           {"fields": ["state"]}) or [{}])[0].get("state")
         if state == "cancel":
@@ -601,6 +599,330 @@ class OdooAdapter:
         else:
             logger.warning("Odoo: %s is empty but state is %r, not cancelled",
                            order_name, state)
+
+    # ── inter-store transfers ─────────────────────────────────────────────
+    #: Odoo picking state -> the ladder OASIS's console renders
+    #: (REQUESTED -> IN_TRANSIT -> RECEIVED). Odoo has six states to our three:
+    #: everything Odoo has CONFIRMED but not finished is one bucket, because
+    #: from the operator's side the goods are committed to move either way.
+    _PICKING_STATUS = {
+        "draft": "REQUESTED",
+        "waiting": "IN_TRANSIT",
+        "confirmed": "IN_TRANSIT",
+        "assigned": "IN_TRANSIT",
+        "done": "RECEIVED",
+        "cancel": "CANCELLED",
+    }
+
+    #: transfer columns PosErpAdapter's INTEGRATION_TRANSFER_ORDERS produces,
+    #: which transfer_intel_tab reads by name. An empty DataFrame must still
+    #: carry them or `df[df['TO_ORG_CD'] == x]` raises instead of returning
+    #: nothing (notification_service does exactly that).
+    TRANSFER_COLUMNS = ("TRANSFER_ID", "FROM_ORG_CD", "TO_ORG_CD", "ITM_CD",
+                        "PRODUCT_NAME", "QUANTITY", "VALUE_KES", "STATUS",
+                        "URGENCY", "REQUESTED_BY", "CREATED_DT", "COMPLETED_DT")
+
+    def push_transfer_request(self, from_org: str, to_org: str,
+                              items: List[dict]) -> bool:
+        """Create ONE draft internal picking moving `items` from_org -> to_org.
+
+        Odoo models an inter-store move as a `stock.picking` over the source
+        warehouse's internal operation type, with the destination set to the
+        other warehouse's stock location. Left in DRAFT, which is what maps to
+        OASIS's REQUESTED — nothing physically reserves or moves until someone
+        advances it.
+
+        One picking per request, not one per line: Odoo's unit of work is the
+        picking, and splitting a single shipment into N pickings would make the
+        warehouse pick, pack and validate N times for one van.
+        """
+        src, dst = self._warehouse(from_org), self._warehouse(to_org)
+        if not src or not dst:
+            logger.error("push_transfer_request: unknown warehouse (%s -> %s); "
+                         "resolved src=%s dst=%s", from_org, to_org,
+                         bool(src), bool(dst))
+            return False
+        src_loc, dst_loc = _id_of(src.get("lot_stock_id")), _id_of(dst.get("lot_stock_id"))
+        ptype = _id_of(src.get("int_type_id"))
+        if not (src_loc and dst_loc and ptype):
+            logger.error("push_transfer_request: %s or %s has no stock location "
+                         "or internal operation type", from_org, to_org)
+            return False
+
+        # Odoo refuses to CONFIRM a picking whose source and destination belong
+        # to different companies ("Incompatible companies on records"). The
+        # create still succeeds, so without this check OASIS would leave a draft
+        # that shows as REQUESTED in the console forever and fails every attempt
+        # to advance it. Moving stock between legal entities is a sale, not an
+        # internal transfer, and Odoo models it with inter-company rules.
+        src_co, dst_co = _id_of(src.get("company_id")), _id_of(dst.get("company_id"))
+        if src_co != dst_co:
+            logger.error(
+                "push_transfer_request: %s (company %s) and %s (company %s) are "
+                "different COMPANIES — Odoo cannot confirm an internal transfer "
+                "across them. Inter-company movement is a sale/purchase pair, "
+                "not a transfer; refusing rather than leaving an unconfirmable "
+                "draft.", from_org, _name_of(src.get("company_id")) or src_co,
+                to_org, _name_of(dst.get("company_id")) or dst_co)
+            return False
+
+        codes = [str(i.get("item_code")) for i in items if i.get("item_code")]
+        if not codes:
+            logger.warning("push_transfer_request: no item codes in payload")
+            return False
+        try:
+            prods = self._ex("product.product", "search_read",
+                             [[["default_code", "in", codes]]],
+                             {"fields": ["default_code", "display_name", "uom_id"],
+                              "limit": 10000}) or []
+        except Exception as e:
+            logger.error("push_transfer_request: product lookup failed: %s",
+                         str(e)[:140])
+            return False
+        by_code = {str(p["default_code"]): p for p in prods}
+
+        moves, missing = [], []
+        for it in items:
+            p = by_code.get(str(it.get("item_code")))
+            qty = float(it.get("transfer_qty") or 0)
+            if p is None:
+                missing.append(it.get("item_code"))
+                continue
+            if qty <= 0:
+                continue
+            moves.append((0, 0, {
+                "name": str(it.get("product_name") or p["display_name"])[:200],
+                "product_id": p["id"],
+                "product_uom_qty": qty,
+                # required on stock.move, and NOT defaulted when the move is
+                # created through the picking's one2many
+                "product_uom": _id_of(p.get("uom_id")),
+                "location_id": src_loc,
+                "location_dest_id": dst_loc,
+            }))
+        if missing:
+            logger.warning("push_transfer_request: %d item(s) not in Odoo, "
+                           "skipped: %s", len(missing), missing[:5])
+        if not moves:
+            logger.error("push_transfer_request: nothing transferable in payload")
+            return False
+
+        urgent = any(str(i.get("urgency", "")).upper() in ("HIGH", "URGENT")
+                     for i in items)
+        who = next((i.get("requested_by") for i in items if i.get("requested_by")),
+                   None) or "OASIS"
+        try:
+            pid = self._ex("stock.picking", "create", [{
+                "picking_type_id": ptype,
+                "location_id": src_loc,
+                "location_dest_id": dst_loc,
+                "origin": f"OASIS transfer {from_org}->{to_org} ({who})",
+                "priority": "1" if urgent else "0",
+                "move_ids": moves,
+            }])
+        except Exception as e:
+            logger.error("push_transfer_request failed (%s -> %s): %s",
+                         from_org, to_org, str(e)[:160])
+            return False
+        logger.info("Odoo: transfer picking %s created DRAFT, %d lines, %s -> %s",
+                    pid, len(moves), from_org, to_org)
+        return True
+
+    def fetch_transfers(self, org_cd: Optional[str] = None):
+        """Transfer history as a DataFrame in PosErpAdapter's column shape.
+
+        ONE ROW PER MOVED ITEM, because that is what the console's table
+        renders — but ``TRANSFER_ID`` is the **picking** id, so the lines of one
+        shipment share it. That is deliberate: Odoo's unit of work is the
+        picking, and ``update_transfer_status`` advances a whole shipment. It
+        differs from PosErpAdapter, where every item row has its own id.
+
+        ``org_cd`` matches the store as EITHER sender or receiver, mirroring
+        PosErpAdapter's `FROM_ORG_CD = :org OR TO_ORG_CD = :org`.
+        """
+        import pandas as pd
+
+        empty = pd.DataFrame(columns=list(self.TRANSFER_COLUMNS))
+        dom = [["picking_type_id.code", "=", "internal"]]
+        if org_cd:
+            wh = self._warehouse(org_cd)
+            if not wh:
+                return empty
+            root = _id_of(wh.get("view_location_id"))
+            dom += ["|", ["location_id", "child_of", root],
+                    ["location_dest_id", "child_of", root]]
+        try:
+            picks = self._ex("stock.picking", "search_read", [dom],
+                             {"fields": ["name", "state", "priority", "origin",
+                                         "location_id", "location_dest_id",
+                                         "create_date", "date_done", "create_uid",
+                                         "move_ids"],
+                              "order": "create_date desc", "limit": 2000}) or []
+        except Exception as e:
+            logger.error("fetch_transfers failed: %s", str(e)[:140])
+            return empty
+        if not picks:
+            return empty
+
+        move_ids = [m for p in picks for m in (p.get("move_ids") or [])]
+        moves: Dict[int, dict] = {}
+        if move_ids:
+            try:
+                for m in (self._ex("stock.move", "read", [move_ids],
+                                   {"fields": ["product_id", "product_uom_qty",
+                                               "quantity_done"]}) or []):
+                    moves[m["id"]] = m
+            except Exception as e:
+                logger.warning("fetch_transfers: move read failed: %s", str(e)[:120])
+
+        pids = {_id_of(m.get("product_id")) for m in moves.values()}
+        pids.discard(None)
+        meta: Dict[int, dict] = {}
+        if pids:
+            try:
+                for p in (self._ex("product.product", "read", [sorted(pids)],
+                                   {"fields": ["default_code", "display_name",
+                                               "standard_price"]}) or []):
+                    meta[p["id"]] = p
+            except Exception as e:
+                logger.warning("fetch_transfers: product read failed: %s", str(e)[:120])
+
+        # location -> warehouse CODE, so rows carry org codes not location names
+        wh_of_loc: Dict[int, str] = {}
+        locs = {_id_of(p.get(k)) for p in picks
+                for k in ("location_id", "location_dest_id")}
+        locs.discard(None)
+        if locs:
+            try:
+                for l in (self._ex("stock.location", "read", [sorted(locs)],
+                                   {"fields": ["warehouse_id"]}) or []):
+                    wh_of_loc[l["id"]] = _name_of(l.get("warehouse_id"))
+            except Exception as e:
+                logger.warning("fetch_transfers: location read failed: %s", str(e)[:120])
+        # warehouse_id reads as [id, name]; the console wants the CODE
+        code_of_name = {}
+        try:
+            for w in (self._ex("stock.warehouse", "search_read", [[]],
+                               {"fields": ["name", "code"]}) or []):
+                code_of_name[w["name"]] = w.get("code") or w["name"]
+        except Exception:
+            pass
+
+        def org_of(loc) -> str:
+            name = wh_of_loc.get(_id_of(loc), "")
+            return code_of_name.get(name, name)
+
+        rows = []
+        for p in picks:
+            status = self._PICKING_STATUS.get(p.get("state"), str(p.get("state") or ""))
+            frm, to = org_of(p.get("location_id")), org_of(p.get("location_dest_id"))
+            for mid in (p.get("move_ids") or []):
+                m = moves.get(mid)
+                if not m:
+                    continue
+                pm = meta.get(_id_of(m.get("product_id")), {})
+                qty = float(m.get("product_uom_qty") or 0)
+                rows.append({
+                    "TRANSFER_ID": p["id"],
+                    "FROM_ORG_CD": frm,
+                    "TO_ORG_CD": to,
+                    "ITM_CD": str(pm.get("default_code")
+                                  or _id_of(m.get("product_id")) or ""),
+                    "PRODUCT_NAME": pm.get("display_name")
+                    or _name_of(m.get("product_id")),
+                    "QUANTITY": qty,
+                    # PosErpAdapter stores a value passed in by the caller; here
+                    # it is derived at COST, which is what a transfer actually
+                    # moves off one store's books and onto another's.
+                    "VALUE_KES": round(qty * float(pm.get("standard_price") or 0), 2),
+                    "STATUS": status,
+                    "URGENCY": "HIGH" if str(p.get("priority")) == "1" else "NORMAL",
+                    "REQUESTED_BY": _name_of(p.get("create_uid")),
+                    "CREATED_DT": str(p.get("create_date") or ""),
+                    "COMPLETED_DT": str(p.get("date_done") or ""),
+                })
+        return pd.DataFrame(rows, columns=list(self.TRANSFER_COLUMNS)) if rows else empty
+
+    def update_transfer_status(self, transfer_id: int, status: str) -> bool:
+        """Advance a transfer picking. ``transfer_id`` is a stock.picking id.
+
+        IN_TRANSIT confirms and reserves — Odoo's `confirmed`/`assigned`.
+        RECEIVED validates, which is a REAL stock movement between the client's
+        own stores. That is the one genuinely irreversible step here, so it is
+        taken only on an explicit operator action and the result is confirmed by
+        reading the state back.
+
+        Included alongside the two transfer methods because without it the
+        console's transfer table renders rows it cannot advance.
+        """
+        want = (status or "").strip().upper()
+        if want not in ("IN_TRANSIT", "RECEIVED"):
+            logger.error("update_transfer_status: unknown status %r "
+                         "(expected IN_TRANSIT or RECEIVED)", status)
+            return False
+        try:
+            cur = self._ex("stock.picking", "read", [[int(transfer_id)]],
+                           {"fields": ["name", "state", "move_ids"]}) or []
+        except Exception as e:
+            logger.error("update_transfer_status: cannot read picking %s: %s",
+                         transfer_id, str(e)[:140])
+            return False
+        if not cur:
+            logger.error("update_transfer_status: stock.picking %s not found",
+                         transfer_id)
+            return False
+        pick, name, state = cur[0], cur[0].get("name"), cur[0].get("state")
+        if state in ("done", "cancel"):
+            logger.error("update_transfer_status: %s is already %r", name, state)
+            return False
+
+        try:
+            if state == "draft":
+                self._call_ignoring_none("stock.picking", "action_confirm",
+                                         [[int(transfer_id)]])
+            self._call_ignoring_none("stock.picking", "action_assign",
+                                     [[int(transfer_id)]])
+            if want == "RECEIVED":
+                # Without a done quantity Odoo answers button_validate with an
+                # "Immediate Transfer" WIZARD (a dict), not a validation — the
+                # picking would stay open while the call looked successful.
+                for mid in (pick.get("move_ids") or []):
+                    m = (self._ex("stock.move", "read", [[mid]],
+                                  {"fields": ["product_uom_qty"]}) or [{}])[0]
+                    self._ex("stock.move", "write",
+                             [[mid], {"quantity_done": float(m.get("product_uom_qty") or 0)}])
+                self._call_ignoring_none("stock.picking", "button_validate",
+                                         [[int(transfer_id)]])
+        except Exception as e:
+            logger.error("update_transfer_status(%s -> %s) failed: %s",
+                         name, want, str(e)[:160])
+            return False
+
+        now = (self._ex("stock.picking", "read", [[int(transfer_id)]],
+                        {"fields": ["state"]}) or [{}])[0].get("state")
+        mapped = self._PICKING_STATUS.get(now, now)
+        if mapped != want:
+            logger.error("update_transfer_status: %s asked for %s but Odoo is "
+                         "%r (%s) — reporting failure rather than a status the "
+                         "warehouse does not have", name, want, now, mapped)
+            return False
+        logger.info("Odoo: transfer %s -> %s (picking state %s)", name, want, now)
+        return True
+
+    def _call_ignoring_none(self, model: str, method: str, args: list):
+        """Call an Odoo action method whose return value may be None.
+
+        Odoo's XML-RPC endpoint serialises with allow_none=False, so a method
+        returning None raises "cannot marshal None" AFTER the write has already
+        committed. Setting allow_none on our proxy does not help — the server
+        is the one serialising. Callers must confirm by reading state back.
+        """
+        try:
+            return self._ex(model, method, args)
+        except xmlrpc.client.Fault as e:
+            if "cannot marshal None" not in str(e):
+                raise
+            return None
 
     def fetch_pending_pos(self, org_cd: str = None):
         """Draft/sent purchase orders for one site — OASIS's 'pending approval'."""

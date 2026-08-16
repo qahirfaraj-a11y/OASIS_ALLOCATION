@@ -147,6 +147,33 @@ def _no_inherited_data_source(monkeypatch):
     yield
 
 
+@pytest.fixture(autouse=True)
+def _trial_is_not_a_clock(monkeypatch):
+    """Pin the evaluation trial open, so the suite does not depend on WHEN it runs.
+
+    The install's trial is anchored to a first-run date on the developer's
+    machine. Fourteen days later it lapses, the module gates close, and tests
+    that never mentioned licensing start failing on content they do assert —
+    ``test_operations_still_shows_the_order_book_read_only`` went red overnight
+    because the ops view had swapped its order book for "contact iLink to
+    activate Network (Transfers)". Nothing in the code had changed; the date had.
+
+    Same family as ``_no_inherited_data_source``: ambient machine state leaking
+    into assertions. Tests that are ABOUT licensing set their own posture after
+    this fixture runs, so they still win — see test_desktop_license_gate.
+    """
+    from datetime import date
+    try:
+        from oasis.logic import license_manager as LM
+    except Exception:                    # licensing not importable in this env
+        yield
+        return
+    monkeypatch.setenv("OASIS_TRIAL_DAYS", "14")
+    monkeypatch.setattr(LM.OfflineLicenseManager, "_first_run",
+                        lambda self: date.today(), raising=False)
+    yield
+
+
 def _snapshot_real_store() -> dict:
     """mtimes of the installed store DBs and onboarding record."""
     out = {}
