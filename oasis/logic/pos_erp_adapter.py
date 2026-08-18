@@ -25,14 +25,40 @@ from typing import Dict, List, Optional
 import pandas as pd
 from sqlalchemy import text
 
+from oasis.logic import erp_contract
+
 logger = logging.getLogger("PosErpAdapter")
 
 
-class PosErpAdapter:
+class PosErpAdapter(erp_contract.ErpAdapter):
     """
     Adapter translating POS/ERP SQL tables → OASIS engine dicts.
     Each fetch_* method returns data in the exact format OrderEngine expects.
     """
+
+    ERP_NAME = "pos"
+    #: Reads come from the client's POS over a canonical schema (views, on RXL).
+    #:
+    #: The WRITE capabilities mean something narrower here than on the Odoo
+    #: path, and the difference is worth stating: every write in this class goes
+    #: to ``self.store_engine`` — OASIS's OWN database — never into the client's
+    #: POS. A purchase order lands in INTEGRATION_PURCHASE_ORDERS for the
+    #: operator to act on; it does not appear in the POS, and on RXL there is no
+    #: sanctioned way to put it there (the POS keeps all inventory logic in its
+    #: application tier).
+    #:
+    #: READ_RECEIPTS is declared because the schema profile can map it — but on
+    #: a backend where it maps to NULL the dead-stock guard silently fails OPEN,
+    #: which is why preflight checks values and not merely column presence.
+    CAPABILITIES = frozenset({
+        erp_contract.READ_CATALOGUE, erp_contract.READ_STOCK,
+        erp_contract.READ_DEMAND, erp_contract.READ_COST,
+        erp_contract.READ_RECEIPTS, erp_contract.READ_SUPPLIERS,
+        erp_contract.READ_OPEN_POS, erp_contract.MULTI_SITE,
+        erp_contract.WRITE_PO, erp_contract.WRITE_PO_STATUS,
+        erp_contract.READ_TRANSFERS, erp_contract.WRITE_TRANSFER,
+        erp_contract.WRITE_TRANSFER_STATUS,
+    })
 
     def __init__(self, connector, store_connector=None):
         """
@@ -814,3 +840,6 @@ class PosErpAdapter:
 
         logger.info(f"Enriched {len(products)} products for {org_cd} (on_order for {len(pending_po_map)} SKUs)")
         return products
+
+
+erp_contract.register("pos", PosErpAdapter)

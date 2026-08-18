@@ -50,6 +50,8 @@ from collections import defaultdict
 from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional
 
+from oasis.logic import erp_contract as _contract
+
 logger = logging.getLogger("OdooAdapter")
 
 #: departments treated as perishable, mirroring PosErpAdapter's rule
@@ -95,8 +97,21 @@ def split_hierarchy(complete_name: str) -> Dict[str, str]:
             "department_path": " / ".join(parts)}
 
 
-class OdooAdapter:
+class OdooAdapter(_contract.ErpAdapter):
     """Reads an Odoo instance over XML-RPC and speaks PosErpAdapter's dialect."""
+
+    ERP_NAME = "odoo"
+    #: Everything, and all of it live-verified against Odoo 16 — Odoo supplies
+    #: cost price and genuine receipt dates natively, which the hub excludes by
+    #: design and RXL cannot supply at all.
+    CAPABILITIES = frozenset({
+        _contract.READ_CATALOGUE, _contract.READ_STOCK, _contract.READ_DEMAND,
+        _contract.READ_COST, _contract.READ_RECEIPTS, _contract.READ_SUPPLIERS,
+        _contract.READ_OPEN_POS, _contract.MULTI_SITE,
+        _contract.WRITE_PO, _contract.WRITE_PO_STATUS,
+        _contract.READ_TRANSFERS, _contract.WRITE_TRANSFER,
+        _contract.WRITE_TRANSFER_STATUS,
+    })
 
     def __init__(self, url: Optional[str] = None, db: Optional[str] = None,
                  user: Optional[str] = None, password: Optional[str] = None,
@@ -1026,3 +1041,6 @@ class OdooAdapter:
                 e = out.setdefault(code, {"qty": 0.0, "eta_days": 7})
                 e["qty"] += outstanding
         return out
+
+
+_contract.register("odoo", OdooAdapter)
