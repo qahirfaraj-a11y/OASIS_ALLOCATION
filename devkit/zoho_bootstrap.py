@@ -43,20 +43,70 @@ def _mask(secret: str) -> str:
     return f"{s[:8]}…{s[-4:]}" if len(s) > 14 else "…"
 
 
+def _load_env_file() -> dict:
+    """Read .env, then let real environment variables win.
+
+    Hand-parsed rather than pulling in python-dotenv: this is one file of
+    ``KEY=value`` lines and a client install should not gain a dependency for
+    a dev-only helper.
+    """
+    values = {}
+    if os.path.exists(ENV_PATH):
+        with open(ENV_PATH, "r", encoding="utf-8") as fh:
+            for line in fh:
+                line = line.strip()
+                if not line or line.startswith("#") or "=" not in line:
+                    continue
+                k, _, v = line.partition("=")
+                values[k.strip()] = v.strip().strip('"').strip("'")
+    for k in ("ZOHO_CLIENT_ID", "ZOHO_CLIENT_SECRET", "ZOHO_GRANT_CODE",
+              "ZOHO_DC"):
+        if os.getenv(k):
+            values[k] = os.environ[k]
+    return values
+
+
 def main() -> int:
     import requests
 
     p = argparse.ArgumentParser(description=__doc__,
                                 formatter_class=argparse.RawDescriptionHelpFormatter)
-    p.add_argument("--client-id", required=True)
-    p.add_argument("--client-secret", required=True)
-    p.add_argument("--code", required=True,
+    p.add_argument("--client-id")
+    p.add_argument("--client-secret")
+    p.add_argument("--code",
                    help="grant token from the API console's Generate Code tab "
                         "(expires in minutes, single use)")
-    p.add_argument("--dc", default="com", choices=sorted(DATA_CENTRES),
+    p.add_argument("--dc", choices=sorted(DATA_CENTRES),
                    help="data centre of the Zoho account (default: com)")
     p.add_argument("--write-env", action="store_true", default=True)
     args = p.parse_args()
+
+    # Fall back to .env / the environment, so the three secrets can be supplied
+    # in a gitignored file instead of on a command line — a command line ends up
+    # in shell history, and pasting one into a chat transcript keeps it there.
+    seeded = _load_env_file()
+    args.client_id = args.client_id or seeded.get("ZOHO_CLIENT_ID")
+    args.client_secret = args.client_secret or seeded.get("ZOHO_CLIENT_SECRET")
+    args.code = args.code or seeded.get("ZOHO_GRANT_CODE")
+    args.dc = args.dc or seeded.get("ZOHO_DC") or "com"
+
+    missing = [n for n, v in (("ZOHO_CLIENT_ID", args.client_id),
+                              ("ZOHO_CLIENT_SECRET", args.client_secret),
+                              ("ZOHO_GRANT_CODE", args.code)) if not v]
+    if missing:
+        print("Missing: " + ", ".join(missing))
+        print(f"\nPut them in {ENV_PATH} (gitignored), one per line:\n")
+        for n in missing:
+            print(f"    {n}=...")
+        print("\n  ZOHO_GRANT_CODE is the short-lived code from the API "
+              "console's Generate Code tab.")
+        print("  Add ZOHO_DC=eu (or in/au/ca/jp) if the account is not on .com.")
+        print("\nThen re-run:  python devkit/zoho_bootstrap.py")
+        return 2
+    if args.dc not in DATA_CENTRES:
+        print(f"unknown data centre {args.dc!r}; expected one of "
+              f"{sorted(DATA_CENTRES)}")
+        return 2
 
     api_base, accounts = DATA_CENTRES[args.dc]
 
