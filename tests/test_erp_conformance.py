@@ -27,14 +27,20 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 from oasis.logic import erp_contract as C
 from oasis.logic.odoo_adapter import OdooAdapter          # noqa: F401  (registers)
 from oasis.logic.pos_erp_adapter import PosErpAdapter     # noqa: F401  (registers)
+from oasis.logic.zoho_adapter import ZohoAdapter          # noqa: F401  (registers)
 
 #: name -> the env var that, when set, means a live instance is reachable.
 #: Add a row when a backend is built; the live tests light up automatically.
+#:
+#: A backend whose row is here but whose var is unset shows as SKIPPED, which is
+#: the honest state for an adapter written from an API reference and not yet
+#: pointed at a real organisation. It is not done until these run green.
 LIVE_ENV = {
     "odoo": "OASIS_TEST_ODOO",
+    "zoho": "OASIS_TEST_ZOHO",
 }
 
-ADAPTERS = [OdooAdapter, PosErpAdapter]
+ADAPTERS = [OdooAdapter, PosErpAdapter, ZohoAdapter]
 
 
 # ── layer 1: static contract conformance ─────────────────────────────────
