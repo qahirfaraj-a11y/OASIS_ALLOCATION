@@ -1,0 +1,355 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>OASIS — Orders &amp; Transfers</title>
+<style>
+  :root{
+    --bg:#0B1012; --panel:#121A1D; --panel2:#182226; --line:#222F34;
+    --ink:#E6EEF0; --ink2:#9FB2B7; --ink3:#6B8086;
+    --accent:#2ED3C6; --accent-dim:rgba(46,211,198,.14);
+    --good:#4CC38A; --warn:#E0A249; --bad:#E2685C;
+    --sans:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+    --mono:ui-monospace,"SF Mono","Cascadia Mono",Consolas,monospace;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%}
+  body{background:var(--bg);color:var(--ink);font-family:var(--sans);
+       font-size:15px;line-height:1.5;-webkit-font-smoothing:antialiased}
+  button{font-family:inherit;font-size:inherit;color:inherit;cursor:pointer}
+
+  /* ── status bar: the Echo Earth idea — tell me where I am, live ── */
+  .bar{display:flex;flex-wrap:wrap;gap:6px 18px;align-items:center;
+       padding:10px 20px;border-bottom:1px solid var(--line);
+       background:var(--panel);font-size:12.5px;color:var(--ink2)}
+  .brand{font-weight:700;letter-spacing:.16em;color:var(--ink);font-size:12.5px}
+  .dot{width:7px;height:7px;border-radius:50%;display:inline-block;
+       margin-right:6px;vertical-align:middle;background:var(--ink3)}
+  .dot.on{background:var(--good);box-shadow:0 0 8px var(--good)}
+  .dot.off{background:var(--bad)}
+  .bar .sp{flex:1}
+
+  main{max-width:1180px;margin:0 auto;padding:26px 20px 80px}
+
+  /* ── site picker ── */
+  .sites{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:8px}
+  .site{background:var(--panel);border:1px solid var(--line);border-radius:3px;
+        padding:9px 15px;font-weight:600;font-size:13.5px;color:var(--ink2);
+        transition:border-color .12s,color .12s}
+  .site:hover{border-color:var(--accent);color:var(--ink)}
+  .site[aria-pressed="true"]{border-color:var(--accent);color:#04211F;
+        background:var(--accent)}
+  .hint{color:var(--ink3);font-size:12.5px;margin:0 0 22px}
+
+  /* ── tabs ── */
+  .tabs{display:flex;gap:2px;border-bottom:1px solid var(--line);margin-bottom:20px}
+  .tab{background:none;border:0;border-bottom:2px solid transparent;
+       padding:10px 16px;font-weight:650;font-size:13.5px;color:var(--ink3);
+       letter-spacing:.04em}
+  .tab[aria-selected="true"]{color:var(--accent);border-bottom-color:var(--accent)}
+
+  /* ── stat strip ── */
+  .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));
+         gap:1px;background:var(--line);border:1px solid var(--line);
+         border-radius:3px;margin-bottom:20px;overflow:hidden}
+  .stat{background:var(--panel);padding:14px 16px}
+  .stat .k{font-size:10.5px;letter-spacing:.13em;text-transform:uppercase;
+           color:var(--ink3);font-weight:650}
+  .stat .v{font-size:1.5rem;font-weight:700;letter-spacing:-.02em;
+           font-variant-numeric:tabular-nums;margin-top:3px}
+  .stat .v.sm{font-size:1.05rem}
+
+  /* ── tables ── */
+  .wrap{border:1px solid var(--line);border-radius:3px;overflow-x:auto;
+        background:var(--panel)}
+  table{border-collapse:collapse;width:100%;min-width:760px}
+  th{position:sticky;top:0;background:var(--panel2);text-align:left;
+     font-size:10.5px;letter-spacing:.11em;text-transform:uppercase;
+     color:var(--ink3);font-weight:650;padding:10px 12px;
+     border-bottom:1px solid var(--line);white-space:nowrap}
+  td{padding:10px 12px;border-bottom:1px solid var(--line);font-size:13.5px;
+     vertical-align:top}
+  tr:last-child td{border-bottom:0}
+  tbody tr:hover{background:var(--panel2)}
+  .num{font-family:var(--mono);font-variant-numeric:tabular-nums;text-align:right;
+       white-space:nowrap}
+  .prod{font-weight:600}
+  .sub{display:block;color:var(--ink3);font-size:11.5px;font-family:var(--mono);
+       margin-top:2px}
+  .why{color:var(--ink3);font-size:11.5px;max-width:280px;display:block}
+
+  .chip{display:inline-block;font-size:10.5px;font-weight:700;letter-spacing:.05em;
+        text-transform:uppercase;padding:2px 7px;border-radius:2px;white-space:nowrap}
+  .c-good{background:rgba(76,195,138,.14);color:var(--good)}
+  .c-warn{background:rgba(224,162,73,.14);color:var(--warn)}
+  .c-bad{background:rgba(226,104,92,.14);color:var(--bad)}
+
+  /* ── action bar ── */
+  .act{position:sticky;bottom:0;display:flex;gap:12px;align-items:center;
+       flex-wrap:wrap;background:var(--panel);border:1px solid var(--line);
+       border-top-color:var(--accent);border-radius:3px;padding:14px 16px;
+       margin-top:16px}
+  .btn{background:var(--accent);color:#04211F;border:0;border-radius:3px;
+       padding:10px 20px;font-weight:700;letter-spacing:.03em}
+  .btn[disabled]{opacity:.4;cursor:not-allowed}
+  .btn.ghost{background:none;color:var(--ink2);border:1px solid var(--line)}
+
+  /* ── states ── */
+  .state{padding:52px 20px;text-align:center;color:var(--ink3);
+         border:1px dashed var(--line);border-radius:3px}
+  .state b{display:block;color:var(--ink);font-size:1.05rem;margin-bottom:6px;
+           font-weight:650}
+  .spin{width:22px;height:22px;border:2px solid var(--line);
+        border-top-color:var(--accent);border-radius:50%;margin:0 auto 14px;
+        animation:sp .8s linear infinite}
+  @keyframes sp{to{transform:rotate(360deg)}}
+  @media (prefers-reduced-motion:reduce){.spin{animation-duration:3s}}
+  .err{border-color:var(--bad);color:var(--bad)}
+  .hide{display:none}
+  input[type=checkbox]{accent-color:var(--accent);width:15px;height:15px}
+</style>
+</head>
+<body>
+
+<div class="bar">
+  <span class="brand">O·A·S·I·S</span>
+  <span><span class="dot" id="dot"></span><span id="conn">connecting…</span></span>
+  <span id="backend"></span>
+  <span id="siteinfo"></span>
+  <span class="sp"></span>
+  <span id="clock"></span>
+</div>
+
+<main>
+  <div class="sites" id="sites"></div>
+  <p class="hint" id="hint">Pick a store to see what it should order.</p>
+
+  <div class="tabs" role="tablist">
+    <button class="tab" id="t-orders" role="tab" aria-selected="true">ORDERS</button>
+    <button class="tab" id="t-transfers" role="tab" aria-selected="false">TRANSFERS</button>
+  </div>
+
+  <section id="panel-orders">
+    <div id="orders-stats"></div>
+    <div id="orders-body"><div class="state"><b>No store selected</b>Choose one above.</div></div>
+  </section>
+
+  <section id="panel-transfers" class="hide">
+    <div id="tr-stats"></div>
+    <div id="tr-body"><div class="state"><b>Not scanned yet</b>Open this tab to scan the network.</div></div>
+  </section>
+</main>
+
+<script>
+const $ = s => document.querySelector(s);
+const money = n => 'KES ' + (Number(n)||0).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2});
+const num = n => (Number(n)||0).toLocaleString(undefined,{maximumFractionDigits:0});
+let SITE = null, ORDERS = null, TRANSFERS = null, TAB = 'orders';
+
+function tick(){ $('#clock').textContent = new Date().toLocaleTimeString(); }
+setInterval(tick, 1000); tick();
+
+async function j(url, opts){
+  const r = await fetch(url, opts);
+  if(!r.ok){ let d; try{ d = (await r.json()).detail }catch(e){ d = r.statusText }
+             throw new Error(d || ('HTTP '+r.status)); }
+  return r.json();
+}
+
+async function boot(){
+  try{
+    const h = await j('/api/health');
+    $('#dot').className = 'dot ' + (h.connected ? 'on' : 'off');
+    $('#conn').textContent = h.connected ? 'connected' : (h.error || 'not connected');
+    $('#backend').textContent = h.backend + (h.latency_ms ? ' · '+h.latency_ms+' ms' : '');
+  }catch(e){ $('#dot').className='dot off'; $('#conn').textContent = e.message; }
+
+  try{
+    const s = await j('/api/sites');
+    const box = $('#sites');
+    if(!s.sites.length){ box.innerHTML = '<div class="state err"><b>No stores found</b>'+(s.error||'The backend returned no organisations.')+'</div>'; return; }
+    box.innerHTML = '';
+    s.sites.forEach((site,i) => {
+      const b = document.createElement('button');
+      b.className = 'site'; b.textContent = site.name || site.org_cd;
+      b.setAttribute('aria-pressed','false');
+      b.onclick = () => pick(site, b);
+      box.appendChild(b);
+      if(i===0) setTimeout(()=>pick(site,b), 0);   // land and it works
+    });
+  }catch(e){ $('#sites').innerHTML = '<div class="state err"><b>Could not list stores</b>'+e.message+'</div>'; }
+}
+
+function pick(site, btn){
+  SITE = site; ORDERS = null;
+  document.querySelectorAll('.site').forEach(x=>x.setAttribute('aria-pressed','false'));
+  btn.setAttribute('aria-pressed','true');
+  $('#siteinfo').textContent = '· ' + (site.name || site.org_cd);
+  $('#hint').textContent = 'Recommendations are generated live from the connected system each time you select a store.';
+  if(TAB==='orders') loadOrders();
+}
+
+function show(tab){
+  TAB = tab;
+  $('#t-orders').setAttribute('aria-selected', tab==='orders');
+  $('#t-transfers').setAttribute('aria-selected', tab==='transfers');
+  $('#panel-orders').classList.toggle('hide', tab!=='orders');
+  $('#panel-transfers').classList.toggle('hide', tab!=='transfers');
+  if(tab==='orders' && SITE && !ORDERS) loadOrders();
+  if(tab==='transfers' && !TRANSFERS) loadTransfers();
+}
+$('#t-orders').onclick = ()=>show('orders');
+$('#t-transfers').onclick = ()=>show('transfers');
+
+function working(el, msg, sub){
+  el.innerHTML = '<div class="state"><div class="spin"></div><b>'+msg+'</b>'+(sub||'')+'</div>';
+}
+
+/* ── ORDERS ─────────────────────────────────────────────────────────── */
+async function loadOrders(){
+  if(!SITE) return;
+  $('#orders-stats').innerHTML = '';
+  working($('#orders-body'), 'Running the ordering engine for '+(SITE.name||SITE.org_cd),
+          'Reading the catalogue, demand and open orders. This takes a moment on a full store.');
+  try{
+    ORDERS = await j('/api/orders/'+encodeURIComponent(SITE.org_cd));
+    renderOrders();
+  }catch(e){
+    $('#orders-body').innerHTML = '<div class="state err"><b>Could not generate orders</b>'+e.message+'</div>';
+  }
+}
+
+function renderOrders(){
+  const t = ORDERS.totals, f = ORDERS.funnel || {};
+  $('#orders-stats').innerHTML =
+    '<div class="stats">'+
+    stat('Lines to order', num(t.lines))+
+    stat('Order value', money(t.value), true)+
+    stat('Suppliers', num(t.suppliers))+
+    (f.no_order_needed!=null ? stat('No order needed', num(f.no_order_needed)) : '')+
+    (f.below_moq!=null ? stat('Below MOQ', num(f.below_moq)) : '')+
+    '</div>';
+
+  if(!ORDERS.rows.length){
+    $('#orders-body').innerHTML = '<div class="state"><b>Nothing to order</b>'+
+      'Every SKU has enough cover, or is already on order.</div>';
+    return;
+  }
+  let h = '<div class="wrap"><table><thead><tr>'+
+    '<th><input type="checkbox" id="all" checked></th>'+
+    '<th>Product</th><th>Supplier</th><th class="num">Stock</th>'+
+    '<th class="num">ADS</th><th class="num">Qty</th><th class="num">Value</th>'+
+    '<th>Why</th></tr></thead><tbody>';
+  ORDERS.rows.forEach((r,i)=>{
+    const urgent = r.stock<=0;
+    h += '<tr><td><input type="checkbox" class="pick" data-i="'+i+'" checked></td>'+
+      '<td><span class="prod">'+esc(r.product||'')+'</span>'+
+        '<span class="sub">'+esc(r.item_code||'')+' · '+esc(r.department||'')+'</span></td>'+
+      '<td>'+esc(r.supplier)+'</td>'+
+      '<td class="num">'+(urgent?'<span class="chip c-bad">OUT</span>':num(r.stock))+'</td>'+
+      '<td class="num">'+(Number(r.ads)||0).toFixed(1)+'</td>'+
+      '<td class="num">'+num(r.qty)+'</td>'+
+      '<td class="num">'+money(r.value)+'</td>'+
+      '<td><span class="why">'+esc((r.reasoning||'').slice(0,120))+'</span></td></tr>';
+  });
+  h += '</tbody></table></div>'+
+    '<div class="act"><button class="btn" id="pushbtn">Send selected to '+
+    '<span id="cnt">'+ORDERS.rows.length+'</span> draft orders</button>'+
+    '<span id="pickval" style="color:var(--ink2);font-size:13px"></span>'+
+    '<span class="sp" style="flex:1"></span>'+
+    '<span style="color:var(--ink3);font-size:12px">Drafts only — nothing is confirmed, no money is committed.</span></div>'+
+    '<div id="pushmsg" style="margin-top:10px"></div>';
+  $('#orders-body').innerHTML = h;
+
+  $('#all').onchange = e => { document.querySelectorAll('.pick').forEach(c=>c.checked=e.target.checked); sel(); };
+  document.querySelectorAll('.pick').forEach(c=>c.onchange=sel);
+  $('#pushbtn').onclick = doPush;
+  sel();
+}
+
+function sel(){
+  const picked = [...document.querySelectorAll('.pick:checked')].map(c=>ORDERS.rows[+c.dataset.i]);
+  const v = picked.reduce((a,r)=>a+(r.value||0),0);
+  const btn = $('#pushbtn');
+  if(btn){ btn.disabled = !picked.length; $('#cnt').textContent = picked.length; }
+  const pv = $('#pickval'); if(pv) pv.textContent = picked.length ? money(v) : 'nothing selected';
+  return picked;
+}
+
+async function doPush(){
+  const picked = sel(); if(!picked.length) return;
+  const btn = $('#pushbtn'); btn.disabled = true; btn.textContent = 'Sending…';
+  try{
+    const res = await j('/api/orders/'+encodeURIComponent(SITE.org_cd)+'/push',{
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({rows: picked.map(p=>({
+        item_code:p.item_code, product_name:p.product, supplier_cd:p.supplier_cd,
+        supplier_name:p.supplier, recommended_quantity:p.qty, cost_price:p.cost,
+        reasoning:p.reasoning}))})
+    });
+    $('#pushmsg').innerHTML = '<div class="state" style="border-color:var(--good);color:var(--good);padding:18px">'+
+      '<b style="color:var(--good)">'+res.pushed+' lines sent as drafts</b>'+
+      'Open your ERP to review and approve them.</div>';
+    btn.textContent = 'Sent';
+  }catch(e){
+    $('#pushmsg').innerHTML = '<div class="state err" style="padding:18px"><b>Push failed</b>'+e.message+'</div>';
+    btn.disabled = false; btn.textContent = 'Retry send';
+  }
+}
+
+/* ── TRANSFERS ──────────────────────────────────────────────────────── */
+async function loadTransfers(){
+  working($('#tr-body'),'Scanning the network','Comparing cover across every store to find stock worth moving instead of buying.');
+  $('#tr-stats').innerHTML='';
+  try{
+    TRANSFERS = await j('/api/transfers');
+    renderTransfers();
+  }catch(e){
+    $('#tr-body').innerHTML = '<div class="state err"><b>Scan failed</b>'+e.message+'</div>';
+  }
+}
+
+function renderTransfers(){
+  const t = TRANSFERS.totals||{}, ops = TRANSFERS.opportunities||[];
+  if(TRANSFERS.error && !ops.length){
+    $('#tr-body').innerHTML = '<div class="state"><b>Nothing to transfer</b>'+esc(TRANSFERS.error)+'</div>';
+    return;
+  }
+  $('#tr-stats').innerHTML = '<div class="stats">'+
+    stat('Moves found', num(ops.length))+
+    stat('Value moved', money(t.total_value||0), true)+
+    stat('SKUs', num(t.unique_skus||0))+
+    stat('Store pairs', num(t.store_pairs||0))+
+    (t.manual_only ? stat('Need a human', num(t.manual_only)) : '')+
+    '</div>';
+  if(!ops.length){
+    $('#tr-body').innerHTML='<div class="state"><b>No moves worth making</b>Cover is balanced across the network.</div>';
+    return;
+  }
+  let h='<div class="wrap"><table><thead><tr><th>Product</th><th>From</th><th>To</th>'+
+    '<th class="num">Qty</th><th class="num">Value</th><th class="num">Donor cover</th>'+
+    '<th class="num">Receiver cover</th><th></th></tr></thead><tbody>';
+  ops.forEach(o=>{
+    const tight = (o.recipient_cover!=null && o.recipient_cover<=1);
+    h+='<tr><td><span class="prod">'+esc(o.product||'')+'</span>'+
+       '<span class="sub">'+esc(o.itm_cd||'')+' · '+esc(o.department||'')+'</span></td>'+
+       '<td>'+esc(o.from||o.from_org)+'</td><td>'+esc(o.to||o.to_org)+'</td>'+
+       '<td class="num">'+num(o.qty)+'</td><td class="num">'+money(o.value)+'</td>'+
+       '<td class="num">'+fmtd(o.donor_cover)+'</td>'+
+       '<td class="num">'+(tight?'<span class="chip c-bad">'+fmtd(o.recipient_cover)+'</span>':fmtd(o.recipient_cover))+'</td>'+
+       '<td>'+(o.manual_only?'<span class="chip c-warn">Review</span>':'<span class="chip c-good">Ready</span>')+'</td></tr>';
+  });
+  h+='</tbody></table></div><p class="hint" style="margin-top:12px">'+
+     'Lines marked <b>Review</b> are perishable — moving them is a judgement about shelf life, not a number, so OASIS never queues them automatically.</p>';
+  $('#tr-body').innerHTML=h;
+}
+
+const fmtd = v => v==null ? '—' : (Number(v)||0).toFixed(1)+'d';
+const stat = (k,v,big) => '<div class="stat"><div class="k">'+k+'</div><div class="v'+(big?'':' sm')+'">'+v+'</div></div>';
+function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+boot();
+</script>
+</body>
+</html>

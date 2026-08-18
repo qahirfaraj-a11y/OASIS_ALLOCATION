@@ -212,6 +212,29 @@ def run_api(port: int = 8550):
     logger.info("Mobile API stopped.")
 
 
+def run_web(port: int = 8610):
+    """Start the Web Console (oasis.web.app) under uvicorn.
+
+    Binds LOOPBACK by default. This console can push purchase orders into the
+    client's ERP and has no login, matching the desktop app it mirrors — those
+    two facts together mean a default start must not serve a client's order
+    book to their whole LAN. Set OASIS_WEB_HOST deliberately to widen it.
+    """
+    host = os.getenv("OASIS_WEB_HOST", "127.0.0.1")
+    if host not in ("127.0.0.1", "localhost", "::1"):
+        logger.warning("Web Console binding to %s — it has NO LOGIN and can "
+                       "push orders. Put it behind a reverse proxy with auth, "
+                       "or use an SSH tunnel instead.", host)
+    logger.info("Starting O.A.S.I.S. Web Console on http://%s:%s", host, port)
+    cmd = [sys.executable, "-m", "uvicorn", "oasis.web.app:app",
+           "--host", host, "--port", str(port)]
+    proc = subprocess.Popen(cmd)
+    _shutdown.wait()
+    proc.terminate()
+    proc.wait(timeout=10)
+    logger.info("Web Console stopped.")
+
+
 def run_bridge(port: int = 8600):
     """Start the Manager Bridge API (oasis.api.bridge) under uvicorn."""
     logger.info(f"Starting O.A.S.I.S. Manager Bridge on port {port}...")
@@ -587,7 +610,7 @@ def main():
                                  # docstring entry all along, but was absent
                                  # HERE — so argparse rejected the documented
                                  # install step before it could ever run.
-                                 "preflight", "erp-status",
+                                 "preflight", "erp-status", "web",
                                  # Dev-toolkit modes: each drives a script in
                                  # devkit/, which never ships. They dispatch
                                  # fine here and degrade with an explicit
@@ -718,6 +741,8 @@ def main():
         run_bootstrap()
     elif args.mode == "api":
         run_api(args.port if args.port else 8550)
+    elif args.mode == "web":
+        run_web(port or 8610)
     elif args.mode == "bridge":
         run_bridge(args.port if args.port else 8600)
     elif args.mode == "hub":
