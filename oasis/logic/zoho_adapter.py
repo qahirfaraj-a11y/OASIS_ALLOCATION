@@ -109,6 +109,40 @@ class ZohoAdapter(_contract.ErpAdapter):
         self._loc_cache: Dict[str, Optional[dict]] = {}
 
     # ── auth ─────────────────────────────────────────────────────────────
+    def _token_cache_path(self) -> str:
+        import hashlib
+        tag = hashlib.sha256(
+            f"{self.data_centre}:{self.org_id}".encode()).hexdigest()[:12]
+        return os.path.join(os.path.expanduser("~"), f".oasis_zoho_token_{tag}")
+
+    def _load_cached_token(self) -> None:
+        """Reuse a still-valid access token across PROCESSES.
+
+        Zoho rate-limits the token endpoint, and an in-memory cache does
+        nothing when each CLI run, test run and console launch is a fresh
+        process — a handful of runs in quick succession is enough to be
+        refused, which then looks like a bad credential rather than a quota.
+        """
+        try:
+            with open(self._token_cache_path(), "r", encoding="utf-8") as fh:
+                tok, _, exp = fh.read().partition("\n")
+            if tok and float(exp) > time.time():
+                self._token, self._token_expires_at = tok, float(exp)
+        except Exception:
+            pass
+
+    def _save_cached_token(self) -> None:
+        try:
+            path = self._token_cache_path()
+            with open(path, "w", encoding="utf-8") as fh:
+                fh.write(f"{self._token}\n{self._token_expires_at}")
+            try:
+                os.chmod(path, 0o600)
+            except OSError:
+                pass                      # best effort; Windows ACLs differ
+        except Exception as e:
+            logger.debug("could not cache Zoho token: %s", e)
+
     def _access_token(self) -> str:
         """Exchange the refresh token, cached until shortly before expiry.
 
@@ -116,6 +150,8 @@ class ZohoAdapter(_contract.ErpAdapter):
         (rate-limited) token endpoint, and refreshing only on 401 means every
         expiry costs a failed request.
         """
+        if not self._token:
+            self._load_cached_token()
         if self._token and time.time() < self._token_expires_at:
             return self._token
         missing = [n for n, v in (("ZOHO_CLIENT_ID", self.client_id),
@@ -129,21 +165,33 @@ class ZohoAdapter(_contract.ErpAdapter):
                 f"with scope ZohoInventory.FullAccess.all supplies all four."
             )
         import requests
-        r = requests.post(f"{self.accounts_base}/oauth/v2/token", params={
+        # Credentials go in the POST BODY, never the query string. requests puts
+        # the full URL into HTTPError, so query-string secrets end up in any
+        # traceback, log file or terminal scrollback that captures the failure.
+        # raise_for_status() is deliberately NOT used here for the same reason.
+        r = requests.post(f"{self.accounts_base}/oauth/v2/token", data={
             "refresh_token": self.refresh_token,
             "client_id": self.client_id,
             "client_secret": self.client_secret,
             "grant_type": "refresh_token",
         }, timeout=30)
-        r.raise_for_status()
-        body = r.json()
+        try:
+            body = r.json()
+        except ValueError:
+            body = {}
         token = body.get("access_token")
         if not token:
             # Zoho answers a refused refresh with HTTP 200 and an "error" key,
-            # so raise_for_status alone would let this through as success.
-            raise ConnectionError(f"Zoho refused the refresh token: {body}")
+            # so status alone would let this through as success.
+            err = body.get("error") or f"HTTP {r.status_code}"
+            hint = ""
+            if str(err) == "Access Denied":
+                hint = (" — Zoho rate-limits token refreshes; wait a few "
+                        "minutes rather than retrying immediately")
+            raise ConnectionError(f"Zoho refused the refresh token: {err}{hint}")
         self._token = token
         self._token_expires_at = time.time() + int(body.get("expires_in", 3600)) - 120
+        self._save_cached_token()
         return self._token
 
     # ── transport ────────────────────────────────────────────────────────

@@ -112,7 +112,9 @@ def main() -> int:
     def _exchange(dc: str):
         """Attempt the exchange in one data centre. Returns (body, ok)."""
         _, acc = DATA_CENTRES[dc]
-        r = requests.post(f"{acc}/oauth/v2/token", params={
+        # POST body, never the query string: requests embeds the full URL in
+        # HTTPError, so query-string secrets leak into every traceback and log.
+        r = requests.post(f"{acc}/oauth/v2/token", data={
             "grant_type": "authorization_code",
             "client_id": args.client_id,
             "client_secret": args.client_secret,
