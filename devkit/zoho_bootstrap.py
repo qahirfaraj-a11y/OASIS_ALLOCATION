@@ -88,6 +88,7 @@ def main() -> int:
     args.client_id = args.client_id or seeded.get("ZOHO_CLIENT_ID")
     args.client_secret = args.client_secret or seeded.get("ZOHO_CLIENT_SECRET")
     args.code = args.code or seeded.get("ZOHO_GRANT_CODE")
+    dc_explicit = bool(args.dc or seeded.get("ZOHO_DC"))
     args.dc = args.dc or seeded.get("ZOHO_DC") or "com"
 
     missing = [n for n, v in (("ZOHO_CLIENT_ID", args.client_id),
@@ -108,27 +109,57 @@ def main() -> int:
               f"{sorted(DATA_CENTRES)}")
         return 2
 
-    api_base, accounts = DATA_CENTRES[args.dc]
+    def _exchange(dc: str):
+        """Attempt the exchange in one data centre. Returns (body, ok)."""
+        _, acc = DATA_CENTRES[dc]
+        r = requests.post(f"{acc}/oauth/v2/token", params={
+            "grant_type": "authorization_code",
+            "client_id": args.client_id,
+            "client_secret": args.client_secret,
+            "code": args.code,
+        }, timeout=30)
+        ct = r.headers.get("content-type", "")
+        b = r.json() if ct.startswith("application/json") else {}
+        # Zoho answers a refused exchange with HTTP 200 and an "error" key, so
+        # the status code alone would report success.
+        return b, (r.status_code == 200 and "refresh_token" in b)
 
-    print(f"1. exchanging the grant code at {accounts} …")
-    r = requests.post(f"{accounts}/oauth/v2/token", params={
-        "grant_type": "authorization_code",
-        "client_id": args.client_id,
-        "client_secret": args.client_secret,
-        "code": args.code,
-    }, timeout=30)
-    body = r.json() if r.headers.get("content-type", "").startswith("application/json") else {}
-    # Zoho answers a refused exchange with HTTP 200 and an "error" key, so the
-    # status code alone would report success.
-    if r.status_code != 200 or "refresh_token" not in body:
-        print(f"   FAILED: {body or r.text[:300]}")
+    # A code minted in one data centre is rejected by every other one with the
+    # SAME "invalid_code" as a genuinely expired code — so when the data centre
+    # was not stated, try them rather than leaving the user to guess which of
+    # two indistinguishable causes they are looking at. A rejected code is not
+    # consumed, so this costs nothing.
+    order = [args.dc] if dc_explicit else [args.dc] + [d for d in DATA_CENTRES
+                                                       if d != args.dc]
+    body, ok = {}, False
+    for dc in order:
+        _, acc = DATA_CENTRES[dc]
+        print(f"1. exchanging the grant code at {acc} …")
+        try:
+            body, ok = _exchange(dc)
+        except Exception as e:
+            print(f"   unreachable: {str(e)[:120]}")
+            continue
+        if ok:
+            args.dc = dc
+            break
+        print(f"   rejected here: {body.get('error') or body}")
+
+    if not ok:
+        print("\n   FAILED in every data centre tried.")
         if str(body.get("error")) == "invalid_code":
-            print("   -> the grant code has expired or was already used. "
-                  "Generate a fresh one and re-run within the validity window.")
+            print("   Both remaining causes look identical from here:")
+            print("     * the code expired (they last minutes) or was already used")
+            print("     * it was generated under a DIFFERENT client id than the "
+                  "one in .env")
+            print("   Generate a fresh code from the SAME self-client whose id "
+                  "is in .env, then re-run straight away.")
         return 1
+
+    api_base, accounts = DATA_CENTRES[args.dc]
     refresh = body["refresh_token"]
     access = body["access_token"]
-    print(f"   refresh token obtained: {_mask(refresh)}")
+    print(f"   accepted by {args.dc} — refresh token obtained: {_mask(refresh)}")
 
     print(f"2. listing organisations at {api_base} …")
     r2 = requests.get(f"{api_base}/inventory/v1/organizations",
