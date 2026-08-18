@@ -108,6 +108,23 @@
   .err{border-color:var(--bad);color:var(--bad)}
   .hide{display:none}
   input[type=checkbox]{accent-color:var(--accent);width:15px;height:15px}
+  /* ── filter + sort controls ── */
+  .controls{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:12px}
+  .controls input[type=search],.controls select{
+    background:var(--panel);border:1px solid var(--line);border-radius:3px;
+    color:var(--ink);padding:8px 11px;font-family:inherit;font-size:13px;min-width:150px}
+  .controls input[type=search]{min-width:250px;flex:1}
+  .controls input[type=search]:focus,.controls select:focus{
+    outline:none;border-color:var(--accent)}
+  .controls .chk{display:flex;align-items:center;gap:6px;color:var(--ink2);
+    font-size:13px;white-space:nowrap;cursor:pointer}
+  .btn.sm{padding:7px 13px;font-size:12.5px;font-weight:600}
+  .muted{color:var(--ink3);font-size:12.5px}
+  .sp{flex:1}
+  th.sortable{cursor:pointer;user-select:none}
+  th.sortable:hover{color:var(--accent)}
+  :focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
 </style>
 </head>
 <body>
@@ -146,6 +163,7 @@ const $ = s => document.querySelector(s);
 const money = n => 'KES ' + (Number(n)||0).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2});
 const num = n => (Number(n)||0).toLocaleString(undefined,{maximumFractionDigits:0});
 let SITE = null, ORDERS = null, TRANSFERS = null, TAB = 'orders';
+let SELECTED = new Set(), VIEW = {q:'',supplier:'',dept:'',outOnly:false,sort:'value',dir:-1};
 
 function tick(){ $('#clock').textContent = new Date().toLocaleTimeString(); }
 setInterval(tick, 1000); tick();
@@ -258,64 +276,169 @@ function renderOrders(){
       'Every SKU has enough cover, or is already on order.</div>';
     return;
   }
-  let h = '<div class="wrap"><table><thead><tr>'+
-    '<th><input type="checkbox" id="all" checked></th>'+
-    '<th>Product</th><th>Supplier</th><th class="num">Stock</th>'+
-    '<th class="num">ADS</th><th class="num">Qty</th><th class="num">Value</th>'+
-    '<th>Why</th></tr></thead><tbody>';
-  ORDERS.rows.forEach((r,i)=>{
-    const urgent = r.stock<=0;
-    h += '<tr><td><input type="checkbox" class="pick" data-i="'+i+'" checked></td>'+
-      '<td><span class="prod">'+esc(r.product||'')+'</span>'+
-        '<span class="sub">'+esc(r.item_code||'')+' · '+esc(r.department||'')+'</span></td>'+
-      '<td>'+esc(r.supplier)+'</td>'+
-      '<td class="num">'+(urgent?'<span class="chip c-bad">OUT</span>':num(r.stock))+'</td>'+
-      '<td class="num">'+(Number(r.ads)||0).toFixed(1)+'</td>'+
-      '<td class="num">'+num(r.qty)+'</td>'+
-      '<td class="num">'+money(r.value)+'</td>'+
-      '<td><span class="why">'+esc((r.reasoning||'').slice(0,120))+'</span></td></tr>';
-  });
-  h += '</tbody></table></div>'+
-    '<div class="act"><button class="btn" id="pushbtn">Send selected to '+
-    '<span id="cnt">'+ORDERS.rows.length+'</span> draft orders</button>'+
-    '<span id="pickval" style="color:var(--ink2);font-size:13px"></span>'+
-    '<span class="sp" style="flex:1"></span>'+
-    '<span style="color:var(--ink3);font-size:12px">Drafts only — nothing is confirmed, no money is committed.</span></div>'+
-    '<div id="pushmsg" style="margin-top:10px"></div>';
-  $('#orders-body').innerHTML = h;
 
-  $('#all').onchange = e => { document.querySelectorAll('.pick').forEach(c=>c.checked=e.target.checked); sel(); };
-  document.querySelectorAll('.pick').forEach(c=>c.onchange=sel);
+  // Selection is keyed on SKU, never on row index. Sorting or filtering
+  // reorders the array, so an index-keyed checkbox would silently move a tick
+  // from one product to another and the operator would send lines they never
+  // chose.
+  SELECTED = new Set(ORDERS.rows.map(r => r.item_code));
+  VIEW = {q:'', supplier:'', dept:'', outOnly:false, sort:'value', dir:-1};
+
+  const suppliers = [...new Set(ORDERS.rows.map(r=>r.supplier))].sort();
+  const depts = [...new Set(ORDERS.rows.map(r=>r.department).filter(Boolean))].sort();
+
+  $('#orders-body').innerHTML =
+    '<div class="controls">'+
+      '<input id="q" type="search" placeholder="Search product, SKU or supplier...">'+
+      '<select id="fsup"><option value="">All suppliers ('+suppliers.length+')</option>'+
+        suppliers.map(x=>'<option>'+esc(x)+'</option>').join('')+'</select>'+
+      '<select id="fdept"><option value="">All departments ('+depts.length+')</option>'+
+        depts.map(x=>'<option>'+esc(x)+'</option>').join('')+'</select>'+
+      '<label class="chk"><input type="checkbox" id="fout"> Out of stock only</label>'+
+      '<button class="btn ghost sm" id="clearf">Clear</button>'+
+      '<span class="sp"></span><span id="shown" class="muted"></span>'+
+    '</div>'+
+    '<div id="tablehost"></div>'+
+    '<div class="act">'+
+      '<button class="btn" id="pushbtn">Send <span id="cnt"></span> to draft orders</button>'+
+      '<span id="pickval" class="muted"></span>'+
+      '<span id="hiddenwarn" class="muted"></span>'+
+      '<span class="sp"></span>'+
+      '<span class="muted">Drafts only - nothing is confirmed, no money is committed.</span>'+
+    '</div><div id="pushmsg" style="margin-top:10px"></div>';
+
+  $('#q').oninput = e => { VIEW.q = e.target.value.trim().toLowerCase(); drawRows(); };
+  $('#fsup').onchange = e => { VIEW.supplier = e.target.value; drawRows(); };
+  $('#fdept').onchange = e => { VIEW.dept = e.target.value; drawRows(); };
+  $('#fout').onchange = e => { VIEW.outOnly = e.target.checked; drawRows(); };
+  $('#clearf').onclick = () => {
+    VIEW.q=''; VIEW.supplier=''; VIEW.dept=''; VIEW.outOnly=false;
+    $('#q').value=''; $('#fsup').value=''; $('#fdept').value=''; $('#fout').checked=false;
+    drawRows();
+  };
   $('#pushbtn').onclick = doPush;
+  drawRows();
+}
+
+const SORTS = {
+  product:  (a,b) => String(a.product||'').localeCompare(String(b.product||'')),
+  supplier: (a,b) => String(a.supplier||'').localeCompare(String(b.supplier||'')),
+  stock:    (a,b) => a.stock - b.stock,
+  ads:      (a,b) => a.ads - b.ads,
+  qty:      (a,b) => a.qty - b.qty,
+  value:    (a,b) => a.value - b.value
+};
+
+function visibleRows(){
+  const v = VIEW;
+  let rows = ORDERS.rows.filter(r => {
+    if(v.supplier && r.supplier !== v.supplier) return false;
+    if(v.dept && r.department !== v.dept) return false;
+    if(v.outOnly && !(r.stock <= 0)) return false;
+    if(v.q){
+      const hay = (r.product+' '+r.item_code+' '+r.supplier+' '+(r.department||'')).toLowerCase();
+      if(!hay.includes(v.q)) return false;
+    }
+    return true;
+  });
+  const cmp = SORTS[v.sort] || SORTS.value;
+  rows.sort((a,b) => cmp(a,b) * v.dir);
+  return rows;
+}
+
+function drawRows(){
+  const rows = visibleRows();
+  const arrow = k => VIEW.sort===k ? (VIEW.dir<0 ? ' \u25be' : ' \u25b4') : '';
+  const th = (k,label,cls) => '<th class="'+(cls||'')+' sortable" data-k="'+k+'">'+label+arrow(k)+'</th>';
+
+  if(!rows.length){
+    $('#tablehost').innerHTML = '<div class="state"><b>Nothing matches</b>'+
+      'No line matches these filters. Clear them to see all '+ORDERS.rows.length+'.</div>';
+  } else {
+    let h = '<div class="wrap"><table><thead><tr>'+
+      '<th><input type="checkbox" id="all"></th>'+
+      th('product','Product')+th('supplier','Supplier')+
+      th('stock','Stock','num')+th('ads','ADS','num')+
+      th('qty','Qty','num')+th('value','Value','num')+
+      '<th>Why</th></tr></thead><tbody>';
+    rows.forEach(r => {
+      const on = SELECTED.has(r.item_code);
+      h += '<tr><td><input type="checkbox" class="pick" data-k="'+esc(r.item_code)+'"'+(on?' checked':'')+'></td>'+
+        '<td><span class="prod">'+esc(r.product||'')+'</span>'+
+          '<span class="sub">'+esc(r.item_code||'')+' \u00b7 '+esc(r.department||'')+'</span></td>'+
+        '<td>'+esc(r.supplier)+'</td>'+
+        '<td class="num">'+(r.stock<=0?'<span class="chip c-bad">OUT</span>':num(r.stock))+'</td>'+
+        '<td class="num">'+(Number(r.ads)||0).toFixed(1)+'</td>'+
+        '<td class="num">'+num(r.qty)+'</td>'+
+        '<td class="num">'+money(r.value)+'</td>'+
+        '<td><span class="why">'+esc((r.reasoning||'').slice(0,120))+'</span></td></tr>';
+    });
+    h += '</tbody></table></div>';
+    $('#tablehost').innerHTML = h;
+
+    document.querySelectorAll('th.sortable').forEach(el => {
+      el.onclick = () => {
+        const k = el.dataset.k;
+        if(VIEW.sort === k) VIEW.dir = -VIEW.dir;
+        else { VIEW.sort = k; VIEW.dir = (k==='product'||k==='supplier') ? 1 : -1; }
+        drawRows();
+      };
+    });
+    // "Select all" acts on what is VISIBLE. Acting on hidden rows is how a
+    // filtered table sends things the operator cannot see.
+    const allBox = $('#all');
+    allBox.checked = rows.every(r => SELECTED.has(r.item_code));
+    allBox.onchange = e => {
+      rows.forEach(r => e.target.checked ? SELECTED.add(r.item_code)
+                                         : SELECTED.delete(r.item_code));
+      drawRows();
+    };
+    document.querySelectorAll('.pick').forEach(c => c.onchange = e => {
+      e.target.checked ? SELECTED.add(e.target.dataset.k)
+                       : SELECTED.delete(e.target.dataset.k);
+      sel();
+    });
+  }
+  $('#shown').textContent = rows.length === ORDERS.rows.length
+    ? ORDERS.rows.length + ' lines'
+    : rows.length + ' of ' + ORDERS.rows.length + ' lines';
   sel();
 }
 
+function picked(){ return ORDERS.rows.filter(r => SELECTED.has(r.item_code)); }
+
 function sel(){
-  const picked = [...document.querySelectorAll('.pick:checked')].map(c=>ORDERS.rows[+c.dataset.i]);
-  const v = picked.reduce((a,r)=>a+(r.value||0),0);
+  const p = picked();
+  const v = p.reduce((a,r)=>a+(r.value||0),0);
   const btn = $('#pushbtn');
-  if(btn){ btn.disabled = !picked.length; $('#cnt').textContent = picked.length; }
-  const pv = $('#pickval'); if(pv) pv.textContent = picked.length ? money(v) : 'nothing selected';
-  return picked;
+  if(btn){ btn.disabled = !p.length; $('#cnt').textContent = p.length + (p.length===1?' line':' lines'); }
+  const pv = $('#pickval'); if(pv) pv.textContent = p.length ? money(v) : 'nothing selected';
+  // If a filter hides selected lines, say so. Sending what you cannot see is
+  // the classic filtered-table surprise.
+  const vis = new Set(visibleRows().map(r=>r.item_code));
+  const hidden = p.filter(r => !vis.has(r.item_code)).length;
+  const hw = $('#hiddenwarn');
+  if(hw) hw.textContent = hidden ? '\u00b7 includes '+hidden+' hidden by the current filter' : '';
+  return p;
 }
 
 async function doPush(){
-  const picked = sel(); if(!picked.length) return;
-  const btn = $('#pushbtn'); btn.disabled = true; btn.textContent = 'Sending…';
+  const p = picked(); if(!p.length) return;
+  const btn = $('#pushbtn'); btn.disabled = true; btn.textContent = 'Sending...';
   try{
     const res = await j('/api/orders/'+encodeURIComponent(SITE.org_cd)+'/push',{
       method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({rows: picked.map(p=>({
-        item_code:p.item_code, product_name:p.product, supplier_cd:p.supplier_cd,
-        supplier_name:p.supplier, recommended_quantity:p.qty, cost_price:p.cost,
-        reasoning:p.reasoning}))})
+      body: JSON.stringify({rows: p.map(r=>({
+        item_code:r.item_code, product_name:r.product, supplier_cd:r.supplier_cd,
+        supplier_name:r.supplier, recommended_quantity:r.qty, cost_price:r.cost,
+        reasoning:r.reasoning}))})
     });
     $('#pushmsg').innerHTML = '<div class="state" style="border-color:var(--good);color:var(--good);padding:18px">'+
       '<b style="color:var(--good)">'+res.pushed+' lines sent as drafts</b>'+
       'Open your ERP to review and approve them.</div>';
     btn.textContent = 'Sent';
   }catch(e){
-    $('#pushmsg').innerHTML = '<div class="state err" style="padding:18px"><b>Push failed</b>'+e.message+'</div>';
+    $('#pushmsg').innerHTML = '<div class="state err" style="padding:18px"><b>Push failed</b>'+esc(e.message)+'</div>';
     btn.disabled = false; btn.textContent = 'Retry send';
   }
 }
