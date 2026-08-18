@@ -96,12 +96,28 @@ class ZohoAdapter(_contract.ErpAdapter):
     #: Claimed, pending live conformance. READ_RECEIPTS is deliberately absent
     #: (see module docstring) — do not add it without evidence that
     #: days_since_delivery is genuinely populated.
+    #: Trimmed after live verification against a real organisation. Three
+    #: claims did not survive contact:
+    #:
+    #: MULTI_SITE — ``location_id`` on /items changed nothing.
+    #: ``location_stock_on_hand`` was absent whether or not it was passed, and
+    #: the item detail carries no per-location block at all (only an
+    #: ``is_storage_location_enabled`` flag). Site scoping therefore cannot be
+    #: demonstrated, and the conformance test SKIPS on a single-location org
+    #: rather than failing — a vacuous green is worse than an absent claim.
+    #: Restore only when proven on an org with multi-location switched on.
+    #:
+    #: READ_SUPPLIERS — ``vendor_id`` is empty on both the list AND the detail
+    #: record, and ``preferred_vendors`` is []. Zoho silently ignored the
+    #: vendor_id set at item creation, so there is no item->supplier link to
+    #: read. Every product would come back "Unknown".
+    #:
+    #: READ_TRANSFERS / WRITE_TRANSFER — untestable on a single-location org:
+    #: there is nowhere to transfer to. Not disproven, just unproven.
     CAPABILITIES = frozenset({
         _contract.READ_CATALOGUE, _contract.READ_STOCK, _contract.READ_DEMAND,
-        _contract.READ_COST, _contract.READ_SUPPLIERS, _contract.READ_OPEN_POS,
-        _contract.MULTI_SITE,
-        _contract.WRITE_PO, _contract.READ_TRANSFERS,
-        _contract.WRITE_TRANSFER, _contract.WRITE_TRANSFER_STATUS,
+        _contract.READ_COST, _contract.READ_OPEN_POS,
+        _contract.WRITE_PO,
     })
 
     def __init__(self, client_id: Optional[str] = None,
@@ -364,7 +380,24 @@ class ZohoAdapter(_contract.ErpAdapter):
                 if d < since:
                     continue
                 in_window += 1
-                for li in (o.get("line_items") or []):
+                # Zoho's LIST endpoints return summary records with NO
+                # line_items — verified live: a list record carried
+                # salesorder_id/date/status and nothing else, while the detail
+                # record for the same order carried all 12 lines. Summing the
+                # list gives zero demand for every product, which reads as
+                # "nothing sells here" rather than "the wrong endpoint was
+                # called", and the engine then recommends nothing.
+                lines = o.get("line_items")
+                if lines is None:
+                    try:
+                        full = self._call(
+                            "GET", f"/salesorders/{o.get('salesorder_id')}")
+                        lines = (full.get("salesorder") or {}).get("line_items") or []
+                    except Exception as e:
+                        logger.warning("order %s detail unavailable: %s",
+                                       o.get("salesorder_id"), str(e)[:80])
+                        continue
+                for li in lines:
                     iid = str(li.get("item_id") or "")
                     if not iid:
                         continue
@@ -549,6 +582,11 @@ class ZohoAdapter(_contract.ErpAdapter):
                         "URGENCY", "REQUESTED_BY", "CREATED_DT", "COMPLETED_DT")
 
     def fetch_transfers(self, org_cd: Optional[str] = None):
+        # The implementation is kept for the day multi-location is proven on a
+        # real org, but it is GATED on the declaration: a method that outlives
+        # its capability is exactly the silent no-op the contract forbids.
+        self._require(_contract.READ_TRANSFERS,
+                      "untested on a single-location organisation")
         import pandas as pd
         empty = pd.DataFrame(columns=list(self.TRANSFER_COLUMNS))
         try:
@@ -585,6 +623,8 @@ class ZohoAdapter(_contract.ErpAdapter):
 
     def push_transfer_request(self, from_org: str, to_org: str,
                               items: List[dict]) -> bool:
+        self._require(_contract.WRITE_TRANSFER,
+                      "a single-location organisation has nowhere to transfer to")
         src, dst = self._location_id(from_org), self._location_id(to_org)
         if not src or not dst:
             logger.error("push_transfer_request: unknown location (%s -> %s)",
@@ -620,6 +660,7 @@ class ZohoAdapter(_contract.ErpAdapter):
         through its own approval flow, and pretending otherwise would report a
         status the warehouse does not have.
         """
+        self._require(_contract.WRITE_TRANSFER_STATUS)
         want = (status or "").strip().upper()
         if want == "IN_TRANSIT":
             raise _contract.Unsupported(
@@ -678,6 +719,12 @@ class ZohoAdapter(_contract.ErpAdapter):
         warnings = ["NO receipt dates: Zoho purchase-receives are not read by "
                     "this adapter, so days_since_delivery is 0 for every "
                     "product and the dead-stock guard cannot fire (fails OPEN)."]
+        if not out["with_supplier"]:
+            warnings.append(
+                "NO supplier on any item: Zoho leaves vendor_id empty on both "
+                "the item list and detail. push_purchase_order groups lines BY "
+                "supplier, so it will write NOTHING until items carry a "
+                "preferred vendor in Zoho.")
         if out["products"] and not out["with_demand"]:
             warnings.append("NO DEMAND: every ADS is zero — the engine will "
                             "recommend nothing.")
