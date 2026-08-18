@@ -445,3 +445,29 @@ def test_a_successful_cancel_that_raises_is_not_treated_as_failure():
     stub = _Marshalling(lines=(60,))
     assert _adapter_with(stub).update_po_status(60, "REJECTED", "qahir") is True
     assert stub.state == "cancel"
+
+
+# ── Zoho: category mapping ───────────────────────────────────────────────
+def test_zoho_department_comes_from_category_not_the_variant_group():
+    """group_name is Zoho's ITEM-GROUP name and defaults to the item's OWN
+    name — verified live, an item created as "OASIS Probe Item" came back with
+    group_name='OASIS Probe Item' and category_name=''. Reading it as the
+    department gives every product a department of one, which is the same
+    fragmentation the Odoo category-path bug caused."""
+    from oasis.logic.zoho_adapter import _department_of, UNCATEGORISED
+
+    assert _department_of({"name": "Kabras 2Kg", "group_name": "Kabras 2Kg",
+                           "category_name": "Sugar"}) == "SUGAR"
+    # the trap: no category, group_name echoing the product name
+    assert _department_of({"name": "Kabras 2Kg", "group_name": "Kabras 2Kg",
+                           "category_name": ""}) == UNCATEGORISED
+    assert _department_of({}) == UNCATEGORISED
+
+
+def test_zoho_uncategorised_is_visible_not_bucketed_into_a_real_department():
+    """'Nothing is categorised in Zoho' must read differently from 'this is a
+    grocery-only store', or onboarding cannot tell the operator what to fix."""
+    from oasis.logic.zoho_adapter import _department_of, UNCATEGORISED
+
+    assert UNCATEGORISED not in ("GROCERY", "GENERAL", "")
+    assert _department_of({"category_name": None}) == UNCATEGORISED

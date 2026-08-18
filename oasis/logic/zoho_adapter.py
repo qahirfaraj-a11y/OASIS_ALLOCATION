@@ -66,6 +66,28 @@ MAX_PAGES = 500
 
 FRESH_DEPARTMENTS = ("DAIRY", "FRESH PRODUCE", "BUTCHERY", "BAKERY", "FRESH")
 
+#: What OASIS calls a department when Zoho has not categorised the item. NOT
+#: the item's own name — see _department_of.
+UNCATEGORISED = "UNCATEGORISED"
+
+
+def _department_of(item: dict) -> str:
+    """Zoho's category, which is NOT ``group_name``.
+
+    ``group_name`` is the ITEM-GROUP (variant group) name, and Zoho defaults it
+    to the item's own name — verified live: an item created as "OASIS Probe
+    Item" came back with ``group_name: 'OASIS Probe Item'`` and
+    ``category_name: ''``. Reading it as the department gives every product a
+    department of one, which fragments grouping, budget allocation and
+    department reporting exactly as the Odoo category-path bug did.
+
+    An uncategorised item is labelled as such rather than silently bucketed
+    into a real department, so "nothing is categorised in Zoho" is visible in
+    the console instead of looking like a grocery-only store.
+    """
+    cat = str(item.get("category_name") or "").strip()
+    return cat.upper() if cat else UNCATEGORISED
+
 
 class ZohoAdapter(_contract.ErpAdapter):
     """Reads a Zoho Inventory organisation over REST and speaks OASIS's dialect."""
@@ -379,7 +401,7 @@ class ZohoAdapter(_contract.ErpAdapter):
             if str(it.get("status", "active")).lower() != "active":
                 continue
             iid = str(it.get("item_id") or "")
-            dept = str(it.get("group_name") or "GROCERY").upper()
+            dept = _department_of(it)
             sold = demand.get(iid, {"units": 0.0, "revenue": 0.0})
             vid = str(it.get("vendor_id") or "")
             # location_stock_on_hand is present when the call is location-scoped;
@@ -666,8 +688,19 @@ class ZohoAdapter(_contract.ErpAdapter):
             warnings.append(f"only {out['with_cost']}/{out['products']} have a "
                             "cost price — order VALUE and budget gating "
                             "will be wrong.")
-        if out["products"] and out["departments"] <= 1:
-            warnings.append("all products in ONE department — check group_name.")
+        uncategorised = sum(1 for p in prods
+                            if p.get("department") == UNCATEGORISED)
+        out["uncategorised"] = uncategorised
+        if out["products"] and uncategorised == out["products"]:
+            warnings.append(
+                "NO categories: every item is UNCATEGORISED. Zoho's "
+                "category_name is empty across the catalogue, so department "
+                "grouping, budget allocation and department reporting all "
+                "collapse to one bucket.")
+        elif out["products"] and out["departments"] <= 1:
+            warnings.append("all products in ONE department — check "
+                            "category_name (NOT group_name, which Zoho "
+                            "defaults to the item's own name).")
         out["warnings"] = warnings
         return out
 
