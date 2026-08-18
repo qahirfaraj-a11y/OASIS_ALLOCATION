@@ -637,6 +637,35 @@ class OdooAdapter(_contract.ErpAdapter):
                         "PRODUCT_NAME", "QUANTITY", "VALUE_KES", "STATUS",
                         "URGENCY", "REQUESTED_BY", "CREATED_DT", "COMPLETED_DT")
 
+    def can_transfer(self, from_org: str, to_org: str) -> Dict[str, Any]:
+        """Whether Odoo would accept an internal transfer between these sites.
+
+        Odoo refuses to CONFIRM a picking whose source and destination belong
+        to different companies ("Incompatible companies on records") — but the
+        CREATE succeeds, so an unchecked write leaves a draft that shows as
+        REQUESTED forever and fails every attempt to advance it. Moving stock
+        between legal entities is a sale/purchase pair in Odoo, not a transfer.
+        """
+        src, dst = self._warehouse(from_org), self._warehouse(to_org)
+        missing = [o for o, w in ((from_org, src), (to_org, dst)) if not w]
+        if missing:
+            return {"ok": False,
+                    "reason": f"unknown warehouse: {', '.join(map(str, missing))}"}
+        if not (_id_of(src.get("lot_stock_id")) and _id_of(dst.get("lot_stock_id"))
+                and _id_of(src.get("int_type_id"))):
+            return {"ok": False,
+                    "reason": f"{from_org} or {to_org} has no stock location or "
+                              f"internal operation type"}
+        src_co, dst_co = _id_of(src.get("company_id")), _id_of(dst.get("company_id"))
+        if src_co != dst_co:
+            return {"ok": False,
+                    "reason": f"different companies "
+                              f"({_name_of(src.get('company_id')) or src_co} vs "
+                              f"{_name_of(dst.get('company_id')) or dst_co}) — "
+                              f"Odoo cannot confirm an internal transfer across "
+                              f"them; this is a sale/purchase pair, not a move"}
+        return {"ok": True, "reason": ""}
+
     def push_transfer_request(self, from_org: str, to_org: str,
                               items: List[dict]) -> bool:
         """Create ONE draft internal picking moving `items` from_org -> to_org.
@@ -651,35 +680,18 @@ class OdooAdapter(_contract.ErpAdapter):
         picking, and splitting a single shipment into N pickings would make the
         warehouse pick, pack and validate N times for one van.
         """
-        src, dst = self._warehouse(from_org), self._warehouse(to_org)
-        if not src or not dst:
-            logger.error("push_transfer_request: unknown warehouse (%s -> %s); "
-                         "resolved src=%s dst=%s", from_org, to_org,
-                         bool(src), bool(dst))
-            return False
-        src_loc, dst_loc = _id_of(src.get("lot_stock_id")), _id_of(dst.get("lot_stock_id"))
-        ptype = _id_of(src.get("int_type_id"))
-        if not (src_loc and dst_loc and ptype):
-            logger.error("push_transfer_request: %s or %s has no stock location "
-                         "or internal operation type", from_org, to_org)
+        # ONE implementation of the rule: the writer asks the same question the
+        # console asks before it recommends anything. Repeating the check here
+        # is how the read side and write side drifted apart in the first place.
+        verdict = self.can_transfer(from_org, to_org)
+        if not verdict["ok"]:
+            logger.error("push_transfer_request refused (%s -> %s): %s",
+                         from_org, to_org, verdict["reason"])
             return False
 
-        # Odoo refuses to CONFIRM a picking whose source and destination belong
-        # to different companies ("Incompatible companies on records"). The
-        # create still succeeds, so without this check OASIS would leave a draft
-        # that shows as REQUESTED in the console forever and fails every attempt
-        # to advance it. Moving stock between legal entities is a sale, not an
-        # internal transfer, and Odoo models it with inter-company rules.
-        src_co, dst_co = _id_of(src.get("company_id")), _id_of(dst.get("company_id"))
-        if src_co != dst_co:
-            logger.error(
-                "push_transfer_request: %s (company %s) and %s (company %s) are "
-                "different COMPANIES — Odoo cannot confirm an internal transfer "
-                "across them. Inter-company movement is a sale/purchase pair, "
-                "not a transfer; refusing rather than leaving an unconfirmable "
-                "draft.", from_org, _name_of(src.get("company_id")) or src_co,
-                to_org, _name_of(dst.get("company_id")) or dst_co)
-            return False
+        src, dst = self._warehouse(from_org), self._warehouse(to_org)
+        src_loc, dst_loc = _id_of(src.get("lot_stock_id")), _id_of(dst.get("lot_stock_id"))
+        ptype = _id_of(src.get("int_type_id"))
 
         codes = [str(i.get("item_code")) for i in items if i.get("item_code")]
         if not codes:

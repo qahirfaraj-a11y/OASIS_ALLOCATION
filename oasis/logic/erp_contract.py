@@ -178,6 +178,28 @@ class ErpAdapter:
                          reason: Optional[str] = None) -> bool:
         raise Unsupported(self.ERP_NAME, WRITE_PO_STATUS)
 
+    def can_transfer(self, from_org: str, to_org: str) -> Dict[str, Any]:
+        """Would ``push_transfer_request(from_org, to_org, ...)`` be accepted?
+
+        ``{"ok": bool, "reason": str}``. Cheap enough to ask per store pair
+        before showing a recommendation.
+
+        This exists because the READ side and the WRITE side were disagreeing.
+        ``network_transfer_scan`` happily recommended four moves between two
+        Odoo warehouses that turned out to be in different companies — a
+        transfer Odoo cannot confirm and the adapter correctly refuses. The
+        operator would have seen four sensible moves, clicked, and been told
+        no. The stock imbalance was real; the execution route was not.
+
+        Implementations MUST be the same rule ``push_transfer_request``
+        enforces — the writer calls this, rather than repeating the check —
+        so the two can never drift apart again.
+        """
+        if WRITE_TRANSFER not in self.CAPABILITIES:
+            return {"ok": False,
+                    "reason": f"{self.ERP_NAME} cannot execute transfers"}
+        return {"ok": True, "reason": ""}
+
     def push_transfer_request(self, from_org: str, to_org: str,
                               items: List[dict]) -> bool:
         raise Unsupported(self.ERP_NAME, WRITE_TRANSFER)

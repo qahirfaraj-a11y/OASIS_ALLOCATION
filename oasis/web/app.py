@@ -173,9 +173,35 @@ def _build_transfers() -> Dict[str, Any]:
         # an explanation, not a failure, so it is returned as data.
         return {"opportunities": [], "store_health": scan.get("store_health") or [],
                 "totals": scan.get("totals") or {}, "error": scan["error"]}
-    return {"opportunities": scan.get("opportunities") or [],
-            "store_health": scan.get("store_health") or [],
-            "totals": scan.get("totals") or {}, "error": None}
+    ops = scan.get("opportunities") or []
+
+    # Ask the ADAPTER whether each route can actually be executed, rather than
+    # showing a recommendation the writer will refuse. Odoo's two demo
+    # warehouses sit in different companies, so the scan proposed four
+    # perfectly sensible moves that push_transfer_request correctly rejects —
+    # the imbalance was real, the route was not. Asked once per store PAIR,
+    # not per line: a hundred lines between the same two stores is one
+    # question.
+    adapter = D.get_adapter(_root())
+    verdicts: Dict[tuple, Dict[str, Any]] = {}
+    for o in ops:
+        pair = (o.get("from_org"), o.get("to_org"))
+        if pair not in verdicts:
+            try:
+                verdicts[pair] = adapter.can_transfer(*pair)
+            except Exception as e:
+                verdicts[pair] = {"ok": False, "reason": str(e)[:160]}
+        v = verdicts[pair]
+        o["executable"] = bool(v.get("ok"))
+        o["blocked_reason"] = "" if v.get("ok") else v.get("reason", "")
+
+    blocked = sum(1 for o in ops if not o["executable"])
+    totals = dict(scan.get("totals") or {})
+    totals["blocked"] = blocked
+    totals["executable_value"] = round(
+        sum(o.get("value") or 0 for o in ops if o["executable"]), 2)
+    return {"opportunities": ops, "store_health": scan.get("store_health") or [],
+            "totals": totals, "error": None}
 
 
 # ── jobs ─────────────────────────────────────────────────────────────────

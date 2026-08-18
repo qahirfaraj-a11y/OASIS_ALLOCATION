@@ -471,3 +471,51 @@ def test_zoho_uncategorised_is_visible_not_bucketed_into_a_real_department():
 
     assert UNCATEGORISED not in ("GROCERY", "GENERAL", "")
     assert _department_of({"category_name": None}) == UNCATEGORISED
+
+
+# ── can_transfer: the read side and the write side must agree ────────────
+def test_can_transfer_refuses_across_companies():
+    """The scan recommended four moves between two Odoo warehouses in
+    DIFFERENT companies — real imbalance, impossible route. Odoo lets you
+    CREATE such a picking and then refuses to confirm it, so the operator
+    would have seen sensible moves, clicked, and been told no."""
+    stub = _TransferStub()
+    a = _adapter_with(stub)
+    v = a.can_transfer("WH", "CHIC1")
+    assert v["ok"] is False
+    assert "different companies" in v["reason"]
+    assert "Acme" in v["reason"] and "Other" in v["reason"], (
+        "the reason must name the obstacle, not just say no")
+
+
+def test_can_transfer_allows_same_company():
+    assert _adapter_with(_TransferStub()).can_transfer("WH", "WH2")["ok"] is True
+
+
+def test_can_transfer_names_an_unknown_warehouse():
+    v = _adapter_with(_TransferStub()).can_transfer("WH", "NOPE")
+    assert v["ok"] is False and "NOPE" in v["reason"]
+
+
+def test_push_transfer_uses_can_transfer_rather_than_repeating_it():
+    """One implementation of the rule. Repeating the company check inside the
+    writer is exactly how the read and write sides drifted apart."""
+    stub = _TransferStub()
+    a = _adapter_with(stub)
+    calls = []
+    real = a.can_transfer
+    a.can_transfer = lambda f, t: (calls.append((f, t)), real(f, t))[1]
+    assert a.push_transfer_request("WH", "CHIC1", [_item()]) is False
+    assert calls == [("WH", "CHIC1")], "the writer must ask, not re-derive"
+    assert stub.created is None
+
+
+def test_a_backend_without_transfers_reports_why():
+    """Zoho and Tally do not declare WRITE_TRANSFER; the console needs a
+    reason to show, not a bare False."""
+    from oasis.logic.zoho_adapter import ZohoAdapter
+    from oasis.logic.tally_adapter import TallyAdapter
+    for cls in (ZohoAdapter, TallyAdapter):
+        v = cls.can_transfer(cls.__new__(cls), "A", "B")
+        assert v["ok"] is False
+        assert cls.ERP_NAME in v["reason"]

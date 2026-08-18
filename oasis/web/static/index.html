@@ -342,6 +342,7 @@ function renderTransfers(){
     stat('Value moved', money(t.total_value||0), true)+
     stat('SKUs', num(t.unique_skus||0))+
     stat('Store pairs', num(t.store_pairs||0))+
+    (t.blocked ? stat('Cannot execute', num(t.blocked)) : '')+
     (t.manual_only ? stat('Need a human', num(t.manual_only)) : '')+
     '</div>';
   if(!ops.length){
@@ -359,13 +360,32 @@ function renderTransfers(){
        '<td class="num">'+num(o.qty)+'</td><td class="num">'+money(o.value)+'</td>'+
        '<td class="num">'+fmtd(o.donor_cover)+'</td>'+
        '<td class="num">'+(tight?'<span class="chip c-bad">'+fmtd(o.recipient_cover)+'</span>':fmtd(o.recipient_cover))+'</td>'+
-       '<td>'+(o.manual_only?'<span class="chip c-warn">Review</span>':'<span class="chip c-good">Ready</span>')+'</td></tr>';
+       '<td>'+statusChip(o)+'</td></tr>';
   });
-  h+='</tbody></table></div><p class="hint" style="margin-top:12px">'+
+  h+='</tbody></table></div>';
+  const blocked = ops.filter(o=>o.executable===false);
+  if(blocked.length){
+    const reasons = [...new Set(blocked.map(o=>o.blocked_reason).filter(Boolean))];
+    h+='<div class="state err" style="text-align:left;padding:16px;margin-top:14px">'+
+       '<b style="color:var(--bad)">'+blocked.length+' of these cannot be executed by the connected system</b>'+
+       reasons.map(r=>'<div style="margin-top:6px">· '+esc(r)+'</div>').join('')+
+       '<div style="margin-top:10px;color:var(--ink3)">The stock imbalance is real — the route is not. '+
+       'Move these another way, or resolve the obstacle above.</div></div>';
+  }
+  h+='<p class="hint" style="margin-top:12px">'+
      'Lines marked <b>Review</b> are perishable — moving them is a judgement about shelf life, not a number, so OASIS never queues them automatically.</p>';
   $('#tr-body').innerHTML=h;
 }
 
+function statusChip(o){
+  // A move the ERP will refuse must not read as "Ready". The reason comes
+  // from the adapter, so it names the real obstacle rather than a generic
+  // failure the operator would have to go and diagnose.
+  if(o.executable === false)
+    return '<span class="chip c-bad" title="'+esc(o.blocked_reason||'')+'">Blocked</span>';
+  if(o.manual_only) return '<span class="chip c-warn">Review</span>';
+  return '<span class="chip c-good">Ready</span>';
+}
 const fmtd = v => v==null ? '—' : (Number(v)||0).toFixed(1)+'d';
 const stat = (k,v,big) => '<div class="stat"><div class="k">'+k+'</div><div class="v'+(big?'':' sm')+'">'+v+'</div></div>';
 function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
