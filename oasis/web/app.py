@@ -32,6 +32,8 @@ from typing import Any, Dict, List, Optional
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import FileResponse, JSONResponse
 
+from oasis.web import jobs
+
 logger = logging.getLogger("OasisWeb")
 
 STATIC = os.path.join(os.path.dirname(os.path.abspath(__file__)), "static")
@@ -114,18 +116,12 @@ def sites() -> Dict[str, Any]:
                      "at least one warehouse/location exists and is active."}
 
 
-@app.get("/api/orders/{org_cd}")
-def orders(org_cd: str) -> Dict[str, Any]:
-    """Live order recommendations for one site.
-
-    Runs the real engine, so this is slow (tens of seconds on a full
-    catalogue). The page shows a working state rather than pretending it is
-    instant — a spinner that tells the truth beats a fast lie.
-    """
+def _build_orders(org_cd: str) -> Dict[str, Any]:
+    """The real engine run. Called on a job thread, never in a request."""
     from oasis.desktop import data as D
     res = D.generate_smart_orders(org_cd, root=_root())
     if res.get("error"):
-        raise HTTPException(status_code=502, detail=res["error"])
+        raise RuntimeError(res["error"])
     recs = res.get("po_recs") or res.get("recs") or []
     rows = []
     for r in recs:
@@ -164,8 +160,7 @@ def orders(org_cd: str) -> Dict[str, Any]:
     }
 
 
-@app.get("/api/transfers")
-def transfers() -> Dict[str, Any]:
+def _build_transfers() -> Dict[str, Any]:
     """Cross-store transfer opportunities for the whole network.
 
     Network-wide by nature: a transfer is a relationship between two sites, so
@@ -181,6 +176,33 @@ def transfers() -> Dict[str, Any]:
     return {"opportunities": scan.get("opportunities") or [],
             "store_health": scan.get("store_health") or [],
             "totals": scan.get("totals") or {}, "error": None}
+
+
+# ── jobs ─────────────────────────────────────────────────────────────────
+@app.post("/api/jobs/orders/{org_cd}")
+def start_orders(org_cd: str) -> Dict[str, Any]:
+    """Kick off an engine run and hand back a job id to poll.
+
+    Single-flight per store, so a reload or a second open tab joins the run in
+    progress instead of launching another one.
+    """
+    job = jobs.submit("orders", org_cd, lambda: _build_orders(org_cd))
+    return job.public(with_result=False)
+
+
+@app.post("/api/jobs/transfers")
+def start_transfers() -> Dict[str, Any]:
+    job = jobs.submit("transfers", "network", _build_transfers)
+    return job.public(with_result=False)
+
+
+@app.get("/api/jobs/{job_id}")
+def job_status(job_id: str) -> Dict[str, Any]:
+    job = jobs.get(job_id)
+    if job is None:
+        raise HTTPException(status_code=404, detail="Unknown job — it may have "
+                                                    "expired. Run it again.")
+    return job.public()
 
 
 @app.post("/api/orders/{org_cd}/push")

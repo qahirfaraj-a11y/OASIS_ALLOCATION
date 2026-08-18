@@ -203,17 +203,39 @@ $('#t-orders').onclick = ()=>show('orders');
 $('#t-transfers').onclick = ()=>show('transfers');
 
 function working(el, msg, sub){
-  el.innerHTML = '<div class="state"><div class="spin"></div><b>'+msg+'</b>'+(sub||'')+'</div>';
+  el.innerHTML = '<div class="state"><div class="spin"></div><b>'+esc(msg)+'</b>'+
+    '<span id="jobstep" style="display:block">'+esc(sub||'')+'</span>'+
+    '<span id="jobtime" style="display:block;margin-top:8px;font-family:var(--mono);font-size:11.5px;color:var(--ink3)"></span></div>';
+}
+
+/* Start a job, then poll it. The engine is not a web request: on a full
+   catalogue a synchronous call does not return inside any sane timeout. */
+async function runJob(startUrl, el, title){
+  working(el, title, 'Starting…');
+  const job = await j(startUrl, {method:'POST'});
+  let delay = 400;
+  for(;;){
+    await new Promise(r => setTimeout(r, delay));
+    delay = Math.min(delay * 1.35, 2500);        // back off, stay responsive early
+    let s;
+    try{ s = await j('/api/jobs/'+job.id); }
+    catch(e){ throw new Error('Lost track of the run: '+e.message); }
+    const step = document.getElementById('jobstep');
+    const tm = document.getElementById('jobtime');
+    if(step && s.step) step.textContent = s.step;
+    if(tm) tm.textContent = s.elapsed + 's elapsed';
+    if(s.status === 'done') return s.result;
+    if(s.status === 'error') throw new Error(s.error || 'The run failed.');
+  }
 }
 
 /* ── ORDERS ─────────────────────────────────────────────────────────── */
 async function loadOrders(){
   if(!SITE) return;
   $('#orders-stats').innerHTML = '';
-  working($('#orders-body'), 'Running the ordering engine for '+(SITE.name||SITE.org_cd),
-          'Reading the catalogue, demand and open orders. This takes a moment on a full store.');
   try{
-    ORDERS = await j('/api/orders/'+encodeURIComponent(SITE.org_cd));
+    ORDERS = await runJob('/api/jobs/orders/'+encodeURIComponent(SITE.org_cd),
+      $('#orders-body'), 'Running the ordering engine for '+(SITE.name||SITE.org_cd));
     renderOrders();
   }catch(e){
     $('#orders-body').innerHTML = '<div class="state err"><b>Could not generate orders</b>'+e.message+'</div>';
@@ -300,10 +322,9 @@ async function doPush(){
 
 /* ── TRANSFERS ──────────────────────────────────────────────────────── */
 async function loadTransfers(){
-  working($('#tr-body'),'Scanning the network','Comparing cover across every store to find stock worth moving instead of buying.');
   $('#tr-stats').innerHTML='';
   try{
-    TRANSFERS = await j('/api/transfers');
+    TRANSFERS = await runJob('/api/jobs/transfers', $('#tr-body'), 'Scanning the network');
     renderTransfers();
   }catch(e){
     $('#tr-body').innerHTML = '<div class="state err"><b>Scan failed</b>'+e.message+'</div>';
