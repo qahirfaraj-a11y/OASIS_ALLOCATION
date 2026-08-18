@@ -28,6 +28,7 @@ from oasis.logic import erp_contract as C
 from oasis.logic.odoo_adapter import OdooAdapter          # noqa: F401  (registers)
 from oasis.logic.pos_erp_adapter import PosErpAdapter     # noqa: F401  (registers)
 from oasis.logic.zoho_adapter import ZohoAdapter          # noqa: F401  (registers)
+from oasis.logic.tally_adapter import TallyAdapter        # noqa: F401  (registers)
 
 #: name -> the env var that, when set, means a live instance is reachable.
 #: Add a row when a backend is built; the live tests light up automatically.
@@ -38,9 +39,10 @@ from oasis.logic.zoho_adapter import ZohoAdapter          # noqa: F401  (registe
 LIVE_ENV = {
     "odoo": "OASIS_TEST_ODOO",
     "zoho": "OASIS_TEST_ZOHO",
+    "tally": "OASIS_TEST_TALLY",
 }
 
-ADAPTERS = [OdooAdapter, PosErpAdapter, ZohoAdapter]
+ADAPTERS = [OdooAdapter, PosErpAdapter, ZohoAdapter, TallyAdapter]
 
 
 # ── layer 1: static contract conformance ─────────────────────────────────
