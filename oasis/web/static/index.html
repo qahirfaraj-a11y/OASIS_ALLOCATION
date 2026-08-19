@@ -121,6 +121,15 @@
   .btn.sm{padding:7px 13px;font-size:12.5px;font-weight:600}
   .muted{color:var(--ink3);font-size:12.5px}
   .sp{flex:1}
+
+  /* ── methodology banner: transfers precede orders ── */
+  .method{border:1px solid var(--accent);border-left-width:3px;border-radius:3px;
+    background:rgba(46,211,198,.06);padding:13px 16px;margin:0 0 20px}
+  .method b{display:block;color:var(--accent);font-size:13.5px;font-weight:650;
+    margin-bottom:3px}
+  .method span{color:var(--ink2);font-size:13px}
+  .method.quiet{border-color:var(--line);background:var(--panel)}
+  .method.quiet b{color:var(--ink2)}
   th.sortable{cursor:pointer;user-select:none}
   th.sortable:hover{color:var(--accent)}
   :focus-visible{outline:2px solid var(--accent);outline-offset:2px}
@@ -270,6 +279,31 @@ function renderOrders(){
     (f.no_order_needed!=null ? stat('No order needed', num(f.no_order_needed)) : '')+
     (f.below_moq!=null ? stat('Below MOQ', num(f.below_moq)) : '')+
     '</div>';
+
+  // The methodology, stated on screen. generate_smart_orders is
+  // engine -> network -> MOQ gate, and NetworkPlan defines adjusted_orders as
+  // "original - transfer fulfillments" — so this order is ALREADY net of
+  // everything a transfer could cover. Transfers take precedence over buying.
+  // If that is the sell point, it has to be visible, not implied.
+  const nw = ORDERS.network || {};
+  if(nw.items_transferred || (nw.transfers && nw.transfers.length)){
+    $('#orders-stats').innerHTML +=
+      '<div class="method">'+
+      '<b>Transfers were applied before this order was calculated.</b>'+
+      '<span>'+num(nw.items_transferred)+' line'+(nw.items_transferred===1?'':'s')+
+      ' covered by moving '+num(nw.units_transferred)+' units between stores'+
+      (nw.savings_kes ? ', saving '+money(nw.savings_kes)+' against buying them' : '')+
+      '. '+num(nw.orders_reduced)+' order line'+(nw.orders_reduced===1?'':'s')+
+      ' reduced as a result'+
+      (nw.donor_additions ? '; '+num(nw.donor_additions)+' line'+
+        (nw.donor_additions===1?'':'s')+' added to donor orders to compensate' : '')+
+      '.</span></div>';
+  } else if(ORDERS.network){
+    $('#orders-stats').innerHTML +=
+      '<div class="method quiet"><b>No transfers could cover any of this order.</b>'+
+      '<span>Every line below has to be bought — nothing in the network had '+
+      'spare cover to move instead.</span></div>';
+  }
 
   if(!ORDERS.rows.length){
     $('#orders-body').innerHTML = '<div class="state"><b>Nothing to order</b>'+
@@ -496,7 +530,7 @@ function renderTransfers(){
        'Move these another way, or resolve the obstacle above.</div></div>';
   }
   h+='<p class="hint" style="margin-top:12px">'+
-     'Lines marked <b>Review</b> are perishable — moving them is a judgement about shelf life, not a number, so OASIS never queues them automatically.</p>';
+     'This is a network-wide scan for stock worth moving. It is a different question from the transfers already applied inside an order run, which are shown on the Orders tab. Lines marked <b>Review</b> are perishable — moving them is a judgement about shelf life, not a number, so OASIS never queues them automatically.</p>';
   $('#tr-body').innerHTML=h;
 }
 

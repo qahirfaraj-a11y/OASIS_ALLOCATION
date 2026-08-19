@@ -144,9 +144,60 @@ def _build_orders(org_cd: str) -> Dict[str, Any]:
     by_supplier: Dict[str, float] = {}
     for r in rows:
         by_supplier[r["supplier"]] = by_supplier.get(r["supplier"], 0.0) + r["value"]
+
+    # THE METHODOLOGY, MADE VISIBLE.
+    #
+    # generate_smart_orders is engine -> network -> MOQ gate, and NetworkPlan
+    # documents its own output as "Per-store adjusted orders (original -
+    # transfer fulfillments)". So the lines above are already NET of everything
+    # a transfer could satisfy: transfers take precedence over buying, which is
+    # the whole point of the product.
+    #
+    # This console was discarding the entire plan and keeping only po_recs, so
+    # the one number that proves the pitch — what was moved instead of bought —
+    # never reached the screen. Worse, the Transfers tab ran a SEPARATE
+    # scan_network_opportunities, so the two tabs were showing different
+    # computations of the same idea.
+    plan = res.get("network_plan")
+    network: Dict[str, Any] = {}
+    if plan is not None:
+        # TransferRecord (oasis/logic/transfer_state.py) uses qty and cost_kes.
+        # scan_network_opportunities emits a DIFFERENT shape with transfer_qty
+        # and value_kes, and reading the wrong pair here silently produced a
+        # list of moves all showing qty 0 while the plan reported 531 units
+        # transferred — the two numbers on screen contradicting each other with
+        # no error anywhere.
+        moves = []
+        for t in (getattr(plan, "transfers", None) or []):
+            moves.append({
+                "item_code": getattr(t, "itm_cd", ""),
+                "product": getattr(t, "product_name", ""),
+                "from_org": getattr(t, "from_org", ""),
+                "to_org": getattr(t, "to_org", ""),
+                "qty": float(getattr(t, "qty", 0) or 0),
+                "cost": round(float(getattr(t, "cost_kes", 0) or 0), 2),
+                "urgency": getattr(t, "urgency", ""),
+                "department": getattr(t, "department", ""),
+                # A store cannot transfer to itself. Flagged rather than hidden:
+                # see the note in the console's methodology banner.
+                "self_transfer": (getattr(t, "from_org", "")
+                                  == getattr(t, "to_org", "")),
+            })
+        donor_adds = sum(len(v) for v in
+                         (getattr(plan, "donor_additions", None) or {}).values())
+        network = {
+            "transfers": moves,
+            "items_transferred": int(getattr(plan, "total_items_transferred", 0) or 0),
+            "units_transferred": float(getattr(plan, "total_units_transferred", 0) or 0),
+            "orders_reduced": int(getattr(plan, "total_orders_reduced", 0) or 0),
+            "savings_kes": round(float(getattr(plan, "estimated_savings_kes", 0) or 0), 2),
+            "donor_additions": donor_adds,
+        }
+
     return {
         "org_cd": org_cd,
         "rows": rows,
+        "network": network,
         "funnel": res.get("funnel") or {},
         "totals": {
             "lines": len(rows),
