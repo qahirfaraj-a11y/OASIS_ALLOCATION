@@ -114,7 +114,9 @@ class ConsolidatedTransferService:
                  registry_path: Optional[str] = None,
                  distance_map: Optional[Dict[str, Dict[str, float]]] = None,
                  cold_node_days: int = 60,
-                 hot_node_days: int = 14):
+                 hot_node_days: int = 14,
+                 target_cover_days: float = 14.0,
+                 next_delivery_days: Optional[Dict[str, float]] = None):
         """
         Args:
             org_names: {org_cd: org_name} for all stores
@@ -132,6 +134,17 @@ class ConsolidatedTransferService:
         self.distance_map = distance_map or {}
         self.cold_node_days = cold_node_days
         self.hot_node_days = hot_node_days
+        # ONE target, used by BOTH passes. PULL used to fill to
+        # pull_deficit_days (7) while PUSH topped up to hot_node_days (14), so a
+        # store served by both landed at the union of two targets that were
+        # never meant to disagree — measured median fill 2.88x the stated need.
+        # pull_deficit_days remains the TRIGGER (is this a deficit); this is the
+        # TARGET (how much cover to restore).
+        self.target_cover_days = float(target_cover_days)
+        # supplier -> days until their next order window, from the calendar.
+        # Turns the target from an arbitrary constant into "cover until relief
+        # actually arrives".
+        self.next_delivery_days = next_delivery_days or {}
 
         self.tracker = TransferStateTracker()
         if self.registry_path:
@@ -212,6 +225,31 @@ class ConsolidatedTransferService:
                     velocity_ratio=float(ads / max(1.0, current)) if current > 0 else 0.0
                 ), bcode)
         return nmap
+
+    def _target_cover(self, supplier: str, lead_days: float) -> float:
+        """T_sustain = min(T_standard, max(1, T_next)).
+
+        T_next is days until the next scheduled delivery: the supplier's next
+        order window plus their lead time. Covering beyond that buys stock the
+        supplier is about to deliver anyway, which is how a store selling ~0 of
+        an item was calculated to "need" 7 units of it.
+
+        Falls back to the standard horizon when the supplier is unknown to the
+        calendar — a missing schedule must not silently shrink the target to
+        nothing.
+        """
+        nxt = self.next_delivery_days.get((supplier or "").strip().lower())
+        if nxt is None:
+            return self.target_cover_days
+        return min(self.target_cover_days, max(1.0, float(nxt) + float(lead_days or 0)))
+
+    def _target_units(self, entry: dict) -> float:
+        """Units of cover this store should hold for this SKU."""
+        ads = float(entry.get('avg_daily_sales') or 0)
+        if ads <= 0:
+            return 0.0
+        return ads * self._target_cover(entry.get('supplier', ''),
+                                        entry.get('lead_days', 0.0))
 
     @staticmethod
     def _excess_units(ads: float, stock: float, is_fresh: bool) -> float:
@@ -341,6 +379,7 @@ class ConsolidatedTransferService:
                     'cost_price': float(p.get('cost_price', 0) or 0),
                     'department': dept,
                     'supplier': str(p.get('supplier_name', '') or ''),
+                    'lead_days': float(p.get('estimated_delivery_days', 0) or 0),
                     'uom': str(p.get('uom', 'EA')).upper(),
                     'is_fresh': fresh,
                 }
@@ -415,9 +454,10 @@ class ConsolidatedTransferService:
             for item in considered:
                 itm = item['itm_cd']
                 ads = item['avg_daily_sales']
-                target_qty = max(ads * pull_deficit_days, 1.0) if ads > 0 else 2.0
-                shortfall = max(0.0, target_qty - item['current_stock'],
-                                item.get('moq_qty', 0.0))
+                target_qty = self._target_units(item) if ads > 0 else 2.0
+                # net of anything already promised to this store in this scan
+                have = item['current_stock'] + recip_booked.get((rec_org, itm), 0.0)
+                shortfall = max(0.0, target_qty - have, item.get('moq_qty', 0.0))
                 if shortfall < 0.1:
                     continue
 
@@ -485,9 +525,15 @@ class ConsolidatedTransferService:
                     eff_recip_stock = recip['current_stock'] + recip_in
                     recip_ads = max(recip['avg_daily_sales'], 0.5)
                     eff_days = eff_recip_stock / recip_ads
+                    # THE SAME target PULL used. Filling to hot_node_days here
+                    # while PULL filled to pull_deficit_days is what produced a
+                    # 2.88x median over-fill: two passes, two answers, one store.
+                    target_units = self._target_units(recip)
+                    if target_units <= 0 or eff_recip_stock >= target_units:
+                        continue  # already at target within this scan
                     if eff_days >= self.hot_node_days:
-                        continue  # already topped up within this scan
-                    need = max(1.0, (self.hot_node_days - eff_days) * recip_ads)
+                        continue
+                    need = max(1.0, target_units - eff_recip_stock)
                     xfer = _round_transfer_qty(min(avail * 0.4, need), donor['department'])
                     if xfer < 1:
                         continue

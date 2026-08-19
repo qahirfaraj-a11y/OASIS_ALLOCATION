@@ -267,6 +267,40 @@ def data_provenance(root: Optional[str] = None) -> Dict[str, Any]:
         return {"source": "none", "store_name": None, "is_sample": False, "db": ""}
 
 
+def _next_delivery_days(data_dir: str, net_stock: Dict[str, Any]) -> Dict[str, float]:
+    """supplier (lowercased) -> days until their next order window.
+
+    Built once per scan and handed to ConsolidatedTransferService so the
+    transfer target becomes "cover until relief actually arrives" instead of a
+    fixed horizon that treats a supplier delivering tomorrow the same as one
+    delivering in thirteen days. Missing suppliers are simply absent, and the
+    service falls back to its standard horizon for them — an unknown schedule
+    must never silently shrink the target to nothing.
+    """
+    out: Dict[str, float] = {}
+    try:
+        from oasis.data.supplier_calendar import SupplierCalendar
+        from oasis.logic.simulation_bridge import _find_calendar_path
+        cal = SupplierCalendar(_find_calendar_path(data_dir))
+        cal.load()
+    except Exception as e:
+        logger.warning("supplier calendar unavailable (%s) — transfer targets "
+                       "fall back to the standard horizon", str(e)[:120])
+        return out
+    for prods in (net_stock or {}).values():
+        for p in prods or []:
+            nm = str(p.get("supplier_name") or "").strip()
+            key = nm.lower()
+            if nm and key not in out:
+                try:
+                    d = cal.days_to_next_order(nm)
+                except Exception:
+                    d = None
+                if d is not None:
+                    out[key] = float(d)
+    return out
+
+
 def generate_smart_orders(org_cd: str, thresholds: Optional[Dict[str, Any]] = None, root: Optional[str] = None) -> Dict[str, Any]:
     """Run the Smart Ordering pipeline (engine -> network -> MOQ gate) completely offline."""
     try:
@@ -313,6 +347,7 @@ def generate_smart_orders(org_cd: str, thresholds: Optional[Dict[str, Any]] = No
         cts = ConsolidatedTransferService(
             org_names=org_name_map,
             stock_data=enriched_network_stock,
+            next_delivery_days=_next_delivery_days(data_dir, enriched_network_stock),
             registry_path=registry_path,
             distance_map=distance_map,
             cold_node_days=60,
@@ -1338,6 +1373,7 @@ def network_transfer_scan(root: Optional[str] = None) -> Dict[str, Any]:
             distance_map=distance_map,
             cold_node_days=60,
             hot_node_days=14,
+            next_delivery_days=_next_delivery_days(data_dir, net_stock),
         )
         scan = cts.scan_network_opportunities(moq_failures=moq_failures,
                                               pending_transfers=pending)

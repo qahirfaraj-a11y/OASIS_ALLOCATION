@@ -179,6 +179,32 @@ class SupplierCalendar:
         except Exception as e:
             print(f"  - Warning: Could not parse Master Schedule: {e}")
 
+    def days_to_next_order(self, supplier_name: str, today_doy: int = None):
+        """Days until this supplier's NEXT order day, or None if unknown.
+
+        get_schedule already returns 'DAILY' or a set of day-of-year numbers,
+        but every caller collapsed it to a boolean "can I order today". The
+        distance to the next window was thrown away, and it is the number that
+        matters: a store waiting 13 days for its next Coolers order needs a
+        completely different transfer from one waiting 1 day for Chandaria.
+        Both were treated identically by a fixed 14-day horizon.
+        """
+        import datetime
+        sched = self.get_schedule(supplier_name)
+        if sched is None:
+            return None
+        if sched == 'DAILY':
+            return 0.0
+        if not isinstance(sched, set) or not sched:
+            return None
+        if today_doy is None:
+            today_doy = datetime.date.today().timetuple().tm_yday
+        ahead = [d for d in sched if d > today_doy]
+        if ahead:
+            return float(min(ahead) - today_doy)
+        # nothing left this year: wrap to the earliest day next year
+        return float(min(sched) + 365 - today_doy)
+
     def get_schedule(self, supplier_name: str) -> Union[str, Set[int], None]:
         """Returns 'DAILY', Set[DayOfYear], or None."""
         norm_query = self._normalize_name(supplier_name)
