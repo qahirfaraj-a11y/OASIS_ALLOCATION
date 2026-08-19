@@ -1,0 +1,356 @@
+{
+  "sites": [
+    {
+      "org_cd": "001",
+      "name": "Warehouse Baba Dogo",
+      "aliases": [
+        "016"
+      ],
+      "lat": -1.2653,
+      "lon": 36.8872,
+      "is_warehouse_hub": true
+    },
+    {
+      "org_cd": "002",
+      "name": "Chandarana Adlife Plaza",
+      "aliases": [
+        "CFP-004"
+      ],
+      "lat": -1.2936,
+      "lon": 36.7954,
+      "is_warehouse_hub": false
+    },
+    {
+      "org_cd": "003",
+      "name": "Chandarana Mobil Plaza Muthaiga",
+      "aliases": [
+        "CFP-011"
+      ],
+      "lat": -1.2536,
+      "lon": 36.8372,
+      "is_warehouse_hub": false
+    },
+    {
+      "org_cd": "004",
+      "name": "Highridge Branch",
+      "aliases": [],
+      "lat": -1.2625,
+      "lon": 36.805,
+      "is_warehouse_hub": false
+    },
+    {
+      "org_cd": "005",
+      "name": "Chandarana ABC Place",
+      "aliases": [
+        "CFP-006"
+      ],
+      "lat": -1.2619,
+      "lon": 36.7772,
+      "is_warehouse_hub": false
+    },
+    {
+      "org_cd": "006",
+      "name": "Diani Branch",
+      "aliases": [],
+      "lat": -4.3167,
+      "lon": 39.5833,
+      "is_warehouse_hub": false
+    },
+    {
+      "org_cd": "007",
+      "name": "Chandarana Lavington Mall",
+      "aliases": [
+        "CFP-005"
+      ],
+      "lat": -1.2785,
+      "lon": 36.7725,
+      "is_warehouse_hub": false
+    },
+    {
+      "org_cd": "008",
+      "name": "Ngara Branch",
+      "aliases": [],
+      "lat": -1.275,
+      "lon": 36.825,
+      "is_warehouse_hub": false
+    },
+    {
+      "org_cd": "009",
+      "name": "Chandarana Diamond Plaza",
+      "aliases": [
+        "CFP-009"
+      ],
+      "lat": -1.2581,
+      "lon": 36.8228,
+      "is_warehouse_hub": false
+    },
+    {
+      "org_cd": "011",
+      "name": "Chandarana Yaya Centre",
+      "aliases": [
+        "CFP-003"
+      ],
+      "lat": -1.2912,
+      "lon": 36.7991,
+      "is_warehouse_hub": false
+    },
+    {
+      "org_cd": "013",
+      "name": "Nanyuki Branch",
+      "aliases": [],
+      "lat": 0.0167,
+      "lon": 37.0833,
+      "is_warehouse_hub": false
+    },
+    {
+      "org_cd": "014",
+      "name": "Chandarana Rosslyn Riviera",
+      "aliases": [
+        "CFP-012"
+      ],
+      "lat": -1.2224,
+      "lon": 36.8021,
+      "is_warehouse_hub": false
+    },
+    {
+      "org_cd": "015",
+      "name": "Eldoret Branch",
+      "aliases": [],
+      "lat": 0.5143,
+      "lon": 35.2698,
+      "is_warehouse_hub": false
+    },
+    {
+      "org_cd": "017",
+      "name": "Chandarana The Well Karen",
+      "aliases": [
+        "CFP-002"
+      ],
+      "lat": -1.3402,
+      "lon": 36.7601,
+      "is_warehouse_hub": false
+    },
+    {
+      "org_cd": "018",
+      "name": "Westend Branch",
+      "aliases": [],
+      "lat": -1.27,
+      "lon": 36.75,
+      "is_warehouse_hub": false
+    },
+    {
+      "org_cd": "019",
+      "name": "Nyali Plaza Mombasa",
+      "aliases": [],
+      "lat": -4.0435,
+      "lon": 39.6682,
+      "is_warehouse_hub": false
+    },
+    {
+      "org_cd": "020",
+      "name": "Chandarana Ridgeways Mall",
+      "aliases": [
+        "CFP-013"
+      ],
+      "lat": -1.2312,
+      "lon": 36.8455,
+      "is_warehouse_hub": false
+    },
+    {
+      "org_cd": "021",
+      "name": "Chandarana Signature Mall",
+      "aliases": [
+        "CFP-001"
+      ],
+      "lat": -1.4285,
+      "lon": 36.9532,
+      "is_warehouse_hub": false
+    },
+    {
+      "org_cd": "022",
+      "name": "Holden Mall Kakamega",
+      "aliases": [],
+      "lat": 0.2827,
+      "lon": 34.7519,
+      "is_warehouse_hub": false
+    },
+    {
+      "org_cd": "025",
+      "name": "Golden Life Mall Nakuru",
+      "aliases": [],
+      "lat": -0.3031,
+      "lon": 36.08,
+      "is_warehouse_hub": false
+    },
+    {
+      "org_cd": "026",
+      "name": "Buffalo Mall Naivasha",
+      "aliases": [],
+      "lat": -0.7172,
+      "lon": 36.431,
+      "is_warehouse_hub": false
+    },
+    {
+      "org_cd": "027",
+      "name": "Chandarana Rhapta Road",
+      "aliases": [
+        "CFP-007"
+      ],
+      "lat": -1.2641,
+      "lon": 36.7865,
+      "is_warehouse_hub": false
+    },
+    {
+      "org_cd": "028",
+      "name": "Chandarana Riverside Square",
+      "aliases": [
+        "CFP-008"
+      ],
+      "lat": -1.2701,
+      "lon": 36.7995,
+      "is_warehouse_hub": false
+    },
+    {
+      "org_cd": "029",
+      "name": "Chandarana New Muthaiga Thigiri",
+      "aliases": [
+        "CFP-014"
+      ],
+      "lat": -1.2375,
+      "lon": 36.7892,
+      "is_warehouse_hub": false
+    },
+    {
+      "org_cd": "030",
+      "name": "Chandarana Azalea Square",
+      "aliases": [
+        "CFP-010"
+      ],
+      "lat": -1.2523,
+      "lon": 36.8081,
+      "is_warehouse_hub": false
+    },
+    {
+      "org_cd": "031",
+      "name": "Crystal Rivers Mall",
+      "aliases": [],
+      "lat": -1.43,
+      "lon": 36.96,
+      "is_warehouse_hub": false
+    },
+    {
+      "org_cd": "032",
+      "name": "My Town Karen",
+      "aliases": [],
+      "lat": -1.32,
+      "lon": 36.71,
+      "is_warehouse_hub": false
+    },
+    {
+      "org_cd": "033",
+      "name": "Greenwood Village",
+      "aliases": [],
+      "lat": -1.24,
+      "lon": 36.83,
+      "is_warehouse_hub": false
+    },
+    {
+      "org_cd": "034",
+      "name": "Astrol Square",
+      "aliases": [],
+      "lat": -1.23,
+      "lon": 36.85,
+      "is_warehouse_hub": false
+    }
+  ],
+  "alias_index": {
+    "001": "001",
+    "ORG001": "001",
+    "016": "001",
+    "ORG016": "001",
+    "002": "002",
+    "ORG002": "002",
+    "CFP-004": "002",
+    "ORGCFP-004": "002",
+    "003": "003",
+    "ORG003": "003",
+    "CFP-011": "003",
+    "ORGCFP-011": "003",
+    "004": "004",
+    "ORG004": "004",
+    "005": "005",
+    "ORG005": "005",
+    "CFP-006": "005",
+    "ORGCFP-006": "005",
+    "006": "006",
+    "ORG006": "006",
+    "007": "007",
+    "ORG007": "007",
+    "CFP-005": "007",
+    "ORGCFP-005": "007",
+    "008": "008",
+    "ORG008": "008",
+    "009": "009",
+    "ORG009": "009",
+    "CFP-009": "009",
+    "ORGCFP-009": "009",
+    "011": "011",
+    "ORG011": "011",
+    "CFP-003": "011",
+    "ORGCFP-003": "011",
+    "013": "013",
+    "ORG013": "013",
+    "014": "014",
+    "ORG014": "014",
+    "CFP-012": "014",
+    "ORGCFP-012": "014",
+    "015": "015",
+    "ORG015": "015",
+    "017": "017",
+    "ORG017": "017",
+    "CFP-002": "017",
+    "ORGCFP-002": "017",
+    "018": "018",
+    "ORG018": "018",
+    "019": "019",
+    "ORG019": "019",
+    "020": "020",
+    "ORG020": "020",
+    "CFP-013": "020",
+    "ORGCFP-013": "020",
+    "021": "021",
+    "ORG021": "021",
+    "CFP-001": "021",
+    "ORGCFP-001": "021",
+    "022": "022",
+    "ORG022": "022",
+    "025": "025",
+    "ORG025": "025",
+    "026": "026",
+    "ORG026": "026",
+    "027": "027",
+    "ORG027": "027",
+    "CFP-007": "027",
+    "ORGCFP-007": "027",
+    "028": "028",
+    "ORG028": "028",
+    "CFP-008": "028",
+    "ORGCFP-008": "028",
+    "029": "029",
+    "ORG029": "029",
+    "CFP-014": "029",
+    "ORGCFP-014": "029",
+    "030": "030",
+    "ORG030": "030",
+    "CFP-010": "030",
+    "ORGCFP-010": "030",
+    "031": "031",
+    "ORG031": "031",
+    "032": "032",
+    "ORG032": "032",
+    "033": "033",
+    "ORG033": "033",
+    "034": "034",
+    "ORG034": "034"
+  }
+}

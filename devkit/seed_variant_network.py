@@ -54,24 +54,65 @@ DEFAULT_SRC = os.path.join(ROOT, "oasis", "data", "mock_pos_erp.db")
 DEFAULT_OUT = os.path.join(ROOT, "oasis", "data", "variant_network.db")
 DEFAULT_KEY = os.path.join(ROOT, "oasis", "data", "variant_network_answers.json")
 
-#: Real estate, with a deliberate spread of size. range_share is the fraction of
-#: the catalogue the store carries; demand_scale multiplies base velocity.
-STORES = [
-    ("ORG001", "Chandarana Yaya Centre",          "FLAGSHIP", 0.94, 1.30),
-    ("ORG002", "Chandarana Lavington Mall",       "FLAGSHIP", 0.90, 1.15),
-    ("ORG003", "Chandarana Diamond Plaza",        "FLAGSHIP", 0.88, 1.05),
-    ("ORG004", "Chandarana ABC Place",            "STANDARD", 0.74, 0.85),
-    ("ORG005", "Chandarana Rhapta Road",          "STANDARD", 0.72, 0.80),
-    ("ORG006", "Chandarana Signature Mall",       "STANDARD", 0.68, 0.70),
-    ("ORG007", "Chandarana Adlife Plaza",         "STANDARD", 0.64, 0.66),
-    ("ORG008", "Chandarana Rosslyn Riviera",      "STANDARD", 0.60, 0.60),
-    ("ORG009", "Chandarana The Well Karen",       "STANDARD", 0.56, 0.55),
-    ("ORG010", "Chandarana Riverside Square",     "COMPACT",  0.44, 0.42),
-    ("ORG011", "Chandarana Ridgeways Mall",       "COMPACT",  0.40, 0.38),
-    ("ORG012", "Chandarana New Muthaiga Thigiri", "COMPACT",  0.36, 0.33),
-    ("ORG013", "Chandarana Mobil Plaza Muthaiga", "COMPACT",  0.32, 0.29),
-    ("ORG014", "Chandarana Azalea Square",        "COMPACT",  0.28, 0.24),
-]
+#: REAL store identities, read from store_coords.json.
+#:
+#: The first cut of this seeder invented ORG001..ORG014 with hand-written
+#: names. Those codes then collided with the coordinate file, which is keyed
+#: '001','002','016' — so ORG001 ("Chandarana Yaya Centre" in the seed) resolved
+#: to coord '001' = HEAD OFFICE, which carries is_warehouse_hub. The seeded
+#: store silently inherited a 3x donor boost it was never meant to have and
+#: became the network's top donor. Deriving identity from the coordinate file
+#: means code, name and position agree by construction and that class of
+#: artifact cannot recur.
+#:
+#: Warehouse hubs are EXCLUDED. Baba Dogo is a real warehouse but stocks
+#: differently from a retail branch, and seeded retail stock cannot represent
+#: it — modelling it as just another store would be worse than leaving it out.
+REGISTRY_PATH = os.path.join(ROOT, "oasis", "data", "store_registry.json")
+
+#: 3 flagship, 6 standard, 5 compact — assigned by position, not measured.
+TIER_PLAN = ([("FLAGSHIP", 0.94, 1.30), ("FLAGSHIP", 0.90, 1.15),
+              ("FLAGSHIP", 0.88, 1.05)]
+             + [("STANDARD", 0.74 - i * 0.03, 0.85 - i * 0.05) for i in range(6)]
+             + [("COMPACT", 0.44 - i * 0.04, 0.42 - i * 0.045) for i in range(5)])
+
+
+def _load_stores(n: int = 14):
+    """Pick n real branches from the CANONICAL registry.
+
+    The registry is used rather than store_coords.json directly because that
+    file holds 44 entries for 29 sites — fifteen shops appear twice under two
+    code schemes. Seeding from it produced pairs like "Mobil Branch" and
+    "Chandarana Mobil Plaza Muthaiga" as separate stores at identical
+    coordinates, which is a transfer network containing shops that are actually
+    the same shop.
+
+    Warehouse hubs are excluded: Baba Dogo stocks differently from a retail
+    branch and seeded retail stock cannot represent it.
+
+    One deliberately distant branch is kept — with every store inside 15km the
+    distance term barely varies and distance-aware ranking cannot be seen to
+    work at all.
+    """
+    import math
+    with open(REGISTRY_PATH, "r", encoding="utf-8") as fh:
+        reg = json.load(fh)
+    sites = [s for s in reg["sites"] if not s.get("is_warehouse_hub")]
+    lat0 = sum(s["lat"] for s in sites) / len(sites)
+    lon0 = sum(s["lon"] for s in sites) / len(sites)
+
+    def km(s):
+        return math.hypot((s["lat"] - lat0) * 111.0,
+                          (s["lon"] - lon0) * 111.0 * math.cos(math.radians(lat0)))
+
+    sites.sort(key=km)
+    chosen = sites[:n - 1] + [sites[-1]]
+    return [(f"ORG{s['org_cd'].zfill(3)}" if s["org_cd"].isdigit()
+             else f"ORG{s['org_cd']}", s["name"], tier, rs, sc)
+            for s, (tier, rs, sc) in zip(chosen, TIER_PLAN)]
+
+
+STORES = _load_stores()
 
 SCHEMA = """
 CREATE TABLE ORGANIZATION_MST (ORG_CD TEXT PRIMARY KEY, ORG_NAME TEXT,
