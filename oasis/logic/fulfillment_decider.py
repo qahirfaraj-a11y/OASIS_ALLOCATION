@@ -261,13 +261,42 @@ class FulfillmentDecider:
         # Warehouse hub org codes (e.g. ["016"])
         self.warehouse_hubs = warehouse_hubs or []
 
+    def _resolve_org_key(self, org: str):
+        """Find an org in the distance map, tolerating code-format drift.
+
+        store_coords.json is keyed '001', '002', '016' while the adapters emit
+        'ORG001', 'ORG002' — a prefix mismatch that made EVERY lookup miss. The
+        cost of that miss was invisible: this method returned its fallback for
+        every pair, so the donor score
+
+            excess / (distance + 0.1)
+
+        divided every candidate by the same constant and collapsed to
+        excess-only ranking. The 3x warehouse-hub boost never fired either,
+        since hubs are identified from the same map. Two features silently
+        inert, with no error anywhere.
+        """
+        if not self.distance_map:
+            return None
+        if org in self.distance_map:
+            return org
+        key = str(org or "")
+        digits = key.lstrip("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz_-")
+        for cand in (digits, digits.lstrip("0"), digits.zfill(3),
+                     key.upper(), key.lower()):
+            if cand and cand in self.distance_map:
+                return cand
+        return None
+
     def _calculate_distance_km(self, org1: str, org2: str) -> float:
         """Calculate approximate distance between stores using coordinates."""
-        if not self.distance_map or org1 not in self.distance_map or org2 not in self.distance_map:
+        k1 = self._resolve_org_key(org1)
+        k2 = self._resolve_org_key(org2)
+        if k1 is None or k2 is None:
             return 10.0 # Default fallback distance
             
-        c1 = self.distance_map[org1]
-        c2 = self.distance_map[org2]
+        c1 = self.distance_map[k1]
+        c2 = self.distance_map[k2]
         
         # Simple Haversine approximation
         lat1, lon1 = c1['lat'], c1['lon']

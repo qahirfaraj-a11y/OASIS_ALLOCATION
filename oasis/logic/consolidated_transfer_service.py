@@ -138,10 +138,14 @@ class ConsolidatedTransferService:
             self.tracker.load_from_file(self.registry_path)
 
         # Detect warehouse hubs from distance_map (entries with is_warehouse_hub=True)
-        warehouse_hubs = [
-            org_cd for org_cd, info in self.distance_map.items()
-            if isinstance(info, dict) and info.get('is_warehouse_hub', False)
-        ]
+        # Register hubs under BOTH the map key and the ORG form: the map is
+        # keyed '016' while find_donors compares against 'ORG016', so the raw
+        # key alone meant the 3x hub boost could never match.
+        warehouse_hubs = []
+        for org_cd, info in self.distance_map.items():
+            if isinstance(info, dict) and info.get('is_warehouse_hub', False):
+                warehouse_hubs.append(org_cd)
+                warehouse_hubs.append("ORG" + str(org_cd).zfill(3))
 
         self.decider = FulfillmentDecider(
             transfer_cost_kes=transfer_cost_kes,
