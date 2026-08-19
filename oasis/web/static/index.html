@@ -130,6 +130,9 @@
   .method span{color:var(--ink2);font-size:13px}
   .method.quiet{border-color:var(--line);background:var(--panel)}
   .method.quiet b{color:var(--ink2)}
+  .sub-h{font-size:.72rem;text-transform:uppercase;letter-spacing:.14em;
+    font-weight:650;color:var(--ink3);margin:22px 0 10px}
+  .storerow:hover{background:var(--panel2)}
   th.sortable{cursor:pointer;user-select:none}
   th.sortable:hover{color:var(--accent)}
   :focus-visible{outline:2px solid var(--accent);outline-offset:2px}
@@ -495,7 +498,9 @@ function renderTransfers(){
     return;
   }
   $('#tr-stats').innerHTML = '<div class="stats">'+
-    stat('Moves found', num(ops.length))+
+    stat('Moves found', num(t.moves != null ? t.moves : ops.length))+
+    stat('Pull / Push', num(t.pull||0)+' / '+num(t.push||0))+
+    (t.below_transfer_cost ? stat('Below transfer cost', num(t.below_transfer_cost)) : '')+
     stat('Value moved', money(t.total_value||0), true)+
     stat('SKUs', num(t.unique_skus||0))+
     stat('Store pairs', num(t.store_pairs||0))+
@@ -506,12 +511,73 @@ function renderTransfers(){
     $('#tr-body').innerHTML='<div class="state"><b>No moves worth making</b>Cover is balanced across the network.</div>';
     return;
   }
-  let h='<div class="wrap"><table><thead><tr><th>Product</th><th>From</th><th>To</th>'+
+  // Procurement works store by store, so lead with the roll-up.
+  let h = '';
+  const bs = TRANSFERS.by_store || [];
+  if(bs.length){
+    h += '<h3 class="sub-h">By store</h3><div class="wrap"><table><thead><tr>'+
+      '<th>Store</th><th class="num">Pull in</th><th class="num">Value in</th>'+
+      '<th class="num">Push out</th><th class="num">Value out</th>'+
+      '<th class="num">Blocked</th><th class="num">Review</th></tr></thead><tbody>';
+    bs.forEach(r=>{
+      h += '<tr class="storerow" data-org="'+esc(r.org_cd)+'">'+
+        '<td><span class="prod">'+esc(r.name)+'</span><span class="sub">'+esc(r.org_cd)+'</span></td>'+
+        '<td class="num">'+num(r.pull_in_n)+'</td><td class="num">'+money(r.pull_in_value)+'</td>'+
+        '<td class="num">'+num(r.push_out_n)+'</td><td class="num">'+money(r.push_out_value)+'</td>'+
+        '<td class="num">'+(r.blocked_n?'<span class="chip c-bad">'+num(r.blocked_n)+'</span>':'0')+'</td>'+
+        '<td class="num">'+(r.review_n?'<span class="chip c-warn">'+num(r.review_n)+'</span>':'0')+'</td></tr>';
+    });
+    h += '</tbody></table></div>';
+  }
+  const orgs=[...new Set(ops.flatMap(o=>[o.from_org,o.to_org]))].sort();
+  h += '<h3 class="sub-h">Moves</h3><div class="controls">'+
+    '<select id="tsite"><option value="">All stores</option>'+
+      orgs.map(o=>'<option>'+esc(o)+'</option>').join('')+'</select>'+
+    '<select id="tside"><option value="">Sending or receiving</option>'+
+      '<option value="to">Receiving only</option><option value="from">Sending only</option></select>'+
+    '<select id="ttype"><option value="">Pull and push</option>'+
+      '<option>PULL</option><option>PUSH</option></select>'+
+    '<button class="btn ghost sm" id="tclear">Clear</button>'+
+    '<span class="sp"></span><span id="tshown" class="muted"></span></div>'+
+    '<div id="thost"></div>';
+  $('#tr-body').innerHTML = h;
+  $('#tsite').onchange = $('#tside').onchange = $('#ttype').onchange = drawTransfers;
+  $('#tclear').onclick = ()=>{ $('#tsite').value=''; $('#tside').value='';
+                               $('#ttype').value=''; drawTransfers(); };
+  document.querySelectorAll('.storerow').forEach(tr=>{
+    tr.style.cursor='pointer';
+    tr.onclick = ()=>{ $('#tsite').value = tr.dataset.org; drawTransfers();
+                       $('#thost').scrollIntoView({behavior:'smooth',block:'start'}); };
+  });
+  drawTransfers();
+}
+
+function drawTransfers(){
+  const ops = TRANSFERS.opportunities||[];
+  const site=$('#tsite').value, side=$('#tside').value, type=$('#ttype').value;
+  const rows = ops.filter(o=>{
+    if(type && o.type !== type) return false;
+    if(site){
+      if(side==='to'   && o.to_org   !== site) return false;
+      if(side==='from' && o.from_org !== site) return false;
+      if(!side && o.to_org !== site && o.from_org !== site) return false;
+    }
+    return true;
+  });
+  $('#tshown').textContent = rows.length + ' of ' + ops.length + ' shown'+
+    (TRANSFERS.truncated ? ' · highest value ' + num(TRANSFERS.returned) +
+      ' of ' + num((TRANSFERS.totals||{}).moves) + ' sent to this page' : '');
+  if(!rows.length){
+    $('#thost').innerHTML='<div class="state"><b>Nothing matches</b>Clear the filters to see all.</div>';
+    return;
+  }
+  let h='<div class="wrap"><table><thead><tr><th>Type</th><th>Product</th><th>From</th><th>To</th>'+
     '<th class="num">Qty</th><th class="num">Value</th><th class="num">Donor cover</th>'+
     '<th class="num">Receiver cover</th><th></th></tr></thead><tbody>';
-  ops.forEach(o=>{
+  rows.forEach(o=>{
     const tight = (o.recipient_cover!=null && o.recipient_cover<=1);
-    h+='<tr><td><span class="prod">'+esc(o.product||'')+'</span>'+
+    h+='<tr><td><span class="chip '+(o.type==='PUSH'?'c-warn':'c-good')+'">'+esc(o.type||'')+'</span></td>'+
+       '<td><span class="prod">'+esc(o.product||'')+'</span>'+
        '<span class="sub">'+esc(o.itm_cd||'')+' · '+esc(o.department||'')+'</span></td>'+
        '<td>'+esc(o.from||o.from_org)+'</td><td>'+esc(o.to||o.to_org)+'</td>'+
        '<td class="num">'+num(o.qty)+'</td><td class="num">'+money(o.value)+'</td>'+
@@ -520,7 +586,8 @@ function renderTransfers(){
        '<td>'+statusChip(o)+'</td></tr>';
   });
   h+='</tbody></table></div>';
-  const blocked = ops.filter(o=>o.executable===false);
+  $('#thost').innerHTML = h;
+  const blocked = rows.filter(o=>o.executable===false);
   if(blocked.length){
     const reasons = [...new Set(blocked.map(o=>o.blocked_reason).filter(Boolean))];
     h+='<div class="state err" style="text-align:left;padding:16px;margin-top:14px">'+
@@ -529,7 +596,7 @@ function renderTransfers(){
        '<div style="margin-top:10px;color:var(--ink3)">The stock imbalance is real — the route is not. '+
        'Move these another way, or resolve the obstacle above.</div></div>';
   }
-  h+='<p class="hint" style="margin-top:12px">'+
+  let tail='<p class="hint" style="margin-top:12px">'+
      'This is a network-wide scan for stock worth moving. It is a different question from the transfers already applied inside an order run, which are shown on the Orders tab. Lines marked <b>Review</b> are perishable — moving them is a judgement about shelf life, not a number, so OASIS never queues them automatically.</p>';
   $('#tr-body').innerHTML=h;
 }

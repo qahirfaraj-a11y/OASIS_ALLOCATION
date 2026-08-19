@@ -251,8 +251,56 @@ def _build_transfers() -> Dict[str, Any]:
     totals["blocked"] = blocked
     totals["executable_value"] = round(
         sum(o.get("value") or 0 for o in ops if o["executable"]), 2)
-    return {"opportunities": ops, "store_health": scan.get("store_health") or [],
-            "totals": totals, "error": None}
+
+    # PER-STORE ROLL-UP.
+    #
+    # With the pull cap lifted the network produces tens of thousands of moves,
+    # which is correct but unreadable as one list. Procurement works store by
+    # store, so the summary is what the page leads with and the line detail is
+    # what it drills into.
+    by_store: Dict[str, Dict[str, Any]] = {}
+
+    def _slot(org: str) -> Dict[str, Any]:
+        return by_store.setdefault(org, {
+            "org_cd": org, "name": org,
+            "pull_in_n": 0, "pull_in_value": 0.0,
+            "push_out_n": 0, "push_out_value": 0.0,
+            "blocked_n": 0, "review_n": 0,
+        })
+
+    for o in ops:
+        v = float(o.get("value") or 0)
+        dst, src = _slot(o.get("to_org") or ""), _slot(o.get("from_org") or "")
+        dst["name"] = o.get("to") or dst["name"]
+        src["name"] = o.get("from") or src["name"]
+        dst["pull_in_n"] += 1
+        dst["pull_in_value"] += v
+        src["push_out_n"] += 1
+        src["push_out_value"] += v
+        if not o["executable"]:
+            dst["blocked_n"] += 1
+        if o.get("manual_only"):
+            dst["review_n"] += 1
+    for r in by_store.values():
+        r["pull_in_value"] = round(r["pull_in_value"], 2)
+        r["push_out_value"] = round(r["push_out_value"], 2)
+    rollup = sorted(by_store.values(), key=lambda r: -r["pull_in_value"])
+
+    totals["moves"] = len(ops)
+    totals["pull"] = sum(1 for o in ops if o.get("type") == "PULL")
+    totals["push"] = sum(1 for o in ops if o.get("type") == "PUSH")
+    totals["below_transfer_cost"] = sum(1 for o in ops
+                                        if float(o.get("value") or 0) < 500.0)
+
+    # Cap what crosses the wire, and SAY SO. Silently truncating a list is the
+    # exact defect just fixed inside the engine; repeating it in the transport
+    # would hide the same problem one layer up.
+    ops.sort(key=lambda o: -float(o.get("value") or 0))
+    cap = 800
+    return {"opportunities": ops[:cap], "returned": min(cap, len(ops)),
+            "truncated": len(ops) > cap,
+            "store_health": scan.get("store_health") or [],
+            "by_store": rollup, "totals": totals, "error": None}
 
 
 # ── jobs ─────────────────────────────────────────────────────────────────

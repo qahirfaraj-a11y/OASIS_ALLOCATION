@@ -256,8 +256,8 @@ class ConsolidatedTransferService:
                                    moq_failures: Optional[Dict[str, set]] = None,
                                    pending_transfers: Optional[List[dict]] = None,
                                    pull_deficit_days: float = 7.0,
-                                   max_pull_per_store: int = 50,
-                                   max_push: int = 200,
+                                   max_pull_per_store: int = 0,
+                                   max_push: int = 0,
                                    ) -> NetworkScanResult:
         """
         Network-wide PULL + PUSH transfer opportunity scan.
@@ -280,8 +280,11 @@ class ConsolidatedTransferService:
                 items too small to order become pull triggers here.
             pending_transfers: open transfer records (dicts or DB rows).
             pull_deficit_days: days-of-cover threshold that defines a deficit.
-            max_pull_per_store: cap on deficit items evaluated per store.
-            max_push: cap on PUSH opportunities (highest value first).
+            max_pull_per_store: cap on deficit items evaluated per store,
+                AFTER ranking by margin at risk. 0 means no cap — a truncated
+                transfer list is worse than a short one, because it looks
+                complete. Defaults to 0 for that reason.
+            max_push: cap on PUSH opportunities (highest value first). 0 = none.
         """
         moq_failures = moq_failures or {}
         outbound, inbound = self._pending_flows(pending_transfers or [])
@@ -331,6 +334,7 @@ class ConsolidatedTransferService:
                     'days_cover': days_cover,
                     'donor_excess': donor_excess,
                     'sell_price': float(p.get('selling_price', p.get('sell_price', 0)) or 0),
+                    'cost_price': float(p.get('cost_price', 0) or 0),
                     'department': dept,
                     'supplier': str(p.get('supplier_name', '') or ''),
                     'uom': str(p.get('uom', 'EA')).upper(),
@@ -355,6 +359,35 @@ class ConsolidatedTransferService:
                         entry['moq_qty'] = 0.0
                     deficits.append(entry)
 
+            # RANK BEFORE CAPPING.
+            #
+            # This list used to be consumed as deficits[:max_pull_per_store] in
+            # whatever order the catalogue came back in. On the seeded network
+            # that is 13,687 deficits competing for 700 slots chosen ARBITRARILY,
+            # and it is why recall against the answer key was 10%: the engine was
+            # not failing to match, it was never looking at 95% of the lines.
+            #
+            # Ranking by margin at risk makes the cap defensible — whatever is
+            # dropped is now the least valuable rather than the last read.
+            for e in deficits:
+                a = e['avg_daily_sales']
+                short = max(a * pull_deficit_days - e['current_stock'],
+                            e.get('moq_qty', 0.0), 0.0)
+                sell, cost = e['sell_price'], e['cost_price']
+                if sell > 0 and 0 < cost < sell:
+                    margin = sell - cost
+                    e['margin_estimated'] = False
+                else:
+                    # No usable cost: assume a retail margin rather than scoring
+                    # the line at zero and burying it. Counted and reported, so
+                    # a catalogue with no cost data is visible rather than
+                    # silently reshuffling the whole ranking.
+                    margin = sell * 0.25
+                    e['margin_estimated'] = True
+                e['shortfall_units'] = round(short, 2)
+                e['risk_kes'] = round(short * margin, 2)
+            deficits.sort(key=lambda e: -e['risk_kes'])
+
             store_deficits[org_cd] = deficits
             result.store_stats[org_cd] = {
                 'total_skus': len(products),
@@ -369,9 +402,13 @@ class ConsolidatedTransferService:
         # inbound so PUSH does not stack on top of a PULL already made.
         booked: Dict[tuple, float] = {}
         recip_booked: Dict[tuple, float] = {}
+        dropped_by_cap = 0
 
         for rec_org, deficits in store_deficits.items():
-            for item in deficits[:max_pull_per_store]:
+            considered = deficits if max_pull_per_store <= 0 \
+                else deficits[:max_pull_per_store]
+            dropped_by_cap += max(0, len(deficits) - len(considered))
+            for item in considered:
                 itm = item['itm_cd']
                 ads = item['avg_daily_sales']
                 target_qty = max(ads * pull_deficit_days, 1.0) if ads > 0 else 2.0
@@ -471,12 +508,23 @@ class ConsolidatedTransferService:
                     ))
 
         push_opps.sort(key=lambda o: -o.value_kes)
-        for o in push_opps[:max_push]:
+        kept_push = push_opps if max_push <= 0 else push_opps[:max_push]
+        for o in kept_push:
             result.store_stats.setdefault(o.from_org, {}).setdefault('push_from', 0)
             result.store_stats[o.from_org]['push_from'] += 1
-        result.opportunities.extend(push_opps[:max_push])
+        result.opportunities.extend(kept_push)
 
         result.opportunities.sort(key=lambda o: -o.value_kes)
+        est = sum(1 for ds in store_deficits.values()
+                  for e in ds if e.get('margin_estimated'))
+        total_def = sum(len(ds) for ds in store_deficits.values())
+        if dropped_by_cap:
+            logger.warning("Network scan: %d of %d deficit lines DROPPED by "
+                           "max_pull_per_store — the list is truncated, not "
+                           "complete", dropped_by_cap, total_def)
+        if est:
+            logger.info("Network scan: %d of %d deficit lines ranked on an "
+                        "ESTIMATED margin (no usable cost price)", est, total_def)
         logger.info(
             "Network scan: %d opportunities (%d pull / %d push), "
             "pending committed: %.0f out / %.0f in",
