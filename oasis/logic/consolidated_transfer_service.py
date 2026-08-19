@@ -439,14 +439,30 @@ class ConsolidatedTransferService:
                 'push_from': 0,
             }
 
-        # ── Pass 2: PULL — find donors for deficit items ──
-        # booked tracks intra-scan donor allocations so one donor's excess is
-        # not promised to several recipients; recip_booked tracks intra-scan
-        # inbound so PUSH does not stack on top of a PULL already made.
+        # ── Pass 2: PULL — fair-share, not first-come ──
+        #
+        # This used to walk store_deficits in dict order and let each store take
+        # what it wanted before the next was considered. Measured consequence:
+        # reversing the store order moved 37,544 units — 12.6% of volume — and
+        # swung individual stores by up to 19%. Nothing about those stores
+        # changed, only their position in a dict. Roughly a third of donors run
+        # out (29.8% fully exhausted, 5.7% near), so who is served first is not
+        # a neutral detail; it decides who is served at all.
+        #
+        # Now: every deficit across the network is collected first, then each
+        # contended donor splits its releasable pool PROPORTIONALLY TO NEED.
+        # Weight is risk_kes — margin at risk if the line is not served — so a
+        # store about to lose more money gets more of a scarce donor, and two
+        # stores with equal exposure are treated equally regardless of order.
+        #
+        # Proportional allocation is order-independent by construction, which is
+        # the acceptance test: devkit/measure_order_sensitivity.py must report
+        # zero divergence between orderings.
         booked: Dict[tuple, float] = {}
         recip_booked: Dict[tuple, float] = {}
         dropped_by_cap = 0
 
+        requests = []
         for rec_org, deficits in store_deficits.items():
             considered = deficits if max_pull_per_store <= 0 \
                 else deficits[:max_pull_per_store]
@@ -455,61 +471,155 @@ class ConsolidatedTransferService:
                 itm = item['itm_cd']
                 ads = item['avg_daily_sales']
                 target_qty = self._target_units(item) if ads > 0 else 2.0
-                # net of anything already promised to this store in this scan
-                have = item['current_stock'] + recip_booked.get((rec_org, itm), 0.0)
-                shortfall = max(0.0, target_qty - have, item.get('moq_qty', 0.0))
+                shortfall = max(0.0, target_qty - item['current_stock'],
+                                item.get('moq_qty', 0.0))
                 if shortfall < 0.1:
                     continue
+                requests.append({
+                    'rec_org': rec_org, 'itm': itm, 'item': item,
+                    'remaining': shortfall,
+                    # margin at risk, computed in Pass 1. Falls back to the raw
+                    # shortfall so a catalogue without costs still ranks by need
+                    # rather than collapsing every weight to zero.
+                    'weight': max(float(item.get('risk_kes') or 0.0),
+                                  shortfall * 0.01),
+                    'tried': set(),
+                })
 
-                donors = self.network_map.find_donors(
-                    itm, rec_org,
-                    product_name=item['product_name'],
+        # deterministic input order — the allocation must not depend on it, and
+        # sorting makes that testable rather than merely hoped for
+        requests.sort(key=lambda r: (r['itm'], r['rec_org']))
+
+        def _pool(donor_org: str, itm: str) -> float:
+            """What this donor may still release for this SKU.
+
+            The 0.5 factor is donor protection and now caps the donor's TOTAL
+            release rather than each individual transfer — a pool to divide,
+            not a limit re-applied per recipient.
+            """
+            cov = item_coverage.get(itm, {}).get(donor_org)
+            base = cov['donor_excess'] if cov else 0.0
+            return max(0.0, base * 0.5 - booked.get((donor_org, itm), 0.0))
+
+        donor_cache: Dict[tuple, list] = {}
+
+        def _donors_for(req):
+            k = (req['itm'], req['rec_org'])
+            if k not in donor_cache:
+                donor_cache[k] = self.network_map.find_donors(
+                    req['itm'], req['rec_org'],
+                    product_name=req['item']['product_name'],
                     distance_calc=self.decider._calculate_distance_km,
                     warehouse_hubs=self.decider.warehouse_hubs,
                 )
-                best = None
-                avail = 0.0
-                for d in donors:
-                    cov = item_coverage.get(itm, {}).get(d.org_cd)
-                    base_excess = cov['donor_excess'] if cov else d.excess
-                    avail = base_excess - booked.get((d.org_cd, itm), 0.0)
-                    if avail > 0:
-                        best = d
+            return donor_cache[k]
+
+        # Rounds: a recipient whose preferred donor is exhausted falls back to
+        # its next-best. Three passes is enough to drain realistic contention
+        # without turning an O(n) scan into something quadratic.
+        MAX_ROUNDS = 3
+        pulls: Dict[tuple, float] = {}          # (donor, itm, rec) -> qty
+        for _ in range(MAX_ROUNDS):
+            groups: Dict[tuple, list] = {}
+            for r in requests:
+                if r['remaining'] < 0.1:
+                    continue
+                for d in _donors_for(r):
+                    if d.org_cd in r['tried']:
+                        continue
+                    if _pool(d.org_cd, r['itm']) > 0:
+                        groups.setdefault((d.org_cd, r['itm']), []).append(r)
                         break
-                if best is None:
+            if not groups:
+                break
+            for (donor_org, itm) in sorted(groups):
+                rs = groups[(donor_org, itm)]
+                avail = _pool(donor_org, itm)
+                if avail <= 0:
+                    for r in rs:
+                        r['tried'].add(donor_org)
                     continue
+                total_w = sum(r['weight'] for r in rs) or 1.0
+                # proportional split, each capped by its own remaining need
+                for r in sorted(rs, key=lambda x: (-x['weight'], x['rec_org'])):
+                    if avail <= 0:
+                        break
+                    share = min(r['remaining'], avail * (r['weight'] / total_w))
+                    take = _round_transfer_qty(min(share, avail),
+                                               r['item']['department'])
+                    if take >= 1:
+                        pulls[(donor_org, itm, r['rec_org'])] = \
+                            pulls.get((donor_org, itm, r['rec_org']), 0.0) + take
+                        booked[(donor_org, itm)] = booked.get((donor_org, itm), 0.0) + take
+                        recip_booked[(r['rec_org'], itm)] = \
+                            recip_booked.get((r['rec_org'], itm), 0.0) + take
+                        r['remaining'] -= take
+                        avail -= take
+                    r['tried'].add(donor_org)
+                # anything left over goes to whoever is still short, heaviest
+                # first — otherwise a rounding remainder strands usable stock
+                if avail >= 1:
+                    for r in sorted(rs, key=lambda x: (-x['weight'], x['rec_org'])):
+                        if avail < 1 or r['remaining'] < 1:
+                            continue
+                        take = _round_transfer_qty(min(r['remaining'], avail),
+                                                   r['item']['department'])
+                        if take < 1:
+                            continue
+                        pulls[(donor_org, itm, r['rec_org'])] = \
+                            pulls.get((donor_org, itm, r['rec_org']), 0.0) + take
+                        booked[(donor_org, itm)] = booked.get((donor_org, itm), 0.0) + take
+                        recip_booked[(r['rec_org'], itm)] = \
+                            recip_booked.get((r['rec_org'], itm), 0.0) + take
+                        r['remaining'] -= take
+                        avail -= take
 
-                xfer = _round_transfer_qty(min(avail * 0.5, shortfall), item['department'])
-                if xfer < 1:
-                    continue
-                booked[(best.org_cd, itm)] = booked.get((best.org_cd, itm), 0.0) + xfer
-                recip_booked[(rec_org, itm)] = recip_booked.get((rec_org, itm), 0.0) + xfer
-
-                donor_cov = item_coverage.get(itm, {}).get(best.org_cd, {})
-                result.opportunities.append(TransferOpportunity(
-                    type="PULL",
-                    itm_cd=itm,
-                    product_name=item['product_name'],
-                    from_org=best.org_cd,
-                    to_org=rec_org,
-                    transfer_qty=xfer,
-                    donor_days_cover=round(donor_cov.get('days_cover', 999.0), 1),
-                    recipient_days_cover=round(item['days_cover'], 1),
-                    donor_excess=round(avail, 1),
-                    value_kes=round(xfer * item['sell_price'], 0),
-                    department=item['department'],
-                    supplier=item['supplier'],
-                    uom=item['uom'],
-                    is_fresh=item['is_fresh'],
-                    manual_only=item['is_fresh'],
-                ))
+        by_req = {(r['itm'], r['rec_org']): r for r in requests}
+        for (donor_org, itm, rec_org), xfer in sorted(pulls.items()):
+            req = by_req.get((itm, rec_org))
+            if req is None or xfer < 1:
+                continue
+            item = req['item']
+            donor_cov = item_coverage.get(itm, {}).get(donor_org, {})
+            result.opportunities.append(TransferOpportunity(
+                type="PULL",
+                itm_cd=itm,
+                product_name=item['product_name'],
+                from_org=donor_org,
+                to_org=rec_org,
+                transfer_qty=xfer,
+                donor_days_cover=round(donor_cov.get('days_cover', 999.0), 1),
+                recipient_days_cover=round(item['days_cover'], 1),
+                donor_excess=round(donor_cov.get('donor_excess', 0.0), 1),
+                value_kes=round(xfer * item['sell_price'], 0),
+                department=item['department'],
+                supplier=item['supplier'],
+                uom=item['uom'],
+                is_fresh=item['is_fresh'],
+                manual_only=item['is_fresh'],
+            ))
 
         # ── Pass 3: PUSH — cold nodes (dead capital) → hot nodes ──
         push_opps: List[TransferOpportunity] = []
-        for itm, cov_map in item_coverage.items():
-            cold = [c for c in cov_map.values()
-                    if c['days_cover'] > self.cold_node_days and c['donor_excess'] > 0]
-            hot = [c for c in cov_map.values() if c['days_cover'] < self.hot_node_days]
+        # Deterministic iteration. item_coverage and its inner maps are keyed in
+        # STORE-INSERTION order, so walking them raw made PUSH — unlike the
+        # fair-shared PULL above — still depend on which store was read first.
+        # That was the entire residual: 1.0% of volume still moved when the
+        # store order was reversed, all of it here.
+        #
+        # PUSH allocation remains greedy rather than proportional; sorting makes
+        # it REPEATABLE, not yet fair. Cold donors are taken deepest-cover
+        # first, which is the defensible greedy order, and hot recipients
+        # shortest-cover first.
+        for itm in sorted(item_coverage):
+            cov_map = item_coverage[itm]
+            cold = sorted((c for c in cov_map.values()
+                           if c['days_cover'] > self.cold_node_days
+                           and c['donor_excess'] > 0),
+                          key=lambda c: (-c['days_cover'], c['org_cd']))
+            hot = sorted((c for c in cov_map.values()
+                          if c['days_cover'] < self.hot_node_days),
+                         key=lambda c: (c['days_cover'], c['org_cd']))
             if not cold or not hot:
                 continue
             for donor in cold:

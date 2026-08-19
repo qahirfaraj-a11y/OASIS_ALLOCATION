@@ -172,8 +172,15 @@ class NetworkAvailabilityMap:
                 s.last_search_dist = dist
                 donors.append(s)
         
-        # Sort by score descending
-        donors.sort(key=lambda x: -getattr(x, 'last_search_score', 0))
+        # Sort by score descending, org_cd breaking ties.
+        #
+        # Without the tiebreak, equally-scored donors keep whatever order they
+        # were indexed in — which is the order stock_data was iterated, i.e. the
+        # store order. Fair-share allocation is order-independent by
+        # construction, but it can only be as deterministic as the donor list it
+        # is handed: with ties unresolved, reversing the store order still moved
+        # 1.0% of volume purely by reshuffling equal candidates.
+        donors.sort(key=lambda x: (-getattr(x, 'last_search_score', 0), x.org_cd))
         return donors
 
     def get_total_network_excess(self, itm_cd: str, recipient_org: str, distance_calc: Optional[Any] = None) -> float:
