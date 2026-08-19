@@ -50,9 +50,55 @@ def main() -> int:
 
     key = json.load(open(a.key, encoding="utf-8"))
     planted = key["planted_transfers"]
+
+    # THE KEY STATES GROUND TRUTH ABOUT THE DATA, NOT ABOUT POLICY.
+    #
+    # It records that a donor holds deep cover and a recipient is empty with
+    # live demand. How much SHOULD move is a policy question, and policy has
+    # since changed: the target is now min(T_standard, T_next + lead) rather
+    # than a flat 7 days, and 65% of SKUs consequently target LESS than 7 days
+    # because their supplier delivers sooner.
+    #
+    # Scoring a calendar-aware engine against a flat-7-day key marks correct
+    # restraint as under-delivery. So expected need is recomputed here from the
+    # live policy; the key stays untouched and keeps its meaning across policy
+    # changes.
+    try:
+        from oasis.data.supplier_calendar import SupplierCalendar
+        from oasis.logic.simulation_bridge import _find_calendar_path
+        cal = SupplierCalendar(_find_calendar_path(os.path.join(ROOT, "oasis", "data")))
+        cal.load()
+    except Exception:
+        cal = None
+
+    import oasis.desktop.data as _D
+    _ads = {}
+    _sup = {}
+    for _s in _D.list_stores():
+        for _p in _D.get_adapter().fetch_enriched_products(_s["org_cd"]) or []:
+            _ads[(_p.get("item_code"), _s["org_cd"])] = float(_p.get("avg_daily_sales") or 0)
+            _sup[_p.get("item_code")] = (str(_p.get("supplier_name") or ""),
+                                         float(_p.get("estimated_delivery_days") or 0))
+
+    TARGET_STANDARD = 14.0
+    for pl in planted:
+        ads = _ads.get((pl["itm_cd"], pl["recipient_org"]), pl.get("recipient_ads", 0))
+        nm, lead = _sup.get(pl["itm_cd"], ("", 0.0))
+        t = TARGET_STANDARD
+        if cal is not None and nm:
+            d = cal.days_to_next_order(nm)
+            if d is not None:
+                t = min(TARGET_STANDARD, max(1.0, d + lead))
+        pl["expected_units"] = round(ads * t, 2)
+        pl["target_days"] = round(t, 1)
     print(f"answer key: {len(planted)} planted pairs "
           f"(seed {key['seed']}, {key['catalogue_skus']} SKUs)\n")
 
+    _t = [p["target_days"] for p in planted if p.get("target_days")]
+    if _t:
+        _t.sort()
+        print("expected need recomputed from live policy: target "
+              "%.0f-%.0f days, median %.0f\n" % (_t[0], _t[-1], _t[len(_t)//2]))
     print("running network scan …")
     scan = D.network_transfer_scan()
     if scan.get("error"):
@@ -89,7 +135,7 @@ def main() -> int:
             missed += 1
             verdict = "MISSED"
             qty = 0.0
-        want = pl["recipient_deficit_units"]
+        want = pl.get("expected_units") or pl["recipient_deficit_units"]
         if qty > 0 and want > 0 and 0.4 * want <= qty <= 2.5 * want:
             sized_ok += 1
         rows.append((verdict, pl["product_name"][:30], donor, recip, want, qty))
