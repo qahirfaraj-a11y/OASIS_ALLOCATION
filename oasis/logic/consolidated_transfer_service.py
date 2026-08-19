@@ -226,6 +226,10 @@ class ConsolidatedTransferService:
                 ), bcode)
         return nmap
 
+    #: Share of a donor's excess that may leave in one scan, across BOTH
+    #: passes. One number, not 0.5 for PULL and 0.4 for PUSH.
+    RELEASE_FRACTION = 0.5
+
     def _target_cover(self, supplier: str, lead_days: float) -> float:
         """T_sustain = min(T_standard, max(1, T_next)).
 
@@ -491,15 +495,22 @@ class ConsolidatedTransferService:
         requests.sort(key=lambda r: (r['itm'], r['rec_org']))
 
         def _pool(donor_org: str, itm: str) -> float:
-            """What this donor may still release for this SKU.
+            """What this donor may still release for this SKU — ONE pool.
 
-            The 0.5 factor is donor protection and now caps the donor's TOTAL
-            release rather than each individual transfer — a pool to divide,
-            not a limit re-applied per recipient.
+            Donor protection used to be applied twice with different numbers:
+            PULL took min(0.5 x excess, ...) per transfer and PUSH took
+            min(0.4 x excess, ...) per transfer, both measured against the same
+            excess. A donor could therefore give 0.5 of its excess to pulls and
+            a further 0.4 to pushes — 90% of what the safety floor was meant to
+            protect, from two rules that each believed they were the only one.
+
+            Now a single pool, RELEASE_FRACTION of excess, drawn down by both
+            passes through the shared `booked` ledger.
             """
             cov = item_coverage.get(itm, {}).get(donor_org)
             base = cov['donor_excess'] if cov else 0.0
-            return max(0.0, base * 0.5 - booked.get((donor_org, itm), 0.0))
+            return max(0.0, base * self.RELEASE_FRACTION
+                       - booked.get((donor_org, itm), 0.0))
 
         donor_cache: Dict[tuple, list] = {}
 
@@ -599,66 +610,82 @@ class ConsolidatedTransferService:
                 manual_only=item['is_fresh'],
             ))
 
-        # ── Pass 3: PUSH — cold nodes (dead capital) → hot nodes ──
-        push_opps: List[TransferOpportunity] = []
-        # Deterministic iteration. item_coverage and its inner maps are keyed in
-        # STORE-INSERTION order, so walking them raw made PUSH — unlike the
-        # fair-shared PULL above — still depend on which store was read first.
-        # That was the entire residual: 1.0% of volume still moved when the
-        # store order was reversed, all of it here.
+        # ── Pass 3: PUSH — cold nodes (dead capital) → hot nodes, fair-shared ──
         #
-        # PUSH allocation remains greedy rather than proportional; sorting makes
-        # it REPEATABLE, not yet fair. Cold donors are taken deepest-cover
-        # first, which is the defensible greedy order, and hot recipients
-        # shortest-cover first.
+        # Same treatment as PULL: collect every hot recipient's need for a SKU
+        # first, then split each cold donor's pool PROPORTIONALLY, rather than
+        # letting the first donor walk the recipient list and give to whoever it
+        # reaches first. Weight is need x unit margin — the same shape as the
+        # risk_kes used by PULL, so both passes rank need the same way.
+        #
+        # Iteration is sorted throughout: item_coverage and its inner maps are
+        # keyed in store-insertion order, and walking them raw is what left 1.0%
+        # of volume moving when the store order was reversed.
+        push_opps: List[TransferOpportunity] = []
         for itm in sorted(item_coverage):
             cov_map = item_coverage[itm]
             cold = sorted((c for c in cov_map.values()
                            if c['days_cover'] > self.cold_node_days
                            and c['donor_excess'] > 0),
                           key=lambda c: (-c['days_cover'], c['org_cd']))
-            hot = sorted((c for c in cov_map.values()
-                          if c['days_cover'] < self.hot_node_days),
-                         key=lambda c: (c['days_cover'], c['org_cd']))
-            if not cold or not hot:
+            if not cold:
                 continue
+
+            # every hot recipient's outstanding need, measured once
+            demands = []
+            for recip in sorted((c for c in cov_map.values()
+                                 if c['days_cover'] < self.hot_node_days),
+                                key=lambda c: (c['days_cover'], c['org_cd'])):
+                recip_in = recip_booked.get((recip['org_cd'], itm), 0.0)
+                eff_stock = recip['current_stock'] + recip_in
+                recip_ads = max(recip['avg_daily_sales'], 0.5)
+                if eff_stock / recip_ads >= self.hot_node_days:
+                    continue
+                target_units = self._target_units(recip)
+                if target_units <= 0 or eff_stock >= target_units:
+                    continue
+                sell = float(recip.get('sell_price') or 0)
+                cost = float(recip.get('cost_price') or 0)
+                margin = (sell - cost) if 0 < cost < sell else sell * 0.25
+                need = max(1.0, target_units - eff_stock)
+                demands.append({
+                    'recip': recip, 'need': need,
+                    'weight': max(need * margin, need * 0.01),
+                    'eff_days': eff_stock / recip_ads,
+                })
+            if not demands:
+                continue
+
             for donor in cold:
-                for recip in hot:
-                    if donor['org_cd'] == recip['org_cd']:
-                        continue
-                    avail = donor['donor_excess'] - booked.get((donor['org_cd'], itm), 0.0)
-                    if avail <= 0:
-                        continue
-                    # Recompute recipient cover including units already booked
-                    # to it earlier in this scan (PULL or a previous PUSH).
-                    recip_in = recip_booked.get((recip['org_cd'], itm), 0.0)
-                    eff_recip_stock = recip['current_stock'] + recip_in
-                    recip_ads = max(recip['avg_daily_sales'], 0.5)
-                    eff_days = eff_recip_stock / recip_ads
-                    # THE SAME target PULL used. Filling to hot_node_days here
-                    # while PULL filled to pull_deficit_days is what produced a
-                    # 2.88x median over-fill: two passes, two answers, one store.
-                    target_units = self._target_units(recip)
-                    if target_units <= 0 or eff_recip_stock >= target_units:
-                        continue  # already at target within this scan
-                    if eff_days >= self.hot_node_days:
-                        continue
-                    need = max(1.0, target_units - eff_recip_stock)
-                    xfer = _round_transfer_qty(min(avail * 0.4, need), donor['department'])
+                pool = _pool(donor['org_cd'], itm)
+                if pool < 1:
+                    continue
+                active = [d for d in demands
+                          if d['need'] >= 1 and d['recip']['org_cd'] != donor['org_cd']]
+                if not active:
+                    continue
+                total_w = sum(d['weight'] for d in active) or 1.0
+
+                def _give(d, units):
+                    xfer = _round_transfer_qty(units, donor['department'])
                     if xfer < 1:
-                        continue
-                    booked[(donor['org_cd'], itm)] = booked.get((donor['org_cd'], itm), 0.0) + xfer
-                    recip_booked[(recip['org_cd'], itm)] = recip_in + xfer
+                        return 0.0
+                    r = d['recip']
+                    booked[(donor['org_cd'], itm)] = \
+                        booked.get((donor['org_cd'], itm), 0.0) + xfer
+                    recip_booked[(r['org_cd'], itm)] = \
+                        recip_booked.get((r['org_cd'], itm), 0.0) + xfer
+                    d['need'] -= xfer
                     push_opps.append(TransferOpportunity(
                         type="PUSH",
                         itm_cd=itm,
                         product_name=donor['product_name'],
                         from_org=donor['org_cd'],
-                        to_org=recip['org_cd'],
+                        to_org=r['org_cd'],
                         transfer_qty=xfer,
                         donor_days_cover=round(donor['days_cover'], 1),
-                        recipient_days_cover=round(eff_days, 1),
-                        donor_excess=round(avail, 1),
+                        recipient_days_cover=round(d['eff_days'], 1),
+                        donor_excess=round(donor['donor_excess'], 1),
                         value_kes=round(xfer * donor['sell_price'], 0),
                         department=donor['department'],
                         supplier=donor['supplier'],
@@ -666,6 +693,21 @@ class ConsolidatedTransferService:
                         is_fresh=donor['is_fresh'],
                         manual_only=donor['is_fresh'],
                     ))
+                    return xfer
+
+                for d in sorted(active, key=lambda x: (-x['weight'],
+                                                       x['recip']['org_cd'])):
+                    if pool < 1:
+                        break
+                    pool -= _give(d, min(d['need'], pool * d['weight'] / total_w))
+                # remainder to whoever is still short, heaviest need first —
+                # otherwise rounding strands stock the donor was willing to give
+                if pool >= 1:
+                    for d in sorted(active, key=lambda x: (-x['weight'],
+                                                           x['recip']['org_cd'])):
+                        if pool < 1 or d['need'] < 1:
+                            continue
+                        pool -= _give(d, min(d['need'], pool))
 
         push_opps.sort(key=lambda o: -o.value_kes)
         kept_push = push_opps if max_push <= 0 else push_opps[:max_push]
