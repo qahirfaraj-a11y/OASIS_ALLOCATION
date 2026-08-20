@@ -340,7 +340,14 @@ class OdooAdapter(_contract.ErpAdapter):
                 try:
                     self._ex("stock.picking", "fields_get",
                              [["pos_order_id"], ["type"]])
-                    dom.append(["picking_id.pos_order_id", "=", False])
+                    # KEEP MOVES THAT HAVE NO PICKING. A dotted domain walks
+                    # the relation, so `picking_id.pos_order_id = False` silently
+                    # drops every move whose picking_id is NULL — the join has
+                    # nothing to walk. Those are ordinary sales, and excluding
+                    # them zeroed demand outright: measured, 240,962 of 240,966
+                    # customer moves vanished and every store reported ADS 0.
+                    dom += ["|", ["picking_id", "=", False],
+                            ["picking_id.pos_order_id", "=", False]]
                 except Exception:
                     logger.debug("no pos_order_id on stock.picking; counting "
                                  "customer moves unfiltered")
@@ -395,6 +402,19 @@ class OdooAdapter(_contract.ErpAdapter):
         receipts = self._last_receipt(org_cd)
         sales = self._sales_by_product(sales_days, org_cd)
         suppliers = self._supplier_of([p["id"] for p in prods])
+        # Stock already bought and on its way. This used to be hardcoded to
+        # zero here while fetch_pending_po_by_sku sat unused by this path, so
+        # a store with a delivery landing tomorrow read as being just as short
+        # as one with nothing coming — and the transfer engine moved stock to
+        # it. The ordering path has always applied this; the read every other
+        # consumer shares did not.
+        try:
+            on_order = self.fetch_pending_po_by_sku(org_cd)
+        except Exception as e:
+            logger.warning("pending PO lookup failed for %r (%s) — on_order_qty "
+                           "reads 0, so inbound stock is invisible to ordering "
+                           "and transfers", org_cd, str(e)[:120])
+            on_order = {}
         now = datetime.now()
 
         out: List[dict] = []
@@ -439,7 +459,10 @@ class OdooAdapter(_contract.ErpAdapter):
                 "total_units_sold_last_90d": units,
                 "estimated_daily_sales": round(units / max(1, sales_days), 4),
                 "units_sold_last_month": round(units / max(1, sales_days) * 30, 2),
-                "on_order_qty": 0.0,
+                "on_order_qty": float(
+                    on_order.get(str(p.get("default_code") or pid), {}).get("qty", 0.0)),
+                "on_order_eta_days": float(
+                    on_order.get(str(p.get("default_code") or pid), {}).get("eta_days", 999.0)),
             })
         logger.info("Odoo: enriched %d products (org=%s)", len(out), org_cd)
         return out

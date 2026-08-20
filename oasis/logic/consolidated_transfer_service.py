@@ -497,13 +497,23 @@ class ConsolidatedTransferService:
         return relief if relief is not None else self.target_cover_days
 
     def _target_units(self, entry: dict) -> float:
-        """Units of cover this store should hold for this SKU."""
+        """Units of cover this store should hold for this SKU.
+
+        Prefers the horizon already resolved onto the entry, because that one
+        knows about an open purchase order and this recomputation would not.
+        Without it the trigger and the target disagree: a store admitted for
+        being short over three days would be filled for eighteen, and the
+        transfer would carry stock the supplier is about to deliver.
+        """
         ads = float(entry.get('avg_daily_sales') or 0)
         if ads <= 0:
             return 0.0
-        return ads * self._target_cover(entry.get('supplier', ''),
-                                        entry.get('lead_days', 0.0),
-                                        entry.get('department', ''))
+        horizon = entry.get('relief_days')
+        if horizon is None:
+            horizon = self._target_cover(entry.get('supplier', ''),
+                                         entry.get('lead_days', 0.0),
+                                         entry.get('department', ''))
+        return ads * float(horizon)
 
     @staticmethod
     def _excess_units(ads: float, stock: float, is_fresh: bool) -> float:
@@ -564,6 +574,14 @@ class ConsolidatedTransferService:
             'lead_days': float(p.get('estimated_delivery_days', 0) or 0),
             'uom': str(p.get('uom', 'EA')).upper(),
             'is_fresh': fresh,
+            # Stock already on a supplier order. Counted as supply only where
+            # it lands before relief is needed — a pallet due in three weeks
+            # does not help a store that runs out on Thursday, and treating it
+            # as though it did would suppress a transfer the store genuinely
+            # needs. The trigger applies the ETA test, because only there is
+            # the relief horizon known.
+            'on_order_qty': float(p.get('on_order_qty', 0) or 0),
+            'on_order_eta': float(p.get('on_order_eta_days', 999) or 999),
             # needed by the dead-stock test: silence alone does not make a line
             # dead, it has to have been silent for a while
             'days_since_delivery': int(
@@ -712,7 +730,37 @@ class ConsolidatedTransferService:
                 relief = self._relief_days(entry['supplier'], entry['lead_days'],
                                            entry['department'])
                 trigger_days = relief if relief is not None else pull_deficit_days
-                entry['relief_days'] = trigger_days
+                # Only a DERIVED horizon is recorded on the entry. The trigger
+                # and the target have different fallbacks on purpose — a store
+                # is short below 7 days but is filled to 14 — so writing the
+                # trigger's fallback here would quietly become the target and
+                # under-fill every line whose supplier is unknown.
+                if relief is not None:
+                    entry['relief_days'] = relief
+
+                # AN OPEN ORDER SHORTENS THE HORIZON. IT DOES NOT CANCEL THE
+                # TRANSFER.
+                #
+                # A delivery landing in three days does not help a store that
+                # is empty today: it still loses three days of sales. What the
+                # order changes is HOW FAR the store has to be carried — only
+                # to the day the pallet arrives, not across the supplier's
+                # whole typical cycle. So the transfer shrinks to the real gap
+                # instead of disappearing.
+                #
+                # This horizon is also better than LATA's: LATA gives the
+                # supplier's usual cadence, while an open PO gives the date of
+                # THIS delivery — placed order plus its lead time. A specific
+                # fact beats a measured average.
+                if entry['on_order_qty'] > 0:
+                    eta = max(1.0, entry['on_order_eta'])
+                    trigger_days = min(trigger_days, eta)
+                    # shortens the TARGET too, so the transfer carries the
+                    # store to the delivery and no further
+                    entry['relief_days'] = min(
+                        float(entry.get('relief_days', eta)), eta)
+                    entry['horizon_source'] = 'open order'
+
                 pull_trigger = (
                     (ads > 0 and (days_cover < trigger_days or eff_stock <= rop))
                     or (ads == 0 and eff_stock < 1.0)

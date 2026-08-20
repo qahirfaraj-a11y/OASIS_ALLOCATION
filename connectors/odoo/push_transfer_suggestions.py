@@ -97,11 +97,40 @@ def _build(limit=0, log=print):
     log("-> reading the depot through OdooAdapter…")
     a = adapter()
     data = {c: fetch_with_retry(a, c) for c in codes}
+
+    # WHAT IS ALREADY ON ITS WAY. Without these the scan sees stock and demand
+    # and nothing else, so it re-proposes movements that are already queued —
+    # approve twice and you ship twice. The Command Center path has always
+    # passed them; this one did not, so the two entry points were not scanning
+    # the same network.
+    pending = []
+    try:
+        df = a.fetch_transfers(None)
+        if hasattr(df, "empty") and not df.empty:
+            pending = df.to_dict("records")
+    except Exception as e:
+        log(f"   ! open transfers unreadable ({str(e)[:70]}) — the scan may "
+            f"re-propose movements already in flight")
+
+    # A line the buying engine could not order because it fell under the
+    # supplier's minimum is the strongest case there is for moving stock
+    # instead. It is a pull trigger, and was being dropped here.
+    moq = {}
+    try:
+        from oasis.logic.moq_failure_store import load_moq_failures
+        moq = load_moq_failures(
+            os.path.join(REPO, "oasis", "data", "moq_failures.json")) or {}
+    except Exception:
+        pass
+
     with contextlib.redirect_stderr(io.StringIO()):
         svc = CTS(org_names=names, stock_data=data, distance_map=coords,
                   data_dir=os.path.join(REPO, "oasis", "data"),
                   settings_db=store_db_path(REPO))
-        opps = svc.scan_network_opportunities().opportunities
+        opps = svc.scan_network_opportunities(
+            pending_transfers=pending, moq_failures=moq).opportunities
+    log(f"   inputs: {len(pending):,} open transfer line(s), "
+        f"{sum(len(v) for v in moq.values()):,} MOQ-blocked line(s)")
 
     # Velocity at both ends, and the recipient's own relief horizon. The
     # opportunity carries days-of-cover but not the rate behind it, and an
