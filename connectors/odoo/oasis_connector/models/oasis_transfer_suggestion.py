@@ -26,6 +26,8 @@ fifteen pickings makes the warehouse pick, pack and validate fifteen times.
 
 from collections import defaultdict
 
+from dateutil.relativedelta import relativedelta
+
 from odoo import _, api, fields, models
 from odoo.exceptions import UserError
 
@@ -64,8 +66,46 @@ class OasisTransferSuggestion(models.Model):
     value_kes = fields.Monetary("Value", currency_field="currency_id")
     currency_id = fields.Many2one("res.currency",
                                   default=lambda s: s.env.company.currency_id)
-    donor_days_cover = fields.Float("Donor cover (days)", readonly=True)
-    recipient_days_cover = fields.Float("Recipient cover (days)", readonly=True)
+    # ── the position at both ends ─────────────────────────────────────────
+    # Cover is meaningless where nothing sells: the engine carries 999 as its
+    # internal "no demand" sentinel, and letting that reach a column poisons
+    # every average in the pivot and reads to an operator as a real 999-day
+    # figure. It is stripped on ingestion; donor_ads = 0 is what actually says
+    # "this store does not sell it", and donor_cover_label says so in words.
+    donor_days_cover = fields.Float("Donor cover (days)", readonly=True,
+                                    group_operator="avg")
+    recipient_days_cover = fields.Float("Recipient cover (days)", readonly=True,
+                                        group_operator="avg")
+    donor_ads = fields.Float("Donor sales/day", readonly=True, digits=(12, 3),
+                             group_operator="avg",
+                             help="What the DONOR sells of this line per day. "
+                                  "Zero means the stock is idle there.")
+    recipient_ads = fields.Float("Recipient sales/day", readonly=True,
+                                 digits=(12, 3), group_operator="avg",
+                                 help="What the RECIPIENT sells per day — the "
+                                      "rate the transferred stock will move at.")
+    relief_days = fields.Float("Next delivery (days)", readonly=True,
+                               group_operator="avg",
+                               help="Days until the recipient's own "
+                                    "replenishment is expected to land, derived "
+                                    "from this supplier's measured delivery "
+                                    "history. The transfer only has to cover "
+                                    "until then.")
+    donor_cover_label = fields.Char("Donor cover",
+                                    compute="_compute_cover_labels")
+    recipient_cover_label = fields.Char("Recipient cover",
+                                        compute="_compute_cover_labels")
+
+    @api.depends("donor_days_cover", "donor_ads",
+                 "recipient_days_cover", "recipient_ads")
+    def _compute_cover_labels(self):
+        for r in self:
+            r.donor_cover_label = (
+                "not selling" if r.donor_ads <= 0
+                else "%.0f d" % r.donor_days_cover)
+            r.recipient_cover_label = (
+                "not selling" if r.recipient_ads <= 0
+                else "%.0f d" % r.recipient_days_cover)
     is_fresh = fields.Boolean("Perishable", index=True,
                               help="Fresh lines are never queued automatically — "
                                    "transit shortens shelf life. Approve one only "
@@ -166,6 +206,90 @@ class OasisTransferSuggestion(models.Model):
                 "behind with nothing pointing at it.") % len(stuck))
         self.write({"state": "new"})
 
+    #: A plan older than this describes a shop floor that has since moved on.
+    #: Configurable via ir.config_parameter oasis.scan_stale_hours.
+    _DEFAULT_STALE_HOURS = 24
+
+    is_stale = fields.Boolean("Out of date", compute="_compute_is_stale",
+                              search="_search_is_stale",
+                              help="Computed before the staleness window. The "
+                                   "stores have been trading since; re-run the "
+                                   "scan before approving.")
+
+    def _stale_hours(self):
+        try:
+            return float(self.env["ir.config_parameter"].sudo().get_param(
+                "oasis.scan_stale_hours") or self._DEFAULT_STALE_HOURS)
+        except (TypeError, ValueError):
+            return self._DEFAULT_STALE_HOURS
+
+    @api.depends("computed_on")
+    def _compute_is_stale(self):
+        cutoff = fields.Datetime.now() - relativedelta(hours=self._stale_hours())
+        for r in self:
+            r.is_stale = bool(r.computed_on and r.computed_on < cutoff)
+
+    def _search_is_stale(self, operator, value):
+        cutoff = fields.Datetime.now() - relativedelta(hours=self._stale_hours())
+        stale = [("computed_on", "<", cutoff)]
+        fresh = [("computed_on", ">=", cutoff)]
+        want = value if operator in ("=", "==") else not value
+        return stale if want else fresh
+
+    @api.model
+    def action_refresh_suggestions(self):
+        """Ask OASIS to re-scan and repost the queue.
+
+        Odoo cannot compute this itself — OASIS is a separate application — so
+        the button calls it over HTTP at ``oasis.scan_url``. When that is not
+        configured the button says exactly what to set rather than failing
+        silently or pretending to work, because an operator who presses Refresh
+        and sees nothing change will stop trusting the whole queue.
+        """
+        import json as _json
+        import urllib.error
+        import urllib.request
+
+        icp = self.env["ir.config_parameter"].sudo()
+        url = (icp.get_param("oasis.scan_url") or "").strip()
+        if not url:
+            raise UserError(_(
+                "No OASIS scan endpoint is configured, so this button has "
+                "nothing to call.\n\n"
+                "Set the system parameter 'oasis.scan_url' to your OASIS "
+                "service (Settings → Technical → System Parameters), or run "
+                "the scan from OASIS itself — the queue below refreshes either "
+                "way.\n\n"
+                "Until then, the 'Computed' column tells you how old this plan "
+                "is."))
+
+        req = urllib.request.Request(
+            url, method="POST",
+            data=_json.dumps({"db": self.env.cr.dbname}).encode("utf-8"),
+            headers={"Content-Type": "application/json"})
+        token = (icp.get_param("oasis.scan_token") or "").strip()
+        if token:
+            req.add_header("Authorization", "Bearer %s" % token)
+        try:
+            with urllib.request.urlopen(req, timeout=180) as r:
+                body = _json.loads(r.read().decode("utf-8") or "{}")
+        except urllib.error.HTTPError as e:
+            raise UserError(_("OASIS refused the scan (HTTP %s): %s")
+                            % (e.code, (e.read() or b"")[:200].decode("utf-8", "replace")))
+        except Exception as e:
+            raise UserError(_(
+                "Could not reach OASIS at %s.\n\n%s\n\nOdoo must be able to "
+                "reach the OASIS service on the network — inside Docker that "
+                "is its service name, not localhost.") % (url, str(e)[:200]))
+
+        return {
+            "type": "ir.actions.client", "tag": "display_notification",
+            "params": {"title": _("Scan complete"),
+                       "message": _("%s suggestions posted.")
+                                  % body.get("created", "?"),
+                       "type": "success", "next": {"type": "ir.actions.act_window_close"}},
+        }
+
     def action_open_picking(self):
         self.ensure_one()
         if not self.picking_id:
@@ -205,14 +329,23 @@ class OasisTransferSuggestion(models.Model):
             if not (p and f and t) or f == t:
                 skipped += 1
                 continue
+            # Strip the engine's no-demand sentinel HERE, at the boundary, so
+            # no column, pivot or average downstream can ever see a 999.
+            d_ads = float(s.get("donor_ads") or 0.0)
+            r_ads = float(s.get("recipient_ads") or 0.0)
+            d_cov = float(s.get("donor_cover") or 0.0)
+            r_cov = float(s.get("recipient_cover") or 0.0)
             rows.append({
                 "product_id": p, "quantity": s.get("quantity") or 0,
                 "from_warehouse_id": f, "to_warehouse_id": t,
                 "kind": "push" if str(s.get("kind", "")).lower() == "push" else "pull",
                 "reason": s.get("reason") or "",
                 "value_kes": s.get("value") or 0.0,
-                "donor_days_cover": s.get("donor_cover") or 0.0,
-                "recipient_days_cover": s.get("recipient_cover") or 0.0,
+                "donor_days_cover": 0.0 if (d_ads <= 0 or d_cov >= 900) else d_cov,
+                "recipient_days_cover": 0.0 if (r_ads <= 0 or r_cov >= 900) else r_cov,
+                "donor_ads": d_ads,
+                "recipient_ads": r_ads,
+                "relief_days": float(s.get("relief_days") or 0.0),
                 "is_fresh": bool(s.get("is_fresh")),
                 "computed_on": computed_on or fields.Datetime.now(),
             })

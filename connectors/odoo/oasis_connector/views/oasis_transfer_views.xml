@@ -10,11 +10,18 @@
       <tree string="Transfer suggestions" multi_edit="0"
             decoration-muted="state == 'rejected'"
             decoration-success="state == 'approved'"
-            decoration-warning="is_fresh == True and state == 'new'">
+            decoration-warning="is_fresh == True and state == 'new'"
+            decoration-danger="is_stale == True and state == 'new'">
         <header>
           <button name="action_approve" type="object" string="Approve → draft transfer"
                   class="btn-primary"/>
           <button name="action_reject" type="object" string="Reject"/>
+          <!-- Odoo cannot compute the plan itself; this asks OASIS to. Rows go
+               red once the plan is older than the staleness window, because a
+               queue with no age on it looks equally trustworthy at ten minutes
+               and ten days old. -->
+          <button name="action_refresh_suggestions" type="object"
+                  string="Refresh from OASIS" class="btn-secondary"/>
         </header>
         <!-- The two jobs stay as SEPARATE rows and are never merged, even on
              the same route and SKU. A pull and a push are different decisions
@@ -29,11 +36,19 @@
         <field name="to_warehouse_id" string="To"/>
         <field name="quantity" sum="Units"/>
         <field name="uom_id" string="UoM"/>
-        <field name="donor_days_cover" string="Donor cover" optional="show" widget="float"/>
-        <field name="recipient_days_cover" string="Recipient cover" optional="show" widget="float"/>
+        <field name="donor_ads" string="Donor /day" optional="show"/>
+        <field name="donor_cover_label" string="Donor cover" optional="show"/>
+        <field name="recipient_ads" string="Recipient /day" optional="show"/>
+        <field name="recipient_cover_label" string="Recipient cover" optional="show"/>
+        <field name="relief_days" string="Next delivery" optional="show"
+               widget="float" digits="[12,0]"/>
+        <field name="donor_days_cover" string="Donor cover (n)" optional="hide"/>
+        <field name="recipient_days_cover" string="Recipient cover (n)" optional="hide"/>
         <field name="value_kes" sum="Value" widget="monetary"/>
         <field name="currency_id" invisible="1"/>
         <field name="is_fresh" string="Fresh" optional="show"/>
+        <field name="computed_on" string="Computed" optional="show"/>
+        <field name="is_stale" invisible="1"/>
         <field name="state"/>
         <field name="picking_id" optional="hide"/>
       </tree>
@@ -62,6 +77,12 @@
           <!-- drives the banner's attrs below; Odoo requires a field to be
                present in the view before an attrs domain may reference it -->
           <field name="is_fresh" invisible="1"/>
+          <field name="is_stale" invisible="1"/>
+          <div class="alert alert-danger" role="alert"
+               attrs="{'invisible': [('is_stale','=',False)]}">
+            <strong>This plan is out of date.</strong> The stores have been
+            trading since it was computed. Refresh from OASIS before approving.
+          </div>
           <div class="alert alert-warning" role="alert" attrs="{'invisible': [('is_fresh','=',False)]}">
             <strong>Perishable.</strong> OASIS never queues fresh lines on its own —
             transit costs shelf life. Approve this only if it can be dispatched today.
@@ -72,8 +93,11 @@
               <field name="reason" nolabel="1" colspan="2" readonly="1"/>
             </group>
             <group string="Position">
-              <field name="donor_days_cover" string="Donor has (days)"/>
-              <field name="recipient_days_cover" string="Recipient has (days)"/>
+              <field name="donor_ads" string="Donor sells / day"/>
+              <field name="donor_cover_label" string="Donor cover"/>
+              <field name="recipient_ads" string="Recipient sells / day"/>
+              <field name="recipient_cover_label" string="Recipient cover"/>
+              <field name="relief_days" string="Recipient's next delivery (days)"/>
               <field name="value_kes" widget="monetary"/>
               <field name="currency_id" invisible="1"/>
             </group>
@@ -110,6 +134,8 @@
         <field name="to_warehouse_id" type="col"/>
         <field name="value_kes" type="measure"/>
         <field name="quantity" type="measure"/>
+        <field name="recipient_ads" type="measure"/>
+        <field name="relief_days" type="measure"/>
       </pivot>
     </field>
   </record>
@@ -140,6 +166,9 @@
         <separator/>
         <filter name="f_pull" string="Plug a gap" domain="[('kind','=','pull')]"/>
         <filter name="f_push" string="Clear idle stock" domain="[('kind','=','push')]"/>
+        <separator/>
+        <filter name="f_stale" string="Out of date" domain="[('is_stale','=',True)]"/>
+        <filter name="f_current" string="Current" domain="[('is_stale','=',False)]"/>
         <separator/>
         <filter name="f_dry" string="Non-perishable" domain="[('is_fresh','=',False)]"/>
         <filter name="f_fresh" string="Perishable" domain="[('is_fresh','=',True)]"/>

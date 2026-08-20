@@ -122,6 +122,24 @@ def main(argv=None):
                   settings_db=store_db_path(REPO))
         opps = svc.scan_network_opportunities().opportunities
 
+    # Velocity at both ends, and the recipient's own relief horizon. The
+    # opportunity carries days-of-cover but not the rate behind it, and an
+    # operator cannot judge "31 units" without knowing whether the receiving
+    # store sells 30 a day or 0.3.
+    ads = {}
+    supplier_of = {}
+    for org, prods in data.items():
+        for p in prods:
+            code = p.get("item_code")
+            ads[(org, code)] = float(p.get("avg_daily_sales") or 0)
+            supplier_of.setdefault(code, (p.get("supplier_name") or "",
+                                          float(p.get("estimated_delivery_days") or 0),
+                                          p.get("department") or ""))
+
+    def relief_for(itm):
+        sup, lead, dept = supplier_of.get(itm, ("", 0.0, ""))
+        return svc._relief_days(sup, lead, dept) or svc.target_cover_days
+
     opps.sort(key=lambda o: -o.value_kes)
     kept = opps[:args.limit] if args.limit > 0 else opps
     rows = [{
@@ -129,7 +147,10 @@ def main(argv=None):
         "quantity": o.transfer_qty, "kind": o.type.lower(),
         "value": o.value_kes, "donor_cover": o.donor_days_cover,
         "recipient_cover": o.recipient_days_cover, "is_fresh": o.manual_only,
-        "reason": reason_for(o, svc._median_relief),
+        "donor_ads": ads.get((o.from_org, o.itm_cd), 0.0),
+        "recipient_ads": ads.get((o.to_org, o.itm_cd), 0.0),
+        "relief_days": relief_for(o.itm_cd),
+        "reason": reason_for(o, relief_for(o.itm_cd)),
     } for o in kept]
 
     pull = sum(1 for r in rows if r["kind"] == "pull")
