@@ -133,6 +133,42 @@ class Handler(BaseHTTPRequestHandler):
             _LOCK.release()
 
 
+def _scheduled(interval_min, offset_min, limit):
+    """Rescan on a fixed cadence, phase-shifted off the hour.
+
+    STAGGERED ON PURPOSE. The connector's telemetry cron and this scan both
+    read the same Odoo, and both are heavy: the cron walks new movement, the
+    scan reads every product at every site. Firing them together doubles peak
+    load on the database that is also serving the tills. The offset moves this
+    off the hour and away from a cron sitting on :00/:30.
+
+    A scan is skipped, never queued, while one is already running — see the
+    lock. A queued scan's answer would be stale by the time it ran.
+    """
+    period = interval_min * 60
+    while True:
+        now = time.time()
+        # next multiple of the period, plus the phase offset
+        nxt = (now // period + 1) * period + offset_min * 60
+        time.sleep(max(5.0, nxt - now))
+        if not _LOCK.acquire(blocking=False):
+            log.info("scheduled scan skipped — one is already running")
+            continue
+        try:
+            _STATE["scanning"] = True
+            t0 = time.time()
+            res = run_scan(limit=limit, log=lambda m: log.info("%s", m))
+            res["seconds"] = round(time.time() - t0, 1)
+            _STATE["last"] = time.strftime("%Y-%m-%d %H:%M:%S")
+            _STATE["last_result"] = res
+            log.info("scheduled scan: %s", res)
+        except Exception:
+            log.exception("scheduled scan failed")
+        finally:
+            _STATE["scanning"] = False
+            _LOCK.release()
+
+
 def main(argv=None):
     p = argparse.ArgumentParser(description=__doc__,
                                 formatter_class=argparse.RawDescriptionHelpFormatter)
@@ -140,6 +176,13 @@ def main(argv=None):
     p.add_argument("--port", type=int, default=int(os.getenv("OASIS_SCAN_PORT", "8710")))
     p.add_argument("--limit", type=int, default=int(os.getenv("OASIS_SCAN_LIMIT", "0")),
                    help="default suggestions per scan when the caller sends none")
+    p.add_argument("--interval", type=int,
+                   default=int(os.getenv("OASIS_SCAN_INTERVAL_MIN", "0")),
+                   help="rescan every N minutes (0 = only when asked)")
+    p.add_argument("--offset", type=int,
+                   default=int(os.getenv("OASIS_SCAN_OFFSET_MIN", "15")),
+                   help="minutes past the interval boundary, to stay clear of "
+                        "the connector's telemetry cron (default 15)")
     args = p.parse_args(argv)
 
     logging.basicConfig(level=logging.INFO,
@@ -163,6 +206,15 @@ def main(argv=None):
              args.host, args.port, "required" if token else "NOT SET — loopback only",
              args.limit or "all")
     log.info("Odoo system parameter  oasis.scan_url = http://<host>:%d/scan", args.port)
+    if args.interval > 0:
+        threading.Thread(target=_scheduled,
+                         args=(args.interval, args.offset, args.limit),
+                         daemon=True).start()
+        log.info("rescanning every %d min at +%d min past the boundary, "
+                 "staggered clear of the telemetry cron",
+                 args.interval, args.offset)
+    else:
+        log.info("on-demand only — pass --interval to rescan on a cadence")
     try:
         srv.serve_forever()
     except KeyboardInterrupt:

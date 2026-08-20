@@ -297,11 +297,15 @@ class OdooAdapter(_contract.ErpAdapter):
         agg: Dict[int, Dict[str, float]] = defaultdict(
             lambda: {"units": 0.0, "revenue": 0.0})
 
+        #: whether the till was readable. Decides below whether the matching
+        #: stock moves would be a second count of the same sale.
+        pos_counted = False
         try:
             rows = self._ex("pos.order.line", "search_read",
                             [[["order_id.date_order", ">=", since]]],
                             {"fields": ["product_id", "qty", "price_subtotal_incl"],
                              "limit": 200000}) or []
+            pos_counted = True
             for r in rows:
                 pid = _id_of(r.get("product_id"))
                 if pid is None:
@@ -317,6 +321,30 @@ class OdooAdapter(_contract.ErpAdapter):
             scope = self._warehouse_scope(org_cd)
             if scope:        # goods that left THIS site
                 dom.append(["location_id", "child_of", scope])
+
+            # DO NOT COUNT A POS SALE TWICE.
+            #
+            # Closing a POS order creates a stock.picking (linked by
+            # pos_order_id) whose moves go to a customer location. Those moves
+            # describe the SAME units the pos.order.line above already counted,
+            # so a POS install was having every till sale doubled — and ADS is
+            # the input to every horizon, reorder point and transfer quantity
+            # in the system. Nothing errors; the numbers are simply twice what
+            # the shop sold.
+            #
+            # The exclusion is only correct when the POS read actually
+            # succeeded. If Point of Sale is not installed there is no
+            # pos.order.line to double up with, and the customer moves ARE the
+            # only record of the sale.
+            if pos_counted:
+                try:
+                    self._ex("stock.picking", "fields_get",
+                             [["pos_order_id"], ["type"]])
+                    dom.append(["picking_id.pos_order_id", "=", False])
+                except Exception:
+                    logger.debug("no pos_order_id on stock.picking; counting "
+                                 "customer moves unfiltered")
+
             moves = self._ex("stock.move", "search_read", [dom],
                              {"fields": ["product_id", "product_uom_qty"],
                               "limit": 200000}) or []

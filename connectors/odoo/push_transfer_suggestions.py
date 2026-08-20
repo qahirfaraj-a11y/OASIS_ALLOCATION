@@ -157,8 +157,13 @@ def run_scan(limit=0, log=print):
     """
     rows, _ = _build(limit, log=log)
     a = adapter()
+    # UTC, because Odoo stores every datetime in UTC and renders it in the
+    # user's timezone. Sending local time here wrote a computed_on up to hours
+    # in the FUTURE, which meant the staleness window could never fire and a
+    # day-old plan looked freshly computed — the failure mode where the safety
+    # feature is present, green, and doing nothing.
     res = a._ex("oasis.transfer.suggestion", "oasis_replace_queue",
-                [rows, datetime.now().strftime("%Y-%m-%d %H:%M:%S")])
+                [rows, datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")])
     return {"created": res.get("created", 0), "skipped": res.get("skipped", 0),
             "considered": len(rows)}
 
@@ -201,8 +206,13 @@ def main(argv=None):
                 print(f"      {r['reason']}\n")
         return 0
 
+    # UTC, because Odoo stores every datetime in UTC and renders it in the
+    # user's timezone. Sending local time here wrote a computed_on up to hours
+    # in the FUTURE, which meant the staleness window could never fire and a
+    # day-old plan looked freshly computed — the failure mode where the safety
+    # feature is present, green, and doing nothing.
     res = a._ex("oasis.transfer.suggestion", "oasis_replace_queue",
-                [rows, datetime.now().strftime("%Y-%m-%d %H:%M:%S")])
+                [rows, datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")])
     print(f"-> posted {res.get('created', 0):,} suggestions "
           f"({res.get('skipped', 0):,} skipped: unknown product or warehouse)")
     print("   Review in Odoo:  OASIS → Transfers → Suggestions")

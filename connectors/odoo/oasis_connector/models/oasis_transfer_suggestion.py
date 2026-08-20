@@ -207,8 +207,17 @@ class OasisTransferSuggestion(models.Model):
         self.write({"state": "new"})
 
     #: A plan older than this describes a shop floor that has since moved on.
-    #: Configurable via ir.config_parameter oasis.scan_stale_hours.
-    _DEFAULT_STALE_HOURS = 24
+    #:
+    #: THIRTY MINUTES, not a day. With live POS sales streaming in, on-hand is
+    #: the fastest-moving input the plan has — demand barely shifts over a day
+    #: (ADS is a 90-day average) but stock does, continuously. A suggestion
+    #: computed this morning and approved this afternoon can be for stock that
+    #: has since sold; the draft picking then fails at confirmation, which the
+    #: operator experiences as the queue being unreliable.
+    #:
+    #: Raise oasis.scan_stale_hours for a chain that trades slowly or scans
+    #: nightly; lower it for one that does not.
+    _DEFAULT_STALE_HOURS = 0.5
 
     is_stale = fields.Boolean("Out of date", compute="_compute_is_stale",
                               search="_search_is_stale",
