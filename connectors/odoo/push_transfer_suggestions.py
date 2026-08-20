@@ -83,28 +83,8 @@ def reason_for(o, relief=None):
             f"back in circulation once it does.")
 
 
-def main(argv=None):
-    p = argparse.ArgumentParser()
-    p.add_argument("--limit", type=int, default=0,
-                   help="post only the N most valuable suggestions (0 = all)")
-    p.add_argument("--dry-run", action="store_true",
-                   help="show what would be posted; write nothing")
-    p.add_argument("--clear", action="store_true",
-                   help="empty the pending queue and stop")
-    args = p.parse_args(argv)
-
-    a = OdooAdapter(url=os.getenv("ODOO_URL", "http://localhost:8069"),
-                    db=os.getenv("ODOO_DB", "oasis"),
-                    user=os.getenv("ODOO_USER", "admin"),
-                    password=os.getenv("ODOO_PASSWORD", "admin"))
-    if not a.health_check().get("connected"):
-        raise SystemExit("Odoo unreachable — is the stack up?")
-
-    if args.clear:
-        res = a._ex("oasis.transfer.suggestion", "oasis_replace_queue", [[]])
-        print(f"queue cleared ({res})")
-        return 0
-
+def _build(limit=0, log=print):
+    """Read the depot, compute the plan, and shape it for the queue."""
     seed = json.load(open(os.path.join(HERE, "store_network_seed.json"),
                           encoding="utf-8"))
     codes = [s["code"] for s in seed["stores"]]
@@ -114,7 +94,8 @@ def main(argv=None):
 
     from verify_store_network import fetch_with_retry
     from oasis.desktop.data import store_db_path
-    print("-> reading the depot through OdooAdapter…")
+    log("-> reading the depot through OdooAdapter…")
+    a = adapter()
     data = {c: fetch_with_retry(a, c) for c in codes}
     with contextlib.redirect_stderr(io.StringIO()):
         svc = CTS(org_names=names, stock_data=data, distance_map=coords,
@@ -141,7 +122,7 @@ def main(argv=None):
         return svc._relief_days(sup, lead, dept) or svc.target_cover_days
 
     opps.sort(key=lambda o: -o.value_kes)
-    kept = opps[:args.limit] if args.limit > 0 else opps
+    kept = opps[:limit] if limit > 0 else opps
     rows = [{
         "item_code": o.itm_cd, "from_code": o.from_org, "to_code": o.to_org,
         "quantity": o.transfer_qty, "kind": o.type.lower(),
@@ -155,9 +136,53 @@ def main(argv=None):
 
     pull = sum(1 for r in rows if r["kind"] == "pull")
     fresh = sum(1 for r in rows if r["is_fresh"])
-    print(f"   plan: {len(opps):,} lines; posting {len(rows):,} "
+    log(f"   plan: {len(opps):,} lines; posting {len(rows):,} "
           f"({pull:,} plug-a-gap, {len(rows) - pull:,} clear-idle, "
           f"{fresh:,} perishable)")
+    return rows, opps
+
+
+def adapter():
+    return OdooAdapter(url=os.getenv("ODOO_URL", "http://localhost:8069"),
+                       db=os.getenv("ODOO_DB", "oasis"),
+                       user=os.getenv("ODOO_USER", "admin"),
+                       password=os.getenv("ODOO_PASSWORD", "admin"))
+
+
+def run_scan(limit=0, log=print):
+    """Scan the depot and repost the queue. Returns what was written.
+
+    The single implementation, shared by the CLI and by scan_service.py, so the
+    button in Odoo and the command line can never compute different plans.
+    """
+    rows, _ = _build(limit, log=log)
+    a = adapter()
+    res = a._ex("oasis.transfer.suggestion", "oasis_replace_queue",
+                [rows, datetime.now().strftime("%Y-%m-%d %H:%M:%S")])
+    return {"created": res.get("created", 0), "skipped": res.get("skipped", 0),
+            "considered": len(rows)}
+
+
+def main(argv=None):
+    p = argparse.ArgumentParser()
+    p.add_argument("--limit", type=int, default=0,
+                   help="post only the N most valuable suggestions (0 = all)")
+    p.add_argument("--dry-run", action="store_true",
+                   help="show what would be posted; write nothing")
+    p.add_argument("--clear", action="store_true",
+                   help="empty the pending queue and stop")
+    args = p.parse_args(argv)
+
+    a = adapter()
+    if not a.health_check().get("connected"):
+        raise SystemExit("Odoo unreachable — is the stack up?")
+
+    if args.clear:
+        res = a._ex("oasis.transfer.suggestion", "oasis_replace_queue", [[]])
+        print(f"queue cleared ({res})")
+        return 0
+
+    rows, opps = _build(args.limit)
 
     if args.dry_run:
         # Show BOTH jobs. The list is value-ranked and gap-plugging dominates
