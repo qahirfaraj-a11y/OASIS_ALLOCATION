@@ -252,12 +252,35 @@ class OdooAdapter(_contract.ErpAdapter):
         return {_id_of(r["product_id"]): float(r.get("quantity") or 0.0)
                 for r in rows if r.get("product_id")}
 
-    def _last_receipt(self, org_cd: Optional[str] = None) -> Dict[int, datetime]:
-        """product_id -> most recent completed INCOMING move date.
+    #: How many incoming moves the receipt lookup reads. The read is ordered
+    #: newest-first, so this is a WINDOW, and what falls outside it is older
+    #: than everything inside — see _last_receipt.
+    RECEIPT_READ_LIMIT = 20000
 
-        This is what feeds days_since_delivery, which gates the dead-stock and
+    def _last_receipt(self, org_cd: Optional[str] = None):
+        """(product_id -> last incoming move date, horizon, truncated).
+
+        This feeds days_since_delivery, which gates the dead-stock and
         stale-fresh rules. Sourcing it properly is the whole reason those guards
         can work here — on a POS without a receipt date they fail OPEN.
+
+        WHY THE HORIZON IS RETURNED
+        ---------------------------
+        The read is capped and ordered NEWEST FIRST, so on a busy chain it
+        covers only recent history. A product whose last receipt predates the
+        window is simply absent from the result — and the caller used to read
+        that absence as ``days_since_delivery = 0``, i.e. "delivered today".
+
+        That inverted the dead-stock rule exactly: is_dead needs an age of 90
+        days or more, so the STALEST stock in the business — the stock whose
+        last receipt is furthest back, and therefore least likely to be inside
+        the window — was the stock guaranteed never to be flagged. The rule
+        failed hardest on the cases it exists for.
+
+        The oldest date actually read is a sound LOWER BOUND for everything
+        missing: nothing absent can be newer than it, or it would have been in
+        the result. Returning it lets the caller say "at least this old" rather
+        than inventing "today".
         """
         dom = [["state", "=", "done"],
                ["location_id.usage", "in", ["supplier", "inventory", "production"]]]
@@ -266,17 +289,29 @@ class OdooAdapter(_contract.ErpAdapter):
             dom.append(["location_dest_id", "child_of", scope])
         rows = self._ex("stock.move", "search_read", [dom],
                         {"fields": ["product_id", "date"], "order": "date desc",
-                         "limit": 20000}) or []
+                         "limit": self.RECEIPT_READ_LIMIT}) or []
         out: Dict[int, datetime] = {}
+        oldest = None
         for r in rows:
-            pid = _id_of(r.get("product_id"))
-            if pid is None or pid in out:
-                continue
             try:
-                out[pid] = datetime.strptime(str(r["date"])[:19], "%Y-%m-%d %H:%M:%S")
+                when = datetime.strptime(str(r["date"])[:19], "%Y-%m-%d %H:%M:%S")
             except (ValueError, TypeError):
                 continue
-        return out
+            if oldest is None or when < oldest:
+                oldest = when
+            pid = _id_of(r.get("product_id"))
+            if pid is not None and pid not in out:
+                out[pid] = when
+
+        truncated = len(rows) >= self.RECEIPT_READ_LIMIT
+        if truncated:
+            logger.warning(
+                "receipt history TRUNCATED at %s moves for site %r (oldest read "
+                "%s). Products with no receipt since then are aged from that "
+                "date as a lower bound, not treated as freshly delivered.",
+                self.RECEIPT_READ_LIMIT, org_cd or "company-wide",
+                oldest.date() if oldest else "?")
+        return out, oldest, truncated
 
     def _sales_by_product(self, days: int = 90,
                           org_cd: Optional[str] = None) -> Dict[int, Dict[str, float]]:
@@ -392,14 +427,14 @@ class OdooAdapter(_contract.ErpAdapter):
                              [[["active", "=", True], ["type", "in", ["product", "consu"]]]],
                              {"fields": ["default_code", "display_name", "categ_id",
                                          "list_price", "standard_price", "uom_id",
-                                         "barcode", "product_tmpl_id"],
+                                         "barcode", "product_tmpl_id", "create_date"],
                               "limit": 100000}) or []
         except Exception as e:
             logger.error("fetch_enriched_products failed: %s", e)
             return []
 
         on_hand = self._on_hand(org_cd)
-        receipts = self._last_receipt(org_cd)
+        receipts, receipts_from, receipts_truncated = self._last_receipt(org_cd)
         sales = self._sales_by_product(sales_days, org_cd)
         suppliers = self._supplier_of([p["id"] for p in prods])
         # Stock already bought and on its way. This used to be hardcoded to
@@ -425,8 +460,31 @@ class OdooAdapter(_contract.ErpAdapter):
             sup = suppliers.get(_id_of(p.get("product_tmpl_id")), {})
             s = sales.get(pid, {})
             units = float(s.get("units") or 0.0)
+            # AGE OF THE STOCK, and how confident we are in it.
+            #
+            # Absence from the receipt read is not evidence of a delivery
+            # today — it is evidence of the opposite. Three cases, in
+            # descending order of confidence:
+            #   1. a receipt was found            -> exact
+            #   2. the read was truncated         -> at least as old as the
+            #      oldest record we did read (nothing missing can be newer)
+            #   3. the read was complete and this product still has none ->
+            #      never received here; the stock cannot predate the product
+            #      record, so its creation date is the floor
             last_recv = receipts.get(pid)
-            days_since = (now - last_recv).days if last_recv else 0
+            estimated = False
+            if last_recv:
+                days_since = (now - last_recv).days
+            else:
+                estimated = True
+                floor = receipts_from if receipts_truncated else None
+                if floor is None:
+                    try:
+                        floor = datetime.strptime(
+                            str(p.get("create_date"))[:19], "%Y-%m-%d %H:%M:%S")
+                    except (ValueError, TypeError):
+                        floor = None
+                days_since = max(0, (now - floor).days) if floor else 0
 
             out.append({
                 "item_code": str(p.get("default_code") or pid),
@@ -450,6 +508,10 @@ class OdooAdapter(_contract.ErpAdapter):
                 "is_fresh": any(f in dept.upper() for f in FRESH_DEPARTMENTS),
                 "last_days_since_last_delivery": days_since,
                 "days_since_delivery": days_since,
+                #: True when no receipt was found and the age is a LOWER BOUND
+                #: rather than a fact. Consumers that act on staleness should
+                #: know the difference between measured and inferred.
+                "days_since_delivery_estimated": estimated,
                 "blocked_open_for_order": "open",
                 "pack_size": 1,
                 "estimated_delivery_days": int(sup.get("lead") or 7),

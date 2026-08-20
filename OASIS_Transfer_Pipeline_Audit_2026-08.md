@@ -17,7 +17,7 @@ The **algorithm** is sound and testable: allocation is order-independent
 (0.00%), the ledger holds, horizons and thresholds are derived rather than
 guessed, and the two jobs are cleanly separated.
 
-The **pipeline around it** has four real gaps, and three of them share one
+The **pipeline around it** had four real gaps — **all four are now fixed**, and three of them share one
 shape: **the scan does not know what is already on its way.** It sees stock and
 demand, but not inbound purchase orders, not transfers already approved, and
 not the orders the buying engine could not place. In a static depot that is
@@ -35,7 +35,7 @@ Fix H1–H3 before the test. H4 and everything below can be watched.
 > an open order **shortens the horizon** rather than cancelling the transfer —
 > a delivery in three days does not help a store that is empty today, it still
 > loses three days of sales. The sections below are kept as the record of what
-> was wrong and how it was proven. **H4 remains open.**
+> was wrong and how it was proven. **H4 is fixed too** — see below.
 
 ### H1. Inbound purchase orders are invisible to the transfer scan
 
@@ -105,9 +105,25 @@ the 20,000 most recent moves.
 Dormant in this depot (767 products at C003 report age 0, but none hold stock).
 It will not be dormant on a client with years of history.
 
-**Fix.** Distinguish "no receipt found" from "received today" — carry `None`
-and let the dead test treat unknown age as *unknown*, not as fresh. Raising the
-limit only moves the cliff.
+**FIXED.** Absence from the receipt read is now treated as evidence of age,
+not of freshness. Three cases in descending confidence:
+
+1. a receipt was found — exact;
+2. the read was **truncated** — the oldest record actually read is a sound
+   LOWER BOUND, since nothing missing can be newer than it or it would have
+   been in the result;
+3. the read was complete and the product still has none — never received here,
+   so the product's own creation date is the floor: stock cannot predate its
+   record.
+
+Products now carry `days_since_delivery_estimated` so a consumer can tell a
+measured age from an inferred one. Truncation logs a warning naming the oldest
+date read.
+
+Measured at C003: the 767 products that reported "0 days — delivered today" now
+report 1–35 days, and **nothing** reports 0. Forcing the truncated branch (a
+200-move window) fires the warning and ages 3,145 products from the window
+floor instead of from today.
 
 ---
 
