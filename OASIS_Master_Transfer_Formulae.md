@@ -378,14 +378,23 @@ The engine logs a warning naming `lata_shield` when it starts degraded.
 
 ---
 
-## 12. Out of scope
+## 12. Out of scope — the ordering path
 
-`decide()` (Smart Ordering) is **not** a configuration of the above:
+`decide()` is **not** a configuration of the above and **not a transfer
+engine**. It is the ORDERING decision: given a shortfall, is it met by a
+supplier order, a transfer, or both? A transfer is one branch of its answer,
+not its subject.
+
 $$
 y = \min\Big(\rho\big(E_{\text{best}} - B\big),\ \min\big(\mathrm{gap}\cdot d,\ x\big)\Big),
 \qquad \mathrm{gap} = \min(\ell,\ \mathrm{ETA}) - \theta
 $$
+
 Greedy over one donor rather than proportional over all; horizon is the raw
-lead $\ell$, not $R$; no concept of dead stock. It shares $B$, so it cannot
-double-spend, but it answers J1 with different arithmetic and does not serve J2
-at all.
+lead $\ell$ rather than $R$; no concept of dead stock, because clearing it is
+not an ordering question.
+
+**The one contract it must honour** is the ledger: it draws on the same
+$B_{s,i}$, so it cannot promise units the transfer passes have already
+promised. That invariant is tested (`TestCrossPathLedger`). Everything else
+about it belongs to the ordering workstream.

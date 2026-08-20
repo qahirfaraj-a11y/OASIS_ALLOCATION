@@ -145,12 +145,16 @@ def agreement(a_opps, b_opps):
 def main(argv=None):
     p = argparse.ArgumentParser()
     p.add_argument("--scenario", default=None, help="run just one scenario")
+    p.add_argument("--source", choices=("seed", "odoo"), default="seed",
+                   help="'odoo' reads the live depot through OdooAdapter — the "
+                        "same path the product uses; 'seed' reconstructs it "
+                        "offline and needs no container")
     args = p.parse_args(argv)
 
-    from analyse_transfer_funnel import load_from_seed
+    from analyse_transfer_funnel import load_from_seed, load_from_odoo
     import oasis.desktop.data as D
 
-    seed, data = load_from_seed()
+    seed, data = load_from_odoo() if args.source == "odoo" else load_from_seed()
     stores = seed["stores"]
     names = {s["code"]: s["name"] for s in stores}
     coords = {s["code"]: {"lat": s["latitude"], "lon": s["longitude"]}
@@ -166,7 +170,7 @@ def main(argv=None):
     print("=" * 78)
     print("NETWORK (Transfers, as the Command Center wires it)  vs  DERIVED "
           "(LATA + AMIT)")
-    print(f"supplier coverage: calendar {len(ndd)} | LATA 599")
+    print(f"source: {args.source}   supplier coverage: calendar {len(ndd)} | LATA 599")
     print("=" * 78)
 
     for label, codes in scen.items():

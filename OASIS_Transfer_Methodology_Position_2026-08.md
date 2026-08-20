@@ -10,15 +10,19 @@
 the one the Command Center actually runs?
 **Answer, in one line:** they were the **same code in two different
 configurations**, and the Command Center was wired to the weaker one. **Closed
-in `ff245b36`+** — all five call sites now pass `data_dir`, so the product runs
-the derived methodology. It still runs a **second, unrelated transfer maths**
-on another tab, and that remains open.
+in `4a5f667c`** — all five call sites now pass `data_dir`, so the product runs
+the derived methodology.
 
 > **Status.** Everything below §3 measures the gap **as it was**. It is kept
-> because it is the evidence for why the wiring matters, and the baseline any
-> future regression would be measured against — not because the gap is still
-> there. Verified after wiring: the Command Center construction now returns
-> 4,001 PULL / 19,546 units / 5,450 perishable, identical to `data_dir` alone.
+> as the evidence for why the wiring matters and the baseline a regression
+> would be caught against — not because the gap is still there.
+>
+> **Live-verified** on the 14-store Odoo depot through `OdooAdapter`:
+> 18 checks passed, 0 failed; the derived plan is **5,110 opportunities
+> (4,285 PULL / 825 PUSH), 23,361 units, KES 5.81M, 12.1% fresh** against the
+> degraded **4,492 / 29,774 units / 42% fresh**. Figures below the fold come
+> from the offline reconstruction and differ only where Odoo holds rounded
+> quantities; no conclusion changes.
 
 Measured on the 14-outlet Odoo depot (2,971 ranged SKUs, 26,881 store-SKU
 pairs), engine at commit `a5bcba25`.
@@ -188,25 +192,23 @@ artifact of small, slow stores.
    and the supplier calendar covers part of the tail LATA has not seen before
    the network-median fallback is reached.
 
-2. **STILL OPEN — two transfer methodologies reachable from one Command
-   Center**, on adjacent tabs, giving different answers about the same stock.
-   `decide()` (Smart Ordering) is greedy over one donor against raw supplier
-   lead; the scan is proportional over all donors against the relief horizon.
-   They share the ledger so they cannot double-spend, but an operator can read
-   two different recommendations for the same SKU on the same day.
+2. ~~**Verification against the live depot.**~~ **CLOSED.**
+   `connectors/odoo/verify_store_network.py` — **18 passed, 0 failed** through
+   `OdooAdapter` over XML-RPC, and every scenario in §4 re-run with
+   `--source odoo`. The live figures confirm the offline reconstruction:
+   differences are confined to where Odoo holds rounded quantities, and no
+   conclusion changes.
 
-3. **STILL OPEN — verification against the live depot.** Everything here is
-   measured on the offline reconstruction; Docker has been down since the
-   consolidation work. `connectors/odoo/verify_store_network.py` is the check
-   to re-run.
+3. **Not a transfer matter — `decide()`.** The Smart Ordering path has its own
+   arithmetic, but it is an **ORDERING** engine: it decides whether a shortfall
+   is met by a supplier order, a transfer, or both. Transfers are one branch of
+   an ordering decision there, not the subject. It shares the donor ledger, so
+   it cannot double-spend against the transfer passes. Whether its branch
+   should delegate to the scan belongs to the ordering workstream and is
+   deliberately out of scope here.
 
 4. **Standing caveat.** All measurements are on a synthetic multi-store
    network built from one real Rhapta snapshot. The *structural* findings hold
    regardless of data; the *numbers* need re-deriving against genuine
-   multi-store history before they are trusted.
-
-### Remaining order
-
-1. Re-measure on the Odoo depot end-to-end (needs Docker back up).
-2. Decide whether B keeps its own maths or delegates to the scan the way
-   `_identify_proactive_transfers` now does.
+   multi-store history before they are trusted. This is the one open item on
+   the transfer methodology.
