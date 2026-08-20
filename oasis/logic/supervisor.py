@@ -37,8 +37,11 @@ CHECK_INTERVAL_S = 20
 PORT_STRIKES_FOR_RESTART = 2          # consecutive failed probes = hung
 STARTUP_GRACE_TICKS = 3               # ticks before a fresh start is probed
 
-#: home isn't a licensed console, so it lives outside CONSOLE_DEFS
-_EXTRA_PORTS = {"home": 8490}
+#: home isn't a licensed console, so it lives outside CONSOLE_DEFS.
+#: odoo-scan is the endpoint Odoo's "Refresh from OASIS" button calls — not a
+#: console at all, but it needs the same watchdog: if it dies, that button
+#: starts failing and the operator has no way to refresh the queue.
+_EXTRA_PORTS = {"home": 8490, "odoo-scan": 8710}
 
 
 def service_port(key: str) -> int:
@@ -51,6 +54,15 @@ def configured_services() -> tuple:
     keys = list(DEFAULT_SERVICES)
     if os.getenv("OASIS_SERVE_HUB", "") in ("1", "true", "True"):
         keys.append("hub")
+    # DERIVED, not a second flag to remember: the Odoo scan endpoint is only
+    # meaningful when Odoo IS the ERP, and in that case the Refresh button in
+    # Odoo depends on it, so it should come up with everything else. The
+    # explicit override exists for an install that wants it off.
+    scan = os.getenv("OASIS_SERVE_ODOO_SCAN", "").strip().lower()
+    if scan in ("0", "false", "no"):
+        pass
+    elif scan in ("1", "true", "yes") or             (os.getenv("OASIS_ERP") or "").strip().lower() == "odoo":
+        keys.append("odoo-scan")
     return tuple(keys)
 
 
@@ -111,6 +123,31 @@ def _start_home():
     return proc
 
 
+def _start_odoo_scan():
+    """The Odoo scan endpoint. Binds loopback unless a token is configured.
+
+    scan_service refuses a public bind without OASIS_SCAN_TOKEN, so choosing
+    the host here by whether a token exists means the supervisor never starts a
+    service that would immediately exit — and never silently exposes an
+    unauthenticated endpoint that drives the ERP.
+    """
+    import subprocess
+    import sys
+    root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    py = os.path.join(root, ".oasis_venv", "Scripts", "python.exe")
+    if not os.path.exists(py):
+        py = sys.executable
+    host = os.getenv("OASIS_SCAN_HOST") or (
+        "0.0.0.0" if (os.getenv("OASIS_SCAN_TOKEN") or "").strip() else "127.0.0.1")
+    if host == "127.0.0.1":
+        logger.warning("odoo-scan on loopback only: set OASIS_SCAN_TOKEN to let "
+                       "Odoo reach it from its container")
+    return subprocess.Popen(
+        [py, os.path.join(root, "connectors", "odoo", "scan_service.py"),
+         "--host", host, "--port", str(_EXTRA_PORTS["odoo-scan"]),
+         "--limit", os.getenv("OASIS_SCAN_LIMIT", "0")], cwd=root)
+
+
 class Supervisor:
     """Wires the pure policy to real processes. Fakes injectable for tests."""
 
@@ -135,6 +172,8 @@ class Supervisor:
     def _default_start(key: str):
         if key == "home":
             return _start_home()
+        if key == "odoo-scan":
+            return _start_odoo_scan()
         pid_or_proc = start_console(key, return_proc=True) \
             if "return_proc" in start_console.__code__.co_varnames else None
         if pid_or_proc is not None:
