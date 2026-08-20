@@ -1,5 +1,10 @@
 # OASIS Transfer Methodology — Deep Dive
 
+> **THE EVIDENCE.** What was measured in the engine, what it showed, and what
+> changed as a result. Formulae are stated once in
+> `OASIS_Master_Transfer_Formulae.md`, not repeated here.
+
+
 **Date:** 2026-08-20
 **Measured on:** the 14-outlet Chandarana network in the Odoo test depot
 (`connectors/odoo/`), 2,971 ranged SKUs, 26,881 store-SKU pairs, read through
@@ -23,50 +28,11 @@ currently blends them and the blend favours job 1 at the direct expense of job 2
 
 ---
 
-## 1. The formulae as they stand
+## 1. The formulae
 
-### Shared primitives
-
-```
-safety      = ADS x 14                          (fixed, all stores, all SKUs)
-gate        = 14d cover if fresh else 30d
-excess      = stock - safety   if cover > gate AND (stock - safety) > ADS x 7
-            = stock            if ADS == 0 and stock > 0
-            = 0                otherwise
-
-T_sustain   = min(14, max(1, next_order_window + supplier_lead))
-target      = ADS x T_sustain                   (RECIPIENT fill level)
-
-donor score = excess / (haversine_km + 0.1)
-              x 3.0  if warehouse hub
-              x 2.0  if days_since_delivery > 45 AND velocity_ratio < 0.05
-eligibility : excess > 0 AND stock >= safety x r,  r = 1.5 / 2.0 / 2.5 by ADS
-
-pool        = excess x RELEASE_FRACTION(0.5) - already_booked
-```
-
-### PULL (`scan_network_opportunities`, pass 2)
-
-```
-trigger   : ADS>0 and cover < 7d, or stock <= ROP, or ADS=0 and stock<1, or MOQ-failed
-shortfall : max(0, target - effective_stock, moq_qty)
-weight    : risk_kes = shortfall x margin
-share     : min(remaining_need, pool x weight_i / sum(weights))
-```
-
-Three rounds, then a remainder sweep. Order-independent by construction —
-**verified at 0.00% divergence** across reversed and sorted store orderings on
-this depot.
-
-### PUSH (pass 3)
-
-```
-donor     : cover > 60d (cold) and excess > 0 and pool >= 1
-recipient : cover < 14d (hot) and target > effective_stock
-weight    : need x unit_margin
-```
-
----
+Stated once, authoritatively, in [`OASIS_Master_Transfer_Formulae.md`](OASIS_Master_Transfer_Formulae.md). This document is the
+EVIDENCE behind them — what was measured, what it showed, and what changed as
+a result. Where the two disagree the master specification wins.
 
 ## 2. Job 1 — plugging gaps: the funnel
 
@@ -170,6 +136,17 @@ therefore keyed on the **donor's own canonical code**, never on the caller's
 alias, and `FulfillmentDecision` now carries `donor_itm_cd` to make that
 identity explicit.
 
+### 2.5 Dead constants — fixed
+
+- `MIN_SAVINGS_RATIO = 0.3` was declared and referenced nowhere; the live gate
+  was an unexplained inline `x 0.4`. The dead constant is deleted and the real
+  one is named `MAX_TRANSFER_COST_RATIO = 0.4` — the value that always ran,
+  not the aspirational one that never did.
+- Transfer cost still defaults to 200 in the decider and 500 from the service.
+  500 wins. Untouched.
+
+---
+
 ### 2.6 Two engines for one job — consolidated
 
 `ProactiveRebalancer` did the same work as the PUSH pass, from a different
@@ -201,17 +178,6 @@ hardcoded window cannot do — that both entry points route through
 previous version of that test asserted the literals `"60"` and `"14"` appeared
 in the method's SOURCE TEXT, which is why it never noticed a whole second
 engine with different numbers.
-
-### 2.5 Dead constants — fixed
-
-- `MIN_SAVINGS_RATIO = 0.3` was declared and referenced nowhere; the live gate
-  was an unexplained inline `x 0.4`. The dead constant is deleted and the real
-  one is named `MAX_TRANSFER_COST_RATIO = 0.4` — the value that always ran,
-  not the aspirational one that never did.
-- Transfer cost still defaults to 200 in the decider and 500 from the service.
-  500 wins. Untouched.
-
----
 
 ## 3. Job 2 — eliminating dead stock: this is where it breaks
 

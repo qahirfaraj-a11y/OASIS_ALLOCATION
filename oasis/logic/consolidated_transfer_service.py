@@ -204,7 +204,13 @@ class ConsolidatedTransferService:
         self._perishability = {str(k).upper(): float(v) for k, v in
                                (dsc.get("perishability_tiers") or {}).items()}
         self._dead_days_default = float(dsc.get("days_default", 45))
-        self._capital_floor = float(dsc.get("capital_floor", 0.0))
+        # AMIT's own capital floor is deliberately NOT used as the viability
+        # test. AMIT asks "is this much capital worth an operator's attention";
+        # a transfer asks "does moving it recover more than the move costs".
+        # The second is the right question here and its answer is already
+        # known — transfer_cost_kes — so a fixed 500 would be a second, weaker
+        # opinion about the same thing. Kept for reporting only.
+        self._amit_capital_floor = float(dsc.get("capital_floor", 0.0))
         # Fallback horizon for a supplier LATA has never seen: the MEDIAN of the
         # ones it has. Derived from this network's own measured behaviour rather
         # than a constant, because an unknown supplier is far more likely to
@@ -347,13 +353,17 @@ class ConsolidatedTransferService:
                 department: str = "", unit_cost: float = 0.0) -> bool:
         """Dead stock, per AMIT's definition rather than a second opinion.
 
-        ``amit_governance`` already classifies dead stock for the whole system,
-        and it does it better than a flat days-of-cover rule: thresholds are
-        CATEGORY-AWARE (bakery dies at 5 days, cereals at 60) and there is a
-        CAPITAL FLOOR, so a single unit of a cheap line is not paraded as
-        trapped capital. PUSH's own ``cold_node_days > 60`` was a third,
-        blunter definition of the same thing, and the capital floor is exactly
-        the filter whose absence let sub-unit noise dominate the pass.
+        ``amit_governance`` already classifies dead stock for the whole system
+        and does it better than a flat days-of-cover rule: its thresholds are
+        CATEGORY-AWARE (bakery dies at 5 days, cereals at 60). PUSH's own
+        ``cold_node_days > 60`` was a third, blunter definition of the same
+        thing.
+
+        The viability floor here is the TRANSFER COST, not AMIT's capital
+        floor. They answer different questions — AMIT asks whether the trapped
+        capital deserves an operator's attention, a transfer asks whether
+        moving it recovers more than the lorry costs — and only the second one
+        decides whether to load a van.
 
         DEAD means zero demand AND silent for DEAD_STOCK_DAYS. Deliberately
         NARROWER than AMIT, which also classes a still-selling line sitting on
