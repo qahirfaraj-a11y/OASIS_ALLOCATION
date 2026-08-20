@@ -64,8 +64,52 @@ class OasisSync(models.AbstractModel):
         return out
 
     # ── collectors ───────────────────────────────────────────────────────
+    def _batch(self, model, domain, since):
+        """Records changed since the watermark, capped, oldest first.
+
+        WHY A CAP AT ALL
+        ----------------
+        These searches were unbounded. On a fresh connection to an instance
+        with real history that is one query for everything ever done: measured
+        on a 14-store depot, 240,966 done stock moves in a single pass, which
+        killed the Odoo worker outright. It could then never record how far it
+        had got, so every subsequent run tried the same impossible thing and
+        died the same way — while holding a row lock on ir_cron that blocked
+        addon upgrades. A first sync is exactly when this bites a customer.
+
+        WHY THE BOUNDARY IS WIDENED
+        ---------------------------
+        Capping alone would lose data. The watermark is a TIMESTAMP, so if a
+        batch ends in the middle of a second, the records sharing that second
+        are skipped forever by the next run's ``write_date >``. So when a batch
+        comes back full, every record sharing its last timestamp is pulled in
+        too. That also guarantees progress: a batch can never be entirely
+        discarded for sharing one timestamp, which a naive "drop the tail" fix
+        would do to a bulk import written in a single second.
+        """
+        limit = self._batch_size()
+        recs = self.env[model].search(domain + [("write_date", ">", since)],
+                                      order="write_date asc, id asc", limit=limit)
+        if len(recs) < limit:
+            return recs, False
+        edge = recs[-1].write_date
+        recs |= self.env[model].search(domain + [("write_date", "=", edge)])
+        return recs, True
+
+    def _batch_size(self):
+        try:
+            return max(100, int(self._param("oasis.sync_batch_size", 5000)))
+        except (TypeError, ValueError):
+            return 5000
+
+    @staticmethod
+    def _watermark_of(recs, fallback):
+        """How far this run actually got — never how far it hoped to get."""
+        return (fields.Datetime.to_string(max(recs.mapped("write_date")))
+                if recs else fallback)
+
     def _collect_sales(self, since):
-        lines = self.env["pos.order.line"].search([("write_date", ">", since)])
+        lines, more = self._batch("pos.order.line", [], since)
         pmap = self._product_map(lines.mapped("product_id").ids)
         movements = []
         for ln in lines:
@@ -76,12 +120,10 @@ class OasisSync(models.AbstractModel):
                 {"id": ln.id, "qty": ln.qty, "price_unit": ln.price_unit},
                 prod, order_date=fields.Datetime.to_string(ln.order_id.date_order),
             ))
-        return movements
+        return movements, self._watermark_of(lines, since), more
 
     def _collect_receipts(self, since):
-        moves = self.env["stock.move"].search([
-            ("write_date", ">", since), ("state", "=", "done"),
-        ])
+        moves, more = self._batch("stock.move", [("state", "=", "done")], since)
         pmap = self._product_map(moves.mapped("product_id").ids)
         movements = []
         for mv in moves:
@@ -95,12 +137,23 @@ class OasisSync(models.AbstractModel):
                 "location_dest_usage": mv.location_dest_id.usage,
                 "price_unit": getattr(mv, "price_unit", 0.0),
             }, prod))
-        return movements
+        return movements, self._watermark_of(moves, since), more
 
     def _collect_on_hand(self):
-        quants = self.env["stock.quant"].search([
-            ("location_id.usage", "=", "internal"), ("quantity", "!=", 0),
-        ])
+        """A full snapshot, capped. Unlike the movement feeds this is not
+        incremental — it is the current position — so a cap TRUNCATES rather
+        than defers, and that is worth saying out loud in the log instead of
+        quietly shipping a partial picture that looks complete."""
+        limit = self._batch_size()
+        domain = [("location_id.usage", "=", "internal"), ("quantity", "!=", 0)]
+        total = self.env["stock.quant"].search_count(domain)
+        if total > limit:
+            _logger.warning(
+                "OASIS on-hand snapshot TRUNCATED: %s quants on hand, sending "
+                "%s. Raise oasis.sync_batch_size to send the whole position.",
+                total, limit)
+        quants = self.env["stock.quant"].search(
+            domain, order="write_date desc, id desc", limit=limit)
         pmap = self._product_map(quants.mapped("product_id").ids)
         movements = []
         for q in quants:
@@ -125,23 +178,33 @@ class OasisSync(models.AbstractModel):
         run_started = fields.Datetime.now().strftime(_ODOO_DT)
         totals = {"accepted": 0, "duplicates": 0}
 
+        # The watermark advances to WHAT WAS PROCESSED, never to when the run
+        # began. With a batch cap those differ, and writing run_started would
+        # silently skip every record the cap left behind — the sync would
+        # report success while losing the bulk of the history it exists to
+        # stream. `more` says another batch is waiting, so an operator can see
+        # a backlog draining instead of guessing.
+        totals["pending"] = False
+
         if self._param("oasis.send_sales") in ("True", "1", "true", True, None):
             wm = self._param("oasis.watermark.sales", _EPOCH)
-            movs = self._collect_sales(wm)
+            movs, reached, more = self._collect_sales(wm)
             if movs:
                 res = client.push(movs)
                 totals["accepted"] += res["accepted"]
                 totals["duplicates"] += res["duplicates"]
-            self._set_param("oasis.watermark.sales", run_started)
+            self._set_param("oasis.watermark.sales", reached)
+            totals["pending"] = totals["pending"] or more
 
         if self._param("oasis.send_receipts") in ("True", "1", "true", True, None):
             wm = self._param("oasis.watermark.receipts", _EPOCH)
-            movs = self._collect_receipts(wm)
+            movs, reached, more = self._collect_receipts(wm)
             if movs:
                 res = client.push(movs)
                 totals["accepted"] += res["accepted"]
                 totals["duplicates"] += res["duplicates"]
-            self._set_param("oasis.watermark.receipts", run_started)
+            self._set_param("oasis.watermark.receipts", reached)
+            totals["pending"] = totals["pending"] or more
 
         if self._param("oasis.send_on_hand") in ("True", "1", "true", True):
             movs = self._collect_on_hand()
@@ -150,7 +213,11 @@ class OasisSync(models.AbstractModel):
                 totals["accepted"] += res["accepted"]
                 totals["duplicates"] += res["duplicates"]
 
-        _logger.info("OASIS sync done: %s", totals)
+        if totals.get("pending"):
+            _logger.info("OASIS sync done: %s — MORE PENDING, the next run "
+                         "continues from this watermark", totals)
+        else:
+            _logger.info("OASIS sync done: %s", totals)
         return totals
 
     @api.model
