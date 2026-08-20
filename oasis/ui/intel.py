@@ -370,8 +370,15 @@ def render_network_intel(ctx) -> None:
     st.markdown("#### Transfer Opportunities (read-only)")
     try:
         from ..logic.consolidated_transfer_service import ConsolidatedTransferService
-        cts = ConsolidatedTransferService(org_names=names, stock_data=stock,
-                                          cold_node_days=60, hot_node_days=14)
+        import os
+        cts = ConsolidatedTransferService(
+            org_names=names, stock_data=stock,
+            cold_node_days=60, hot_node_days=14,
+            # LATA horizons + AMIT category thresholds. This view is read-only,
+            # but it must agree with the Operations Console it tells the
+            # operator to act in — running it degraded would show a different
+            # opportunity list from the one they can queue.
+            data_dir=os.path.join(ctx["project_root"], "oasis", "data"))
         opps = cts.scan_network_opportunities().opportunities
         if opps:
             st.caption(f"{len(opps)} opportunities · act on them in the Operations Console → Transfers.")

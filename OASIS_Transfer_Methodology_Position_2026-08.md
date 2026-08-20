@@ -8,9 +8,17 @@
 **Date:** 2026-08-20
 **Question:** how does the transfer methodology now in the engine compare with
 the one the Command Center actually runs?
-**Answer, in one line:** they are the **same code in two different
-configurations**, and the Command Center is wired to the weaker one. It also
-runs a **second, unrelated transfer maths** on another tab.
+**Answer, in one line:** they were the **same code in two different
+configurations**, and the Command Center was wired to the weaker one. **Closed
+in `ff245b36`+** — all five call sites now pass `data_dir`, so the product runs
+the derived methodology. It still runs a **second, unrelated transfer maths**
+on another tab, and that remains open.
+
+> **Status.** Everything below §3 measures the gap **as it was**. It is kept
+> because it is the evidence for why the wiring matters, and the baseline any
+> future regression would be measured against — not because the gap is still
+> there. Verified after wiring: the Command Center construction now returns
+> 4,001 PULL / 19,546 units / 5,450 perishable, identical to `data_dir` alone.
 
 Measured on the 14-outlet Odoo depot (2,971 ranged SKUs, 26,881 store-SKU
 pairs), engine at commit `a5bcba25`.
@@ -168,24 +176,37 @@ artifact of small, slow stores.
 
 ## 5. Position
 
-1. **The methodology is in the engine; the product is not receiving it.** No
-   call site — `desktop/data.py` (×2), `ui/intel.py`, `ui/shell.py` (×2) —
-   passes `data_dir`, `supplier_rhythm` or `dead_stock_config`. One line per
-   call site closes this.
-2. **Two transfer methodologies remain reachable from one Command Center**,
-   on adjacent tabs, giving different answers about the same stock. They no
-   longer double-spend; they still disagree.
-3. **The gap is not cosmetic.** Half the relief horizon, no supplier-
-   reliability term, no category shelf life, and 288 of 599 suppliers unknown
-   to the horizon calculation.
+1. ~~**The methodology is in the engine; the product is not receiving it.**~~
+   **CLOSED.** All five call sites — `desktop/data.py` (×2), `ui/intel.py`,
+   `ui/shell.py` (×2) — now pass `data_dir`. Verified at construction: 599
+   LATA suppliers, 23.0 d median relief, 76 AMIT tiers, bakery threshold 5 d
+   rather than 45. The Command Center construction reproduces the derived plan
+   exactly (4,001 PULL / 19,546 units / 5,450 perishable).
+
+   `desktop/data.py` passes **both** `next_delivery_days` and `data_dir`. That
+   is deliberate and strictly better than either alone: LATA answers first,
+   and the supplier calendar covers part of the tail LATA has not seen before
+   the network-median fallback is reached.
+
+2. **STILL OPEN — two transfer methodologies reachable from one Command
+   Center**, on adjacent tabs, giving different answers about the same stock.
+   `decide()` (Smart Ordering) is greedy over one donor against raw supplier
+   lead; the scan is proportional over all donors against the relief horizon.
+   They share the ledger so they cannot double-spend, but an operator can read
+   two different recommendations for the same SKU on the same day.
+
+3. **STILL OPEN — verification against the live depot.** Everything here is
+   measured on the offline reconstruction; Docker has been down since the
+   consolidation work. `connectors/odoo/verify_store_network.py` is the check
+   to re-run.
+
 4. **Standing caveat.** All measurements are on a synthetic multi-store
    network built from one real Rhapta snapshot. The *structural* findings hold
    regardless of data; the *numbers* need re-deriving against genuine
    multi-store history before they are trusted.
 
-### Recommended order
+### Remaining order
 
-1. Pass `data_dir` at the five call sites. Smallest change, largest effect.
-2. Re-measure on the Odoo depot end-to-end (needs Docker back up).
-3. Decide whether B should keep its own maths or delegate to the scan the way
+1. Re-measure on the Odoo depot end-to-end (needs Docker back up).
+2. Decide whether B keeps its own maths or delegates to the scan the way
    `_identify_proactive_transfers` now does.

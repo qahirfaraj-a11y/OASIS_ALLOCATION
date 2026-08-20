@@ -439,7 +439,10 @@ def render_ordering(ctx) -> None:
                     cts = ConsolidatedTransferService(
                         org_names=name_map,
                         stock_data={o: adapter.fetch_enriched_products(o) for o in org_ids},
-                        cold_node_days=60, hot_node_days=14)
+                        cold_node_days=60, hot_node_days=14,
+                        # LATA horizons + AMIT category thresholds; without it
+                        # the service runs degraded on fixed 7/14-day windows
+                        data_dir=data_dir)
                     plan = cts.optimize_network({org: final})
                     adjusted = plan.adjusted_orders.get(org, final)
                     mot = sim.apply_minimum_order_gate(adjusted)
@@ -561,7 +564,8 @@ def render_transfers(ctx) -> None:
                 cts = ConsolidatedTransferService(
                     org_names=name_map,
                     stock_data={o: adapter.fetch_enriched_products(o) for o in org_ids},
-                    cold_node_days=60, hot_node_days=14)
+                    cold_node_days=60, hot_node_days=14,
+                    data_dir=data_dir)
                 scan = cts.scan_network_opportunities(
                     moq_failures=moq, pending_transfers=pending)
                 st.session_state["_transfers_scan"] = scan.opportunities
