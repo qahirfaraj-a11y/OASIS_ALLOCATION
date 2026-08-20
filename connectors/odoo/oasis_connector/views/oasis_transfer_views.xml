@@ -1,0 +1,140 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+  <!-- List: the review queue. Ordered by value, because the operator works
+       down from the money, not down from whatever was computed first. -->
+  <record id="view_oasis_transfer_suggestion_tree" model="ir.ui.view">
+    <field name="name">oasis.transfer.suggestion.tree</field>
+    <field name="model">oasis.transfer.suggestion</field>
+    <field name="arch" type="xml">
+      <tree string="Transfer suggestions" multi_edit="0"
+            decoration-muted="state == 'rejected'"
+            decoration-success="state == 'approved'"
+            decoration-warning="is_fresh == True and state == 'new'">
+        <header>
+          <button name="action_approve" type="object" string="Approve → draft transfer"
+                  class="btn-primary"/>
+          <button name="action_reject" type="object" string="Reject"/>
+        </header>
+        <field name="kind" string="Job"/>
+        <field name="product_id"/>
+        <field name="from_warehouse_id" string="From"/>
+        <field name="to_warehouse_id" string="To"/>
+        <field name="quantity" sum="Units"/>
+        <field name="uom_id" string="UoM"/>
+        <field name="donor_days_cover" string="Donor cover" optional="show" widget="float"/>
+        <field name="recipient_days_cover" string="Recipient cover" optional="show" widget="float"/>
+        <field name="value_kes" sum="Value" widget="monetary"/>
+        <field name="currency_id" invisible="1"/>
+        <field name="is_fresh" string="Fresh" optional="show"/>
+        <field name="state"/>
+        <field name="picking_id" optional="hide"/>
+      </tree>
+    </field>
+  </record>
+
+  <!-- Form: the argument, then the numbers. -->
+  <record id="view_oasis_transfer_suggestion_form" model="ir.ui.view">
+    <field name="name">oasis.transfer.suggestion.form</field>
+    <field name="model">oasis.transfer.suggestion</field>
+    <field name="arch" type="xml">
+      <form string="Transfer suggestion">
+        <header>
+          <button name="action_approve" type="object" string="Approve → draft transfer"
+                  class="oe_highlight" states="new"/>
+          <button name="action_reject" type="object" string="Reject" states="new"/>
+          <button name="action_reset" type="object" string="Back to queue" states="rejected"/>
+          <button name="action_open_picking" type="object" string="Open transfer"
+                  states="approved"/>
+          <field name="state" widget="statusbar" statusbar_visible="new,approved"/>
+        </header>
+        <sheet>
+          <div class="oe_title">
+            <h1><field name="display_name" readonly="1"/></h1>
+          </div>
+          <!-- drives the banner's attrs below; Odoo requires a field to be
+               present in the view before an attrs domain may reference it -->
+          <field name="is_fresh" invisible="1"/>
+          <div class="alert alert-warning" role="alert" attrs="{'invisible': [('is_fresh','=',False)]}">
+            <strong>Perishable.</strong> OASIS never queues fresh lines on its own —
+            transit costs shelf life. Approve this only if it can be dispatched today.
+          </div>
+          <group>
+            <group string="Why OASIS proposed this">
+              <field name="kind"/>
+              <field name="reason" nolabel="1" colspan="2" readonly="1"/>
+            </group>
+            <group string="Position">
+              <field name="donor_days_cover" string="Donor has (days)"/>
+              <field name="recipient_days_cover" string="Recipient has (days)"/>
+              <field name="value_kes" widget="monetary"/>
+              <field name="currency_id" invisible="1"/>
+            </group>
+          </group>
+          <group>
+            <group string="Movement">
+              <field name="product_id"/>
+              <field name="quantity"/>
+              <field name="uom_id"/>
+            </group>
+            <group string="Route">
+              <field name="from_warehouse_id"/>
+              <field name="to_warehouse_id"/>
+              <field name="computed_on"/>
+              <field name="picking_id" readonly="1"/>
+              <field name="picking_state" readonly="1"/>
+            </group>
+          </group>
+        </sheet>
+      </form>
+    </field>
+  </record>
+
+  <record id="view_oasis_transfer_suggestion_search" model="ir.ui.view">
+    <field name="name">oasis.transfer.suggestion.search</field>
+    <field name="model">oasis.transfer.suggestion</field>
+    <field name="arch" type="xml">
+      <search string="Transfer suggestions">
+        <field name="product_id"/>
+        <field name="from_warehouse_id"/>
+        <field name="to_warehouse_id"/>
+        <filter name="f_new" string="To review" domain="[('state','=','new')]"/>
+        <filter name="f_approved" string="Approved" domain="[('state','=','approved')]"/>
+        <filter name="f_rejected" string="Rejected" domain="[('state','=','rejected')]"/>
+        <separator/>
+        <filter name="f_pull" string="Plug a gap" domain="[('kind','=','pull')]"/>
+        <filter name="f_push" string="Clear idle stock" domain="[('kind','=','push')]"/>
+        <separator/>
+        <filter name="f_dry" string="Non-perishable" domain="[('is_fresh','=',False)]"/>
+        <filter name="f_fresh" string="Perishable" domain="[('is_fresh','=',True)]"/>
+        <group expand="0" string="Group by">
+          <filter name="g_to" string="Receiving store" context="{'group_by':'to_warehouse_id'}"/>
+          <filter name="g_from" string="Donor store" context="{'group_by':'from_warehouse_id'}"/>
+          <filter name="g_kind" string="Job" context="{'group_by':'kind'}"/>
+          <filter name="g_state" string="Status" context="{'group_by':'state'}"/>
+        </group>
+      </search>
+    </field>
+  </record>
+
+  <record id="action_oasis_transfer_suggestion" model="ir.actions.act_window">
+    <field name="name">Transfer suggestions</field>
+    <field name="res_model">oasis.transfer.suggestion</field>
+    <field name="view_mode">tree,form</field>
+    <field name="context">{'search_default_f_new': 1}</field>
+    <field name="help" type="html">
+      <p class="o_view_nocontent_smiling_face">No transfer suggestions yet.</p>
+      <p>
+        OASIS reads this Odoo instance, works out which stores will run short
+        before their next delivery and which are sitting on stock that is not
+        moving, and posts what it would do here for you to approve.
+      </p>
+      <p>
+        Run a scan from OASIS to fill this queue. Approving a suggestion
+        creates a <b>draft internal transfer</b> — nothing is reserved and no
+        stock moves until your team confirms it in Inventory.
+      </p>
+    </field>
+  </record>
+
+</odoo>

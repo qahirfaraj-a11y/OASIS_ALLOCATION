@@ -1,32 +1,26 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
-    <!-- Server actions resolve the configured console URL at click time -->
-    <record id="action_oasis_intel" model="ir.actions.server">
-        <field name="name">OASIS Intelligence</field>
-        <field name="model_id" ref="model_oasis_sync"/>
-        <field name="state">code</field>
-        <field name="code">action = env["oasis.sync"].open_console("intel")</field>
-    </record>
-    <record id="action_oasis_ops" model="ir.actions.server">
-        <field name="name">OASIS Operations</field>
-        <field name="model_id" ref="model_oasis_sync"/>
-        <field name="state">code</field>
-        <field name="code">action = env["oasis.sync"].open_console("ops")</field>
-    </record>
-    <record id="action_oasis_command" model="ir.actions.server">
-        <field name="name">OASIS Command Center</field>
-        <field name="model_id" ref="model_oasis_sync"/>
-        <field name="state">code</field>
-        <field name="code">action = env["oasis.sync"].open_console("command")</field>
-    </record>
+    <!--
+      The OASIS app inside Odoo is TRANSFERS and ORDERING — not the whole
+      suite. Earlier revisions put three server actions here that embedded the
+      Intelligence, Operations and Command Center consoles in an iframe. That
+      shipped the entire product into a window inside Odoo, where it competed
+      with Odoo's own navigation and gave away every module to anyone who
+      installed the connector.
 
-    <!-- The OASIS app: one top-level menu, three consoles -->
+      What belongs in Odoo is the part an Odoo user does in Odoo: review what
+      OASIS proposes, and approve it into native documents. The intelligence
+      that produced those proposals stays outside, which is also what is being
+      sold. Replenishment follows the same pattern as Transfers.
+    -->
+
     <menuitem id="menu_oasis_root" name="OASIS" sequence="60"
               web_icon="oasis_connector,static/description/icon.png"/>
-    <menuitem id="menu_oasis_intel" name="Intelligence"
-              parent="menu_oasis_root" action="action_oasis_intel" sequence="10"/>
-    <menuitem id="menu_oasis_ops" name="Operations"
-              parent="menu_oasis_root" action="action_oasis_ops" sequence="20"/>
-    <menuitem id="menu_oasis_command" name="Command Center"
-              parent="menu_oasis_root" action="action_oasis_command" sequence="30"/>
+
+    <menuitem id="menu_oasis_transfers" name="Transfers"
+              parent="menu_oasis_root" sequence="10"/>
+
+    <menuitem id="menu_oasis_transfer_suggestions" name="Suggestions"
+              parent="menu_oasis_transfers"
+              action="action_oasis_transfer_suggestion" sequence="10"/>
 </odoo>

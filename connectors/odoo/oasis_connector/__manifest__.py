@@ -9,15 +9,19 @@ OASIS Retail Intelligence Connector
 Securely streams opt-in stock-movement telemetry (POS sales, goods receipts,
 and stock-on-hand snapshots) from this Odoo instance to the OASIS Cloud Hub,
 powering the OASIS ordering, transfer, and Retail Central Intelligence services
-— and brings the OASIS Intelligence, Operations, and Command Center consoles
-into Odoo's own app switcher.
+— and brings OASIS's transfer and replenishment decisions into Odoo as a
+review queue you approve into native documents.
 
 * Zero extra Python dependencies — pushes over HTTPS with the standard library.
 * You control what leaves your system: nothing is sent until you enable it and
   provide a store ingest token issued by OASIS.
 * Idempotent, batched, and resumable — safe to run on a schedule.
-* Open the OASIS app from Odoo's home menu to work in Intelligence,
-  Operations, or the Command Center without leaving Odoo.
+* OASIS → Transfers lists what it would move and WHY — days of cover at both
+  ends, the value at risk, and which job it serves. Approve a suggestion and
+  it becomes a draft internal transfer; nothing is reserved and no stock moves
+  until your team confirms it in Inventory.
+* Perishables are surfaced but never queued automatically: transit costs shelf
+  life, so a fresh line is only ever moved by a deliberate human decision.
 
 Configure under Settings → OASIS Connector.
 """,
@@ -33,6 +37,7 @@ Configure under Settings → OASIS Connector.
         "security/ir.model.access.csv",
         "data/ir_cron.xml",
         "views/res_config_settings_views.xml",
+        "views/oasis_transfer_views.xml",
         "views/oasis_menus.xml",
     ],
     "assets": {
