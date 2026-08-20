@@ -22,6 +22,8 @@ from typing import Dict, List, Optional, Any
 
 from .transfer_state import TransferStateTracker, TransferRecord
 from .fulfillment_decider import (
+    DONOR_RELEASE_FRACTION,
+    DonorLedger,
     FulfillmentDecider,
     FulfillmentDecision,
     NetworkAvailabilityMap,
@@ -91,6 +93,47 @@ class NetworkScanResult:
 
 
 # ---------------------------------------------------------------------------
+# Inputs the transfer engine should not invent for itself
+# ---------------------------------------------------------------------------
+
+def load_supplier_rhythm(data_dir: str) -> Dict[str, dict]:
+    """supplier (lowercased) -> LATA's measured delivery rhythm.
+
+    Written by ``lata_shield`` into supplier_patterns_2025.json from GRN
+    history. Read-only here. Missing file is not fatal: the caller falls back to
+    fixed horizons and says so in the log, which is better than pretending to
+    know a cadence.
+    """
+    import json
+    import os
+    out: Dict[str, dict] = {}
+    path = os.path.join(data_dir or "", "supplier_patterns_2025.json")
+    if not os.path.exists(path):
+        return out
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            raw = json.load(f)
+    except Exception as e:
+        logger.warning("supplier rhythm unreadable (%s)", str(e)[:120])
+        return out
+    for name, rec in (raw or {}).items():
+        if isinstance(rec, dict):
+            out[str(name).strip().lower()] = rec
+    return out
+
+
+def load_dead_stock_config(data_dir: str) -> Dict[str, Any]:
+    """AMIT's dead-stock thresholds — category tiers, default days, capital floor."""
+    try:
+        from .engines_config import load_engines_config
+        return (load_engines_config(data_dir).get("engines", {})
+                .get("dead_stock", {}) or {})
+    except Exception as e:
+        logger.warning("dead-stock config unavailable (%s)", str(e)[:120])
+        return {}
+
+
+# ---------------------------------------------------------------------------
 # Main service
 # ---------------------------------------------------------------------------
 
@@ -116,7 +159,10 @@ class ConsolidatedTransferService:
                  cold_node_days: int = 60,
                  hot_node_days: int = 14,
                  target_cover_days: float = 14.0,
-                 next_delivery_days: Optional[Dict[str, float]] = None):
+                 next_delivery_days: Optional[Dict[str, float]] = None,
+                 supplier_rhythm: Optional[Dict[str, dict]] = None,
+                 dead_stock_config: Optional[Dict[str, Any]] = None,
+                 data_dir: Optional[str] = None):
         """
         Args:
             org_names: {org_cd: org_name} for all stores
@@ -145,6 +191,43 @@ class ConsolidatedTransferService:
         # Turns the target from an arbitrary constant into "cover until relief
         # actually arrives".
         self.next_delivery_days = next_delivery_days or {}
+        # LATA's measured supplier rhythm, and AMIT's dead-stock thresholds.
+        # Both are loaded from the same data the rest of the system uses, so the
+        # transfer engine stops holding private opinions about lead time and
+        # deadness that disagree with the engines built to decide them.
+        if supplier_rhythm is None and data_dir:
+            supplier_rhythm = load_supplier_rhythm(data_dir)
+        self.supplier_rhythm = supplier_rhythm or {}
+        if dead_stock_config is None and data_dir:
+            dead_stock_config = load_dead_stock_config(data_dir)
+        dsc = dead_stock_config or {}
+        self._perishability = {str(k).upper(): float(v) for k, v in
+                               (dsc.get("perishability_tiers") or {}).items()}
+        self._dead_days_default = float(dsc.get("days_default", 45))
+        self._capital_floor = float(dsc.get("capital_floor", 0.0))
+        # Fallback horizon for a supplier LATA has never seen: the MEDIAN of the
+        # ones it has. Derived from this network's own measured behaviour rather
+        # than a constant, because an unknown supplier is far more likely to
+        # resemble the rest of the book than to resemble the number 7. Only if
+        # there is no rhythm data at all do the passed-in constants apply.
+        self._median_relief: Optional[float] = None
+        if self.supplier_rhythm:
+            seen = []
+            for name in self.supplier_rhythm:
+                d = self._relief_days(name, 0.0)
+                if d:
+                    seen.append(d)
+            if seen:
+                seen.sort()
+                self._median_relief = seen[len(seen) // 2]
+            logger.info("Transfer service: LATA rhythm for %d suppliers, "
+                        "median relief horizon %.1fd",
+                        len(self.supplier_rhythm), self._median_relief or 0.0)
+        else:
+            logger.warning("Transfer service: NO supplier rhythm available — "
+                           "relief horizons fall back to the fixed %.0fd target. "
+                           "Run lata_shield to derive them from GRN history.",
+                           self.target_cover_days)
 
         self.tracker = TransferStateTracker()
         if self.registry_path:
@@ -160,10 +243,22 @@ class ConsolidatedTransferService:
                 warehouse_hubs.append(org_cd)
                 warehouse_hubs.append("ORG" + str(org_cd).zfill(3))
 
+        # ONE book of what each donor has already promised, shared by every
+        # path on this service. scan_network_opportunities and the decide()
+        # path both draw on the same donors; until this existed they tracked
+        # that in two different places and neither could see the other, so
+        # running ordering and then a network scan offered the same units
+        # twice.
+        self.donor_ledger = DonorLedger()
+
         self.decider = FulfillmentDecider(
             transfer_cost_kes=transfer_cost_kes,
             distance_map=self.distance_map,
             warehouse_hubs=warehouse_hubs,
+            # explicit, so the ordering path protects donors by exactly the
+            # same fraction this service does
+            max_donor_drain=self.RELEASE_FRACTION,
+            ledger=self.donor_ledger,
         )
 
         # Build network availability map from stock data
@@ -227,25 +322,145 @@ class ConsolidatedTransferService:
         return nmap
 
     #: Share of a donor's excess that may leave in one scan, across BOTH
-    #: passes. One number, not 0.5 for PULL and 0.4 for PUSH.
-    RELEASE_FRACTION = 0.5
+    #: passes. One number, not 0.5 for PULL and 0.4 for PUSH — and now not a
+    #: second declaration either: it IS fulfillment_decider's constant, so the
+    #: scan path and decide() cannot drift to different values.
+    #: Dead stock is exempt (no demand, no service to protect) — see the PUSH pass.
+    RELEASE_FRACTION = DONOR_RELEASE_FRACTION
 
-    def _target_cover(self, supplier: str, lead_days: float) -> float:
-        """T_sustain = min(T_standard, max(1, T_next)).
+    #: A line is DEAD when it has zero demand AND has been silent this long.
+    #:
+    #: The second half is not redundant. Zero ADS on its own also describes a
+    #: line ranged last week that has not had its first sale yet, and shipping
+    #: those away is the opposite of useful. Deadness is a sustained condition,
+    #: so it needs the age as well as the silence.
+    DEAD_STOCK_DAYS = 90
 
-        T_next is days until the next scheduled delivery: the supplier's next
-        order window plus their lead time. Covering beyond that buys stock the
-        supplier is about to deliver anyway, which is how a store selling ~0 of
-        an item was calculated to "need" 7 units of it.
+    #: Last-resort ceiling on a relief horizon, used ONLY where the category is
+    #: unknown so no perishability threshold can be derived. Where the category
+    #: IS known the cap comes from AMIT's tier for it — a bakery line is capped
+    #: at 5 days because that is when it dies, not because of a number chosen
+    #: here. See _relief_days.
+    MAX_RELIEF_DAYS = 45.0
 
-        Falls back to the standard horizon when the supplier is unknown to the
-        calendar — a missing schedule must not silently shrink the target to
-        nothing.
+    def is_dead(self, ads: float, stock: float, days_since_delivery: float,
+                department: str = "", unit_cost: float = 0.0) -> bool:
+        """Dead stock, per AMIT's definition rather than a second opinion.
+
+        ``amit_governance`` already classifies dead stock for the whole system,
+        and it does it better than a flat days-of-cover rule: thresholds are
+        CATEGORY-AWARE (bakery dies at 5 days, cereals at 60) and there is a
+        CAPITAL FLOOR, so a single unit of a cheap line is not paraded as
+        trapped capital. PUSH's own ``cold_node_days > 60`` was a third,
+        blunter definition of the same thing, and the capital floor is exactly
+        the filter whose absence let sub-unit noise dominate the pass.
+
+        DEAD means zero demand AND silent for DEAD_STOCK_DAYS. Deliberately
+        NARROWER than AMIT, which also classes a still-selling line sitting on
+        more than its category threshold as dead. That second case is
+        OVERSTOCK, not dead stock: it is turning over, just too slowly, and it
+        is already the donor supply the PULL pass draws on via _excess_units.
+        Feeding it to PUSH as well double-counts the same units in two passes —
+        measured, that moved 281% of the network's actual dead stock.
+
+        The category threshold still governs how much a RECIPIENT can absorb
+        (see the PUSH pass), which is where per-category shelf life genuinely
+        belongs.
         """
-        nxt = self.next_delivery_days.get((supplier or "").strip().lower())
-        if nxt is None:
-            return self.target_cover_days
-        return min(self.target_cover_days, max(1.0, float(nxt) + float(lead_days or 0)))
+        stock = float(stock or 0)
+        if stock <= 0 or ads > 0:
+            return False
+        if float(days_since_delivery or 0) < self.DEAD_STOCK_DAYS:
+            return False
+        # worth a lorry? Derived from what the move actually costs, not a fixed
+        # floor -- recovering less trapped capital than the transfer costs is
+        # not a recovery.
+        if unit_cost:
+            return stock * float(unit_cost) >= self.transfer_cost_kes
+        return True
+
+    def _dead_days_for(self, department: str) -> float:
+        """AMIT's per-category dead-stock threshold, defaulting to its default."""
+        return float(self._perishability.get(str(department or "").upper(),
+                                             self._dead_days_default))
+
+    def _relief_days(self, supplier: str, lead_days: float,
+                     department: str = "") -> Optional[float]:
+        """Days until replenishment actually LANDS, or None if unknown.
+
+        This is the horizon every number in the PULL pass is measured against: a
+        store is short when it cannot reach this date, and a transfer restores
+        exactly enough to reach it — no more, because a transfer plugs a gap and
+        is not a replenishment.
+
+        Sourced from LATA rather than from a stated lead time. LATA's whole
+        premise is that the supplier's promise is the least reliable number
+        available, so it derives the real cadence from GRN history:
+
+            relief = median gap between deliveries + lead x variance multiplier
+
+        The multiplier lands on the LEAD, not on the whole horizon. The cadence
+        is an observed fact; the uncertainty is in whether the delivery arrives
+        when promised, which is exactly what LATA's multiplier measures.
+        Inflating the cadence as well double-counts it: across these 599
+        suppliers it puts the median horizon at 46 days and pins half of them
+        against the cap, versus a defensible 23 days this way.
+
+        The multiplier still does real work — Brookside's measured variance
+        earns 2.749x on its lead. A store served by a supplier that misses is
+        short EARLIER than one served by a supplier that does not, and only
+        LATA knows the difference.
+
+        Returns None when the supplier is unknown, so callers decide the
+        fallback. Substituting a number here is how a missing schedule becomes a
+        confident wrong answer.
+        """
+        # The horizon can never usefully exceed the point at which the goods
+        # spoil or go stale: holding 60 days of cover of a line that dies in 5
+        # is not coverage, it is future waste. AMIT already knows that number
+        # per category, so the ceiling is derived from the goods rather than
+        # picked. MAX_RELIEF_DAYS applies only where the category is unknown.
+        ceiling = min(self._dead_days_for(department), self.MAX_RELIEF_DAYS) \
+            if department else self.MAX_RELIEF_DAYS
+
+        key = (supplier or "").strip().lower()
+        r = self.supplier_rhythm.get(key)
+        if r:
+            gap = float(r.get("median_gap_days") or r.get("avg_gap_days") or 0)
+            lead = float(r.get("estimated_delivery_days") or lead_days or 0)
+            mult = float(r.get("lata_variance_multiplier") or 1.0)
+            days = gap + lead * max(0.5, mult)
+            if days > 0:
+                return max(1.0, min(ceiling, days))
+        # legacy path: a plain calendar lookup with no reliability information
+        nxt = self.next_delivery_days.get(key)
+        if nxt is not None:
+            return max(1.0, min(ceiling, float(nxt) + float(lead_days or 0)))
+        # unknown supplier: behave like the rest of this network's book, not
+        # like a constant nobody derived. Guarded against recursion — this is
+        # only consulted after the table has been summarised.
+        if getattr(self, "_median_relief", None):
+            return max(1.0, min(ceiling, self._median_relief))
+        return None
+
+    def _target_cover(self, supplier: str, lead_days: float,
+                      department: str = "") -> float:
+        """Days of cover a transfer should restore: exactly enough to reach relief.
+
+        A TRANSFER PLUGS A GAP. It is not a replenishment, so the target is the
+        relief horizon itself and nothing beyond it — covering past the next
+        delivery moves stock the supplier is about to deliver anyway, and books
+        a lorry to do it.
+
+        This used to be ``min(14, relief)``, which capped the horizon at a fixed
+        14 days. That is wrong in both directions: it over-fills a store whose
+        supplier arrives on Tuesday, and under-fills one on a fortnightly
+        cycle with an unreliable supplier — precisely the store most likely to
+        stock out. The 14 survives only as the fallback for a supplier LATA has
+        never seen.
+        """
+        relief = self._relief_days(supplier, lead_days, department)
+        return relief if relief is not None else self.target_cover_days
 
     def _target_units(self, entry: dict) -> float:
         """Units of cover this store should hold for this SKU."""
@@ -253,7 +468,8 @@ class ConsolidatedTransferService:
         if ads <= 0:
             return 0.0
         return ads * self._target_cover(entry.get('supplier', ''),
-                                        entry.get('lead_days', 0.0))
+                                        entry.get('lead_days', 0.0),
+                                        entry.get('department', ''))
 
     @staticmethod
     def _excess_units(ads: float, stock: float, is_fresh: bool) -> float:
@@ -271,6 +487,70 @@ class ConsolidatedTransferService:
                 return stock - safety
             return 0.0
         return stock if stock > 0 else 0.0
+
+    @staticmethod
+    def _item_key(p: dict) -> str:
+        return str(p.get('itm_cd', p.get('item_code',
+                                         p.get('product_name', ''))) or '')
+
+    def _coverage_entry(self, org_cd: str, p: dict,
+                        outbound: Dict[tuple, float],
+                        inbound: Dict[tuple, float]) -> dict:
+        """One store's position on one SKU — the view BOTH passes work from.
+
+        Extracted so the PUSH pass can be reached from ``optimize_network`` as
+        well as from the scan without rebuilding this by hand. A second,
+        hand-rolled view of the same numbers is precisely how ProactiveRebalancer
+        came to hold its own thresholds and its own private ledger.
+        """
+        itm = self._item_key(p)
+        ads = float(p.get('avg_daily_sales', 0) or 0)
+        stock = float(p.get('current_stocks', p.get('current_stock', 0)) or 0)
+        dept = str(p.get('department', p.get('product_category', 'GENERAL'))).upper()
+        fresh = bool(p.get('is_fresh', False)) or _is_fresh_department(dept)
+
+        # Donor view: outbound commitments reduce what we can give.
+        donor_stock = max(0.0, stock - outbound.get((org_cd, itm), 0.0))
+        donor_excess = self._excess_units(ads, donor_stock, fresh)
+        # Recipient view: inbound commitments count as supply.
+        eff_stock = donor_stock + inbound.get((org_cd, itm), 0.0)
+
+        return {
+            'itm_cd': itm,
+            'product_name': str(p.get('product_name', '')),
+            'org_cd': org_cd,
+            'current_stock': eff_stock,
+            'avg_daily_sales': ads,
+            'days_cover': (eff_stock / ads) if ads > 0 else 999.0,
+            'donor_excess': donor_excess,
+            'sell_price': float(p.get('selling_price', p.get('sell_price', 0)) or 0),
+            'cost_price': float(p.get('cost_price', 0) or 0),
+            'department': dept,
+            'supplier': str(p.get('supplier_name', '') or ''),
+            'lead_days': float(p.get('estimated_delivery_days', 0) or 0),
+            'uom': str(p.get('uom', 'EA')).upper(),
+            'is_fresh': fresh,
+            # needed by the dead-stock test: silence alone does not make a line
+            # dead, it has to have been silent for a while
+            'days_since_delivery': int(
+                p.get('last_days_since_last_delivery',
+                      p.get('days_since_delivery', 0)) or 0),
+        }
+
+    def _coverage_index(self, outbound: Optional[Dict[tuple, float]] = None,
+                        inbound: Optional[Dict[tuple, float]] = None
+                        ) -> Dict[str, Dict[str, dict]]:
+        """{itm_cd: {org_cd: entry}} across the whole network."""
+        outbound = outbound or {}
+        inbound = inbound or {}
+        cov: Dict[str, Dict[str, dict]] = {}
+        for org_cd, products in self.stock_data.items():
+            for p in products:
+                itm = self._item_key(p)
+                if itm:
+                    cov.setdefault(itm, {})[org_cd] = self._coverage_entry(
+                        org_cd, p, outbound, inbound)
+        return cov
 
     @staticmethod
     def _pending_flows(pending_transfers: List[dict]):
@@ -297,6 +577,25 @@ class ConsolidatedTransferService:
             if to_org:
                 inbound[(to_org, itm_cd)] = inbound.get((to_org, itm_cd), 0.0) + qty
         return outbound, inbound
+
+    def _donor_pool(self, item_coverage, booked, donor_org: str,
+                    itm: str) -> float:
+        """What this donor may still release for this SKU — ONE pool.
+
+        Donor protection used to be applied twice with different numbers: PULL
+        took min(0.5 x excess, ...) per transfer and PUSH took
+        min(0.4 x excess, ...), both against the same excess. A donor could give
+        0.5 of its excess to pulls and a further 0.4 to pushes — 90% of what the
+        safety floor was meant to protect, from two rules that each believed
+        they were the only one.
+
+        Now a single pool, RELEASE_FRACTION of excess, drawn down through the
+        shared ledger. A METHOD rather than a closure so the PUSH pass can be
+        reached from optimize_network as well as from the scan.
+        """
+        cov = item_coverage.get(itm, {}).get(donor_org)
+        base = cov['donor_excess'] if cov else 0.0
+        return booked.available(donor_org, itm, base, self.RELEASE_FRACTION)
 
     def scan_network_opportunities(self,
                                    moq_failures: Optional[Dict[str, set]] = None,
@@ -356,43 +655,28 @@ class ConsolidatedTransferService:
                 itm = _key(p)
                 if not itm:
                     continue
-                ads = float(p.get('avg_daily_sales', 0) or 0)
-                stock = float(p.get('current_stocks', p.get('current_stock', 0)) or 0)
-                dept = str(p.get('department', p.get('product_category', 'GENERAL'))).upper()
-                fresh = _fresh(p, dept)
-
-                # Donor view: outbound commitments reduce what we can give.
-                donor_stock = max(0.0, stock - outbound.get((org_cd, itm), 0.0))
-                donor_excess = self._excess_units(ads, donor_stock, fresh)
-                if donor_excess > 0:
+                entry = self._coverage_entry(org_cd, p, outbound, inbound)
+                ads = entry['avg_daily_sales']
+                eff_stock = entry['current_stock']
+                days_cover = entry['days_cover']
+                if entry['donor_excess'] > 0:
                     n_excess += 1
-
-                # Recipient view: inbound commitments count as supply.
-                eff_stock = donor_stock + inbound.get((org_cd, itm), 0.0)
-                days_cover = (eff_stock / ads) if ads > 0 else 999.0
-
-                entry = {
-                    'itm_cd': itm,
-                    'product_name': str(p.get('product_name', '')),
-                    'org_cd': org_cd,
-                    'current_stock': eff_stock,
-                    'avg_daily_sales': ads,
-                    'days_cover': days_cover,
-                    'donor_excess': donor_excess,
-                    'sell_price': float(p.get('selling_price', p.get('sell_price', 0)) or 0),
-                    'cost_price': float(p.get('cost_price', 0) or 0),
-                    'department': dept,
-                    'supplier': str(p.get('supplier_name', '') or ''),
-                    'lead_days': float(p.get('estimated_delivery_days', 0) or 0),
-                    'uom': str(p.get('uom', 'EA')).upper(),
-                    'is_fresh': fresh,
-                }
                 item_coverage.setdefault(itm, {})[org_cd] = entry
 
                 rop = float(p.get('reorder_point', 0) or 0)
                 org_moq = moq_failures.get(org_cd) or {}
+                # A store is short when it cannot reach its next delivery --
+                # not when it drops under a flat 7 days. A supplier arriving
+                # tomorrow makes 3 days of cover perfectly safe; a fortnightly
+                # one with a poor LATA record makes 10 days an emergency. The
+                # flat figure is only the fallback for suppliers LATA cannot
+                # speak for.
+                relief = self._relief_days(entry['supplier'], entry['lead_days'],
+                                           entry['department'])
+                trigger_days = relief if relief is not None else pull_deficit_days
+                entry['relief_days'] = trigger_days
                 pull_trigger = (
-                    (ads > 0 and (days_cover < pull_deficit_days or eff_stock <= rop))
+                    (ads > 0 and (days_cover < trigger_days or eff_stock <= rop))
                     or (ads == 0 and eff_stock < 1.0)
                     or (itm in org_moq)
                 )
@@ -418,7 +702,10 @@ class ConsolidatedTransferService:
             # dropped is now the least valuable rather than the last read.
             for e in deficits:
                 a = e['avg_daily_sales']
-                short = max(a * pull_deficit_days - e['current_stock'],
+                # rank on the gap to THIS line's own relief horizon, so the
+                # ranking agrees with the trigger that admitted it
+                short = max(a * float(e.get('relief_days') or pull_deficit_days)
+                            - e['current_stock'],
                             e.get('moq_qty', 0.0), 0.0)
                 sell, cost = e['sell_price'], e['cost_price']
                 if sell > 0 and 0 < cost < sell:
@@ -462,7 +749,11 @@ class ConsolidatedTransferService:
         # Proportional allocation is order-independent by construction, which is
         # the acceptance test: devkit/measure_order_sensitivity.py must report
         # zero divergence between orderings.
-        booked: Dict[tuple, float] = {}
+        # THE shared donor book, not a local one. Anything the decide() path
+        # already promised is visible here, and anything promised here is
+        # visible there. `recip_booked` stays local: it tracks what a RECIPIENT
+        # has been sent within this scan, which is a per-scan question.
+        booked = self.donor_ledger
         recip_booked: Dict[tuple, float] = {}
         dropped_by_cap = 0
 
@@ -495,22 +786,7 @@ class ConsolidatedTransferService:
         requests.sort(key=lambda r: (r['itm'], r['rec_org']))
 
         def _pool(donor_org: str, itm: str) -> float:
-            """What this donor may still release for this SKU — ONE pool.
-
-            Donor protection used to be applied twice with different numbers:
-            PULL took min(0.5 x excess, ...) per transfer and PUSH took
-            min(0.4 x excess, ...) per transfer, both measured against the same
-            excess. A donor could therefore give 0.5 of its excess to pulls and
-            a further 0.4 to pushes — 90% of what the safety floor was meant to
-            protect, from two rules that each believed they were the only one.
-
-            Now a single pool, RELEASE_FRACTION of excess, drawn down by both
-            passes through the shared `booked` ledger.
-            """
-            cov = item_coverage.get(itm, {}).get(donor_org)
-            base = cov['donor_excess'] if cov else 0.0
-            return max(0.0, base * self.RELEASE_FRACTION
-                       - booked.get((donor_org, itm), 0.0))
+            return self._donor_pool(item_coverage, booked, donor_org, itm)
 
         donor_cache: Dict[tuple, list] = {}
 
@@ -561,7 +837,7 @@ class ConsolidatedTransferService:
                     if take >= 1:
                         pulls[(donor_org, itm, r['rec_org'])] = \
                             pulls.get((donor_org, itm, r['rec_org']), 0.0) + take
-                        booked[(donor_org, itm)] = booked.get((donor_org, itm), 0.0) + take
+                        booked.book(donor_org, itm, take)
                         recip_booked[(r['rec_org'], itm)] = \
                             recip_booked.get((r['rec_org'], itm), 0.0) + take
                         r['remaining'] -= take
@@ -579,7 +855,7 @@ class ConsolidatedTransferService:
                             continue
                         pulls[(donor_org, itm, r['rec_org'])] = \
                             pulls.get((donor_org, itm, r['rec_org']), 0.0) + take
-                        booked[(donor_org, itm)] = booked.get((donor_org, itm), 0.0) + take
+                        booked.book(donor_org, itm, take)
                         recip_booked[(r['rec_org'], itm)] = \
                             recip_booked.get((r['rec_org'], itm), 0.0) + take
                         r['remaining'] -= take
@@ -610,105 +886,8 @@ class ConsolidatedTransferService:
                 manual_only=item['is_fresh'],
             ))
 
-        # ── Pass 3: PUSH — cold nodes (dead capital) → hot nodes, fair-shared ──
-        #
-        # Same treatment as PULL: collect every hot recipient's need for a SKU
-        # first, then split each cold donor's pool PROPORTIONALLY, rather than
-        # letting the first donor walk the recipient list and give to whoever it
-        # reaches first. Weight is need x unit margin — the same shape as the
-        # risk_kes used by PULL, so both passes rank need the same way.
-        #
-        # Iteration is sorted throughout: item_coverage and its inner maps are
-        # keyed in store-insertion order, and walking them raw is what left 1.0%
-        # of volume moving when the store order was reversed.
-        push_opps: List[TransferOpportunity] = []
-        for itm in sorted(item_coverage):
-            cov_map = item_coverage[itm]
-            cold = sorted((c for c in cov_map.values()
-                           if c['days_cover'] > self.cold_node_days
-                           and c['donor_excess'] > 0),
-                          key=lambda c: (-c['days_cover'], c['org_cd']))
-            if not cold:
-                continue
-
-            # every hot recipient's outstanding need, measured once
-            demands = []
-            for recip in sorted((c for c in cov_map.values()
-                                 if c['days_cover'] < self.hot_node_days),
-                                key=lambda c: (c['days_cover'], c['org_cd'])):
-                recip_in = recip_booked.get((recip['org_cd'], itm), 0.0)
-                eff_stock = recip['current_stock'] + recip_in
-                recip_ads = max(recip['avg_daily_sales'], 0.5)
-                if eff_stock / recip_ads >= self.hot_node_days:
-                    continue
-                target_units = self._target_units(recip)
-                if target_units <= 0 or eff_stock >= target_units:
-                    continue
-                sell = float(recip.get('sell_price') or 0)
-                cost = float(recip.get('cost_price') or 0)
-                margin = (sell - cost) if 0 < cost < sell else sell * 0.25
-                need = max(1.0, target_units - eff_stock)
-                demands.append({
-                    'recip': recip, 'need': need,
-                    'weight': max(need * margin, need * 0.01),
-                    'eff_days': eff_stock / recip_ads,
-                })
-            if not demands:
-                continue
-
-            for donor in cold:
-                pool = _pool(donor['org_cd'], itm)
-                if pool < 1:
-                    continue
-                active = [d for d in demands
-                          if d['need'] >= 1 and d['recip']['org_cd'] != donor['org_cd']]
-                if not active:
-                    continue
-                total_w = sum(d['weight'] for d in active) or 1.0
-
-                def _give(d, units):
-                    xfer = _round_transfer_qty(units, donor['department'])
-                    if xfer < 1:
-                        return 0.0
-                    r = d['recip']
-                    booked[(donor['org_cd'], itm)] = \
-                        booked.get((donor['org_cd'], itm), 0.0) + xfer
-                    recip_booked[(r['org_cd'], itm)] = \
-                        recip_booked.get((r['org_cd'], itm), 0.0) + xfer
-                    d['need'] -= xfer
-                    push_opps.append(TransferOpportunity(
-                        type="PUSH",
-                        itm_cd=itm,
-                        product_name=donor['product_name'],
-                        from_org=donor['org_cd'],
-                        to_org=r['org_cd'],
-                        transfer_qty=xfer,
-                        donor_days_cover=round(donor['days_cover'], 1),
-                        recipient_days_cover=round(d['eff_days'], 1),
-                        donor_excess=round(donor['donor_excess'], 1),
-                        value_kes=round(xfer * donor['sell_price'], 0),
-                        department=donor['department'],
-                        supplier=donor['supplier'],
-                        uom=donor['uom'],
-                        is_fresh=donor['is_fresh'],
-                        manual_only=donor['is_fresh'],
-                    ))
-                    return xfer
-
-                for d in sorted(active, key=lambda x: (-x['weight'],
-                                                       x['recip']['org_cd'])):
-                    if pool < 1:
-                        break
-                    pool -= _give(d, min(d['need'], pool * d['weight'] / total_w))
-                # remainder to whoever is still short, heaviest need first —
-                # otherwise rounding strands stock the donor was willing to give
-                if pool >= 1:
-                    for d in sorted(active, key=lambda x: (-x['weight'],
-                                                           x['recip']['org_cd'])):
-                        if pool < 1 or d['need'] < 1:
-                            continue
-                        pool -= _give(d, min(d['need'], pool))
-
+        # ── Pass 3: PUSH, via the shared implementation ──
+        push_opps = self._push_opportunities(item_coverage, booked, recip_booked)
         push_opps.sort(key=lambda o: -o.value_kes)
         kept_push = push_opps if max_push <= 0 else push_opps[:max_push]
         for o in kept_push:
@@ -736,6 +915,194 @@ class ConsolidatedTransferService:
             result.pending_outbound_units, result.pending_inbound_units,
         )
         return result
+
+    def _push_opportunities(self, item_coverage, booked, recip_booked):
+        """Idle capital -> nodes that will sell it. THE one implementation.
+
+        Reachable from both entry points. ``optimize_network`` used to call a
+        separate ProactiveRebalancer for the same job, with its own donor test
+        (cover > 60d), its own protection (safety x 2), its own fill target
+        (30 days) and its own private bookkeeping -- four numbers and a ledger
+        that disagreed with this pass on every one of them.
+        """
+        # ── Pass 3: PUSH — cold nodes (dead capital) → hot nodes, fair-shared ──
+        #
+        # Same treatment as PULL: collect every hot recipient's need for a SKU
+        # first, then split each cold donor's pool PROPORTIONALLY, rather than
+        # letting the first donor walk the recipient list and give to whoever it
+        # reaches first. Weight is need x unit margin — the same shape as the
+        # risk_kes used by PULL, so both passes rank need the same way.
+        #
+        # Iteration is sorted throughout: item_coverage and its inner maps are
+        # keyed in store-insertion order, and walking them raw is what left 1.0%
+        # of volume moving when the store order was reversed.
+        # PUSH answers a DIFFERENT question from PULL. Its job is not "who is
+        # short" but "what capital is sitting still, and where would it sell".
+        #
+        # TWO kinds of donor, and the difference is the RELEASE RULE, not
+        # eligibility:
+        #
+        #   DEAD       zero demand, silent 90+ days. Its safety stock is
+        #              ADS x horizon = 0, so withholding any of it protects
+        #              nothing. Releases in FULL.
+        #   OVERSTOCK  still selling, but sitting on more cover than the
+        #              category survives. Genuinely surplus, but the store is
+        #              still trading on it, so it releases the protected
+        #              fraction through the shared pool exactly as PULL does.
+        #
+        # An earlier revision made the donor gate dead-only, which quietly
+        # deleted overstock rebalancing: a store on 100 days of cover next to
+        # one on 10 moved nothing. That was never the intent — the thing that
+        # needed fixing was the release rule (full release had been applied to
+        # BOTH kinds, over-draining lines that were still trading), not the
+        # eligibility.
+        #
+        # Recipient side is ACTIVE, not SHORT. A store selling the line steadily
+        # is where idle stock turns back into cash, whether or not it happens to
+        # have a gap. Requiring a gap is a PULL criterion, and applying it here
+        # is why this pass emitted 29 lines against 240 dead ones — and 2 once
+        # relief horizons made gaps smaller.
+        #
+        # Sizing is DERIVED: a recipient may absorb what it can sell before the
+        # line would go dead at ITS OWN velocity, less what it already holds.
+        # That is the largest move that does not simply relocate the problem.
+        push_opps: List[TransferOpportunity] = []
+        for itm in sorted(item_coverage):
+            cov_map = item_coverage[itm]
+            cold = []
+            for c in cov_map.values():
+                if c['donor_excess'] <= 0:
+                    continue
+                dead = self.is_dead(c['avg_daily_sales'], c['current_stock'],
+                                    c.get('days_since_delivery', 0),
+                                    c['department'], c.get('cost_price', 0.0))
+                # overstock: still selling, but past the point where the
+                # category itself says the stock has stopped working
+                over = (c['avg_daily_sales'] > 0
+                        and c['days_cover'] > self._dead_days_for(c['department']))
+                if dead or over:
+                    cold.append(dict(c, _dead=dead))
+            cold.sort(key=lambda c: (-c['days_cover'], c['org_cd']))
+            if not cold:
+                continue
+
+            # every ACTIVE store's absorption capacity, measured once
+            demands = []
+            for recip in sorted((c for c in cov_map.values()
+                                 if c['avg_daily_sales'] > 0),
+                                key=lambda c: (-c['avg_daily_sales'], c['org_cd'])):
+                recip_in = recip_booked.get((recip['org_cd'], itm), 0.0)
+                eff_stock = recip['current_stock'] + recip_in
+                recip_ads = recip['avg_daily_sales']
+                sell = float(recip.get('sell_price') or 0)
+                cost = float(recip.get('cost_price') or 0)
+                margin = (sell - cost) if 0 < cost < sell else sell * 0.25
+
+                # TWO capacities, because the alternatives differ.
+                #
+                # From a DEAD donor the alternative is that the stock stays
+                # dead, so it is worth filling the receiver as deep as it can
+                # trade the line out — its category's own threshold.
+                #
+                # From an OVERSTOCK donor the alternative is that a store which
+                # is still selling keeps it. Filling the receiver past what it
+                # needs to reach its next delivery would just move the surplus,
+                # so that capacity is the ordinary relief horizon — the same
+                # target PULL uses.
+                cap_dead = recip_ads * self._dead_days_for(recip['department'])
+                cap_over = self._target_units(recip)
+                if cap_dead <= eff_stock and cap_over <= eff_stock:
+                    continue
+                demands.append({
+                    'recip': recip,
+                    'need_dead': max(0.0, cap_dead - eff_stock),
+                    'need_over': max(0.0, cap_over - eff_stock),
+                    # rank by the cash a move releases per day of shelf life
+                    # used: velocity x margin, not raw need
+                    'weight': max(recip_ads * margin, 0.01),
+                    'eff_days': eff_stock / recip_ads,
+                })
+            if not demands:
+                continue
+
+            for donor in cold:
+                if donor['_dead']:
+                    # No demand means no service to protect: the safety stock
+                    # for this line is ADS x horizon = 0. Withholding half of it
+                    # would contradict the objective outright -- measured, the
+                    # release fraction alone capped dead-stock recovery at
+                    # exactly 49.7%.
+                    pool = booked.available(donor['org_cd'], itm, donor['donor_excess'])
+                else:
+                    # Still trading on it. Same protected pool PULL draws from,
+                    # and the same shared ledger, so the two passes cannot
+                    # release the same units twice.
+                    pool = self._donor_pool(item_coverage, booked,
+                                            donor['org_cd'], itm)
+                if pool < 1:
+                    continue
+                # and the move must be worth making: recovering less trapped
+                # capital than the lorry costs is not a saving. Derived from the
+                # real transfer cost, not a fixed floor.
+                unit_cost = float(donor.get('cost_price') or 0)
+                if unit_cost > 0 and pool * unit_cost < self.transfer_cost_kes:
+                    continue
+                # which capacity applies depends on what this donor is
+                need_key = 'need_dead' if donor['_dead'] else 'need_over'
+                active = [d for d in demands
+                          if d[need_key] >= 1
+                          and d['recip']['org_cd'] != donor['org_cd']]
+                if not active:
+                    continue
+                total_w = sum(d['weight'] for d in active) or 1.0
+
+                def _give(d, units, _k=need_key):
+                    xfer = _round_transfer_qty(units, donor['department'])
+                    if xfer < 1:
+                        return 0.0
+                    r = d['recip']
+                    booked.book(donor['org_cd'], itm, xfer)
+                    recip_booked[(r['org_cd'], itm)] = \
+                        recip_booked.get((r['org_cd'], itm), 0.0) + xfer
+                    # both capacities shrink: units received are units held,
+                    # whichever door they came through
+                    d['need_dead'] = max(0.0, d['need_dead'] - xfer)
+                    d['need_over'] = max(0.0, d['need_over'] - xfer)
+                    push_opps.append(TransferOpportunity(
+                        type="PUSH",
+                        itm_cd=itm,
+                        product_name=donor['product_name'],
+                        from_org=donor['org_cd'],
+                        to_org=r['org_cd'],
+                        transfer_qty=xfer,
+                        donor_days_cover=round(donor['days_cover'], 1),
+                        recipient_days_cover=round(d['eff_days'], 1),
+                        donor_excess=round(donor['donor_excess'], 1),
+                        value_kes=round(xfer * donor['sell_price'], 0),
+                        department=donor['department'],
+                        supplier=donor['supplier'],
+                        uom=donor['uom'],
+                        is_fresh=donor['is_fresh'],
+                        manual_only=donor['is_fresh'],
+                    ))
+                    return xfer
+
+                for d in sorted(active, key=lambda x: (-x['weight'],
+                                                       x['recip']['org_cd'])):
+                    if pool < 1:
+                        break
+                    pool -= _give(d, min(d[need_key],
+                                         pool * d['weight'] / total_w))
+                # remainder to whoever can still take it, heaviest first —
+                # otherwise rounding strands stock the donor was willing to give
+                if pool >= 1:
+                    for d in sorted(active, key=lambda x: (-x['weight'],
+                                                           x['recip']['org_cd'])):
+                        if pool < 1 or d[need_key] < 1:
+                            continue
+                        pool -= _give(d, min(d[need_key], pool))
+
+        return push_opps
 
     def optimize_network(self,
                          store_orders: Dict[str, List[dict]],
@@ -950,27 +1317,48 @@ class ConsolidatedTransferService:
         return plan
 
     def _identify_proactive_transfers(self, risk_scores: Dict[str, float]) -> List[TransferRecord]:
+        """Move idle capital to nodes that will sell it — via the PUSH pass.
+
+        This used to run a SEPARATE engine, ``ProactiveRebalancer``, over the
+        same stock for the same purpose, holding its own view of every rule:
+
+            donor        cover > 60d                vs  dead, or past its
+                                                        category's threshold
+            protection   stock - safety x 2         vs  full for dead,
+                                                        release fraction otherwise
+            recipient    cover < 14d                vs  any ACTIVE store
+            fill to      30 days                    vs  category threshold, or
+                                                        the relief horizon
+            bookkeeping  mutated current_stock      vs  the shared ledger
+
+        Four constants and a private ledger, all disagreeing with the pass that
+        does the same job on the other entry point. An operator running Smart
+        Ordering and the Transfer Intelligence tab got two different answers
+        about the same stock, and neither number came from the derived
+        thresholds LATA and AMIT supply.
+
+        Now there is one implementation. ``risk_scores`` is accepted for the
+        caller's signature and unused: PUSH ranks on velocity x margin, which is
+        measured, where the GNN score is a prior — see the risk-scoring review.
         """
-        Identify 'Dead Stock' to move to stores with 'Demand Spikes' or low stock.
-        Proactive rebalancing doesn't wait for a shortfall PO.
-        """
-        from .fulfillment_decider import ProactiveRebalancer
-        
-        rebalancer = ProactiveRebalancer(
-            cold_node_days=getattr(self, 'cold_node_days', 60),
-            hot_node_days=getattr(self, 'hot_node_days', 14)
-        )
-        decisions = rebalancer.find_proactive_transfers(self.network_map)
-        
+        outbound, inbound = self._pending_flows([])
+        item_coverage = self._coverage_index(outbound, inbound)
+        opportunities = self._push_opportunities(
+            item_coverage, self.donor_ledger, {})
+
         transfers = []
-        for d in decisions:
+        for o in opportunities:
+            # fresh lines are surfaced for a human to dispatch, never queued
+            # automatically — the same rule the scan applies
+            if o.manual_only:
+                continue
             transfers.append(TransferRecord(
-                from_org=d.donor_org,
-                to_org=d.recipient_org,
-                itm_cd=d.itm_cd,
-                product_name=d.product_name,
-                qty=d.transfer_qty,
-                department=getattr(d, 'department', 'GENERAL'),
+                from_org=o.from_org,
+                to_org=o.to_org,
+                itm_cd=o.itm_cd,
+                product_name=o.product_name,
+                qty=o.transfer_qty,
+                department=o.department,
                 urgency="LOW",
                 cost_kes=self.transfer_cost_kes,
             ))

@@ -35,6 +35,12 @@ class FulfillmentDecision:
     donor_org: Optional[str] = None
     donor_name: Optional[str] = None
     donor_excess: float = 0.0     # how much excess the donor has
+    #: The DONOR's canonical item code. Not always the same string as `itm_cd`:
+    #: NetworkAvailabilityMap indexes each state under several aliases (code,
+    #: product name, barcode) so a caller may arrive holding any of them. The
+    #: donor ledger must be keyed on ONE identity or the same physical stock is
+    #: booked under two keys and promised twice.
+    donor_itm_cd: Optional[str] = None
     reasoning: str = ""
     estimated_transfer_cost: float = 0.0
     estimated_order_cost: float = 0.0
@@ -97,7 +103,8 @@ class NetworkAvailabilityMap:
                     distance_calc: Optional[Any] = None,
                     use_dynamic_ratio: bool = True,
                     warehouse_hubs: Optional[List[str]] = None,
-                    product_name: str = '') -> List[StoreSkuState]:
+                    product_name: str = '',
+                    ledger: Optional["DonorLedger"] = None) -> List[StoreSkuState]:
         """
         Find stores that have excess stock for this item, prioritized by proximity and volume.
         
@@ -146,7 +153,19 @@ class NetworkAvailabilityMap:
                     effective_ratio = 2.5  # Slow movers: higher bar
                 # else: use default (2.0)
             
-            if s.excess > 0 and s.current_stock >= s.safety_stock * effective_ratio:
+            # Net off what is already promised. Without this a donor whose
+            # excess was spent by an earlier decision — or by the other code
+            # path entirely — keeps being offered at full strength, and every
+            # recipient is told the same units are available.
+            spoken_for = ledger.booked(s.org_cd, s.itm_cd) if ledger else 0.0
+            net_excess = max(0.0, s.excess - spoken_for)
+            net_stock = max(0.0, s.current_stock - spoken_for)
+
+            if net_excess > 0 and net_stock >= s.safety_stock * effective_ratio:
+                # ranking uses the NET figure too: a donor with 100 units of
+                # excess and 99 already promised should not outrank one with 10
+                # free, which is what scoring on the gross figure did
+                s.net_excess = net_excess
                 # Calculate distance-aware score
                 dist = 50.0  # default large distance if no mapper
                 if distance_calc is not None:
@@ -158,7 +177,7 @@ class NetworkAvailabilityMap:
                         pass
                 
                 # Ranking Score: High excess and low distance is best
-                score = float(s.excess) / (dist + 0.1)
+                score = float(net_excess) / (dist + 0.1)
                 
                 # Warehouse-Hub Priority: 3× boost for distribution hubs
                 if s.org_cd in warehouse_hubs:
@@ -205,11 +224,31 @@ DEFAULT_TRANSFER_COST_KES = 200.0
 # G9 Fix: Distance-based cost rate (KES per km)
 DEFAULT_PER_KM_RATE = 50.0
 
-# Maximum fraction of donor's excess we'll take
-MAX_DONOR_DRAIN = 0.5
+#: Maximum fraction of a donor's excess that may leave.
+#:
+#: THE one definition. ConsolidatedTransferService imports this as its
+#: RELEASE_FRACTION rather than declaring a second 0.5, because two constants
+#: for one idea drift apart silently — which is exactly how PULL and PUSH ended
+#: up protecting the same donor with 0.5 and 0.4 respectively.
+#:
+#: Still worth knowing: the two code paths keep SEPARATE ledgers. The scan path
+#: books releases in one dict; decide() sizes each decision on its own. Within a
+#: single run only one path executes, so nothing double-spends, but a session
+#: that runs ordering and then a network scan can release this fraction twice
+#: against the same excess. Unifying that needs shared state across entry
+#: points, and is not done here.
+DONOR_RELEASE_FRACTION = 0.5
 
-# Transfer is only worthwhile if it saves at least this much vs ordering
-MIN_SAVINGS_RATIO = 0.3
+#: Backwards-compatible alias — the name the decider's own signature uses.
+MAX_DONOR_DRAIN = DONOR_RELEASE_FRACTION
+
+#: A transfer must cost less than this share of what ordering would cost.
+#:
+#: Named because it was previously an unexplained `* 0.4` sitting inline while a
+#: MIN_SAVINGS_RATIO = 0.3 was declared above and referenced NOWHERE. The 0.3
+#: never ran; 0.4 is the behaviour that has always been in effect, so the
+#: constant is set to the live value rather than the aspirational one.
+MAX_TRANSFER_COST_RATIO = 0.4
 
 # Fresh departments that should NOT be auto-transferred
 FRESH_DEPARTMENTS = {'MILK', 'DAIRY', 'FRESH', 'MEAT', 'BREAD', 'BAKERY',
@@ -245,6 +284,64 @@ def _is_fresh_department(department: str) -> bool:
     return any(fd in dept_upper for fd in FRESH_DEPARTMENTS)
 
 
+class DonorLedger:
+    """Units of a donor's excess already promised, whoever promised them.
+
+    WHY THIS EXISTS
+    ---------------
+    Donor excess was drawn down by two different mechanisms that could not see
+    each other:
+
+      * ``scan_network_opportunities`` kept a local ``booked`` dict, computing
+        available excess from ``stock_data``;
+      * ``decide_batch`` MUTATED ``StoreSkuState.excess`` on the availability
+        map instead.
+
+    Both are correct alone. Together they double-spend: run the ordering path,
+    then the network scan, and the scan recomputes excess from ``stock_data``
+    and re-offers units the ordering path already promised. Two protection
+    rules, each believing it was the only one — the same shape of bug as the
+    0.5/0.4 release fractions, one level up.
+
+    One ledger, consulted by both, is the fix. It is deliberately a plain
+    quantity book rather than a transfer registry: it answers only "how much of
+    this donor's excess is already spoken for".
+
+    SCOPE: one service instance, spanning every pass and every entry point on
+    it. Stock committed in the ERP arrives separately as ``pending_transfers``
+    and must NOT also be booked here, or it would be counted twice.
+    """
+
+    __slots__ = ("_booked",)
+
+    def __init__(self):
+        self._booked: Dict[tuple, float] = {}
+
+    def booked(self, org_cd: str, itm_cd: str) -> float:
+        return self._booked.get((str(org_cd), str(itm_cd)), 0.0)
+
+    def book(self, org_cd: str, itm_cd: str, qty: float) -> None:
+        if qty and qty > 0:
+            k = (str(org_cd), str(itm_cd))
+            self._booked[k] = self._booked.get(k, 0.0) + float(qty)
+
+    def available(self, org_cd: str, itm_cd: str, excess: float,
+                  fraction: float = 1.0) -> float:
+        """What is still releasable from ``excess`` after prior bookings."""
+        return max(0.0, float(excess) * float(fraction)
+                   - self.booked(org_cd, itm_cd))
+
+    def clear(self) -> None:
+        self._booked.clear()
+
+    @property
+    def total_booked(self) -> float:
+        return sum(self._booked.values())
+
+    def __len__(self) -> int:
+        return len(self._booked)
+
+
 class FulfillmentDecider:
     """
     Network-level optimization that decides transfer vs order.
@@ -258,7 +355,8 @@ class FulfillmentDecider:
                  fresh_transfer_max_hours: float = 6.0,
                  distance_map: Optional[Dict[str, Dict[str, float]]] = None,
                  risk_threshold: float = 0.40,
-                 warehouse_hubs: Optional[List[str]] = None):
+                 warehouse_hubs: Optional[List[str]] = None,
+                 ledger: Optional["DonorLedger"] = None):
         self.transfer_cost_kes = transfer_cost_kes
         self.per_km_rate = per_km_rate  # G9 Fix
         self.max_donor_drain = max_donor_drain
@@ -267,6 +365,10 @@ class FulfillmentDecider:
         self.risk_threshold = risk_threshold
         # Warehouse hub org codes (e.g. ["016"])
         self.warehouse_hubs = warehouse_hubs or []
+        # Shared with whoever else draws on the same donors. When absent this
+        # decider keeps its own, and decide_batch falls back to mutating the
+        # availability map as it always did — standalone callers are unchanged.
+        self.ledger = ledger
 
     def _resolve_org_key(self, org: str):
         """Find an org in the distance map, tolerating code-format drift.
@@ -366,6 +468,7 @@ class FulfillmentDecider:
             distance_calc=self._calculate_distance_km,
             warehouse_hubs=self.warehouse_hubs,
             product_name=product_name,  # enables multi-key fallback
+            ledger=self.ledger,         # excess already promised elsewhere
         )
 
         # Cost estimates
@@ -511,8 +614,14 @@ class FulfillmentDecider:
         else:
             transfer_target = shortfall_qty
 
+        # Size against what is genuinely left, not the gross excess. `net_excess`
+        # is set by find_donors and already has prior bookings — from this pass
+        # or from the network scan — taken out of it.
+        best_excess = getattr(best, "net_excess", None)
+        if best_excess is None:
+            best_excess = best.excess
         max_transferable = min(
-            best.excess * self.max_donor_drain,
+            best_excess * self.max_donor_drain,
             transfer_target
         )
 
@@ -523,7 +632,11 @@ class FulfillmentDecider:
 
         decision.donor_org = best.org_cd
         decision.donor_name = org_names.get(best.org_cd, best.org_cd)
-        decision.donor_excess = best.excess
+        decision.donor_itm_cd = best.itm_cd
+        # report what is ACTUALLY spare, not the gross figure — an operator
+        # reading "excess: 400" on a donor with 390 already promised is being
+        # told something untrue
+        decision.donor_excess = best_excess
 
         if max_transferable < 1.0:
             # Donor doesn't have enough excess
@@ -585,7 +698,7 @@ class FulfillmentDecider:
         elif max_transferable >= shortfall_qty:
             # Cost check: Is transfer significantly cheaper than order? Or is it a micro-order that would fail MOQ?
             is_small_order = (shortfall_qty < 2.0) or (order_cost < 200.0)
-            if is_small_order or (transfer_cost < order_cost * 0.4):
+            if is_small_order or (transfer_cost < order_cost * MAX_TRANSFER_COST_RATIO):
                 decision.decision = "TRANSFER"
                 decision.transfer_qty = _round_transfer_qty(max_transferable, department)
                 decision.order_qty = 0.0
@@ -660,74 +773,36 @@ class FulfillmentDecider:
                 department=sf.get('original_rec', {}).get('department', ''),
             )
             
-            # PREVENT DUPLICATION: Decrement donor stock to avoid pledging the same excess multiple times
+            # PREVENT DUPLICATION: record the pledge so the same excess is not
+            # promised twice.
+            #
+            # Through the LEDGER when one is shared, so the network scan sees
+            # these pledges too — it recomputes excess from stock_data and would
+            # otherwise re-offer every unit promised here. Mutating the
+            # availability map, as this did unconditionally, is invisible to it.
+            #
+            # Without a ledger the old mutation still applies, so a standalone
+            # FulfillmentDecider behaves exactly as before.
             if d.decision in ("TRANSFER", "BOTH") and d.transfer_qty > 0 and d.donor_org:
-                donor_state = network_map.get_store_state(d.donor_org, d.itm_cd)
-                if donor_state:
-                    donor_state.current_stock -= d.transfer_qty
-                    donor_state.excess = max(0.0, donor_state.excess - d.transfer_qty)
+                if self.ledger is not None:
+                    self.ledger.book(d.donor_org, d.donor_itm_cd or d.itm_cd,
+                                     d.transfer_qty)
+                else:
+                    donor_state = network_map.get_store_state(d.donor_org, d.itm_cd)
+                    if donor_state:
+                        donor_state.current_stock -= d.transfer_qty
+                        donor_state.excess = max(0.0, donor_state.excess - d.transfer_qty)
                     
             decisions.append(d)
         return decisions
 
 
-
-class ProactiveRebalancer:
-    """Proactively pushes dead stock from cold nodes to hot nodes."""
-    def __init__(self, cold_node_days=60, hot_node_days=14):
-        self.cold_node_days = cold_node_days
-        self.hot_node_days = hot_node_days
-
-    def find_proactive_transfers(self, network_map: NetworkAvailabilityMap) -> List[FulfillmentDecision]:
-        transfers = []
-        for itm_cd, states in network_map._index.items():
-            # Skip fresh/perishable items — no proactive transfers
-            if states and (states[0].is_fresh or _is_fresh_department(states[0].department)):
-                continue
-
-            cold_nodes = []
-            hot_nodes = []
-            for s in states:
-                ads = s.avg_daily_sales
-                coverage = s.current_stock / ads if ads > 0 else 999.0
-                if coverage > self.cold_node_days and s.current_stock > s.safety_stock * 2:
-                    cold_nodes.append(s)
-                elif ads > 0.1 and coverage < self.hot_node_days:
-                    hot_nodes.append(s)
-            
-            cold_nodes.sort(key=lambda x: -(x.current_stock - x.safety_stock))
-            hot_nodes.sort(key=lambda x: (x.current_stock / x.avg_daily_sales if x.avg_daily_sales > 0 else 0))
-            
-            for hot in hot_nodes:
-                target_stock = hot.avg_daily_sales * 30 # Target 30 days coverage
-                shortfall = max(0, target_stock - hot.current_stock)
-                if shortfall <= 0: continue
-                
-                for cold in cold_nodes:
-                    avail = cold.current_stock - (cold.safety_stock * 2)
-                    if avail <= 0: continue
-                    
-                    xfer_qty = _round_transfer_qty(min(shortfall, avail), hot.department)
-                    if xfer_qty < 1.0:
-                        continue
-                    
-                    d = FulfillmentDecision(
-                        itm_cd=itm_cd,
-                        product_name=hot.product_name,
-                        recipient_org=hot.org_cd,
-                        shortfall_qty=shortfall,
-                        decision="TRANSFER",
-                        transfer_qty=xfer_qty,
-                        donor_org=cold.org_cd,
-                        donor_name=cold.org_cd,
-                        reasoning=f"PROACTIVE: Rebalancing {xfer_qty:.0f} units from cold node ({cold.org_cd}) to hot node ({hot.org_cd})."
-                    )
-                    transfers.append(d)
-                    
-                    # Update local states to prevent double-spending
-                    cold.current_stock -= xfer_qty
-                    hot.current_stock += xfer_qty
-                    shortfall -= xfer_qty
-                    if shortfall <= 0: break
-                    
-        return transfers
+#: ``ProactiveRebalancer`` lived here. It moved cold stock to hot stores --
+#: the same job as ConsolidatedTransferService's PUSH pass -- with its own
+#: donor test (cover > 60d), its own protection (safety_stock x 2), its own
+#: fill target (30 days) and its own private bookkeeping. Two implementations
+#: of one idea, disagreeing on every number, reachable from different tabs.
+#:
+#: Consolidated into ConsolidatedTransferService._push_opportunities(), which
+#: takes its thresholds from AMIT and its horizons from LATA instead of holding
+#: constants of its own, and books through the shared DonorLedger.

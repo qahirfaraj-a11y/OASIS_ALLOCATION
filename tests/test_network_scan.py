@@ -73,11 +73,14 @@ class TestPullScan:
         assert [o for o in scan.opportunities if o.type == "PULL"] == []
 
     def test_moq_failure_acts_as_trigger(self):
-        # Donor with excess but NOT cold (50 days < 60) — no PUSH noise.
-        # Recipient at 8 days cover — neither a pull deficit (>7d) nor below
-        # ROP, so only the MOQ failure can trigger a transfer.
+        # Donor with excess but NOT an overstock donor: 40 days of cover sits
+        # under the category's dead threshold (45d default), so PUSH stays out
+        # of this and only the MOQ failure can trigger a transfer. This used to
+        # read "50 days < 60" against the old flat cold_node_days; the gate is
+        # now AMIT's per-category tier, which is lower.
+        # Recipient at 8 days cover — neither a pull deficit (>7d) nor below ROP.
         stock = {
-            "ORG001": [_product("SKU1", "RICE 1KG", stock=250, ads=5.0)],
+            "ORG001": [_product("SKU1", "RICE 1KG", stock=200, ads=5.0)],
             "ORG002": [_product("SKU1", "RICE 1KG", stock=32, ads=4.0)],
             "ORG003": [],
         }
@@ -176,21 +179,200 @@ class TestPendingAwareness:
         assert 2 + 30 + qty_with <= target_14d + 2.0
 
 
+class TestCrossPathLedger:
+    """One donor, both entry points, one book of what it has promised.
+
+    Donor excess was drawn down by THREE mechanisms that could not see each
+    other: the scan kept a local ``booked`` dict computed from stock_data,
+    ``decide_batch`` mutated ``StoreSkuState`` on the availability map, and
+    ``ProactiveRebalancer`` mutated ``current_stock`` privately. Run ordering
+    and then a network scan and the scan re-offered every unit the other two
+    had already promised.
+    """
+
+    ADS, STOCK = 5.0, 600.0
+    EXCESS = STOCK - ADS * 14          # 530: excess above the 14-day floor
+
+    def _stock(self):
+        # recipient demand deliberately LARGER than anything the donor may
+        # release, so every path wants more than it can have and the cap binds.
+        # With a small recipient the total stays under the cap by luck and the
+        # test passes even with the ledger disabled.
+        return {
+            "ORG001": [_product("SKU1", "RICE 1KG", stock=self.STOCK, ads=self.ADS)],
+            "ORG002": [_product("SKU1", "RICE 1KG", stock=2, ads=40.0)],
+            "ORG003": [],
+        }
+
+    def _order(self):
+        return {"ORG002": [{
+            "itm_cd": "SKU1", "product_name": "RICE 1KG",
+            "recommended_quantity": 600, "avg_daily_sales": 40.0,
+            "current_stocks": 2, "selling_price": 100.0, "cost_price": 70.0,
+            "supplier_name": "ACME", "estimated_delivery_days": 3,
+            "is_fresh": False, "department": "GENERAL",
+        }]}
+
+    def test_a_donor_never_promises_more_than_it_has_spare(self):
+        svc = _service(self._stock())
+        plan = svc.optimize_network(self._order())
+        pledged = sum(t.qty for t in plan.transfers if t.from_org == "ORG001")
+        assert pledged > 0, "precondition: the ordering path pledges something"
+
+        scan = svc.scan_network_opportunities()
+        scanned = sum(o.transfer_qty for o in scan.opportunities
+                      if o.from_org == "ORG001")
+
+        # Across BOTH entry points and all three claimants (decide_batch,
+        # ProactiveRebalancer, the scan), one donor cannot promise more than it
+        # actually has spare. With the ledger disabled this same fixture
+        # promises ~1,568 units from a store holding 600 — the three claimants
+        # each hand out the full excess, unaware of the others.
+        assert pledged + scanned <= self.EXCESS, (
+            f"donor over-promised: {pledged} + {scanned} > {self.EXCESS} spare")
+        assert pledged + scanned <= self.STOCK, "promised more than it holds"
+
+    def test_the_index_aliases_do_not_each_get_their_own_allowance(self):
+        """One physical pile of stock, however many names it answers to.
+
+        NetworkAvailabilityMap indexes every state under its code, its product
+        name and its barcode. ProactiveRebalancer walks that index directly, so
+        it visits the same stock once per alias. The ledger must therefore be
+        keyed on the DONOR'S canonical code — keying it on the loop variable
+        gives each alias a fresh allowance and duplicates the transfer.
+        """
+        svc = _service(self._stock())
+        plan = svc.optimize_network(self._order())
+        from_donor = [t for t in plan.transfers if t.from_org == "ORG001"]
+        # the same donor/recipient/SKU must not appear twice at full size
+        proactive = [t for t in from_donor if t.urgency == "LOW"]
+        assert len(proactive) <= 1, (
+            f"one pile of stock promised {len(proactive)} times over: "
+            f"{[t.qty for t in proactive]}")
+
+    def test_every_promise_is_recorded_in_the_ledger(self):
+        """No path may take stock without writing it down."""
+        svc = _service(self._stock())
+        plan = svc.optimize_network(self._order())
+        pledged = sum(t.qty for t in plan.transfers if t.from_org == "ORG001")
+        # includes the ProactiveRebalancer's share, which used to mutate
+        # local state privately and was the LARGEST claimant in a typical run
+        assert svc.donor_ledger.total_booked == pytest.approx(pledged)
+
+        scan = svc.scan_network_opportunities()
+        scanned = sum(o.transfer_qty for o in scan.opportunities
+                      if o.from_org == "ORG001")
+        assert svc.donor_ledger.total_booked == pytest.approx(pledged + scanned)
+
+    def test_the_scan_sees_what_ordering_already_took(self):
+        """The scan's view of a donor must shrink after the ordering path runs."""
+        fresh = _service(self._stock())
+        alone = sum(o.transfer_qty
+                    for o in fresh.scan_network_opportunities().opportunities
+                    if o.from_org == "ORG001")
+        assert alone > 0, "precondition: the scan finds something on its own"
+
+        after = _service(self._stock())
+        after.optimize_network(self._order())
+        second = sum(o.transfer_qty
+                     for o in after.scan_network_opportunities().opportunities
+                     if o.from_org == "ORG001")
+        assert second < alone, (
+            "the scan offered as much after the ordering path had already "
+            "claimed from the same donor — the two are not sharing a ledger")
+
+    def test_a_fresh_service_starts_with_an_empty_book(self):
+        svc = _service(self._stock())
+        assert svc.donor_ledger.total_booked == 0
+        assert len(svc.donor_ledger) == 0
+
+
+class TestDonorLedger:
+    def test_available_nets_off_bookings_and_applies_the_fraction(self):
+        from oasis.logic.fulfillment_decider import DonorLedger
+        led = DonorLedger()
+        assert led.available("ORG001", "SKU1", 100.0, 0.5) == 50.0
+        led.book("ORG001", "SKU1", 30.0)
+        assert led.available("ORG001", "SKU1", 100.0, 0.5) == 20.0
+        led.book("ORG001", "SKU1", 999.0)
+        assert led.available("ORG001", "SKU1", 100.0, 0.5) == 0.0, "never negative"
+
+    def test_bookings_are_per_donor_and_per_sku(self):
+        from oasis.logic.fulfillment_decider import DonorLedger
+        led = DonorLedger()
+        led.book("ORG001", "SKU1", 10.0)
+        assert led.booked("ORG001", "SKU1") == 10.0
+        assert led.booked("ORG002", "SKU1") == 0.0
+        assert led.booked("ORG001", "SKU2") == 0.0
+
+
 class TestPushScan:
-    def test_push_cold_to_hot(self):
+    def test_overstock_moves_as_a_PULL_once_the_horizon_is_real(self):
+        """An overstocked SELLING line is a PULL, not a PUSH.
+
+        This used to assert PUSH, on the old contract where PUSH moved anything
+        with >60 days of cover to anything with <14. PUSH is now dead-stock
+        clearance only (zero demand, silent 90+ days); a line that is merely
+        overstocked is still turning over and is ordinary donor supply.
+
+        The old premise — "10 days of cover is not a deficit" — was itself an
+        artifact of the hardcoded 7-day trigger. Measured against a real relief
+        horizon it plainly IS a deficit: a store holding 10 days while its
+        supplier comes fortnightly runs out before relief lands. So the move
+        still happens, as a PULL, and is sized to the actual gap rather than
+        topped up to an arbitrary 14 days.
+        """
         stock = {
-            # Cold: 1000 units at 10/day = 100 days > 60 cold threshold
+            # 1000 units at 10/day = 100 days cover, but SELLING — not dead
             "ORG001": [_product("SKU2", "SOAP 500G", stock=1000, ads=10.0, price=50)],
-            # Hot: 10 units at 2/day = 5 days < 14 hot threshold...
-            # but NOT a pull deficit (>= 7d requires < 7; 5d IS a pull too).
+            # 20 units at 2/day = 10 days cover
             "ORG002": [_product("SKU2", "SOAP 500G", stock=20, ads=2.0, price=50)],
             "ORG003": [],
         }
-        scan = _service(stock).scan_network_opportunities()
-        types = {o.type for o in scan.opportunities if o.from_org == "ORG001"}
-        assert types, "no opportunities found"
-        # 10 days cover at recipient → hot (<14) but not deficit (>7) → PUSH
-        assert "PUSH" in types
+        svc = _service(stock)
+        # a fortnightly supplier: relief lands in 15 + 3 = 18 days
+        svc.supplier_rhythm = {
+            (svc.stock_data["ORG002"][0].get("supplier_name") or "").strip().lower(): {
+                "median_gap_days": 15, "estimated_delivery_days": 3,
+                "lata_variance_multiplier": 1.0}}
+        scan = svc.scan_network_opportunities()
+        moves = [o for o in scan.opportunities if o.from_org == "ORG001"]
+        assert moves, "overstock did not move at all"
+        assert {o.type for o in moves} == {"PULL"}
+        # sized to the gap: 18d x 2/day = 36 units needed, 20 held -> 16
+        assert moves[0].to_org == "ORG002"
+        assert moves[0].transfer_qty == 16
+
+    def test_overstock_rebalances_even_without_a_measured_horizon(self):
+        """A store on 100 days of cover beside one on 10 must move stock.
+
+        Guards a regression that was briefly shipped: when the PUSH donor gate
+        was narrowed to dead stock only, an overstocked but still-SELLING line
+        stopped moving entirely, and with no LATA rhythm the PULL trigger falls
+        back to a flat 7 days so nothing caught it either. The 100-day store
+        simply kept its stock.
+
+        Overstock is a PUSH donor in its own right. What differs from dead
+        stock is the RELEASE RULE, not eligibility: a line still being traded
+        releases only the protected fraction of its excess.
+        """
+        stock = {
+            "ORG001": [_product("SKU2", "SOAP 500G", stock=1000, ads=10.0, price=50)],
+            "ORG002": [_product("SKU2", "SOAP 500G", stock=20, ads=2.0, price=50)],
+            "ORG003": [],
+        }
+        svc = _service(stock)
+        scan = svc.scan_network_opportunities()
+        moves = [o for o in scan.opportunities if o.from_org == "ORG001"]
+        assert moves, "overstocked donor moved nothing"
+        assert moves[0].type == "PUSH"
+        assert moves[0].to_org == "ORG002"
+        # sized to the receiver's relief target, not to its dead threshold:
+        # 14d x 2/day = 28 units, less the 20 held -> 8
+        assert moves[0].transfer_qty == 8
+        # and drawn from the PROTECTED pool, never the donor's whole excess
+        excess = 1000 - 10.0 * 14
+        assert moves[0].transfer_qty <= excess * svc.RELEASE_FRACTION
 
     def test_push_respects_14day_donor_floor(self):
         """The old inline scan let PUSH strip donors to 2 days of cover.

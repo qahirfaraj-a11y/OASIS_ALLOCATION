@@ -132,20 +132,68 @@ class TestDeadStockDonorBonus(unittest.TestCase):
 
 
 class TestProactiveTransferRelaxedThresholds(unittest.TestCase):
-    """Proactive (dead-stock) transfers use configurable cold/hot node windows.
+    """Proactive (dead-stock) transfers derive their thresholds.
 
-    The original G-fix hardcoded relaxed constants (45d / 0.05 velocity / 50u);
-    the unified CTS scan superseded that with configurable cold_node_days /
-    hot_node_days (defaults 60 / 14) — assert the current contract, not the
-    superseded literals."""
+    History of this test: it first asserted hardcoded relaxed constants
+    (45d / 0.05 velocity / 50u), then asserted the literals "60" and "14"
+    appeared in the method SOURCE. Both were checking spelling rather than
+    behaviour, which is why neither noticed that proactive rebalancing ran a
+    whole second engine with its own numbers.
 
-    def test_relaxed_thresholds_in_source(self):
+    Thresholds are now taken from AMIT's per-category tiers, so the contract
+    worth pinning is that CHANGING THE CONFIG CHANGES THE ANSWER — a hardcoded
+    window cannot do that.
+    """
+
+    def _service(self, dead_days):
         from oasis.logic.consolidated_transfer_service import ConsolidatedTransferService
-        source = inspect.getsource(ConsolidatedTransferService._identify_proactive_transfers)
-        self.assertIn("cold_node_days", source, "Cold-node window should be configurable")
-        self.assertIn("hot_node_days", source, "Hot-node window should be configurable")
-        self.assertIn("60", source, "Default cold-node window should be 60d")
-        self.assertIn("14", source, "Default hot-node window should be 14d")
+        stock = {
+            # 400 units at 2/day = 200 days of cover, still selling
+            "ORG001": [{"itm_cd": "SKU9", "product_name": "SOAP", "current_stocks": 400,
+                        "avg_daily_sales": 2.0, "selling_price": 50.0,
+                        "cost_price": 30.0, "department": "GENERAL",
+                        "supplier_name": "ACME", "estimated_delivery_days": 3,
+                        "uom": "EA", "is_fresh": False,
+                        "last_days_since_last_delivery": 5}],
+            "ORG002": [{"itm_cd": "SKU9", "product_name": "SOAP", "current_stocks": 4,
+                        "avg_daily_sales": 4.0, "selling_price": 50.0,
+                        "cost_price": 30.0, "department": "GENERAL",
+                        "supplier_name": "ACME", "estimated_delivery_days": 3,
+                        "uom": "EA", "is_fresh": False,
+                        "last_days_since_last_delivery": 5}],
+        }
+        return ConsolidatedTransferService(
+            org_names={"ORG001": "A", "ORG002": "B"}, stock_data=stock,
+            dead_stock_config={"days_default": dead_days, "capital_floor": 0.0})
+
+    def test_the_category_threshold_decides_who_is_a_donor(self):
+        """200 days of cover is surplus at a 45-day tier, normal at a 300-day one."""
+        tight = self._service(dead_days=45)._identify_proactive_transfers({})
+        loose = self._service(dead_days=300)._identify_proactive_transfers({})
+        self.assertTrue(tight, "200d of cover should be surplus at a 45-day tier")
+        self.assertFalse(loose, "200d of cover is under a 300-day tier — nothing to move")
+
+    def test_proactive_and_the_scan_share_one_implementation(self):
+        """Both entry points must route through _push_opportunities."""
+        from oasis.logic.consolidated_transfer_service import ConsolidatedTransferService
+        svc = self._service(dead_days=45)
+        calls = []
+        original = svc._push_opportunities
+
+        def spy(*a, **kw):
+            calls.append(1)
+            return original(*a, **kw)
+
+        svc._push_opportunities = spy
+        svc._identify_proactive_transfers({})
+        self.assertEqual(len(calls), 1,
+                         "proactive rebalancing did not go through the PUSH pass")
+
+    def test_the_superseded_engine_is_gone(self):
+        """ProactiveRebalancer must not come back as a second implementation."""
+        import oasis.logic.fulfillment_decider as fd
+        self.assertFalse(hasattr(fd, "ProactiveRebalancer"),
+                         "a second rebalancing engine has reappeared")
 
     def test_warehouse_as_recipient_in_source(self):
         # warehouse handling lives at CTS module level now (the proactive

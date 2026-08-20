@@ -167,3 +167,7 @@ test_shadow_report.docx
 # The hub's live admin key. Same class as connectors/odoo/.hub_state.json
 # above: a real credential that happens to live inside the tree.
 oasis_hub/.oasis_hub_admin_key
+
+# Derived depot seed — rebuild with connectors/odoo/build_store_network_seed.py
+# then differentiate_store_network.py (source stores_network.json is tracked)
+connectors/odoo/store_network_seed.json
