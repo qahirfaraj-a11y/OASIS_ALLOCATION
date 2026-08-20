@@ -50,12 +50,17 @@ class OasisTransferSuggestion(models.Model):
     # ── why ───────────────────────────────────────────────────────────────
     kind = fields.Selection(
         [("pull", "Plug a gap"), ("push", "Clear idle stock")],
-        required=True, index=True,
+        string="Decision", required=True, index=True,
         help="OASIS does two jobs. PULL moves stock to a store that will run "
              "out before its next delivery. PUSH moves capital that is sitting "
              "still to a store that will sell it.")
     reason = fields.Text("Why", readonly=True,
                          help="The argument for this movement, in plain terms.")
+    categ_id = fields.Many2one(related="product_id.categ_id", store=True,
+                               string="Category", readonly=True, index=True,
+                               help="Stored so the queue can be pivoted by "
+                                    "category without joining product on every "
+                                    "read.")
     value_kes = fields.Monetary("Value", currency_field="currency_id")
     currency_id = fields.Many2one("res.currency",
                                   default=lambda s: s.env.company.currency_id)

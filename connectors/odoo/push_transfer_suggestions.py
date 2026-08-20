@@ -24,6 +24,17 @@ import os
 import sys
 from datetime import datetime
 
+# The reasoning text uses real punctuation because it is read by operators
+# inside Odoo, where UTF-8 is fine. This script also PRINTS it, and a Windows
+# console is cp1252 — which cannot encode an em dash and takes the whole run
+# down with a UnicodeEncodeError. Make the console tolerant rather than
+# flattening the text that ships to the customer.
+for _stream in (sys.stdout, sys.stderr):
+    try:
+        _stream.reconfigure(encoding="utf-8", errors="replace")
+    except (AttributeError, ValueError):
+        pass
+
 HERE = os.path.dirname(os.path.abspath(__file__))
 REPO = os.path.abspath(os.path.join(HERE, "..", ".."))
 sys.path.insert(0, REPO)
@@ -60,11 +71,16 @@ def reason_for(o, relief=None):
         tail = (f" Leaving it costs roughly KES {o.value_kes:,.0f} of sales "
                 f"on this line.")
         return head + body + tail
-    return (f"{o.from_org} {position(o.donor_days_cover)} on this line and it is "
-            f"not turning over — that is idle capital sitting on a shelf. "
-            f"{o.to_org} sells it, and can absorb {o.transfer_qty:.0f} before the "
-            f"line would go stale there too. Worth about KES {o.value_kes:,.0f} "
-            f"at retail once it moves.")
+    if o.donor_days_cover >= 900:
+        head = (f"{o.from_org} is not selling this line at all and is sitting on "
+                f"{o.donor_excess:.0f} units of it")
+    else:
+        head = (f"{o.from_org} has {o.donor_days_cover:.0f} days of cover on this "
+                f"line and it is barely moving")
+    return (f"{head} — capital on a shelf rather than in the till. "
+            f"{o.to_org} does sell it, and can take {o.transfer_qty:.0f} before "
+            f"the line would go stale there too. About KES {o.value_kes:,.0f} "
+            f"back in circulation once it does.")
 
 
 def main(argv=None):
@@ -123,11 +139,20 @@ def main(argv=None):
           f"{fresh:,} perishable)")
 
     if args.dry_run:
-        print("\n--dry-run — nothing written. Three examples:\n")
-        for r in rows[:3]:
-            print(f"  {r['kind'].upper()}  {r['from_code']} -> {r['to_code']}  "
-                  f"{r['quantity']:.0f} x {r['item_code'][:38]}")
-            print(f"        {r['reason']}\n")
+        # Show BOTH jobs. The list is value-ranked and gap-plugging dominates
+        # by value, so sampling the top alone would never show what a
+        # clear-idle suggestion reads like — which is half the product.
+        print("\n--dry-run — nothing written.\n")
+        for kind, label in (("pull", "PLUG A GAP"), ("push", "CLEAR IDLE STOCK")):
+            sample = [r for r in rows if r["kind"] == kind][:2]
+            if not sample:
+                continue
+            print(f"  ── {label} ──")
+            for r in sample:
+                fresh = "  [PERISHABLE]" if r["is_fresh"] else ""
+                print(f"  {r['from_code']} -> {r['to_code']}   "
+                      f"{r['quantity']:.0f} x {r['item_code'][:40]}{fresh}")
+                print(f"      {r['reason']}\n")
         return 0
 
     res = a._ex("oasis.transfer.suggestion", "oasis_replace_queue",

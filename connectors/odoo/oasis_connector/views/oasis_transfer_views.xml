@@ -16,8 +16,15 @@
                   class="btn-primary"/>
           <button name="action_reject" type="object" string="Reject"/>
         </header>
-        <field name="kind" string="Job"/>
+        <!-- The two jobs stay as SEPARATE rows and are never merged, even on
+             the same route and SKU. A pull and a push are different decisions
+             about the same stock: one says a store will run out, the other
+             says capital is idle. Collapsing them would hide which reason
+             drove the movement, which is the thing worth analysing. -->
+        <field name="kind" string="Decision" widget="badge"
+               decoration-info="kind == 'pull'" decoration-warning="kind == 'push'"/>
         <field name="product_id"/>
+        <field name="categ_id" string="Category" optional="hide"/>
         <field name="from_warehouse_id" string="From"/>
         <field name="to_warehouse_id" string="To"/>
         <field name="quantity" sum="Units"/>
@@ -90,6 +97,35 @@
     </field>
   </record>
 
+  <!-- Analysis. Pull and push are the ROWS by default, because the first
+       question about any transfer plan is how much of it is preventing
+       stockouts versus freeing idle capital — they are funded differently and
+       judged differently. -->
+  <record id="view_oasis_transfer_suggestion_pivot" model="ir.ui.view">
+    <field name="name">oasis.transfer.suggestion.pivot</field>
+    <field name="model">oasis.transfer.suggestion</field>
+    <field name="arch" type="xml">
+      <pivot string="Transfer decisions" sample="1">
+        <field name="kind" type="row"/>
+        <field name="to_warehouse_id" type="col"/>
+        <field name="value_kes" type="measure"/>
+        <field name="quantity" type="measure"/>
+      </pivot>
+    </field>
+  </record>
+
+  <record id="view_oasis_transfer_suggestion_graph" model="ir.ui.view">
+    <field name="name">oasis.transfer.suggestion.graph</field>
+    <field name="model">oasis.transfer.suggestion</field>
+    <field name="arch" type="xml">
+      <graph string="Transfer decisions" type="bar" stacked="1" sample="1">
+        <field name="to_warehouse_id"/>
+        <field name="kind"/>
+        <field name="value_kes" type="measure"/>
+      </graph>
+    </field>
+  </record>
+
   <record id="view_oasis_transfer_suggestion_search" model="ir.ui.view">
     <field name="name">oasis.transfer.suggestion.search</field>
     <field name="model">oasis.transfer.suggestion</field>
@@ -110,7 +146,8 @@
         <group expand="0" string="Group by">
           <filter name="g_to" string="Receiving store" context="{'group_by':'to_warehouse_id'}"/>
           <filter name="g_from" string="Donor store" context="{'group_by':'from_warehouse_id'}"/>
-          <filter name="g_kind" string="Job" context="{'group_by':'kind'}"/>
+          <filter name="g_kind" string="Decision (pull / push)" context="{'group_by':'kind'}"/>
+          <filter name="g_categ" string="Category" context="{'group_by':'categ_id'}"/>
           <filter name="g_state" string="Status" context="{'group_by':'state'}"/>
         </group>
       </search>
@@ -120,7 +157,7 @@
   <record id="action_oasis_transfer_suggestion" model="ir.actions.act_window">
     <field name="name">Transfer suggestions</field>
     <field name="res_model">oasis.transfer.suggestion</field>
-    <field name="view_mode">tree,form</field>
+    <field name="view_mode">tree,form,pivot,graph</field>
     <field name="context">{'search_default_f_new': 1}</field>
     <field name="help" type="html">
       <p class="o_view_nocontent_smiling_face">No transfer suggestions yet.</p>
