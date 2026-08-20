@@ -171,3 +171,7 @@ oasis_hub/.oasis_hub_admin_key
 # Derived depot seed — rebuild with connectors/odoo/build_store_network_seed.py
 # then differentiate_store_network.py (source stores_network.json is tracked)
 connectors/odoo/store_network_seed.json
+
+# generated live snapshots of the depot
+connectors/odoo/live_view.html
+connectors/odoo/_live_view.json

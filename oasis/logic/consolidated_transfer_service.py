@@ -162,7 +162,9 @@ class ConsolidatedTransferService:
                  next_delivery_days: Optional[Dict[str, float]] = None,
                  supplier_rhythm: Optional[Dict[str, dict]] = None,
                  dead_stock_config: Optional[Dict[str, Any]] = None,
-                 data_dir: Optional[str] = None):
+                 data_dir: Optional[str] = None,
+                 settings: Optional[Dict[str, Any]] = None,
+                 settings_db: Optional[str] = None):
         """
         Args:
             org_names: {org_cd: org_name} for all stores
@@ -172,9 +174,31 @@ class ConsolidatedTransferService:
             registry_path: Path to persistent transfer registry file
             distance_map: Optional {org_cd: {lat: L, lon: L}} for distance-aware selection
         """
+        # ── operator overrides ────────────────────────────────────────────
+        # Applied over the DERIVED defaults, never instead of them: a key the
+        # operator has not set stays derived. Every override is logged, because
+        # a hand-set horizon must never be mistaken for a measured one.
+        if settings is None and settings_db:
+            from . import transfer_settings as _ts
+            settings = _ts.load(settings_db)
+        self.settings = settings or {}
+
+        def _tuned(key, default):
+            return self.settings.get(key, default)
+
         self.org_names = org_names
         self.stock_data = stock_data
-        self.transfer_cost_kes = transfer_cost_kes
+        self.transfer_cost_kes = _tuned("max_transfer_cost_kes", transfer_cost_kes)
+        # instance-level shadows of the class constants, so an override changes
+        # THIS scan and not the process
+        self.RELEASE_FRACTION = _tuned("release_fraction", type(self).RELEASE_FRACTION)
+        self.DEAD_STOCK_DAYS = _tuned("dead_stock_days", type(self).DEAD_STOCK_DAYS)
+        self.MAX_RELIEF_DAYS = float(_tuned("max_relief_days", type(self).MAX_RELIEF_DAYS))
+        #: fallback windows, reached only when no source knows the supplier
+        self.fallback_deficit_days = _tuned("fallback_deficit_days", 7)
+        #: donor eligibility multiple. Shown in Settings since the first
+        #: release and read by nothing until now.
+        self.min_excess_ratio = _tuned("min_excess_ratio", 2.0)
         self.min_shortfall_qty = min_shortfall_qty
         self.registry_path = registry_path
         self.distance_map = distance_map or {}
@@ -186,7 +210,7 @@ class ConsolidatedTransferService:
         # never meant to disagree — measured median fill 2.88x the stated need.
         # pull_deficit_days remains the TRIGGER (is this a deficit); this is the
         # TARGET (how much cover to restore).
-        self.target_cover_days = float(target_cover_days)
+        self.target_cover_days = float(_tuned("fallback_target_days", target_cover_days))
         # supplier -> days until their next order window, from the calendar.
         # Turns the target from an arbitrary constant into "cover until relief
         # actually arrives".
@@ -610,7 +634,7 @@ class ConsolidatedTransferService:
     def scan_network_opportunities(self,
                                    moq_failures: Optional[Dict[str, set]] = None,
                                    pending_transfers: Optional[List[dict]] = None,
-                                   pull_deficit_days: float = 7.0,
+                                   pull_deficit_days: Optional[float] = None,
                                    max_pull_per_store: int = 0,
                                    max_push: int = 0,
                                    ) -> NetworkScanResult:
@@ -642,6 +666,10 @@ class ConsolidatedTransferService:
             max_push: cap on PUSH opportunities (highest value first). 0 = none.
         """
         moq_failures = moq_failures or {}
+        # None means "use the configured fallback"; an explicit value from the
+        # caller still wins, so devkit tools and tests can sweep it.
+        if pull_deficit_days is None:
+            pull_deficit_days = self.fallback_deficit_days
         outbound, inbound = self._pending_flows(pending_transfers or [])
         result = NetworkScanResult(
             pending_outbound_units=sum(outbound.values()),
@@ -808,6 +836,10 @@ class ConsolidatedTransferService:
                     product_name=req['item']['product_name'],
                     distance_calc=self.decider._calculate_distance_km,
                     warehouse_hubs=self.decider.warehouse_hubs,
+                    # operator-tunable donor eligibility. Velocity still adjusts
+                    # it (1.5x fast / 2.5x slow); this is the middle case.
+                    min_excess_ratio=self.min_excess_ratio,
+                    ledger=self.donor_ledger,
                 )
             return donor_cache[k]
 

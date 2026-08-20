@@ -352,6 +352,8 @@ def generate_smart_orders(org_cd: str, thresholds: Optional[Dict[str, Any]] = No
             distance_map=distance_map,
             cold_node_days=60,
             hot_node_days=14,
+            # operator overrides from Settings -> System Configuration
+            settings_db=store_db_path(proj_root),
             # LATA's measured supplier rhythm and AMIT's per-category
             # thresholds. Without this the service runs in DEGRADED mode: the
             # LATA branch is unreachable, so horizons carry no supplier-
@@ -1383,6 +1385,7 @@ def network_transfer_scan(root: Optional[str] = None) -> Dict[str, Any]:
             # see the note at generate_smart_orders: without data_dir the scan
             # runs on calendar horizons and a single 45-day category threshold
             data_dir=data_dir,
+            settings_db=store_db_path(proj),
         )
         scan = cts.scan_network_opportunities(moq_failures=moq_failures,
                                               pending_transfers=pending)
