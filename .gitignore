@@ -175,3 +175,11 @@ connectors/odoo/store_network_seed.json
 # generated live snapshots of the depot
 connectors/odoo/live_view.html
 connectors/odoo/_live_view.json
+
+# ── 2026-08-21: the blobs that made this repo unpushable ────────────────
+# A 2.0GB architecture snapshot (committed in 0705d4ae) plus three copies of
+# a 118MB showcase DB and a 296MB test DB. GitHub hard-rejects any file over
+# 100MB, so every push failed until the history was rewritten to drop them.
+# The 2026-08-14 warning above was exactly right and arrived too late.
+# All of them still live on disk; none may re-enter the index.
+oasis_vault/System_Backups/
