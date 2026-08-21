@@ -24,12 +24,15 @@ each. Odoo's unit of work is the picking, and splitting a single van into
 fifteen pickings makes the warehouse pick, pack and validate fifteen times.
 """
 
+import logging
 from collections import defaultdict
 
 from dateutil.relativedelta import relativedelta
 
 from odoo import _, api, fields, models
 from odoo.exceptions import UserError
+
+_logger = logging.getLogger(__name__)
 
 
 class OasisTransferSuggestion(models.Model):
@@ -230,7 +233,26 @@ class OasisTransferSuggestion(models.Model):
                     "%s has no internal operation type or stock location, so "
                     "Odoo has nowhere to book this transfer.") % src.code)
 
+            archived = recs.product_id.filtered(lambda p: not p.active)
+            if archived:
+                raise UserError(_(
+                    "These products are archived, so they are no longer part of "
+                    "the range:\n\n%s\n\nUn-archive them if the range decision "
+                    "has changed; otherwise the stock needs a write-off or a "
+                    "markdown, not a lorry.")
+                    % "\n".join("  • " + p.display_name for p in archived))
+
             self._check_donor_stock(src, recs)
+
+            # ONE PRODUCT IS ONE MOVE LINE. A product can legitimately appear
+            # twice on a route — once pulled and once pushed — and writing a
+            # line per suggestion put two lines for the same product on one
+            # picking. The picking is a physical document: one product going
+            # from A to B is one line of N units, and an operator reading two
+            # has to work out for themselves that they are not a duplicate.
+            per_product = defaultdict(float)
+            for r in recs:
+                per_product[r.product_id] += r.quantity
 
             picking = self.env["stock.picking"].create({
                 "picking_type_id": src.int_type_id.id,
@@ -238,13 +260,13 @@ class OasisTransferSuggestion(models.Model):
                 "location_dest_id": dst.lot_stock_id.id,
                 "origin": "OASIS transfer %s→%s" % (src.code, dst.code),
                 "move_ids": [(0, 0, {
-                    "name": r.product_id.display_name,
-                    "product_id": r.product_id.id,
-                    "product_uom_qty": r.quantity,
-                    "product_uom": r.product_id.uom_id.id,
+                    "name": product.display_name,
+                    "product_id": product.id,
+                    "product_uom_qty": qty,
+                    "product_uom": product.uom_id.id,
                     "location_id": src.lot_stock_id.id,
                     "location_dest_id": dst.lot_stock_id.id,
-                }) for r in recs],
+                }) for product, qty in per_product.items()],
             })
             recs.write({"state": "approved", "picking_id": picking.id})
             made |= picking
@@ -256,6 +278,29 @@ class OasisTransferSuggestion(models.Model):
             "view_mode": "tree,form",
             "domain": [("id", "in", made.ids)],
         }
+
+    def _release_from_dead_picking(self, reason):
+        """The document died; the suggestion must stop claiming it is handled.
+
+        A suggestion marked `approved` says one thing to the operator: this
+        movement is a document now, somebody is picking it. Cancel or delete
+        that document and the row went on saying it — pointing, in the deleted
+        case, at nothing at all. The stock never moved, the queue showed it as
+        dealt with, and the line could not be reopened because action_reset
+        refuses to touch an approved row.
+
+        Releasing back to `new` is the truthful state and it is also
+        self-healing: the next scan clears pending rows and re-proposes from
+        current stock, so a need that still exists comes back and one that has
+        gone does not. is_stale flags it in the meantime, because computed_on
+        is untouched and by definition old.
+        """
+        live = self.filtered(lambda r: r.state == "approved")
+        if not live:
+            return
+        live.write({"state": "new", "picking_id": False})
+        _logger.info("OASIS: released %d suggestion(s) back to the queue — %s",
+                     len(live), reason)
 
     def action_reject(self):
         self.filtered(lambda r: r.state == "new").write({"state": "rejected"})
