@@ -131,6 +131,43 @@ the proposal stays outside, which is also what is being sold.
 The **Refresh from OASIS** button calls `scan_service.py` on-prem, so OASIS has
 to be reachable from the Odoo container — see `oasis.scan_url`.
 
+## Addon test suite (runs inside Odoo)
+
+41 tests in `oasis_connector/tests/`, using Odoo's own framework. Everything
+else that exercises this addon drives it from OUTSIDE over XML-RPC against a
+depot that has to be seeded first, so none of it notices when an Odoo version
+bump changes a signature, renames a view attribute or tightens a constraint —
+the module just stops working for the next customer who upgrades.
+
+Run them on a throwaway database, never on `oasis`:
+
+```bash
+docker exec oasis-odoo-odoo-1 odoo -i oasis_connector -d tmp_tests \
+  --db_host=odoo-db --db_user=odoo --db_password=odoo \
+  --stop-after-init --without-demo=all --no-http \
+  --test-enable --test-tags /oasis_connector --log-level=test
+```
+
+**Run it BOTH ways.** POS is optional, and the two configurations take
+different paths through the sync — with POS the customer-move exclusion is
+active, without it those moves are the only record of a sale:
+
+```bash
+# the second configuration: add point_of_sale to -i
+docker exec oasis-odoo-odoo-1 odoo -i oasis_connector,point_of_sale -d tmp_tests_pos \
+  --db_host=odoo-db --db_user=odoo --db_password=odoo \
+  --stop-after-init --without-demo=all --no-http \
+  --test-enable --test-tags /oasis_connector --log-level=test
+```
+
+Each run reports `0 failed, 0 error(s) of 41 tests`. A handful skip in each
+direction by design — they are the complementary pair asserting the POS-present
+and POS-absent behaviour. Drop the databases afterwards.
+
+From Git Bash, prefix with `MSYS_NO_PATHCONV=1` or `/oasis_connector` is
+rewritten into a Windows path and **zero tests run while still reporting
+success** — the log says `0 failed ... of 0 tests`, which is easy to misread.
+
 ## Verify / troubleshoot
 
 ```bash
