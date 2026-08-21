@@ -1,6 +1,6 @@
 {
     "name": "OASIS Retail Intelligence Connector",
-    "version": "16.0.1.3.0",
+    "version": "16.0.1.4.0",
     "summary": "Stream stock movement to OASIS — algorithmic retail intelligence, "
                 "live inside Odoo.",
     "description": """
@@ -13,6 +13,9 @@ powering the OASIS ordering, transfer, and Retail Central Intelligence services
 review queue you approve into native documents.
 
 * Zero extra Python dependencies — pushes over HTTPS with the standard library.
+* Point of Sale is OPTIONAL. Install it and till sales stream from the POS
+  itself; without it, sell-through is read from the stock moves every Odoo
+  sale produces anyway, whatever the front end.
 * You control what leaves your system: nothing is sent until you enable it and
   provide a store ingest token issued by OASIS.
 * Idempotent, batched, and resumable — safe to run on a schedule.
@@ -32,9 +35,16 @@ Configure under Settings → OASIS Connector.
     "website": "https://www.oasis-systems.example",
     "category": "Inventory/Inventory",
     "license": "LGPL-3",
-    "depends": ["stock", "point_of_sale"],
+    # `stock` ONLY. point_of_sale used to be a hard dependency purely so that
+    # pos.order.line could be read by the telemetry sync — which locked every
+    # Odoo retailer not running Odoo POS out of installing a module whose
+    # headline feature is stock transfers. POS is now detected at runtime; with
+    # it, till sales stream from pos.order.line, and without it sell-through
+    # comes from customer stock moves, which every Odoo sale produces anyway.
+    "depends": ["stock"],
     "data": [
         "security/ir.model.access.csv",
+        "security/oasis_security.xml",
         "data/ir_cron.xml",
         "views/res_config_settings_views.xml",
         "views/oasis_transfer_views.xml",

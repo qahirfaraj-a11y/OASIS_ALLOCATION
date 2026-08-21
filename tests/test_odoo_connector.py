@@ -170,10 +170,66 @@ def test_manifest_is_well_formed_and_data_files_exist():
     with open(os.path.join(ADDON, "__manifest__.py"), encoding="utf-8") as f:
         manifest = ast.literal_eval(f.read())
     assert manifest["name"] and manifest["version"]
-    assert {"stock", "point_of_sale"} <= set(manifest["depends"])
+    assert "stock" in manifest["depends"]
     assert manifest["installable"] is True
     for rel in manifest["data"]:
         assert os.path.exists(os.path.join(ADDON, rel)), f"missing data file: {rel}"
+
+
+def test_point_of_sale_is_not_a_hard_dependency():
+    """POS must stay OPTIONAL.
+
+    It was a hard dependency purely so the telemetry sync could read
+    pos.order.line — which locked every Odoo retailer not running Odoo POS out
+    of installing a module whose headline feature is stock transfers. This test
+    used to assert the opposite. Sell-through survives without POS: every Odoo
+    sale depletes inventory through a customer-bound stock move.
+    """
+    with open(os.path.join(ADDON, "__manifest__.py"), encoding="utf-8") as f:
+        manifest = ast.literal_eval(f.read())
+    assert "point_of_sale" not in manifest["depends"]
+
+
+def test_the_console_embed_is_gone():
+    """No path back to shipping the whole product inside Odoo.
+
+    Deleting the three console MENUS left the client action, its asset bundle
+    and its three URL settings in place, so oasis.sync.open_console('intel')
+    stayed callable over RPC by any internal user. Removing a menu hides an
+    entrance; it does not close a door.
+    """
+    with open(os.path.join(ADDON, "__manifest__.py"), encoding="utf-8") as f:
+        manifest = ast.literal_eval(f.read())
+    assert not manifest.get("assets"), "the embed asset bundle is back"
+
+    src = os.path.join(ADDON, "models", "oasis_sync.py")
+    with open(src, encoding="utf-8") as f:
+        tree = ast.parse(f.read())
+    methods = {n.name for n in ast.walk(tree) if isinstance(n, ast.FunctionDef)}
+    assert "open_console" not in methods
+
+    for gone in ("static/src/js/oasis_embed.js", "static/src/xml/oasis_embed.xml"):
+        assert not os.path.exists(os.path.join(ADDON, gone)), f"{gone} is back"
+
+
+def test_multi_company_record_rule_ships():
+    """ir.model.access says which GROUPS; only an ir.rule says which RECORDS.
+
+    Without one, a stock user in company A saw and could approve company B's
+    suggestions — and approving creates a document in a company they are not
+    in. The addon shipped no ir.rule at all.
+    """
+    path = os.path.join(ADDON, "security", "oasis_security.xml")
+    assert os.path.exists(path), "no record-rule file ships"
+    with open(path, encoding="utf-8") as f:
+        xml = f.read()
+    assert "oasis.transfer.suggestion" not in xml or "model_oasis_transfer_suggestion" in xml
+    assert "company_ids" in xml, "the rule does not scope by company"
+
+    with open(os.path.join(ADDON, "__manifest__.py"), encoding="utf-8") as f:
+        manifest = ast.literal_eval(f.read())
+    assert "security/oasis_security.xml" in manifest["data"], \
+        "the rule exists but is not loaded"
 
 
 # ── TRUE end-to-end: Odoo record → mapping → push → hub → supplier ───────

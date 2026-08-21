@@ -108,7 +108,35 @@ class OasisSync(models.AbstractModel):
         return (fields.Datetime.to_string(max(recs.mapped("write_date")))
                 if recs else fallback)
 
+    def _pos_installed(self):
+        """Whether this Odoo actually has Point of Sale.
+
+        `point_of_sale` is no longer a hard dependency. It was one purely so
+        that `pos.order.line` could be read here, which locked every Odoo
+        retailer NOT running Odoo POS out of installing a module whose headline
+        feature is stock transfers — and transfers need nothing from POS.
+
+        Sell-through is still captured without it: every Odoo sale, whatever
+        the front end, depletes inventory through a stock move into a customer
+        location, and `map_stock_move` already maps that to a 'sale'.
+        """
+        return "pos.order.line" in self.env
+
+    def _sales_counted_from_pos(self):
+        """Whether the till feed is the one reporting sales this run.
+
+        Decides, for `_collect_receipts`, whether a customer-bound move would
+        be a SECOND count of a sale the till already reported.
+        """
+        return (self._pos_installed()
+                and self._param("oasis.send_sales") in
+                ("True", "1", "true", True, None))
+
     def _collect_sales(self, since):
+        if not self._pos_installed():
+            _logger.info("Point of Sale is not installed — sell-through is "
+                         "collected from customer stock moves instead.")
+            return [], since, False
         lines, more = self._batch("pos.order.line", [], since)
         pmap = self._product_map(lines.mapped("product_id").ids)
         movements = []
@@ -123,7 +151,36 @@ class OasisSync(models.AbstractModel):
         return movements, self._watermark_of(lines, since), more
 
     def _collect_receipts(self, since):
-        moves, more = self._batch("stock.move", [("state", "=", "done")], since)
+        dom = [("state", "=", "done")]
+
+        # DO NOT STREAM A POS SALE TWICE.
+        #
+        # Closing a POS order creates a picking (linked by pos_order_id) whose
+        # moves land in a customer location, and map_stock_move maps those to
+        # 'sale' — the SAME units pos.order.line already reported. Both feeds
+        # default to ON and carry different source_refs, so the hub cannot
+        # dedupe them: it simply received every till sale twice.
+        #
+        # This is the identical defect already fixed on the READ side in
+        # odoo_adapter._sales_by_product; it survived here on the WRITE side.
+        # The exclusion is only correct while POS is actually reporting: with
+        # no POS, or with the sales feed switched off, those customer moves are
+        # the only record of the sale and must be kept.
+        if self._sales_counted_from_pos():
+            try:
+                self.env["stock.picking"]._fields["pos_order_id"]
+                # KEEP MOVES WITH NO PICKING. A dotted domain walks the
+                # relation, so `picking_id.pos_order_id = False` silently drops
+                # every move whose picking_id is NULL — the join has nothing to
+                # walk. Those are ordinary sales, and excluding them zeroed
+                # demand outright when this was first written the other way.
+                dom += ["|", ("picking_id", "=", False),
+                        ("picking_id.pos_order_id", "=", False)]
+            except KeyError:
+                _logger.debug("no pos_order_id on stock.picking; streaming "
+                              "customer moves unfiltered")
+
+        moves, more = self._batch("stock.move", dom, since)
         pmap = self._product_map(moves.mapped("product_id").ids)
         movements = []
         for mv in moves:

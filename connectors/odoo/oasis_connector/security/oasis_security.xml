@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!--
+      MULTI-COMPANY ISOLATION.
+
+      ir.model.access.csv says WHICH GROUPS may touch the model. It says
+      nothing about WHICH RECORDS, and the addon shipped no ir.rule at all —
+      so on a database with more than one company, a stock user in company A
+      saw, and could approve, company B's transfer suggestions. The suggestion
+      carries a donor, a recipient, quantities and a value: it is commercially
+      sensitive between sibling companies, and approving one creates a document
+      in a company the user does not belong to.
+
+      This is not hypothetical here. The depot already contains a second
+      company (CHIC1) alongside the 14 outlets.
+
+      The domain is Odoo's standard multi-company shape. `company_id = False`
+      is admitted deliberately: a record that belongs to no company must remain
+      visible rather than becoming an orphan nobody can see or clean up.
+      oasis_replace_queue now stamps company_id from the DONOR warehouse, so a
+      row is owned by the company whose stock would actually move.
+
+      oasis.sync needs no rule — it is an AbstractModel and stores no records.
+    -->
+    <record id="oasis_transfer_suggestion_company_rule" model="ir.rule">
+        <field name="name">OASIS transfer suggestion: company isolation</field>
+        <field name="model_id" ref="model_oasis_transfer_suggestion"/>
+        <field name="domain_force">
+            ['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]
+        </field>
+        <field name="global" eval="True"/>
+    </record>
+</odoo>

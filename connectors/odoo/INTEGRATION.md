@@ -5,11 +5,13 @@ against a real Odoo instance** — a supplier logging into the Retail Central
 Intelligence portal and watching their own products move, sourced from Odoo.
 
 ```
-   Odoo (POS + stock)  ──addon push──▶  OASIS Cloud Hub  ──▶  Supplier Portal
-   :8069                                 :8700                  :8700/portal-app
-        ▲  │                                 ▲
-        │  └── OASIS app menu (iframe) ──▶ Intelligence :8510 / Operations :8500
-        │                                    / Command Center :8501
+   Odoo (stock; POS optional) ─addon push─▶ OASIS Cloud Hub ─▶ Supplier Portal
+   :8069                                     :8700               :8700/portal-app
+        ▲  │                                     ▲
+        │  └── OASIS app menu ──▶ Transfers → Suggestions (review queue)
+        │            ▲                    │
+        │            │                    └── approve ──▶ draft internal transfer
+        │      Refresh button ──▶ scan_service.py :8710 (on-prem OASIS)
         │ configure_and_sync.py             │ bootstrap_hub.py
         └── ir.config_parameter + seed      └── tenant/store/token/consent
 ```

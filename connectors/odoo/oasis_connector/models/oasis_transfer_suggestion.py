@@ -390,7 +390,18 @@ class OasisTransferSuggestion(models.Model):
         """
         self.search([("state", "=", "new")]).unlink()
 
-        wh = {w.code: w.id for w in self.env["stock.warehouse"].search([])}
+        # The company comes from the DONOR warehouse, not from whoever happens
+        # to be logged in. company_id defaults to `self.env.company` — the RPC
+        # user's active company — so a scan pushed by a user sitting in company
+        # A stamped every suggestion with A even where the stock lives in B.
+        # That is invisible until a record rule exists, and then it is worse
+        # than invisible: the rule hides the row from the very people who own
+        # the stock. The donor is the right answer because the picking created
+        # on approval is built from the donor's operation type, so this matches
+        # the company that document will belong to.
+        warehouses = self.env["stock.warehouse"].search([])
+        wh = {w.code: w.id for w in warehouses}
+        wh_company = {w.code: w.company_id.id for w in warehouses}
         codes = [s.get("item_code") for s in suggestions if s.get("item_code")]
         prods = self.env["product.product"].search(
             [("default_code", "in", list(set(codes)))])
@@ -422,6 +433,8 @@ class OasisTransferSuggestion(models.Model):
                 "relief_days": float(s.get("relief_days") or 0.0),
                 "is_fresh": bool(s.get("is_fresh")),
                 "computed_on": computed_on or fields.Datetime.now(),
+                "company_id": wh_company.get(s.get("from_code"))
+                or self.env.company.id,
             })
         created = self.create(rows) if rows else self.browse()
         return {"created": len(created), "skipped": skipped}
