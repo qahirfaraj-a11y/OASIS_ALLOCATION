@@ -267,15 +267,39 @@ def _is_kg_item(department: str) -> bool:
 
 def _round_transfer_qty(qty: float, department: str = "") -> float:
     """Round transfer quantity based on UOM.
-    
+
     - KG items (meat, cheese, spices, seafood): round to 1 decimal place
     - EA items (everything else): ceil to whole units
+
+    Ceiling is right when the number being rounded is a recipient's NEED — you
+    cannot ship 3.2 of a boxed item, and shipping 4 covers the shortfall. It is
+    wrong when the number is capped by a donor's release pool; use
+    ``_releasable_transfer_qty`` to bound it in that case.
     """
     if qty <= 0:
         return 0.0
     if _is_kg_item(department):
         return round(qty, 1)
     return float(math.ceil(qty))
+
+
+def _releasable_transfer_qty(pool: float, department: str = "") -> float:
+    """The most of ``pool`` that may actually ship, never exceeding it.
+
+    ``_round_transfer_qty`` ceils, so a releasable pool of 0.44 units became a
+    shipped 1.0 and put the donor 0.56 past ``DONOR_RELEASE_FRACTION``. The
+    cap was advisory rather than binding on exactly the lines where it mattered
+    most — the small ones, which is most of them.
+
+    PUSH had already answered this correctly by refusing to ship at all when
+    its pool fell under one unit. This is that same answer, made available to
+    PULL: round DOWN, so a fractional pool can never manufacture a whole unit.
+    """
+    if pool <= 0:
+        return 0.0
+    if _is_kg_item(department):
+        return math.floor(pool * 10.0) / 10.0
+    return float(math.floor(pool))
 
 
 def _is_fresh_department(department: str) -> bool:
@@ -630,6 +654,16 @@ class FulfillmentDecider:
         if is_fresh or _is_fresh_department(department):
             max_transferable = 0.0
 
+        # WHAT MAY ACTUALLY SHIP.
+        #
+        # max_transferable is already the release-capped pool (rho x net
+        # excess). Ceiling it rounds straight back out through the cap: 1.4
+        # ships as 2. That is the same breach the scan path had, and this path
+        # draws on the SAME shared DonorLedger, so overdrawing here overdraws
+        # the very units the scan is protecting. The `< 1.0` guard below only
+        # ever caught the sub-unit case.
+        shippable = _releasable_transfer_qty(max_transferable, department)
+
         decision.donor_org = best.org_cd
         decision.donor_name = org_names.get(best.org_cd, best.org_cd)
         decision.donor_itm_cd = best.itm_cd
@@ -651,7 +685,7 @@ class FulfillmentDecider:
         if is_high_risk and max_transferable >= 1.0:
             # GNN Risk Trigger: High volatility → Transfer now AND order for safety
             decision.decision = "BOTH"
-            decision.transfer_qty = _round_transfer_qty(max_transferable, department)
+            decision.transfer_qty = shippable
             decision.order_qty = _round_transfer_qty(shortfall_qty, department)
             decision.reasoning += (
                 f"[GNN HIGH RISK: Score {risk_score:.2f}] "
@@ -663,7 +697,7 @@ class FulfillmentDecider:
         if not is_ordering_day:
             # Can't order today → TRANSFER if possible
             decision.decision = "TRANSFER"
-            decision.transfer_qty = _round_transfer_qty(max_transferable, department)
+            decision.transfer_qty = shippable
             remaining = shortfall_qty - max_transferable
             if remaining > 0:
                 decision.order_qty = remaining
@@ -684,7 +718,7 @@ class FulfillmentDecider:
         # Transfer: immediate (4h) to plug the gap
         # Order: full replenishment for the store's ongoing needs
         if gap_days > 0 and max_transferable >= 1.0:
-            xfer = _round_transfer_qty(max_transferable, department)
+            xfer = shippable
             decision.decision = "BOTH"
             decision.transfer_qty = xfer
             decision.order_qty = _round_transfer_qty(shortfall_qty, department)  # full order for replenishment
@@ -700,7 +734,7 @@ class FulfillmentDecider:
             is_small_order = (shortfall_qty < 2.0) or (order_cost < 200.0)
             if is_small_order or (transfer_cost < order_cost * MAX_TRANSFER_COST_RATIO):
                 decision.decision = "TRANSFER"
-                decision.transfer_qty = _round_transfer_qty(max_transferable, department)
+                decision.transfer_qty = shippable
                 decision.order_qty = 0.0
                 decision.reasoning += (
                     f"Selected TRANSFER: Cost {transfer_cost} vs Order {order_cost:.0f}. "

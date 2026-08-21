@@ -60,6 +60,20 @@ $$
 
 Everything else is derived. If a fifth constant appears, it is a defect.
 
+> **There is a fifth, and there always was: $\sigma$, the safety floor.** It
+> sat inline as a literal `14` at both places that compute excess while every
+> store record carried an unread `safety_days`, so it never appeared in this
+> list to be challenged. It is now a per-store input ($\sigma_s$) rather than a
+> literal — but the depot seeds it uniformly at 10, so in practice one constant
+> replaced another.
+>
+> By this document's own standard that is still a defect. The floor is the
+> number of days a store must survive unaided, which is exactly what $R$ is
+> derived from — LATA measures a median relief of **23 days**, so both 14 and
+> 10 are under half of it. Deriving $\sigma_s$ from the same supplier rhythm
+> would retire the fifth constant properly. It is recorded here rather than
+> quietly fixed because it moves every plan.
+
 ---
 
 ## 2. Primitives
@@ -143,13 +157,21 @@ $$
 $$
 E_{s,i} =
 \begin{cases}
-q^{\text{don}} - 14 d & d>0 \ \wedge\ \theta^{\text{don}} > \gamma_i \ \wedge\ q^{\text{don}} - 14d > 7d\\
+q^{\text{don}} - \sigma_s d & d>0 \ \wedge\ \theta^{\text{don}} > \gamma_i \ \wedge\ q^{\text{don}} - \sigma_s d > 7d\\
 q^{\text{don}} & d = 0 \wedge q^{\text{don}} > 0\\
 0 & \text{otherwise}
 \end{cases}
 \qquad
 \gamma_i = \begin{cases}14 & \text{fresh}\\ 30 & \text{dry}\end{cases}
 $$
+
+> $\sigma_s$ is **store $s$'s own safety floor in days**, from its
+> `safety_days`, defaulting to 14 where the store carries none. It was a
+> literal 14 for every store until the field — present on every store record
+> and read zero times — was wired in. Note the depot currently seeds $\sigma_s
+> = 10$ *uniformly*, so the per-store form is live but not yet meaningful, and
+> 10 sits below the median relief of 23 days that $R$ is derived from. See M4
+> in the pipeline audit.
 
 **Dead** (J2 donor) — zero demand, sustained, and worth a lorry:
 $$
@@ -188,7 +210,7 @@ tracked takings privately and one donor holding 600 units promised 1,568.
 $$
 E_{s,i} - B_{s,i} > 0
 \quad\wedge\quad
-q^{\text{don}}_{s,i} - B_{s,i} \ \ge\ 14\,d_{s,i}\,r_{s,i}
+q^{\text{don}}_{s,i} - B_{s,i} \ \ge\ \sigma_s\,d_{s,i}\,r_{s,i}
 $$
 
 **Ranking.**
@@ -207,10 +229,27 @@ moves when the store order is reversed.
 $$
 P_{s,i} =
 \begin{cases}
-E_{s,i} - B_{s,i} & \mathrm{dead}(s,i) \quad \text{— no demand} \Rightarrow \text{safety } 14d = 0 \Rightarrow \text{nothing to protect}\\[4pt]
+E_{s,i} - B_{s,i} & \mathrm{dead}(s,i) \quad \text{— no demand} \Rightarrow \text{safety } \sigma_s d = 0 \Rightarrow \text{nothing to protect}\\[4pt]
 \rho\,E_{s,i} - B_{s,i} & \text{otherwise}
 \end{cases}
 $$
+
+**The pool is a hard bound, not a target.** Any quantity drawn from it is
+floored to a shippable unit before it ships:
+$$
+\mathrm{ship}(x, P) = \min\big(\lceil x \rceil,\ \lfloor P \rfloor\big)
+\quad\text{(EA)},
+\qquad
+\min\big(\mathrm{round}_1(x),\ \lfloor 10P \rfloor / 10\big)
+\quad\text{(KG)}
+$$
+
+> Ceiling is correct for a recipient's *need* — 3.2 units of a boxed item ships
+> as 4 — and wrong for a donor's *pool*. Applying it to the pool let a
+> releasable 0.44 ship a whole unit, so $\rho$ was advisory rather than binding
+> on exactly the small lines that make up most of the plan: **1,321 of 1,725
+> donor/SKU pairs were over the cap**. PUSH breached the same way one unit
+> higher, its $P<1$ gate catching only the sub-unit case.
 
 ---
 

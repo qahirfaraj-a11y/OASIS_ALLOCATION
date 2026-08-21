@@ -24,6 +24,7 @@ route. A draft reserves nothing and moves no stock. --undo removes them.
 from __future__ import annotations
 
 import argparse
+import json
 import os
 import sys
 
@@ -193,7 +194,17 @@ def main(argv=None):
           f"{max(approved.values()):.0f} approved" if repeats else
           "nothing came back at all")
 
-    # and the donor must still be above its own safety floor
+    # and the donor must still be above ITS OWN safety floor.
+    #
+    # Not a hardcoded 14: the scan now reads each store's seeded safety_days,
+    # so asserting 14 here would test a number the engine no longer uses —
+    # passing while a real breach of the actual floor went unnoticed, or
+    # failing on a plan that is perfectly correct.
+    seed = json.load(open(os.path.join(REPO, "connectors", "odoo",
+                                       "store_network_seed.json"),
+                          encoding="utf-8"))
+    floor_days = next((float(s["safety_days"]) for s in seed["stores"]
+                       if s["code"] == src_code and s.get("safety_days")), 14.0)
     donor_stock = {p["item_code"]: p
                    for p in a.fetch_enriched_products(src_code)}
     breached = []
@@ -203,9 +214,10 @@ def main(argv=None):
         if not prod:
             continue
         ads = float(prod["avg_daily_sales"])
-        if float(prod["current_stocks"]) - r["quantity"] < ads * 14:
+        if float(prod["current_stocks"]) - r["quantity"] < ads * floor_days:
             breached.append((code, r["quantity"]))
-    check(not breached, "donor stays above its 14-day safety floor after the residual",
+    check(not breached,
+          f"donor stays above its {floor_days:.0f}-day safety floor after the residual",
           f"{len(breached)} would breach it: {breached[:2]}" if breached else
           f"{len(repeats)} residual line(s) checked against {src_code}")
 

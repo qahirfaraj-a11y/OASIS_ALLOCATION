@@ -119,6 +119,15 @@ SETTINGS = (
             "relief horizon cannot be derived.",
             "int", 1, 120, 14,
             "Only reached when a supplier is unknown to every source."),
+
+    Setting("default_safety_days",
+            "Default safety floor (sigma, days) — cover a store keeps for "
+            "itself before any of its stock may be donated. Used for stores "
+            "whose own safety_days is missing.",
+            "int", 1, 120, 14,
+            "A store's own safety_days wins where it has one. Note LATA "
+            "measures a median relief of 23 days, so 14 already sits below "
+            "what the supplier book requires."),
 )
 
 BY_KEY = {s.key: s for s in SETTINGS}

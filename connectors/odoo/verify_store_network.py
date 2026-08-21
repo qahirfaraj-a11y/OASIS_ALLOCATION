@@ -159,22 +159,42 @@ def main(argv=None):
         #     on_hand == plan_qty - ADS x days_since_delivery
         # If those disagree, days_since_delivery is decoration and the
         # dead-stock guard is reading a number that means nothing.
-        stock_err, ads_err, model_err = [], [], []
+        # THE DEPOT AGES; THE STOCK DOES NOT.
+        #
+        # The seeder wrote on_hand = plan - ADS x age using the age on the day
+        # it ran. Nothing sells here afterwards -- there are no tills -- but
+        # days_since_delivery is measured against TODAY, so every age grows by
+        # one per day while the quantities stay frozen. Asserting
+        # on_hand == plan - ADS x age therefore holds only on seeding day and
+        # fails by exactly one ADS every day after: measured on day one, 1,618
+        # of 2,578 SKUs "breached", every single one in the same direction.
+        #
+        # A check that goes red on schedule teaches everyone to ignore it, so
+        # test the invariant that survives instead. Each SKU implies an age
+        # from its own depletion, (plan - on_hand) / ADS; the depot is
+        # self-consistent when every SKU disagrees with days_since_delivery by
+        # the SAME amount -- that shared offset is just how long ago it was
+        # seeded. A depot that is genuinely wrong gives an offset that varies.
+        #
+        # Only lines with ADS >= 1 are used: on_hand is stored rounded, so at
+        # ADS 0.07 a half-unit of rounding alone implies seven days of age.
+        drift, ads_err = [], []
         for w, g in matched:
             ads, plan = w["ads"], w["qty"]
             age = int(g["days_since_delivery"])
-            expect = float(int(round(max(0.0, plan - ads * age)))) if ads > 0 else plan
-            stock_err.append(abs(float(g["current_stocks"]) - expect))
-            model_err.append(abs(float(g["current_stocks"])
-                                 - max(0.0, plan - ads * age)))
+            if ads >= 1.0:
+                implied = (plan - float(g["current_stocks"])) / ads
+                drift.append(age - implied)
             if ads > 0:
                 ads_err.append(abs(float(g["avg_daily_sales"]) - ads))
+        spread = statistics.pstdev(drift) if len(drift) > 1 else 0.0
+        aged = statistics.median(drift) if drift else 0.0
         # ASCII deliberately: this prints to a Windows console whose cp1252
         # codec cannot encode U+2212 or U+00D7, same trap odoo_adapter documents
-        check("on-hand == plan - ADS x days_since_delivery (depot is self-consistent)",
-              max(stock_err) < 0.5,
-              f"worst error {max(stock_err):.3f} units, "
-              f"worst pre-rounding {max(model_err):.3f}")
+        check("depletion is self-consistent (every SKU implies the same seed date)",
+              spread < 0.5 and len(drift) > 100,
+              f"spread {spread:.3f}d across {len(drift):,} SKUs with ADS>=1; "
+              f"depot seeded ~{aged:.1f}d ago")
         check("ADS reproduces the profile", max(ads_err) < 0.05 if ads_err else False,
               f"worst error {max(ads_err):.4f}/day over {len(ads_err):,} SKUs")
         costed = sum(1 for w, g in matched if float(g["cost_price"]) > 0)
@@ -225,8 +245,15 @@ def main(argv=None):
     # data_dir so the service picks up LATA's measured supplier rhythm and
     # AMIT's dead-stock thresholds. Without it the engine falls back to fixed
     # horizons and this check would be verifying the wrong code path.
+    # Each store's own safety floor, exactly as push_transfer_suggestions
+    # passes it. Two entry points that scan the same depot with different
+    # protection would report different plans for the same question — the
+    # failure the pending-transfer plumbing was fixed for.
+    safety = {s["code"]: s["safety_days"] for s in stores
+              if s.get("safety_days")}
     cts = ConsolidatedTransferService(org_names=org_names, stock_data=per_store,
                                       distance_map=coords,
+                                      safety_days_by_org=safety,
                                       data_dir=os.path.join(REPO, "oasis", "data"))
     check("LATA supplier rhythm loaded (horizons are derived, not fixed)",
           bool(cts.supplier_rhythm),

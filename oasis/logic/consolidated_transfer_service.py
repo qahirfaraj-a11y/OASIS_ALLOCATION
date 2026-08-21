@@ -29,6 +29,7 @@ from .fulfillment_decider import (
     NetworkAvailabilityMap,
     StoreSkuState,
     _round_transfer_qty,
+    _releasable_transfer_qty,
     _is_fresh_department,
 )
 
@@ -160,6 +161,7 @@ class ConsolidatedTransferService:
                  hot_node_days: int = 14,
                  target_cover_days: float = 14.0,
                  next_delivery_days: Optional[Dict[str, float]] = None,
+                 safety_days_by_org: Optional[Dict[str, float]] = None,
                  supplier_rhythm: Optional[Dict[str, dict]] = None,
                  dead_stock_config: Optional[Dict[str, Any]] = None,
                  data_dir: Optional[str] = None,
@@ -200,6 +202,24 @@ class ConsolidatedTransferService:
         #: release and read by nothing until now.
         self.min_excess_ratio = _tuned("min_excess_ratio", 2.0)
         self.min_shortfall_qty = min_shortfall_qty
+        #: Days of cover a store keeps for itself before any of its stock is
+        #: donatable — per store, because a forecourt and a 22,500 sqft anchor
+        #: do not deserve the same floor.
+        #:
+        #: The floor was a hardcoded `ADS x 14` at both the sites that compute
+        #: excess, while every store record carried a `safety_days` that was
+        #: read ZERO times. This makes that field live. Absent a value the
+        #: default is still 14, so a caller that passes nothing sees exactly
+        #: the previous behaviour.
+        #:
+        #: Worth knowing before trusting it: in the 14-store depot every store
+        #: seeds to the SAME safety_days (10), because build_store_network_seed
+        #: falls back to a literal 10 and the source network file carries no
+        #: per-store value. Wiring the input does not by itself differentiate
+        #: the protection — that needs the seed to derive safety_days from real
+        #: store traits, the way assortment and demand already are.
+        self.safety_days_by_org = dict(safety_days_by_org or {})
+        self.default_safety_days = float(_tuned("default_safety_days", 14.0))
         self.registry_path = registry_path
         self.distance_map = distance_map or {}
         self.cold_node_days = cold_node_days
@@ -294,6 +314,19 @@ class ConsolidatedTransferService:
         # Build network availability map from stock data
         self.network_map = self._build_network_map()
 
+    def _safety_days(self, org_cd: str) -> float:
+        """Days of cover this store keeps before its stock may be donated.
+
+        Per store when the caller supplied one, otherwise the default. A zero
+        or unparseable value falls back rather than dropping the floor to
+        nothing — an unreadable field must never make a store fully drainable.
+        """
+        try:
+            v = float(self.safety_days_by_org.get(org_cd) or 0)
+        except (TypeError, ValueError):
+            v = 0.0
+        return v if v > 0 else self.default_safety_days
+
     def _build_network_map(self) -> NetworkAvailabilityMap:
         """Build cross-store availability index from current stock data."""
         nmap = NetworkAvailabilityMap()
@@ -314,6 +347,7 @@ class ConsolidatedTransferService:
 
         for org_cd, products in self.stock_data.items():
             org_name = self.org_names.get(org_cd, org_cd)
+            safety_days = self._safety_days(org_cd)
             for p in products:
                 ads = float(p.get('avg_daily_sales', 0) or 0)
                 current = float(p.get('current_stocks', 0) or 0)
@@ -323,7 +357,7 @@ class ConsolidatedTransferService:
                     'MILK', 'DAIRY', 'FRESH', 'MEAT', 'BREAD', 'BAKERY'
                 ]) or p.get('is_fresh', False)
 
-                safety = ads * 14.0  # 14 days cover as minimum safety stock
+                safety = ads * safety_days  # this store's own floor, not a literal
                 overstock_threshold = 14.0 if is_fresh else 30.0
                 excess = 0.0
                 if ads > 0 and days_cover > overstock_threshold and (current - safety) > (ads * 7.0):
@@ -516,16 +550,20 @@ class ConsolidatedTransferService:
         return ads * float(horizon)
 
     @staticmethod
-    def _excess_units(ads: float, stock: float, is_fresh: bool) -> float:
+    def _excess_units(ads: float, stock: float, is_fresh: bool,
+                      safety_days: float = 14.0) -> float:
         """Donor excess above safety stock — single definition for PULL and PUSH.
 
-        Mirrors _build_network_map(): 14-day safety floor, overstock gate at
-        14d (fresh) / 30d (dry), and a 7-day buffer above safety before any
-        units count as excess. Zero-ADS items with stock are fully excess.
+        Mirrors _build_network_map(): the store's own safety floor, overstock
+        gate at 14d (fresh) / 30d (dry), and a 7-day buffer above safety before
+        any units count as excess. Zero-ADS items with stock are fully excess.
+
+        ``safety_days`` defaults to 14 so existing callers — including devkit
+        analysers that call this statically — keep their previous answer.
         """
         if ads > 0:
             days_cover = stock / ads
-            safety = ads * 14.0
+            safety = ads * safety_days
             overstock_threshold = 14.0 if is_fresh else 30.0
             if days_cover > overstock_threshold and (stock - safety) > (ads * 7.0):
                 return stock - safety
@@ -555,7 +593,8 @@ class ConsolidatedTransferService:
 
         # Donor view: outbound commitments reduce what we can give.
         donor_stock = max(0.0, stock - outbound.get((org_cd, itm), 0.0))
-        donor_excess = self._excess_units(ads, donor_stock, fresh)
+        donor_excess = self._excess_units(ads, donor_stock, fresh,
+                                          self._safety_days(org_cd))
         # Recipient view: inbound commitments count as supply.
         eff_stock = donor_stock + inbound.get((org_cd, itm), 0.0)
 
@@ -924,6 +963,11 @@ class ConsolidatedTransferService:
                     share = min(r['remaining'], avail * (r['weight'] / total_w))
                     take = _round_transfer_qty(min(share, avail),
                                                r['item']['department'])
+                    # The rounding ceils, so an `avail` of 0.44 would ship a
+                    # whole unit and drive this donor past RELEASE_FRACTION.
+                    # Bound it by what is genuinely releasable.
+                    take = min(take, _releasable_transfer_qty(
+                        avail, r['item']['department']))
                     if take >= 1:
                         pulls[(donor_org, itm, r['rec_org'])] = \
                             pulls.get((donor_org, itm, r['rec_org']), 0.0) + take
@@ -941,6 +985,8 @@ class ConsolidatedTransferService:
                             continue
                         take = _round_transfer_qty(min(r['remaining'], avail),
                                                    r['item']['department'])
+                        take = min(take, _releasable_transfer_qty(
+                            avail, r['item']['department']))
                         if take < 1:
                             continue
                         pulls[(donor_org, itm, r['rec_org'])] = \
@@ -1146,8 +1192,13 @@ class ConsolidatedTransferService:
                     continue
                 total_w = sum(d['weight'] for d in active) or 1.0
 
-                def _give(d, units, _k=need_key):
+                def _give(d, units, pool_left, _k=need_key):
                     xfer = _round_transfer_qty(units, donor['department'])
+                    # Same ceiling trap as PULL, one unit up: a pool of 1.4
+                    # rounds to 2 and overdraws the donor by 0.6. The `pool < 1`
+                    # gate above only stops the sub-unit case.
+                    xfer = min(xfer, _releasable_transfer_qty(
+                        pool_left, donor['department']))
                     if xfer < 1:
                         return 0.0
                     r = d['recip']
@@ -1182,7 +1233,7 @@ class ConsolidatedTransferService:
                     if pool < 1:
                         break
                     pool -= _give(d, min(d[need_key],
-                                         pool * d['weight'] / total_w))
+                                         pool * d['weight'] / total_w), pool)
                 # remainder to whoever can still take it, heaviest first —
                 # otherwise rounding strands stock the donor was willing to give
                 if pool >= 1:
@@ -1190,7 +1241,7 @@ class ConsolidatedTransferService:
                                                            x['recip']['org_cd'])):
                         if pool < 1 or d[need_key] < 1:
                             continue
-                        pool -= _give(d, min(d[need_key], pool))
+                        pool -= _give(d, min(d[need_key], pool), pool)
 
         return push_opps
 

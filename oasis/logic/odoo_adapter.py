@@ -257,6 +257,37 @@ class OdooAdapter(_contract.ErpAdapter):
     #: than everything inside — see _last_receipt.
     RECEIPT_READ_LIMIT = 20000
 
+    #: The other capped reads. Each was an unnamed integer sitting inline, and
+    #: none of them said anything when they filled up.
+    #:
+    #: Unlike the receipt window these are NOT ordered, so a truncated read is
+    #: an arbitrary subset rather than a recent one — there is no "lower bound"
+    #: to reason from, only missing rows. A chain busy enough to hit them gets
+    #: understated ADS or a short catalogue with no signal at all: the engine
+    #: does not fail, it just computes confidently on partial data. That is the
+    #: failure mode this file already documents for receipts, unfixed for the
+    #: reads that feed velocity.
+    POS_LINE_READ_LIMIT = 200000
+    SALES_MOVE_READ_LIMIT = 200000
+    PRODUCT_READ_LIMIT = 100000
+    SUPPLIERINFO_READ_LIMIT = 20000
+
+    def _warn_if_truncated(self, rows, limit: int, what: str,
+                           org_cd: Optional[str] = None,
+                           consequence: str = "") -> bool:
+        """Say so when a capped read came back exactly full.
+
+        A read returning precisely its limit has all but certainly hit the cap.
+        Returns True so callers can propagate the fact where a caller cares.
+        """
+        if len(rows) < limit:
+            return False
+        logger.warning(
+            "%s TRUNCATED at %s rows for site %r. %s",
+            what, f"{limit:,}", org_cd or "company-wide",
+            consequence or "Results are a partial, unordered subset.")
+        return True
+
     def _last_receipt(self, org_cd: Optional[str] = None):
         """(product_id -> last incoming move date, horizon, truncated).
 
@@ -339,8 +370,12 @@ class OdooAdapter(_contract.ErpAdapter):
             rows = self._ex("pos.order.line", "search_read",
                             [[["order_id.date_order", ">=", since]]],
                             {"fields": ["product_id", "qty", "price_subtotal_incl"],
-                             "limit": 200000}) or []
+                             "limit": self.POS_LINE_READ_LIMIT}) or []
             pos_counted = True
+            self._warn_if_truncated(
+                rows, self.POS_LINE_READ_LIMIT, "POS sales lines", org_cd,
+                "ADS is UNDERSTATED for this site — every horizon, reorder "
+                "point and transfer quantity derives from it.")
             for r in rows:
                 pid = _id_of(r.get("product_id"))
                 if pid is None:
@@ -389,7 +424,12 @@ class OdooAdapter(_contract.ErpAdapter):
 
             moves = self._ex("stock.move", "search_read", [dom],
                              {"fields": ["product_id", "product_uom_qty"],
-                              "limit": 200000}) or []
+                              "limit": self.SALES_MOVE_READ_LIMIT}) or []
+            self._warn_if_truncated(
+                moves, self.SALES_MOVE_READ_LIMIT, "outgoing customer moves",
+                org_cd,
+                "ADS is UNDERSTATED for this site — every horizon, reorder "
+                "point and transfer quantity derives from it.")
             for m in moves:
                 pid = _id_of(m.get("product_id"))
                 if pid is None:
@@ -408,7 +448,12 @@ class OdooAdapter(_contract.ErpAdapter):
         rows = self._ex("product.supplierinfo", "search_read",
                         [[["product_tmpl_id.product_variant_ids", "in", product_ids]]],
                         {"fields": ["partner_id", "delay", "product_tmpl_id"],
-                         "limit": 20000}) or []
+                         "limit": self.SUPPLIERINFO_READ_LIMIT}) or []
+        self._warn_if_truncated(
+            rows, self.SUPPLIERINFO_READ_LIMIT, "supplier info",
+            None,
+            "Products past the cap read as having NO supplier, so they fall "
+            "back to a default lead time instead of LATA's measured rhythm.")
         by_tmpl: Dict[int, dict] = {}
         for r in rows:
             t = _id_of(r.get("product_tmpl_id"))
@@ -428,10 +473,14 @@ class OdooAdapter(_contract.ErpAdapter):
                              {"fields": ["default_code", "display_name", "categ_id",
                                          "list_price", "standard_price", "uom_id",
                                          "barcode", "product_tmpl_id", "create_date"],
-                              "limit": 100000}) or []
+                              "limit": self.PRODUCT_READ_LIMIT}) or []
         except Exception as e:
             logger.error("fetch_enriched_products failed: %s", e)
             return []
+        self._warn_if_truncated(
+            prods, self.PRODUCT_READ_LIMIT, "product catalogue", org_cd,
+            "Products beyond the cap are INVISIBLE to ordering and transfers "
+            "— they cannot be reordered and cannot be donated or received.")
 
         on_hand = self._on_hand(org_cd)
         receipts, receipts_from, receipts_truncated = self._last_receipt(org_cd)

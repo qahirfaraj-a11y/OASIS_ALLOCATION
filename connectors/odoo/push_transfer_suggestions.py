@@ -96,7 +96,29 @@ def _build(limit=0, log=print):
     from oasis.desktop.data import store_db_path
     log("-> reading the depot through OdooAdapter…")
     a = adapter()
-    data = {c: fetch_with_retry(a, c) for c in codes}
+    # WHEN each site was read, not when the write finishes.
+    #
+    # The 14 sites are read one after another while tills are selling, so the
+    # plan is a composite of 14 instants, not one snapshot: the first store's
+    # stock is already the oldest fact in it by the time the last is read.
+    # Stamping the queue at write time therefore dated every suggestion from
+    # the freshest possible moment and let the staleness window run from the
+    # wrong end — a plan built on a two-minute read looked brand new.
+    #
+    # The oldest read is the honest age of the plan. Recording the span makes
+    # the inconsistency visible instead of merely known.
+    read_started = datetime.utcnow()
+    data = {}
+    for c in codes:
+        data[c] = fetch_with_retry(a, c)
+    read_span = (datetime.utcnow() - read_started).total_seconds()
+    log(f"   snapshot: {len(codes)} sites read over {read_span:.1f}s "
+        f"(plan ages from {read_started.strftime('%H:%M:%S')} UTC, the oldest "
+        f"reading, not from now)")
+    if read_span > 120:
+        log(f"   ! the read took {read_span / 60:.1f} minutes. Suggestions at "
+            f"the far ends of it describe stock at meaningfully different "
+            f"times; review before approving in bulk.")
 
     # WHAT IS ALREADY ON ITS WAY. Without these the scan sees stock and demand
     # and nothing else, so it re-proposes movements that are already queued —
@@ -123,8 +145,22 @@ def _build(limit=0, log=print):
     except Exception:
         pass
 
+    # Each store's own safety floor. The seed has always carried safety_days
+    # and the service read it zero times, protecting a forecourt and a
+    # 22,500 sqft anchor with the identical hardcoded 14 days. Passing it makes
+    # the field live; a store without one keeps the 14-day default.
+    safety = {s["code"]: s["safety_days"] for s in seed["stores"]
+              if s.get("safety_days")}
+    distinct = sorted({v for v in safety.values()})
+    if len(distinct) == 1 and len(safety) > 1:
+        log(f"   ! all {len(safety)} stores seed the SAME safety_days "
+            f"({distinct[0]}) — the input is live but UNDIFFERENTIATED, so "
+            f"every store is still protected identically. Differentiating it "
+            f"is seed work, not engine work.")
+
     with contextlib.redirect_stderr(io.StringIO()):
         svc = CTS(org_names=names, stock_data=data, distance_map=coords,
+                  safety_days_by_org=safety,
                   data_dir=os.path.join(REPO, "oasis", "data"),
                   settings_db=store_db_path(REPO))
         opps = svc.scan_network_opportunities(
@@ -168,7 +204,7 @@ def _build(limit=0, log=print):
     log(f"   plan: {len(opps):,} lines; posting {len(rows):,} "
           f"({pull:,} plug-a-gap, {len(rows) - pull:,} clear-idle, "
           f"{fresh:,} perishable)")
-    return rows, opps
+    return rows, opps, read_started
 
 
 def adapter():
@@ -184,15 +220,19 @@ def run_scan(limit=0, log=print):
     The single implementation, shared by the CLI and by scan_service.py, so the
     button in Odoo and the command line can never compute different plans.
     """
-    rows, _ = _build(limit, log=log)
+    rows, _, read_started = _build(limit, log=log)
     a = adapter()
     # UTC, because Odoo stores every datetime in UTC and renders it in the
     # user's timezone. Sending local time here wrote a computed_on up to hours
     # in the FUTURE, which meant the staleness window could never fire and a
     # day-old plan looked freshly computed — the failure mode where the safety
     # feature is present, green, and doing nothing.
+    #
+    # And it is the START of the depot read, not now: the plan can be no
+    # fresher than the oldest reading it was built from, so ageing it from the
+    # write would restart the staleness clock on data already minutes old.
     res = a._ex("oasis.transfer.suggestion", "oasis_replace_queue",
-                [rows, datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")])
+                [rows, read_started.strftime("%Y-%m-%d %H:%M:%S")])
     return {"created": res.get("created", 0), "skipped": res.get("skipped", 0),
             "considered": len(rows)}
 
@@ -216,7 +256,7 @@ def main(argv=None):
         print(f"queue cleared ({res})")
         return 0
 
-    rows, opps = _build(args.limit)
+    rows, opps, read_started = _build(args.limit)
 
     if args.dry_run:
         # Show BOTH jobs. The list is value-ranked and gap-plugging dominates
@@ -240,8 +280,10 @@ def main(argv=None):
     # in the FUTURE, which meant the staleness window could never fire and a
     # day-old plan looked freshly computed — the failure mode where the safety
     # feature is present, green, and doing nothing.
+    #
+    # And it is the START of the depot read — see run_scan.
     res = a._ex("oasis.transfer.suggestion", "oasis_replace_queue",
-                [rows, datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")])
+                [rows, read_started.strftime("%Y-%m-%d %H:%M:%S")])
     print(f"-> posted {res.get('created', 0):,} suggestions "
           f"({res.get('skipped', 0):,} skipped: unknown product or warehouse)")
     print("   Review in Odoo:  OASIS → Transfers → Suggestions")

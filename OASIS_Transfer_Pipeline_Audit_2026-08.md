@@ -129,6 +129,33 @@ floor instead of from today.
 
 ## MEDIUM — know about these during the test
 
+> **M1–M5 are ALL FIXED.** Measured on the 14-store depot, same cached read
+> before and after, so the deltas below are the fixes and nothing else.
+>
+> | | before | after |
+> |---|---|---|
+> | opportunities | 5,120 | 4,207 |
+> | units | 23,377 | 21,979 |
+> | value | KES 5,814,652 | KES 4,375,752 |
+> | donor/SKU pairs breaching the release cap | **1,321 of 1,725 (77%)** | **0 of 1,287** |
+>
+> Two results worth carrying forward:
+>
+> * **PUSH went UP**, 835 → 944, while PULL fell. PULL no longer overdraws, so
+>   more excess survives to the PUSH pass — the shared donor ledger working as
+>   designed, visible for the first time.
+> * **M4 changed the plan more than M1 did.** Wiring `safety_days` moves the
+>   floor from a hardcoded 14 to the seed's 10, which *raises* the plan to
+>   5,149 lines / 26,020 units. Both numbers are arbitrary and LATA measures a
+>   median relief of **23 days** — see the note under M4 before trusting either.
+>
+> One check outside M1–M5 was fixed alongside them: `verify_store_network.py`
+> asserted `on_hand == plan - ADS x days_since_delivery`, which holds only on
+> the day the depot is seeded and then fails by exactly one ADS per day. It
+> read 1,618 of 2,578 SKUs "breaching", every one in the same direction, one
+> day after seeding. It now tests that every SKU implies the *same* seed date,
+> which is the part of the invariant that survives the depot ageing.
+
 ### M1. Sub-unit rounding breaches the donor release cap
 
 PULL calls `_round_transfer_qty`, which **ceils**: given a releasable pool of
@@ -139,6 +166,17 @@ PULL line was a sub-unit pool rounded up.
 Small in absolute terms; it means `RELEASE_FRACTION` is advisory rather than
 binding on small lines.
 
+**FIXED.** `_releasable_transfer_qty` is the missing primitive: ceiling is
+right when sizing to a recipient's NEED (3.2 units of a boxed item ships as 4)
+and wrong when the number is capped by a donor's POOL. Both PULL sites and the
+PUSH `_give` now bound the rounded quantity by what is genuinely releasable.
+
+Not as small as "small in absolute terms" suggested: **1,321 of 1,725
+donor/SKU pairs were over the cap**, 77% of them, every breach under one unit.
+The cap now holds at zero breaches under both a 14-day and a 10-day floor.
+PUSH was breaching too, one unit higher up — its `pool < 1` gate stopped the
+sub-unit case but nothing stopped a pool of 1.4 shipping 2.
+
 ### M2. Read limits truncate silently
 
 `_last_receipt` 20,000 · `_sales_by_product` 200,000 · `fetch_enriched_products`
@@ -147,6 +185,17 @@ understated ADS and wrong receipt ages with **no signal at all** — the numbers
 just quietly become wrong. Contrast the connector sync, which now logs when it
 truncates.
 
+**FIXED.** Every cap is now a named class constant and every capped read is
+checked by `_warn_if_truncated`, which logs the model, the site and the
+*consequence* — "ADS is UNDERSTATED for this site", "products beyond the cap
+are INVISIBLE to ordering and transfers". A fifth read had the same defect and
+was not in this list: `_supplier_of` at 20,000, where truncation makes products
+fall back to a default lead time instead of LATA's measured rhythm.
+
+Unlike the receipt window these reads are **unordered**, so a truncated result
+is an arbitrary subset with no lower bound to reason from — the reason the
+warning says what breaks rather than just that it happened.
+
 ### M3. The scan is not a consistent snapshot
 
 Fourteen sites read over ~30 seconds while tills are selling. C003 is read at
@@ -154,11 +203,53 @@ second 2, C010 at second 28; a SKU can sell out in between. Fine for a
 suggestion a human reviews — **not** fine as a basis for automation, and worth
 remembering when a suggestion looks wrong by a few units.
 
+**FIXED as far as it can be.** The read cannot be made atomic over XML-RPC, so
+the fix is to stop *misreporting* it. Two changes:
+
+* `computed_on` is now the **start** of the depot read, not the moment the
+  queue is written. A plan can be no fresher than the oldest reading it was
+  built from; stamping it at write time restarted the staleness clock on data
+  already minutes old, so the 30-minute window ran from the wrong end. Measured
+  on this depot: 24.9 seconds of read, plus engine time, all of it previously
+  invisible.
+* The span is logged every scan, and a read over two minutes warns explicitly
+  that suggestions at its far ends describe stock at meaningfully different
+  times.
+
+The dangerous consequence is separately handled by M5: approval now re-checks
+availability against live stock, so an inconsistent snapshot can produce a
+suboptimal suggestion but no longer an unfulfillable transfer.
+
 ### M4. Per-store `safety_days` is a dead input
 
 The seed carries `safety_days` for all 14 stores. The transfer service reads it
 **0 times** — the safety floor is a hardcoded `ADS x 14` for every store. A
 forecourt and a 22,500 sqft anchor are protected identically.
+
+**FIXED — but read this before trusting the result.** The service now takes
+`safety_days_by_org` and applies it at both places that compute excess. Absent
+a value the floor is still 14, so a caller that passes nothing gets exactly the
+old behaviour; a zero or unparseable field falls back rather than dropping the
+floor to nothing. `push_transfer_suggestions` and `verify_store_network` both
+pass it, because two entry points scanning one depot with different protection
+is the bug class the pending-transfer plumbing was already fixed for.
+
+**The input is live; it is still not differentiated.** Every one of the 14
+stores seeds to the *same* `safety_days` of 10, because
+`build_store_network_seed` falls back to a literal 10 and `stores_network.json`
+carries no per-store value. So the forecourt and the anchor are still protected
+identically — wiring the field moved a hardcoded 14 to a hardcoded 10 and
+nothing more. The scan now says so out loud when it detects a single distinct
+value across every store.
+
+**And 10 is the wrong direction.** LATA measures a median relief of **23 days**
+— median delivery gap 15, median lead 3 — which is the horizon a store must
+actually survive. A 14-day floor was already below it; 10 is further below.
+Adopting the seed value raises the plan to 5,149 lines and 26,020 units by
+freeing excess that arguably protects nothing. The principled fix is to derive
+the floor from the same supplier rhythm the horizons already come from, rather
+than to pick between two literals. That is a decision about the product, not a
+defect to patch, and it is left open deliberately.
 
 ### M5. Approving a stale suggestion fails confusingly
 
@@ -166,6 +257,17 @@ A draft picking reserves nothing, so if the stock has since sold the failure
 surfaces at *confirmation*, as an Odoo reservation error with no reference to
 OASIS. The 30-minute staleness window is the mitigation, but the operator
 experience of the failure is poor.
+
+**FIXED.** `action_approve` now checks free stock at the donor location before
+creating anything, and refuses with a message that names the product, the gap,
+the snapshot it was computed from, and the fix (Refresh from OASIS). Quantities
+are summed per product first, because one product can legitimately appear twice
+on a route — once pulled, once pushed — against one pool of stock.
+
+Live-proven against the depot: an inflated suggestion was refused, the message
+named product, gap and remedy, and **no picking was created**. The staleness
+window narrows how often this happens and did nothing about what it looked like
+when it did; this is that half.
 
 ---
 

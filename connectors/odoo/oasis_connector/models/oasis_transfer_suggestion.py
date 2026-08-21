@@ -135,6 +135,69 @@ class OasisTransferSuggestion(models.Model):
     display_name = fields.Char(compute="_compute_display_name", store=False)
 
     # ── actions ───────────────────────────────────────────────────────────
+    def _check_donor_stock(self, src, recs):
+        """Refuse a route the donor can no longer cover, and say why.
+
+        A draft picking reserves NOTHING. So a suggestion computed against
+        stock that has since sold produced a perfectly clean draft, and only
+        failed later at confirmation — as an Odoo reservation error naming
+        neither OASIS nor the suggestion it came from. The operator saw a
+        stock error on a document they did not create and had no route back to
+        the cause. The staleness window narrows how often that happens; it does
+        nothing for what it looks like when it does.
+
+        Checking here converts it into a refusal that names the product, the
+        gap, and the fix.
+        """
+        wanted = defaultdict(float)
+        for r in recs:
+            # one product can legitimately appear twice on a route — once
+            # pulled, once pushed — and the picking would carry two move lines
+            # against ONE pool of stock. Sum before comparing.
+            wanted[r.product_id] += r.quantity
+        if not wanted:
+            return
+
+        quants = self.env["stock.quant"].read_group(
+            [("product_id", "in", [p.id for p in wanted]),
+             ("location_id", "child_of", src.lot_stock_id.id)],
+            ["quantity:sum", "reserved_quantity:sum"], ["product_id"])
+        on_hand = {q["product_id"][0]:
+                   (q.get("quantity") or 0.0) - (q.get("reserved_quantity") or 0.0)
+                   for q in quants if q.get("product_id")}
+
+        short = []
+        for product, qty in wanted.items():
+            free = on_hand.get(product.id, 0.0)
+            if free < qty:
+                short.append((product, qty, free))
+        if not short:
+            return
+
+        def _qty(v):
+            # not "%g": it flips to scientific notation past six digits, and a
+            # quantity rendered as 1e+07 in an error about quantities is worse
+            # than useless to whoever has to act on it.
+            v = float(v)
+            return "%d" % v if v.is_integer() else "%.2f" % v
+
+        lines = "\n".join(
+            _("  • %(name)s — asking %(want)s, %(src)s has %(free)s unreserved")
+            % {"name": p.display_name, "want": _qty(w),
+               "src": src.code, "free": _qty(f)}
+            for p, w, f in short)
+        raise UserError(_(
+            "%(src)s no longer holds enough stock for this transfer.\n\n"
+            "%(lines)s\n\n"
+            "These suggestions were computed from a snapshot taken at "
+            "%(when)s; the stock has moved since. Press Refresh from OASIS to "
+            "recompute against current stock, then approve again.\n\n"
+            "(Caught before creating the transfer. Without this check Odoo "
+            "would have accepted the draft and failed later at confirmation, "
+            "with a reservation error that never mentions OASIS.)")
+            % {"src": src.code, "lines": lines,
+               "when": recs[:1].computed_on or _("an unknown time")})
+
     def action_approve(self):
         """Turn the selected suggestions into DRAFT internal transfers.
 
@@ -166,6 +229,8 @@ class OasisTransferSuggestion(models.Model):
                 raise UserError(_(
                     "%s has no internal operation type or stock location, so "
                     "Odoo has nowhere to book this transfer.") % src.code)
+
+            self._check_donor_stock(src, recs)
 
             picking = self.env["stock.picking"].create({
                 "picking_type_id": src.int_type_id.id,
