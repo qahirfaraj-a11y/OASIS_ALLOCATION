@@ -98,30 +98,36 @@ a movement table — every row sourced from Odoo. The privacy contract is live: 
 supplier sees only their own SKUs, only in consenting stores, identity masked
 unless revealed.
 
-## Step 5 — OASIS inside Odoo (Intelligence / Operations / Command Center)
+## Step 5 — OASIS inside Odoo (Transfers)
 
-The `oasis_connector` addon adds an **OASIS** app to Odoo's own app switcher
-with three menu entries. Each opens its console live, embedded in an iframe in
-Odoo's content pane — an Odoo user never leaves Odoo.
+The `oasis_connector` addon adds an **OASIS** app to Odoo's own app switcher,
+with **Transfers → Suggestions**. That is the whole app, deliberately.
 
-1. Start the three consoles so the iframes have something to load:
+**The consoles are NOT embedded in Odoo, and must not be.** An earlier revision
+put Intelligence, Operations and Command Center here as iframes, which shipped
+the entire product into a window inside Odoo and handed every module to anyone
+who installed the connector. The menus were deleted first; the client action,
+its asset bundle and its three URL settings survived that deletion and left
+`oasis.sync.open_console('intel')` callable over RPC by any internal user. All
+of it is gone as of 16.0.1.3.0 — removing a menu hides an entrance, it does not
+close a door.
+
+What belongs in Odoo is the part an Odoo user does in Odoo: review what OASIS
+proposes, and approve it into a native document. The intelligence that produced
+the proposal stays outside, which is also what is being sold.
+
+1. Post a plan to the queue:
    ```bash
-   python entrypoint.py --mode intel                    # :8510 Intelligence
-   python entrypoint.py --mode shell                     # :8500 Operations
-   python entrypoint.py --mode dashboard --dashboard command   # :8501 Command Center
+   python connectors/odoo/push_transfer_suggestions.py --limit 200
    ```
-2. (Only if they run somewhere other than `localhost`) set the URLs in Odoo:
-   **Settings → OASIS Connector → Consoles**, or via API:
-   ```python
-   env["ir.config_parameter"].sudo().set_param("oasis.console_intel_url", "http://<host>:8510")
-   ```
-3. Log into Odoo and click the **OASIS** app tile (or **Home Menu → OASIS**).
-   Pick Intelligence, Operations, or Command Center — the real console renders
-   inside Odoo, branded, live.
+2. In Odoo: **OASIS → Transfers → Suggestions**. Each line carries its
+   reasoning — cover at both ends, value at risk, and which job it serves.
+3. Approve one and it becomes a **draft** internal transfer, grouped one
+   picking per route. Nothing is reserved and no stock moves until your team
+   confirms it in Inventory.
 
-The iframe URL resolves in the **user's browser**, not inside the Odoo
-container — so the consoles can run on the host, in a separate container, or on
-another server entirely; Odoo just needs to be told where to point.
+The **Refresh from OASIS** button calls `scan_service.py` on-prem, so OASIS has
+to be reachable from the Odoo container — see `oasis.scan_url`.
 
 ## Verify / troubleshoot
 

@@ -1,6 +1,6 @@
 {
     "name": "OASIS Retail Intelligence Connector",
-    "version": "16.0.1.2.0",
+    "version": "16.0.1.3.0",
     "summary": "Stream stock movement to OASIS — algorithmic retail intelligence, "
                 "live inside Odoo.",
     "description": """
@@ -40,12 +40,10 @@ Configure under Settings → OASIS Connector.
         "views/oasis_transfer_views.xml",
         "views/oasis_menus.xml",
     ],
-    "assets": {
-        "web.assets_backend": [
-            "oasis_connector/static/src/js/oasis_embed.js",
-            "oasis_connector/static/src/xml/oasis_embed.xml",
-        ],
-    },
+    # No assets. The bundle used to carry an `oasis_embed` client action that
+    # rendered an OASIS console in an iframe; it registered itself on every
+    # backend page, so the action stayed reachable long after its menus were
+    # deleted. See oasis_sync.py.
     "images": ["static/description/banner.png"],
     "installable": True,
     "application": True,

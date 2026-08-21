@@ -227,34 +227,24 @@ class OasisSync(models.AbstractModel):
         except Exception:                       # never let a push error break the cron
             _logger.exception("OASIS scheduled sync failed")
 
-    # ── consoles inside Odoo ─────────────────────────────────────────────
-    _CONSOLES = {
-        "intel": ("OASIS Intelligence", "oasis.console_intel_url",
-                  "http://localhost:8510"),
-        "ops": ("OASIS Operations", "oasis.console_ops_url",
-                "http://localhost:8500"),
-        "command": ("OASIS Command Center", "oasis.console_command_url",
-                    "http://localhost:8501"),
-    }
-
-    @api.model
-    def open_console(self, kind):
-        """Client action embedding an OASIS console (Streamlit) in Odoo.
-
-        The iframe URL resolves in the USER'S BROWSER, so the console just has
-        to be reachable from the user's machine — it can run beside Odoo on the
-        host, in a container, or on another server.
-
-        Note: ir.model.access.csv grants base.group_user WRITE (not just read)
-        on this AbstractModel — Odoo's 'code' server actions require model
-        write access to execute at all, even though oasis.sync stores no
-        records, so there's nothing a write grant actually exposes.
-        """
-        name, param, default = self._CONSOLES[kind]
-        base = (self._param(param) or default).rstrip("/")
-        return {
-            "type": "ir.actions.client",
-            "tag": "oasis_embed",
-            "name": name,
-            "params": {"url": base + "/?embed=true"},
-        }
+    # ── THERE IS NO CONSOLE EMBED, AND THERE MUST NOT BE ONE ─────────────
+    #
+    # An `open_console(kind)` used to live here, returning an `ir.actions.client`
+    # that rendered an OASIS Streamlit console in an iframe filling Odoo's
+    # content area. The menus pointing at it were removed on the grounds that
+    # embedding the consoles "ships the entire product into a window inside
+    # Odoo and gives away every module to anyone who installs the connector" —
+    # but only the MENUS went. The method stayed, the client action stayed
+    # registered by the asset bundle on every backend page, and
+    # ir.model.access.csv grants base.group_user WRITE on this model, so the
+    # action remained callable by ANY internal user:
+    #
+    #     oasis.sync.open_console('intel')
+    #     -> {'tag': 'oasis_embed', 'params': {'url': '…:8510/?embed=true'}}
+    #
+    # Removing a menu hides an entrance; it does not close a door. The method,
+    # the JS/XML assets, and the three console URL settings are all gone now.
+    #
+    # What belongs in Odoo is the part an Odoo user does in Odoo: review what
+    # OASIS proposes and approve it into native documents. The intelligence
+    # that produced those proposals stays outside, which is what is being sold.
