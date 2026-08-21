@@ -122,6 +122,96 @@ def _captured(name="OdooAdapter"):
         logging.disable(was[3])
 
 
+class TestSigmaIsDerivedFromLata:
+    """The safety floor is the relief horizon, not a literal.
+
+    sigma was the fifth constant the master spec says cannot exist: an inline
+    `ADS x 14` at both sites that compute excess.
+    """
+
+    #: Brookside-shaped: a fortnightly cadence and a supplier that misses.
+    RHYTHM = {
+        "brookside": {"median_gap_days": 15.0,
+                      "estimated_delivery_days": 3.0,
+                      "lata_variance_multiplier": 2.0},
+        "steady co": {"median_gap_days": 3.0,
+                      "estimated_delivery_days": 1.0,
+                      "lata_variance_multiplier": 1.0},
+    }
+    #: AMIT: milk dies in 5 days whatever the supplier's cadence says.
+    DEAD = {"perishability_tiers": {"FRESH MILK": 5.0}, "days_default": 45}
+
+    def _svc(self, **kw):
+        kw.setdefault("supplier_rhythm", self.RHYTHM)
+        kw.setdefault("dead_stock_config", self.DEAD)
+        return ConsolidatedTransferService(org_names={"C001": "One"},
+                                           stock_data={}, **kw)
+
+    def _p(self, supplier="brookside", lead=3.0, dept="DRY GOODS"):
+        return {"supplier_name": supplier, "estimated_delivery_days": lead,
+                "department": dept}
+
+    def test_it_is_the_measured_rhythm_not_a_literal(self):
+        # 15 gap + 3 lead x 2.0 variance = 21, and emphatically not 14
+        assert self._svc()._safety_days("C001", self._p()) == 21.0
+
+    def test_a_reliable_daily_supplier_earns_a_much_lower_floor(self):
+        svc = self._svc()
+        assert svc._safety_days("C001", self._p("steady co", 1.0)) == 4.0
+        assert (svc._safety_days("C001", self._p("steady co", 1.0))
+                < svc._safety_days("C001", self._p("brookside", 3.0)))
+
+    def test_shelf_life_caps_it(self):
+        # the cadence would ask for 21 days of cover of a line that dies in 5
+        assert self._svc()._safety_days(
+            "C001", self._p(dept="FRESH MILK")) == 5.0
+
+    def test_sigma_equals_the_fill_target(self):
+        """The property that justifies the whole design.
+
+        A recipient is filled TO the relief horizon. Protecting a donor to a
+        shallower one let the engine drain a store to 14 days in order to lift
+        another to 23, making the donor next week's deficit. Floor and target
+        are one quantity seen from the two ends of the lorry, so they must not
+        be allowed to drift apart.
+        """
+        svc = self._svc()
+        for supplier, lead, dept in (("brookside", 3.0, "DRY GOODS"),
+                                     ("steady co", 1.0, "DRY GOODS"),
+                                     ("brookside", 3.0, "FRESH MILK"),
+                                     ("who?", 2.0, "DRY GOODS")):
+            assert (svc._safety_days("C001", self._p(supplier, lead, dept))
+                    == svc._target_cover(supplier, lead, dept))
+
+    def test_an_unknown_supplier_uses_the_network_median_not_a_constant(self):
+        svc = self._svc()
+        # median of {21, 5} -> the service's own summarised figure
+        assert svc._median_relief is not None
+        assert (svc._safety_days("C001", self._p("never heard of them"))
+                == svc._median_relief)
+
+    def test_an_explicit_per_store_policy_still_wins(self):
+        # a client ERP carrying a real per-site service level beats the
+        # derivation; a depot fixture is not that, which is why the Odoo
+        # scripts pass nothing
+        svc = self._svc(safety_days_by_org={"C001": 30.0})
+        assert svc._safety_days("C001", self._p()) == 30.0
+        assert svc._safety_days("C002", self._p()) == 21.0
+
+    def test_no_product_falls_back_to_the_default(self):
+        assert self._svc()._safety_days("C001") == 14.0
+
+    def test_it_actually_varies(self):
+        # a derivation that returns one value everywhere is a constant wearing
+        # a hat -- this is what the old literal 14 was
+        svc = self._svc()
+        seen = {svc._safety_days("C001", self._p(s, l, d))
+                for s, l, d in (("brookside", 3.0, "DRY GOODS"),
+                                ("steady co", 1.0, "DRY GOODS"),
+                                ("brookside", 3.0, "FRESH MILK"))}
+        assert len(seen) == 3
+
+
 class TestM2TruncationIsAnnounced:
     """A capped read that comes back full must say so."""
 

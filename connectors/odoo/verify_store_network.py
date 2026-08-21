@@ -245,15 +245,12 @@ def main(argv=None):
     # data_dir so the service picks up LATA's measured supplier rhythm and
     # AMIT's dead-stock thresholds. Without it the engine falls back to fixed
     # horizons and this check would be verifying the wrong code path.
-    # Each store's own safety floor, exactly as push_transfer_suggestions
-    # passes it. Two entry points that scan the same depot with different
-    # protection would report different plans for the same question — the
-    # failure the pending-transfer plumbing was fixed for.
-    safety = {s["code"]: s["safety_days"] for s in stores
-              if s.get("safety_days")}
+    # No safety_days_by_org, exactly as push_transfer_suggestions passes none:
+    # the floor is DERIVED per store-SKU from LATA. Two entry points scanning
+    # one depot with different protection would report different plans for the
+    # same question — the failure the pending-transfer plumbing was fixed for.
     cts = ConsolidatedTransferService(org_names=org_names, stock_data=per_store,
                                       distance_map=coords,
-                                      safety_days_by_org=safety,
                                       data_dir=os.path.join(REPO, "oasis", "data"))
     check("LATA supplier rhythm loaded (horizons are derived, not fixed)",
           bool(cts.supplier_rhythm),

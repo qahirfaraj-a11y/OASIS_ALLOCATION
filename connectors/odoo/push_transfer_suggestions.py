@@ -145,22 +145,25 @@ def _build(limit=0, log=print):
     except Exception:
         pass
 
-    # Each store's own safety floor. The seed has always carried safety_days
-    # and the service read it zero times, protecting a forecourt and a
-    # 22,500 sqft anchor with the identical hardcoded 14 days. Passing it makes
-    # the field live; a store without one keeps the 14-day default.
-    safety = {s["code"]: s["safety_days"] for s in seed["stores"]
-              if s.get("safety_days")}
-    distinct = sorted({v for v in safety.values()})
-    if len(distinct) == 1 and len(safety) > 1:
-        log(f"   ! all {len(safety)} stores seed the SAME safety_days "
-            f"({distinct[0]}) — the input is live but UNDIFFERENTIATED, so "
-            f"every store is still protected identically. Differentiating it "
-            f"is seed work, not engine work.")
+    # THE SAFETY FLOOR IS DERIVED, so nothing is passed here.
+    #
+    # The seed does carry a safety_days per store, and wiring it in is what
+    # made the field live — but every store seeds to the same literal 10,
+    # because build_store_network_seed falls back to one and
+    # stores_network.json has no per-store value. Passing it would override the
+    # derivation with a fixture default and re-declare the constant that
+    # deriving sigma exists to remove.
+    #
+    # safety_days_by_org stays supported for a client whose ERP carries a real
+    # per-site service level. A depot fixture is not that.
+    distinct = sorted({s["safety_days"] for s in seed["stores"]
+                       if s.get("safety_days")})
+    if len(distinct) == 1:
+        log(f"   seed safety_days is a uniform {distinct[0]} and is IGNORED — "
+            f"the floor is derived per store-SKU from LATA's supplier rhythm")
 
     with contextlib.redirect_stderr(io.StringIO()):
         svc = CTS(org_names=names, stock_data=data, distance_map=coords,
-                  safety_days_by_org=safety,
                   data_dir=os.path.join(REPO, "oasis", "data"),
                   settings_db=store_db_path(REPO))
         opps = svc.scan_network_opportunities(

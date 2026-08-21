@@ -314,18 +314,66 @@ class ConsolidatedTransferService:
         # Build network availability map from stock data
         self.network_map = self._build_network_map()
 
-    def _safety_days(self, org_cd: str) -> float:
+    def _safety_days(self, org_cd: str,
+                     product: Optional[dict] = None) -> float:
         """Days of cover this store keeps before its stock may be donated.
 
-        Per store when the caller supplied one, otherwise the default. A zero
-        or unparseable value falls back rather than dropping the floor to
-        nothing — an unreadable field must never make a store fully drainable.
+        DERIVED, from the same supplier rhythm the fill target uses — this is
+        sigma, and it was the fifth constant the master spec says cannot exist.
+
+        WHY THE RELIEF HORIZON IS THE RIGHT NUMBER
+        ------------------------------------------
+        The floor answers "how long must this store survive unaided on this
+        line?", and LATA already measures precisely that: median delivery gap
+        plus lead, weighted by whether the supplier actually turns up.
+
+        The old literal 14 also made the engine internally inconsistent. A
+        recipient is filled TO the relief horizon — a median 23 days — while a
+        donor was protected only to 14. So stock could be taken from a store
+        down to 14 days of cover in order to lift another to 23, and the donor
+        became next week's deficit. You must not drain a store below the depth
+        you would fill it to; sigma and the fill target are the same quantity
+        seen from the two ends of the lorry.
+
+        It is per store-SKU rather than per store, because a supplier's rhythm
+        is a property of the line, not of the building: the same outlet needs a
+        fortnight of cover on a line delivered fortnightly and two days on one
+        delivered daily. AMIT's shelf life caps it inside ``_relief_days``, so
+        this can never ask a store to protect more cover than the goods
+        survive.
+
+        Order of precedence:
+
+          1. an explicit per-store policy the caller passed, if any — a client
+             whose ERP carries a real service-level agreement per site should
+             win over anything derived here;
+          2. the derived relief horizon for this line;
+          3. ``default_safety_days``, reached only when the supplier is unknown
+             to LATA, to the delivery calendar AND to the network median.
+
+        A zero or unparseable override falls through rather than dropping the
+        floor to nothing — an unreadable field must never make a store fully
+        drainable.
         """
         try:
             v = float(self.safety_days_by_org.get(org_cd) or 0)
         except (TypeError, ValueError):
             v = 0.0
-        return v if v > 0 else self.default_safety_days
+        if v > 0:
+            return v
+
+        if product is not None:
+            dept = str(product.get('department',
+                                   product.get('product_category', '')) or '')
+            relief = self._relief_days(
+                str(product.get('supplier_name', product.get('supplier', '')) or ''),
+                float(product.get('estimated_delivery_days',
+                                  product.get('lead_days', 0)) or 0),
+                dept)
+            if relief is not None:
+                return float(relief)
+
+        return self.default_safety_days
 
     def _build_network_map(self) -> NetworkAvailabilityMap:
         """Build cross-store availability index from current stock data."""
@@ -347,8 +395,10 @@ class ConsolidatedTransferService:
 
         for org_cd, products in self.stock_data.items():
             org_name = self.org_names.get(org_cd, org_cd)
-            safety_days = self._safety_days(org_cd)
             for p in products:
+                # per store-SKU: the supplier's rhythm belongs to the line,
+                # not to the building
+                safety_days = self._safety_days(org_cd, p)
                 ads = float(p.get('avg_daily_sales', 0) or 0)
                 current = float(p.get('current_stocks', 0) or 0)
                 days_cover = (current / ads) if ads > 0 else 999.0
@@ -594,7 +644,7 @@ class ConsolidatedTransferService:
         # Donor view: outbound commitments reduce what we can give.
         donor_stock = max(0.0, stock - outbound.get((org_cd, itm), 0.0))
         donor_excess = self._excess_units(ads, donor_stock, fresh,
-                                          self._safety_days(org_cd))
+                                          self._safety_days(org_cd, p))
         # Recipient view: inbound commitments count as supply.
         eff_stock = donor_stock + inbound.get((org_cd, itm), 0.0)
 

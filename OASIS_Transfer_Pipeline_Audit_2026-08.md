@@ -144,10 +144,11 @@ floor instead of from today.
 > * **PUSH went UP**, 835 → 944, while PULL fell. PULL no longer overdraws, so
 >   more excess survives to the PUSH pass — the shared donor ledger working as
 >   designed, visible for the first time.
-> * **M4 changed the plan more than M1 did.** Wiring `safety_days` moves the
->   floor from a hardcoded 14 to the seed's 10, which *raises* the plan to
->   5,149 lines / 26,020 units. Both numbers are arbitrary and LATA measures a
->   median relief of **23 days** — see the note under M4 before trusting either.
+> * **M4 went further than the finding asked.** Wiring `safety_days` only
+>   swapped a hardcoded 14 for the seed's hardcoded 10, so the floor is now
+>   *derived*: σ = the relief horizon, per store-SKU, from LATA. Final plan
+>   **3,590 lines / 22,378 units / KES 3,994,037** — fewer lines than either
+>   literal, but more units than the 14-day floor gave. See M4.
 >
 > One check outside M1–M5 was fixed alongside them: `verify_store_network.py`
 > asserted `on_hand == plan - ADS x days_since_delivery`, which holds only on
@@ -234,22 +235,37 @@ floor to nothing. `push_transfer_suggestions` and `verify_store_network` both
 pass it, because two entry points scanning one depot with different protection
 is the bug class the pending-transfer plumbing was already fixed for.
 
-**The input is live; it is still not differentiated.** Every one of the 14
-stores seeds to the *same* `safety_days` of 10, because
+**Then the input turned out to be worthless, so σ IS NOW DERIVED.** Every one
+of the 14 stores seeds the *same* `safety_days` of 10 —
 `build_store_network_seed` falls back to a literal 10 and `stores_network.json`
-carries no per-store value. So the forecourt and the anchor are still protected
-identically — wiring the field moved a hardcoded 14 to a hardcoded 10 and
-nothing more. The scan now says so out loud when it detects a single distinct
-value across every store.
+carries no per-store value. Wiring it moved a hardcoded 14 to a hardcoded 10
+and nothing else, and 10 is the wrong direction: LATA measures a median relief
+of 23 days, so 14 was already below what the supplier book requires.
 
-**And 10 is the wrong direction.** LATA measures a median relief of **23 days**
-— median delivery gap 15, median lead 3 — which is the horizon a store must
-actually survive. A 14-day floor was already below it; 10 is further below.
-Adopting the seed value raises the plan to 5,149 lines and 26,020 units by
-freeing excess that arguably protects nothing. The principled fix is to derive
-the floor from the same supplier rhythm the horizons already come from, rather
-than to pick between two literals. That is a decision about the product, not a
-defect to patch, and it is left open deliberately.
+**σ is now the relief horizon**, `σ(s,i) = R(s,i)`, from the same LATA rhythm
+under the same AMIT shelf-life ceiling. The Odoo scripts deliberately pass
+**no** `safety_days_by_org` — passing the fixture's uniform 10 would override
+the derivation and re-declare the constant it removes — and say so in the scan
+log. An explicit per-store policy from a real client ERP still wins.
+
+Measured over 46,830 store-SKUs: **147 distinct values**, min 2.2d, median
+17.2d, p90 26d, max 45d. LATA knows the supplier on 39,718 of them; the rest
+fall back to the network median. The floor tracks the goods — bread 3.5d,
+fresh milk 3.7d, butter 3.7d at the short end; footwear 40.7d, pest control
+45d at the long end.
+
+Plan effect: **4,207 → 3,590 lines but 21,979 → 22,378 units**, median line
+1 → 2. Deriving σ does not simply shrink the plan, it re-targets it: marginal
+lines from donors barely above an arbitrary 14 days disappear, while donors
+genuinely past their own replenishment horizon give more.
+
+**The framing above was subtly wrong, and deriving σ shows why.** A forecourt
+and a 22,500 sqft anchor *should* hold the same number of DAYS of milk; store
+size enters through ADS, so they already hold different numbers of UNITS. σ
+differentiates by line, not by building, and that is correct. The real
+remaining gap is that `_relief_days` keys on supplier alone, so a site served
+on a genuinely different cadence from its siblings is still not distinguished
+— that needs per-store GRN history, not a per-store constant.
 
 ### M5. Approving a stale suggestion fails confusingly
 

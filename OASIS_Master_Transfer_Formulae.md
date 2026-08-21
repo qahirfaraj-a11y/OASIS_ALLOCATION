@@ -60,19 +60,21 @@ $$
 
 Everything else is derived. If a fifth constant appears, it is a defect.
 
-> **There is a fifth, and there always was: $\sigma$, the safety floor.** It
-> sat inline as a literal `14` at both places that compute excess while every
-> store record carried an unread `safety_days`, so it never appeared in this
-> list to be challenged. It is now a per-store input ($\sigma_s$) rather than a
-> literal — but the depot seeds it uniformly at 10, so in practice one constant
-> replaced another.
+> **There was a fifth for a long time: $\sigma$, the safety floor.** It sat
+> inline as a literal `14` at both places that compute excess, while every
+> store record carried an unread `safety_days` — so it never appeared in this
+> list to be challenged.
 >
-> By this document's own standard that is still a defect. The floor is the
-> number of days a store must survive unaided, which is exactly what $R$ is
-> derived from — LATA measures a median relief of **23 days**, so both 14 and
-> 10 are under half of it. Deriving $\sigma_s$ from the same supplier rhythm
-> would retire the fifth constant properly. It is recorded here rather than
-> quietly fixed because it moves every plan.
+> **It is now derived, and is no longer a constant.** $\sigma_{s,i} = R_{s,i}$:
+> the safety floor *is* the relief horizon, from the same LATA rhythm and under
+> the same AMIT shelf-life ceiling. Measured over 46,830 store-SKUs on the
+> depot: **147 distinct values**, min 2.2d, median 17.2d, max 45d, against the
+> single 14 it replaces. The floor now tracks the goods — bread 3.5d, fresh
+> milk 3.7d, footwear 40.7d.
+>
+> `default_safety_days` (14) survives only as the last resort for a line whose
+> supplier is unknown to LATA, to the delivery calendar *and* to the network
+> median. An explicit per-store policy from a client ERP still overrides both.
 
 ---
 
@@ -165,13 +167,29 @@ q^{\text{don}} & d = 0 \wedge q^{\text{don}} > 0\\
 \gamma_i = \begin{cases}14 & \text{fresh}\\ 30 & \text{dry}\end{cases}
 $$
 
-> $\sigma_s$ is **store $s$'s own safety floor in days**, from its
-> `safety_days`, defaulting to 14 where the store carries none. It was a
-> literal 14 for every store until the field — present on every store record
-> and read zero times — was wired in. Note the depot currently seeds $\sigma_s
-> = 10$ *uniformly*, so the per-store form is live but not yet meaningful, and
-> 10 sits below the median relief of 23 days that $R$ is derived from. See M4
-> in the pipeline audit.
+> $\sigma_{s,i}$ is the **safety floor in days**, and it is $R_{s,i}$ — the
+> relief horizon itself:
+> $$\sigma_{s,i} = R_{s,i}$$
+>
+> **Why the floor and the fill target are one quantity.** A recipient is filled
+> *to* $R$. Protecting a donor to a shallower depth let the engine drain a
+> store to 14 days of cover in order to lift another to 23, so the donor became
+> next week's deficit and the same units came back the other way. You must not
+> take a store below the depth you would fill it to; $\sigma$ and the target
+> are the two ends of one lorry.
+>
+> It is per store-SKU, not per store, because a supplier's cadence belongs to
+> the **line**, not the building — the same outlet needs a fortnight of cover
+> on a fortnightly line and two days on a daily one. **Store size enters
+> through $d$, not through $\sigma$**: a forecourt and a 22,500 sqft anchor
+> both hold 3.7 days of milk, which is a different number of *units* because
+> their ADS differs. The pipeline audit's M4 framed this as the two being
+> "protected identically"; they are protected to the same depth, which is
+> correct, and to different volumes, which is also correct.
+>
+> Remaining gap: `_relief_days` keys on **supplier only**, so a site that is
+> genuinely served on a different cadence from its siblings is not yet
+> distinguished. That needs GRN history per store, not per supplier.
 
 **Dead** (J2 donor) — zero demand, sustained, and worth a lorry:
 $$

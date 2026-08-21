@@ -194,32 +194,37 @@ def main(argv=None):
           f"{max(approved.values()):.0f} approved" if repeats else
           "nothing came back at all")
 
-    # and the donor must still be above ITS OWN safety floor.
+    # and the donor must still be above ITS OWN safety floor, PER LINE.
     #
-    # Not a hardcoded 14: the scan now reads each store's seeded safety_days,
-    # so asserting 14 here would test a number the engine no longer uses —
-    # passing while a real breach of the actual floor went unnoticed, or
-    # failing on a plan that is perfectly correct.
-    seed = json.load(open(os.path.join(REPO, "connectors", "odoo",
-                                       "store_network_seed.json"),
-                          encoding="utf-8"))
-    floor_days = next((float(s["safety_days"]) for s in seed["stores"]
-                       if s["code"] == src_code and s.get("safety_days")), 14.0)
-    donor_stock = {p["item_code"]: p
-                   for p in a.fetch_enriched_products(src_code)}
-    breached = []
+    # Not a hardcoded 14, and not the seed's safety_days either: the floor is
+    # sigma, derived per store-SKU from LATA's supplier rhythm and capped by
+    # AMIT's shelf life. Asserting any literal here would test a number the
+    # engine does not use — passing while a real breach went unnoticed, or
+    # failing on a plan that is perfectly correct. So ask the engine.
+    from oasis.logic.consolidated_transfer_service import (            # noqa: E402
+        ConsolidatedTransferService)
+    donor_rows = a.fetch_enriched_products(src_code)
+    donor_stock = {p["item_code"]: p for p in donor_rows}
+    sigma = ConsolidatedTransferService(
+        org_names={src_code: src_code}, stock_data={src_code: donor_rows},
+        data_dir=os.path.join(REPO, "oasis", "data"))
+    breached, floors = [], []
     for r in repeats:
         code = r["product_id"][1].split("] ")[0].lstrip("[")
         prod = donor_stock.get(code)
         if not prod:
             continue
         ads = float(prod["avg_daily_sales"])
+        floor_days = sigma._safety_days(src_code, prod)
+        floors.append(floor_days)
         if float(prod["current_stocks"]) - r["quantity"] < ads * floor_days:
-            breached.append((code, r["quantity"]))
+            breached.append((code, r["quantity"], round(floor_days, 1)))
+    span = (f"sigma {min(floors):.1f}-{max(floors):.1f}d" if floors
+            else "no lines to check")
     check(not breached,
-          f"donor stays above its {floor_days:.0f}-day safety floor after the residual",
+          "donor stays above its DERIVED safety floor after the residual",
           f"{len(breached)} would breach it: {breached[:2]}" if breached else
-          f"{len(repeats)} residual line(s) checked against {src_code}")
+          f"{len(repeats)} residual line(s) vs {src_code}, {span}")
 
     # ── 5. report ─────────────────────────────────────────────────────────
     print("\n" + "=" * 74)
