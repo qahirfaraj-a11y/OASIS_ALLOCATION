@@ -134,6 +134,39 @@ the proposal stays outside, which is also what is being sold.
 The **Refresh from OASIS** button calls `scan_service.py` on-prem, so OASIS has
 to be reachable from the Odoo container — see `oasis.scan_url`.
 
+## Before a customer pilot — the read-only preflight
+
+**Run this first, against the customer's own Odoo, before anything is
+installed or agreed.** It writes nothing — `search_count` and `search_read`
+only, enforced by a test that fails if any write method is ever reached — so it
+is safe against production.
+
+```bash
+OASIS_ERP=odoo ODOO_URL=https://their.odoo ODOO_DB=theirdb \
+  ODOO_USER=... ODOO_PASSWORD=... \
+  python entrypoint.py --mode odoo-preflight
+```
+
+It answers the questions that decide whether a pilot is safe, each of which
+would otherwise be discovered by the customer:
+
+| check | why it decides the pilot |
+|---|---|
+| companies | Odoo cannot confirm an internal transfer between two companies. Approval refuses those routes, so stores in different companies never exchange stock |
+| warehouse codes | OASIS keys stores on `code`; a warehouse without one falls back to a database id no operator recognises, and duplicates collapse two sites into one org |
+| every read vs its cap | under the cap the numbers are right, over it they are **quietly wrong**. The two that matter answer "what is already coming" — truncate those and the scan re-proposes stock in flight, so approving both ships twice |
+| projected scan time | the scan reads sites one after another while tills sell, so the plan is a composite of N instants |
+| receipt attribution | per-store delivery cadence needs receipts that name a supplier; without it σ stays supplier-level |
+
+Exit code is 0 for PASS/WARN and 2 for FAIL, so it drops into a pipeline.
+
+Two things it will tell you that are easy to get wrong by hand. The
+site-scoped reads are judged **per warehouse**, on the busiest site — counting
+a whole chain's rows against a per-site cap reads as a breach on a perfectly
+healthy instance (28,125 receipts company-wide on the depot against a 20,000
+cap, versus 2,971 at the busiest site). And the scan projection is an **upper
+bound**: the first site read pays one-off costs a real scan amortises.
+
 ## Addon test suite (runs inside Odoo)
 
 The addons carry their own tests, in Odoo's own framework. Everything else that

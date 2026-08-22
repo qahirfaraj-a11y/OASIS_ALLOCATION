@@ -610,7 +610,10 @@ def main():
                                  # docstring entry all along, but was absent
                                  # HERE — so argparse rejected the documented
                                  # install step before it could ever run.
-                                 "preflight", "erp-status", "web",
+                                 "preflight", "erp-status",
+                                 # read-only readiness report for a
+                                 # customer's Odoo, run BEFORE a pilot
+                                 "odoo-preflight", "web",
                                  # Dev-toolkit modes: each drives a script in
                                  # devkit/, which never ships. They dispatch
                                  # fine here and degrade with an explicit
@@ -758,6 +761,14 @@ def main():
     elif args.mode == "preflight":
         from oasis.logic.preflight import run_preflight, format_report
         report = run_preflight()
+        print(format_report(report))
+        sys.exit(0 if report["overall"] != "FAIL" else 2)
+    elif args.mode == "odoo-preflight":
+        # Can OASIS Transfers safely run against THIS Odoo? Shape and scale,
+        # not catalogue coverage — that is erp-status. Strictly read-only:
+        # search_count and search_read only, so it is safe against production.
+        from oasis.logic.odoo_preflight import run_preflight, format_report
+        report = run_preflight(org_cd=args.org)
         print(format_report(report))
         sys.exit(0 if report["overall"] != "FAIL" else 2)
     elif args.mode == "erp-status":
