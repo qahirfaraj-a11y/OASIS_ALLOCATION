@@ -20,7 +20,18 @@ from oasis.logic.db import get_sqlalchemy_url
 
 config = context.config
 if config.config_file_name is not None:
-    fileConfig(config.config_file_name)
+    # disable_existing_loggers=False, and it matters well beyond tests.
+    #
+    # fileConfig defaults to True, which DISABLES every logger that already
+    # exists — the whole application's, not just alembic's. Run a migration
+    # in-process and OASIS goes silent for the rest of that process: no
+    # warnings from the adapters, nothing from the transfer engine, no
+    # truncation notices. Nothing errors; the logs simply stop.
+    #
+    # It surfaced as two adapter tests that passed alone and failed in the
+    # suite, because test_alembic_migration runs earlier and left every logger
+    # disabled behind it. That is the visible half of a real defect.
+    fileConfig(config.config_file_name, disable_existing_loggers=False)
 
 config.set_main_option("sqlalchemy.url", get_sqlalchemy_url())
 

@@ -272,6 +272,23 @@ class OdooAdapter(_contract.ErpAdapter):
     PRODUCT_READ_LIMIT = 100000
     SUPPLIERINFO_READ_LIMIT = 20000
 
+    #: The reads that answer "what is ALREADY coming?" — and the two that
+    #: matter most on a live chain.
+    #:
+    #: A truncated answer here does not under-report a number, it re-creates a
+    #: defect this connector has already fixed once: H1 (inbound purchase
+    #: orders invisible to the scan) and H2 (transfers already in flight
+    #: invisible to it). Miss stock that is on its way and the engine proposes
+    #: a movement for it a second time — approve both and the shop ships twice.
+    #: On a busy chain 2,000 open pickings is not a generous cap.
+    TRANSFER_READ_LIMIT = 2000
+    PENDING_PO_READ_LIMIT = 5000
+    PENDING_PO_SKU_READ_LIMIT = 20000
+    #: writes, not reads: the lookups that resolve codes before pushing a
+    #: document. Truncation silently drops lines from the document.
+    PRODUCT_LOOKUP_LIMIT = 100000
+    TRANSFER_PRODUCT_LOOKUP_LIMIT = 10000
+
     def _warn_if_truncated(self, rows, limit: int, what: str,
                            org_cd: Optional[str] = None,
                            consequence: str = "") -> bool:
@@ -613,7 +630,12 @@ class OdooAdapter(_contract.ErpAdapter):
         codes = [r.get("item_code") for recs in by_supplier.values() for r in recs]
         found = self._ex("product.product", "search_read",
                          [[["default_code", "in", [str(c) for c in codes if c]]]],
-                         {"fields": ["default_code"], "limit": 100000}) or []
+                         {"fields": ["default_code"],
+                          "limit": self.PRODUCT_LOOKUP_LIMIT}) or []
+        self._warn_if_truncated(
+            found, self.PRODUCT_LOOKUP_LIMIT, "product code lookup", org_cd,
+            "Lines whose product fell outside the lookup are silently DROPPED "
+            "from the purchase order being pushed.")
         pid_of = {str(f["default_code"]): f["id"] for f in found}
 
         written = 0
@@ -863,7 +885,12 @@ class OdooAdapter(_contract.ErpAdapter):
             prods = self._ex("product.product", "search_read",
                              [[["default_code", "in", codes]]],
                              {"fields": ["default_code", "display_name", "uom_id"],
-                              "limit": 10000}) or []
+                              "limit": self.TRANSFER_PRODUCT_LOOKUP_LIMIT}) or []
+            self._warn_if_truncated(
+                prods, self.TRANSFER_PRODUCT_LOOKUP_LIMIT,
+                "product code lookup", from_org,
+                "Lines whose product fell outside the lookup are silently "
+                "DROPPED from the transfer being pushed.")
         except Exception as e:
             logger.error("push_transfer_request: product lookup failed: %s",
                          str(e)[:140])
@@ -946,7 +973,14 @@ class OdooAdapter(_contract.ErpAdapter):
                                          "location_id", "location_dest_id",
                                          "create_date", "date_done", "create_uid",
                                          "move_ids"],
-                              "order": "create_date desc", "limit": 2000}) or []
+                              "order": "create_date desc",
+                              "limit": self.TRANSFER_READ_LIMIT}) or []
+            self._warn_if_truncated(
+                picks, self.TRANSFER_READ_LIMIT, "open internal transfers",
+                org_cd,
+                "Transfers beyond the cap are INVISIBLE as stock in flight, so "
+                "the scan may re-propose a movement already queued — approve "
+                "both and the shop ships twice.")
         except Exception as e:
             logger.error("fetch_transfers failed: %s", str(e)[:140])
             return empty
@@ -1120,7 +1154,14 @@ class OdooAdapter(_contract.ErpAdapter):
             dom += self._po_site_domain(org_cd)
             rows = self._ex("purchase.order.line", "search_read", [dom],
                             {"fields": ["product_id", "product_qty", "price_unit",
-                                        "order_id"], "limit": 5000}) or []
+                                        "order_id"],
+                                        "limit": self.PENDING_PO_READ_LIMIT}) or []
+            self._warn_if_truncated(
+                rows, self.PENDING_PO_READ_LIMIT, "open purchase order lines",
+                org_cd,
+                "Orders beyond the cap read as NOT PLACED, so a store with "
+                "stock already on its way looks short and is ordered for or "
+                "transferred to twice.")
         except Exception as e:
             logger.warning("fetch_pending_pos failed: %s", str(e)[:120])
             return []
@@ -1197,7 +1238,12 @@ class OdooAdapter(_contract.ErpAdapter):
             dom += self._po_site_domain(org_cd)
             rows = self._ex("purchase.order.line", "search_read", [dom],
                             {"fields": ["product_id", "product_qty", "qty_received"],
-                             "limit": 20000}) or []
+                             "limit": self.PENDING_PO_SKU_READ_LIMIT}) or []
+            self._warn_if_truncated(
+                rows, self.PENDING_PO_SKU_READ_LIMIT,
+                "open purchase order lines by SKU", org_cd,
+                "on_order_qty reads LOW, so inbound stock is invisible to "
+                "ordering and to the transfer scan.")
         except Exception:
             return out
         pids = [_id_of(r.get("product_id")) for r in rows if r.get("product_id")]

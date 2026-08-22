@@ -3,6 +3,8 @@
 import json
 import os
 import sys
+
+import pytest
 from datetime import date, timedelta
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
@@ -100,6 +102,8 @@ class TestModuleSkus:
         assert intel_mods["pulse"] == "core"
 
 
+# The trial clock itself — see the note in test_trial_restart.py.
+@pytest.mark.real_trial_clock
 class TestTrial:
     def test_no_key_within_trial_is_evaluation(self, tmp_path, monkeypatch):
         monkeypatch.setenv("OASIS_TRIAL_DAYS", "14")

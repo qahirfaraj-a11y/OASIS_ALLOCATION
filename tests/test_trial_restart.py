@@ -11,6 +11,14 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 from oasis.logic import onboarding as OB
 from oasis.logic.license_manager import OfflineLicenseManager
 
+# Every test in this module IS the trial clock, so the autouse
+# _trial_is_not_a_clock fixture must stand aside. It patches _first_run, and
+# these tests establish their posture by WRITING a first-run date — which the
+# patch reads straight past, so _trial_days_left() returned a flat 14 whatever
+# they set up. Three of the four failed; the fourth passed for the wrong
+# reason, asserting the same 14 the patch hands out unconditionally.
+pytestmark = pytest.mark.real_trial_clock
+
 
 @pytest.fixture
 def root(tmp_path, monkeypatch):

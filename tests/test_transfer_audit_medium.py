@@ -242,5 +242,26 @@ class TestM2TruncationIsAnnounced:
         from oasis.logic.odoo_adapter import OdooAdapter
         for name in ("RECEIPT_READ_LIMIT", "POS_LINE_READ_LIMIT",
                      "SALES_MOVE_READ_LIMIT", "PRODUCT_READ_LIMIT",
-                     "SUPPLIERINFO_READ_LIMIT"):
+                     "SUPPLIERINFO_READ_LIMIT", "TRANSFER_READ_LIMIT",
+                     "PENDING_PO_READ_LIMIT", "PENDING_PO_SKU_READ_LIMIT",
+                     "PRODUCT_LOOKUP_LIMIT", "TRANSFER_PRODUCT_LOOKUP_LIMIT"):
             assert isinstance(getattr(OdooAdapter, name), int)
+
+    def test_no_bare_integer_limit_survives_in_the_adapter(self):
+        """The whole class of defect, asserted once.
+
+        A capped read with an inline integer is a cap nobody named, which means
+        it is a cap nobody warns on. The two that matter feed "what is already
+        coming": truncate those and the scan re-proposes stock already in
+        flight, which is H1 and H2 all over again.
+        """
+        import re
+        import inspect
+        from oasis.logic import odoo_adapter
+        src = inspect.getsource(odoo_adapter)
+        bare = re.findall(r'"limit":\s*(\d+)', src)
+        # limit 1 is an existence probe, not a page of results
+        offenders = [n for n in bare if n != "1"]
+        assert not offenders, (
+            "capped reads with unnamed limits: %s — name them on the class and "
+            "pass them through _warn_if_truncated" % offenders)

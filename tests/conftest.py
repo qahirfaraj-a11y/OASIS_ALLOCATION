@@ -26,6 +26,10 @@ def pytest_configure(config):
     config.addinivalue_line(
         "markers",
         "real_store: test genuinely needs the installed store, not a sandbox")
+    config.addinivalue_line(
+        "markers",
+        "real_trial_clock: test IS about the trial clock — _trial_is_not_a_clock "
+        "must stand aside or it reads straight past the test's own first-run date")
 
 # nodeid substring -> reason. The impl diverged from the encoded formula/spec.
 #
@@ -148,7 +152,7 @@ def _no_inherited_data_source(monkeypatch):
 
 
 @pytest.fixture(autouse=True)
-def _trial_is_not_a_clock(monkeypatch):
+def _trial_is_not_a_clock(monkeypatch, request):
     """Pin the evaluation trial open, so the suite does not depend on WHEN it runs.
 
     The install's trial is anchored to a first-run date on the developer's
@@ -159,9 +163,24 @@ def _trial_is_not_a_clock(monkeypatch):
     activate Network (Transfers)". Nothing in the code had changed; the date had.
 
     Same family as ``_no_inherited_data_source``: ambient machine state leaking
-    into assertions. Tests that are ABOUT licensing set their own posture after
-    this fixture runs, so they still win — see test_desktop_license_gate.
+    into assertions.
+
+    THE OPT-OUT IS NOT OPTIONAL. This patches ``_first_run`` itself, so a test
+    that establishes its trial posture by writing a first-run date — which is
+    how the trial is actually anchored — has that date read straight past.
+    ``_trial_days_left()`` then returns a flat 14 no matter what the test set
+    up, and every assertion about expiry or restart fails while the code is
+    perfectly correct. Four tests were red for exactly this reason.
+
+    The docstring here used to claim such tests "set their own posture after
+    this fixture runs, so they still win". That is only true of tests that
+    patch the same method; one that writes state cannot win, because the state
+    is never read. Mark those ``@pytest.mark.real_trial_clock`` and this
+    fixture stands aside.
     """
+    if request.node.get_closest_marker("real_trial_clock"):
+        yield
+        return
     from datetime import date
     try:
         from oasis.logic import license_manager as LM

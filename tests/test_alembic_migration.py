@@ -84,3 +84,31 @@ def test_downgrade_base_drops_all_tables(temp_db_url):
 def test_models_metadata_matches_expected_tables():
     from oasis.models import metadata
     assert set(metadata.tables.keys()) == EXPECTED_TABLES
+
+
+def test_running_a_migration_does_not_silence_the_application(temp_db_url):
+    """A migration must not disable the loggers of the process that ran it.
+
+    alembic's env.py calls logging.config.fileConfig, which defaults to
+    disable_existing_loggers=True — it turns OFF every logger that already
+    exists, the whole application's and not just alembic's. Run a migration
+    in-process and OASIS goes quiet for the rest of that process: no adapter
+    warnings, no truncation notices, nothing from the transfer engine. Nothing
+    errors; the logs simply stop.
+
+    It showed up first as two odoo_adapter tests that passed alone and failed
+    in the suite, because this module runs earlier and left every logger
+    disabled behind it. The caplog failure was the symptom; this is the defect.
+    """
+    import logging
+
+    canary = logging.getLogger("OdooAdapter")
+    assert not canary.disabled, "the canary was already disabled before we began"
+
+    command.upgrade(_alembic_config(temp_db_url), "head")
+
+    assert not canary.disabled, (
+        "running a migration disabled an application logger — "
+        "fileConfig needs disable_existing_loggers=False in migrations/env.py")
+    for name in ("OdooAdapter", "ConsolidatedTransferService"):
+        assert not logging.getLogger(name).disabled, f"{name} was silenced"
