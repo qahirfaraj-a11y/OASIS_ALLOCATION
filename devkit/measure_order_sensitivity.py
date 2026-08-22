@@ -14,8 +14,13 @@ import logging
 import os
 import sys
 
-sys.path.insert(0, r"C:\Users\iLink\.gemini\antigravity\scratch")
-os.environ["OASIS_DB_PATH"] = r"C:\Users\iLink\.gemini\antigravity\scratch\oasis\data\variant_network.db"
+# Derived, not hardcoded. This used to be the absolute path of one developer's
+# machine, three times over, so the script ran nowhere else — including CI.
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+os.environ["OASIS_DB_PATH"] = os.path.join(
+    ROOT, "oasis", "data", "variant_network.db")
 os.environ.pop("OASIS_POS_DB_URL", None)
 os.environ.pop("OASIS_ERP", None)
 logging.basicConfig(level=logging.ERROR)
@@ -24,7 +29,6 @@ import oasis.desktop.data as D
 from oasis.logic.consolidated_transfer_service import ConsolidatedTransferService as CTS
 from oasis.logic.consolidated_transfer_service import _is_fresh_department
 
-ROOT = r"C:\Users\iLink\.gemini\antigravity\scratch"
 adapter = D.get_adapter()
 stores = D.list_stores()
 names = {s["org_cd"]: s["name"] for s in stores}

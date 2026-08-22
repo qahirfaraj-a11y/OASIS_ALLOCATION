@@ -58,21 +58,91 @@ def test_every_devkit_script_parses(script):
         ast.parse(fh.read(), filename=script)
 
 
+def _imports_oasis(tree):
+    """Whether the script really imports oasis, by parsing rather than reading.
+
+    This used to be `if "oasis" not in src`, a SUBSTRING test — so a script
+    that merely mentioned oasis/data in a file path, or in its own docstring,
+    was treated as importing the package and required to carry a bootstrap it
+    had no use for. Two of the four scripts this test failed on do not import
+    oasis at all.
+    """
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Import):
+            if any(a.name.split(".")[0] == "oasis" for a in node.names):
+                return True
+        elif isinstance(node, ast.ImportFrom):
+            if (node.module or "").split(".")[0] == "oasis":
+                return True
+    return False
+
+
+def _reaches_the_repo_root(tree):
+    """Whether the script puts the PARENT of devkit/ on sys.path.
+
+    Behaviour, not spelling. The previous version demanded one exact string, so
+    a script computing the identical path through a ROOT variable failed while
+    being perfectly correct — the same mistake as the test that asserted the
+    literals "60" and "14" appeared in a method's source and therefore never
+    noticed an entire second engine.
+
+    What actually matters is that the inserted path is DERIVED from __file__
+    and goes up two levels. A hardcoded absolute path is the real defect: one
+    developer's machine, working nowhere else, least of all in CI.
+    """
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.Call):
+            continue
+        f = node.func
+        if not (isinstance(f, ast.Attribute) and f.attr == "insert"):
+            continue
+        if not (isinstance(f.value, ast.Attribute) and f.value.attr == "path"):
+            continue
+        # the inserted expression, wherever it came from
+        inserted = ast.dump(node.args[1]) if len(node.args) > 1 else ""
+        if "__file__" in inserted and inserted.count("dirname") >= 2:
+            return True
+        # or a name bound earlier to that same expression, e.g. ROOT
+        if isinstance(node.args[1] if len(node.args) > 1 else None, ast.Name):
+            target = node.args[1].id
+            for assign in ast.walk(tree):
+                if isinstance(assign, ast.Assign) and any(
+                        isinstance(t, ast.Name) and t.id == target
+                        for t in assign.targets):
+                    src = ast.dump(assign.value)
+                    if "__file__" in src and src.count("dirname") >= 2:
+                        return True
+    return False
+
+
 @pytest.mark.parametrize("script", _devkit_scripts())
 def test_every_devkit_script_can_reach_the_repo_root(script):
-    """devkit/ does not contain oasis/, so each script must add the PARENT.
+    """devkit/ does not contain oasis/, so a script that imports it must add
+    the PARENT — and must DERIVE that path rather than hardcode one."""
+    with open(os.path.join(DEVKIT, script), encoding="utf-8") as fh:
+        src = fh.read()
+    tree = ast.parse(src, filename=script)
+    if not _imports_oasis(tree):
+        pytest.skip(f"{script} does not import oasis")
+    assert _reaches_the_repo_root(tree), (
+        f"devkit/{script} imports oasis but never puts the repo root on "
+        f"sys.path. Derive it from __file__, conventionally:\n    {BOOTSTRAP}"
+    )
 
-    Scripts that never import oasis are exempt — but if a script does import it,
-    the bootstrap has to be there and has to be the two-level one.
+
+@pytest.mark.parametrize("script", _devkit_scripts())
+def test_no_devkit_script_hardcodes_a_developers_path(script):
+    """The defect the bootstrap test existed to catch, stated directly.
+
+    measure_order_sensitivity.py pinned an absolute Windows path three times
+    over, so it ran on exactly one machine.
     """
     with open(os.path.join(DEVKIT, script), encoding="utf-8") as fh:
         src = fh.read()
-    if "oasis" not in src:
-        pytest.skip(f"{script} does not import oasis")
-    assert BOOTSTRAP in src, (
-        f"devkit/{script} imports oasis but does not add the repo root to "
-        f"sys.path. Use exactly:\n    {BOOTSTRAP}"
-    )
+    for marker in ("C:\\Users", "/home/", "/Users/"):
+        assert marker not in src, (
+            f"devkit/{script} hardcodes an absolute path containing "
+            f"{marker!r} — derive it from __file__ instead")
 
 
 def test_dev_only_modules_are_named_and_still_exist():

@@ -96,8 +96,11 @@ def run_simulation(scenario_name: str = "Baseline",
         comp_name = competitor or competitor_template.split('_')[0].title()
         logger.info(f"🏪 BLACK SWAN: Competitive Entry - {comp_name} with {competitor_impact:+.1f}% impact")
     
-    data_dir = "C:/Users/iLink/.gemini/antigravity/scratch/oasis/data"
-    scratch_dir = "C:/Users/iLink/.gemini/antigravity/scratch"
+    # Derived, not hardcoded. The script already computes the repo root at
+    # import time to reach `oasis`; these two pinned one developer's absolute
+    # path and so ran on exactly one machine.
+    scratch_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    data_dir = os.path.join(scratch_dir, "oasis", "data")
     
     # 0. Load Historical Intelligence
     loader = HistoricalDataLoader(data_dir)
