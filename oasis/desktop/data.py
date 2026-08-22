@@ -234,7 +234,7 @@ def role_tabs(role: Optional[str]) -> Dict[str, bool]:
     gate does: an unknown role is not an authorised one.
     """
     try:
-        from oasis.logic.auth_manager import ROLE_PERMISSIONS, get_user_permissions
+        from oasis.logic.auth_manager import get_user_permissions
         perms = get_user_permissions(role or "")
         return dict(perms.get("tabs") or {})
     except Exception:
@@ -1176,7 +1176,6 @@ def cluster_analysis(root: Optional[str] = None) -> Dict[str, Any]:
         if not gnn_model or not gnn_sim:
             return {"clusters": [], "error": _NO_GRAPH_CLUSTER}
             
-        import torch
         from sklearn.decomposition import PCA
         from sklearn.cluster import KMeans
         
@@ -1896,8 +1895,8 @@ VELOCITY_SPIKE_PCT = 200.0
 
 #: Re-exported from the shared engine so both front doors mean the same thing
 #: by construction. See oasis.logic.alert_monitor for why the floors exist.
-from oasis.logic.alert_monitor import (VELOCITY_MIN_ADS,  # noqa: E402
-                                       VELOCITY_MIN_UNITS, is_alertable)
+from oasis.logic.alert_monitor import (  # noqa: E402,F401
+    VELOCITY_MIN_ADS, VELOCITY_MIN_UNITS, is_alertable)
 
 
 def velocity_alerts(items: List[Dict[str, Any]]) -> List[Dict[str, Any]]:

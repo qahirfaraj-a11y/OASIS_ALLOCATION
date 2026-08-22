@@ -33,7 +33,7 @@ written or read.
 from __future__ import annotations
 
 import statistics
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 #: A line carried by at least this share of outlets counts as a staple for a
 #: new site. Four in five branches stocking something is a deliberate range

@@ -27,8 +27,11 @@ preserving.
 
 from __future__ import annotations
 
+import logging
 import os
 from typing import Dict, Sequence, Tuple
+
+logger = logging.getLogger(__name__)
 
 # GNN blend default — matches the Command Center's gnn_risk_blend_ratio default.
 DEFAULT_BLEND_RATIO = 0.5
@@ -269,9 +272,6 @@ def store_risk(stock_by_org: Dict[str, Sequence[dict]],
         return result
     except Exception:
         return dict(inv)  # any inference failure -> inventory-only
-
-import logging
-logger = logging.getLogger(__name__)
 
 def get_gnn_resources() -> Tuple[object, object]:
     """Load NetworkSimulator + StoreGraphNetwork via the shared service.
