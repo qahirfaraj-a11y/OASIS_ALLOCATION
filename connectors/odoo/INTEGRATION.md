@@ -167,6 +167,49 @@ healthy instance (28,125 receipts company-wide on the depot against a 20,000
 cap, versus 2,971 at the busiest site). And the scan projection is an **upper
 bound**: the first site read pays one-off costs a real scan amortises.
 
+## Derive the supplier rhythm from the customer's own receipts
+
+**Run this after the preflight and before the first scan.** Every horizon the
+transfer engine uses — the fill target and now σ, the safety floor — comes from
+LATA's measured supplier rhythm. `lata_shield` only ENRICHES that rhythm; the
+only thing that ever produced it scanned `po_*.xlsx` off disk. A customer whose
+history lives in Odoo has nothing to enrich, so the engine falls back to a flat
+14 days and says so on every scan.
+
+```bash
+OASIS_ERP=odoo python entrypoint.py --mode odoo-rhythm --history-days 730
+python -m oasis.logic.lata_shield --data-dir ./oasis/data
+```
+
+Read-only against Odoo; it writes only into OASIS's own data directory. Proven
+end to end against a real Odoo — seeded cadences of 7/1/14 days came back as
+7/1/14, with lead times **measured** from PO date to receipt date rather than
+taken from the supplier's stated `delay`, which is the number LATA exists to
+distrust.
+
+What it produces, and what each is for:
+
+| file | purpose |
+|---|---|
+| `supplier_patterns_2025.json` | the rhythm the engine reads |
+| `supplier_delivery_gaps.json` | raw gaps, so `lata_shield` measures real variance |
+| `supplier_patterns_by_store.json` | cadence per (store, supplier) |
+
+**It refuses to replace richer data with thinner.** Run it against an instance
+whose receipts are bare stock moves and it derives nothing — writing that would
+erase whatever rhythm was already there, silently, and the engine would just
+start answering 14. It refuses, explains why, backs up what it replaces, and
+writes atomically. `force=True` is the deliberate override.
+
+**`--history-days` defaults to 730, not the 30 that `--days` uses.** A
+fortnightly supplier shows two gaps in a month; that is an anecdote, not a
+rhythm.
+
+If it derives nothing, the cause is almost always that receipts were posted as
+bare stock moves rather than created from purchase orders — so nothing records
+who delivered. The preflight's *receipt attribution* check tells you this
+before you get here.
+
 ## Addon test suite (runs inside Odoo)
 
 The addons carry their own tests, in Odoo's own framework. Everything else that

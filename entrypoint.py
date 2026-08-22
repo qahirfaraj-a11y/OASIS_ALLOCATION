@@ -613,7 +613,10 @@ def main():
                                  "preflight", "erp-status",
                                  # read-only readiness report for a
                                  # customer's Odoo, run BEFORE a pilot
-                                 "odoo-preflight", "web",
+                                 "odoo-preflight",
+                                 # derive LATA's supplier rhythm from the
+                                 # customer's own Odoo goods receipts
+                                 "odoo-rhythm", "web",
                                  # Dev-toolkit modes: each drives a script in
                                  # devkit/, which never ships. They dispatch
                                  # fine here and degrade with an explicit
@@ -646,6 +649,13 @@ def main():
     # Simulation options
     parser.add_argument("--scenario", default="Baseline")
     parser.add_argument("--days", type=int, default=30)
+    # Cadence needs YEARS, not the 30 days --days defaults to: a
+    # fortnightly supplier shows two gaps in a month, which is an
+    # anecdote, not a rhythm. Its own flag so neither default has to be
+    # reinterpreted based on the mode.
+    parser.add_argument("--history-days", type=int, default=730,
+                        help="receipt history to measure supplier "
+                             "cadence over (odoo-rhythm)")
     parser.add_argument("--budget", type=int, default=300000)
     parser.add_argument("--month", default="NOV")
     # Shadow option
@@ -763,6 +773,19 @@ def main():
         report = run_preflight()
         print(format_report(report))
         sys.exit(0 if report["overall"] != "FAIL" else 2)
+    elif args.mode == "odoo-rhythm":
+        # Every horizon the transfer engine uses is derived from LATA's measured
+        # supplier rhythm, and lata_shield only ENRICHES that rhythm — the only
+        # thing that ever produced it scanned po_*.xlsx off disk. A customer
+        # whose history lives in Odoo therefore had nothing to enrich, and the
+        # engine fell back to a flat 14 days for both the fill target and the
+        # safety floor. This reads their own goods receipts instead.
+        from oasis.logic.odoo_supplier_rhythm import derive, format_report
+        _data_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                 "oasis", "data")
+        report = derive(days=args.history_days, data_dir=_data_dir)
+        print(format_report(report))
+        sys.exit(0 if report.get("suppliers") else 2)
     elif args.mode == "odoo-preflight":
         # Can OASIS Transfers safely run against THIS Odoo? Shape and scale,
         # not catalogue coverage — that is erp-status. Strictly read-only:
