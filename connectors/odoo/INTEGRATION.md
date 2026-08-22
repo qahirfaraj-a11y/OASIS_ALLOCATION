@@ -18,9 +18,12 @@ Intelligence portal and watching their own products move, sourced from Odoo.
 
 Two things are live inside/around Odoo once this is set up: **data flows out**
 (Odoo → hub → supplier portal, above) and **OASIS surfaces in** — an "OASIS"
-app appears in Odoo's own app switcher with three menu entries (Intelligence,
-Operations, Command Center) that open the real OASIS consoles live, embedded in
-Odoo's content pane.
+app appears in Odoo's own app switcher carrying the review queues for whichever
+modules are installed. The consoles are deliberately NOT embedded; see step 5.
+
+The addons are separable on purpose: `oasis_transfers`, `oasis_telemetry` and
+(next) `oasis_ordering` each install on their own against a shared
+`oasis_connector` base, so a client buys only what they use.
 
 ## The workflow at a glance
 
@@ -30,11 +33,11 @@ Odoo's content pane.
 | 2 | Provision the hub | `python bootstrap_hub.py` | tenant, store, **ingest token**, supplier, ownership, consent |
 | 3 | Wire + seed Odoo | `python configure_and_sync.py` | addon pointed at hub, sample Odoo movement created, first sync pushed |
 | 4 | See it live (portal) | open `http://localhost:8700/portal-app/` | log in **COKE / demo123** → live Odoo movement |
-| 5 | See it live (in Odoo) | log into Odoo, click the **OASIS** app | Intelligence / Operations / Command Center open embedded, live |
+| 5 | See it live (in Odoo) | log into Odoo, click the **OASIS** app | Transfers → Suggestions: the plan, with its reasoning, approvable into native documents |
 
-That's the whole loop. Steps 2–3 are one-time; after that the addon's 30-minute
-cron keeps the hub current on its own. Step 5 needs the OASIS consoles running
-and reachable from your browser — see "OASIS inside Odoo" below.
+That's the whole loop. Steps 2–3 are one-time; after that the telemetry addon's
+30-minute cron keeps the hub current on its own. Step 5 needs a reachable OASIS
+for the Refresh button — see "OASIS inside Odoo" below.
 
 ---
 
@@ -55,7 +58,7 @@ docker compose -f docker-compose.odoo.yml up -d --build
 What happens:
 - `odoo-db` (Postgres) starts and passes its health check.
 - `odoo-init` (one-shot) creates the `oasis` database **with demo data** and
-  installs the `oasis_connector` addon, then exits.
+  installs the OASIS addons, then exits.
 - `odoo` serves on http://localhost:8069 with the connector installed.
 - `oasis-hub` builds from the slim `oasis_hub/Dockerfile` and serves on :8700.
 
@@ -102,7 +105,7 @@ unless revealed.
 
 ## Step 5 — OASIS inside Odoo (Transfers)
 
-The `oasis_connector` addon adds an **OASIS** app to Odoo's own app switcher,
+The `oasis_transfers` addon adds a **Transfers** section to the OASIS app,
 with **Transfers → Suggestions**. That is the whole app, deliberately.
 
 **The consoles are NOT embedded in Odoo, and must not be.** An earlier revision
@@ -133,40 +136,58 @@ to be reachable from the Odoo container — see `oasis.scan_url`.
 
 ## Addon test suite (runs inside Odoo)
 
-41 tests in `oasis_connector/tests/`, using Odoo's own framework. Everything
-else that exercises this addon drives it from OUTSIDE over XML-RPC against a
-depot that has to be seeded first, so none of it notices when an Odoo version
-bump changes a signature, renames a view attribute or tightens a constraint —
-the module just stops working for the next customer who upgrades.
+The addons carry their own tests, in Odoo's own framework. Everything else that
+exercises them drives from OUTSIDE over XML-RPC against a depot that has to be
+seeded first, so none of it notices when an Odoo version bump changes a
+signature, renames a view attribute or tightens a constraint — the module just
+stops working for the next customer who upgrades.
 
-Run them on a throwaway database, never on `oasis`:
-
-```bash
-docker exec oasis-odoo-odoo-1 odoo -i oasis_connector -d tmp_tests \
-  --db_host=odoo-db --db_user=odoo --db_password=odoo \
-  --stop-after-init --without-demo=all --no-http \
-  --test-enable --test-tags /oasis_connector --log-level=test
-```
-
-**Run it BOTH ways.** POS is optional, and the two configurations take
-different paths through the sync — with POS the customer-move exclusion is
-active, without it those moves are the only record of a sale:
+Run them on throwaway databases, never on `oasis`. **Test each module the way a
+customer will actually install it**, because that is the guarantee the split
+exists to provide:
 
 ```bash
-# the second configuration: add point_of_sale to -i
-docker exec oasis-odoo-odoo-1 odoo -i oasis_connector,point_of_sale -d tmp_tests_pos \
+# transfers on its own — no telemetry, no POS
+docker exec oasis-odoo-odoo-1 odoo -i oasis_transfers -d tmp_xfer \
   --db_host=odoo-db --db_user=odoo --db_password=odoo \
-  --stop-after-init --without-demo=all --no-http \
-  --test-enable --test-tags /oasis_connector --log-level=test
+  --stop-after-init --without-demo=all --no-http --test-enable \
+  --test-tags /oasis_connector,/oasis_transfers --log-level=test
 ```
 
-Each run reports `0 failed, 0 error(s) of 41 tests`. A handful skip in each
-direction by design — they are the complementary pair asserting the POS-present
-and POS-absent behaviour. Drop the databases afterwards.
+```bash
+# telemetry on its own
+docker exec oasis-odoo-odoo-1 odoo -i oasis_telemetry -d tmp_tele \
+  --db_host=odoo-db --db_user=odoo --db_password=odoo \
+  --stop-after-init --without-demo=all --no-http --test-enable \
+  --test-tags /oasis_connector,/oasis_telemetry --log-level=test
+```
 
-From Git Bash, prefix with `MSYS_NO_PATHCONV=1` or `/oasis_connector` is
-rewritten into a Windows path and **zero tests run while still reporting
-success** — the log says `0 failed ... of 0 tests`, which is easy to misread.
+```bash
+# everything together
+docker exec oasis-odoo-odoo-1 odoo -i oasis_connector,oasis_telemetry,oasis_transfers -d tmp_all \
+  --db_host=odoo-db --db_user=odoo --db_password=odoo \
+  --stop-after-init --without-demo=all --no-http --test-enable \
+  --test-tags /oasis_connector,/oasis_telemetry,/oasis_transfers --log-level=test
+```
+
+Current counts: base alone 7, transfers alone 52, telemetry alone 20, all three
+65 — `0 failed, 0 error(s)` in every combination. Some tests skip by design;
+they are complementary pairs asserting the with-sibling and without-sibling
+behaviour. Drop the databases afterwards.
+
+**Also run it with `point_of_sale` added**, for telemetry and for transfers.
+POS is optional and the two configurations take different paths through the
+sync: with POS the customer-move exclusion is active, without it those moves
+are the only record of a sale.
+
+**Adding a module means adding a mount** in `docker-compose.odoo.yml`. Odoo
+does not error on a module it cannot see — it is simply absent from the list,
+and `-i` silently installs nothing.
+
+From Git Bash, prefix with `MSYS_NO_PATHCONV=1` or a `--test-tags` value like
+`/oasis_transfers` is rewritten into a Windows path and **zero tests run while
+still reporting success** — the log says `0 failed ... of 0 tests`, which is
+easy to misread.
 
 ## Verify / troubleshoot
 
@@ -197,7 +218,7 @@ docker compose -f docker-compose.odoo.yml down -v    # stop, wipe data
 
 The demo uses one compose file and demo secrets. For a real deployment:
 
-1. **Real Odoo** — install `oasis_connector/` into the customer's Odoo `addons/`
+1. **Real Odoo** — install the OASIS addons into the customer's Odoo `addons/`
    (or submit it to the Odoo Apps store and install from there). No code change.
 2. **Real hub** — run the hub on its own host with **strong secrets**
    (`OASIS_LICENSE_SALT`, `OASIS_HUB_ADMIN_KEY`, `OASIS_HUB_TOKEN_SECRET`) and a

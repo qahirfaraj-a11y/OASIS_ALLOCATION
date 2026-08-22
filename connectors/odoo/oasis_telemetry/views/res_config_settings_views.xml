@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!--
+      Telemetry's own settings, placed INSIDE the base module's OASIS section
+      rather than in a second section of its own. A client with telemetry and
+      transfers installed sees one OASIS heading, not two competing ones.
+    -->
+    <record id="res_config_settings_view_form_oasis_telemetry" model="ir.ui.view">
+        <field name="name">res.config.settings.view.form.oasis.telemetry</field>
+        <field name="model">res.config.settings</field>
+        <field name="inherit_id"
+               ref="oasis_connector.res_config_settings_view_form_oasis"/>
+        <field name="arch" type="xml">
+            <xpath expr="//block[@name='oasis_settings_block']" position="inside">
+                <setting id="oasis_enable_setting"
+                         title="Nothing is sent until this is enabled.">
+                    <field name="oasis_enabled"/>
+                    <div class="text-muted">
+                        Stream opt-in stock movement to the OASIS Cloud Hub.
+                    </div>
+                </setting>
+                <setting string="Connection" company_dependent="1">
+                    <div class="content-group">
+                        <div class="mt16">
+                            <label for="oasis_hub_url" string="Hub URL"/>
+                            <field name="oasis_hub_url"
+                                   placeholder="https://hub.oasis-systems.example"/>
+                        </div>
+                        <div class="mt16">
+                            <label for="oasis_ingest_token" string="Store Ingest Token"/>
+                            <field name="oasis_ingest_token" password="True"/>
+                        </div>
+                        <div class="mt16">
+                            <label for="oasis_store_code" string="Store Code"/>
+                            <field name="oasis_store_code"/>
+                        </div>
+                    </div>
+                </setting>
+                <setting string="What to stream">
+                    <field name="oasis_send_sales"/>
+                    <label for="oasis_send_sales" string="Till sales"/><br/>
+                    <field name="oasis_send_receipts"/>
+                    <label for="oasis_send_receipts" string="Goods receipts"/><br/>
+                    <field name="oasis_send_on_hand"/>
+                    <label for="oasis_send_on_hand" string="Stock-on-hand snapshots"/>
+                </setting>
+                <setting string="Sync now">
+                    <button name="action_oasis_sync_now" type="object"
+                            string="Sync now" class="btn-primary"/>
+                </setting>
+            </xpath>
+        </field>
+    </record>
+</odoo>

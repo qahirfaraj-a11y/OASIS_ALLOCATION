@@ -22,7 +22,7 @@ import logging
 import xmlrpc.client
 from typing import Callable, List, Optional
 
-from connectors.odoo.oasis_connector import mapping, push_client
+from connectors.odoo.oasis_telemetry import mapping, push_client
 
 logger = logging.getLogger("OASIS.Connector.Odoo.XMLRPC")
 

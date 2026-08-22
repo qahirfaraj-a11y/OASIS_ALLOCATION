@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!--
+      Transfers hangs its own section under the base module's OASIS root, so a
+      client who bought only this module sees only this. Replenishment adds its
+      own alongside; neither knows about the other.
+    -->
+    <menuitem id="menu_oasis_transfers" name="Transfers"
+              parent="oasis_connector.menu_oasis_root" sequence="10"/>
+
+    <menuitem id="menu_oasis_transfer_suggestions" name="Suggestions"
+              parent="menu_oasis_transfers"
+              action="action_oasis_transfer_suggestion" sequence="10"/>
+</odoo>

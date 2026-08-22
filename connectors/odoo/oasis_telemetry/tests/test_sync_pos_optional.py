@@ -108,9 +108,36 @@ class TestReceiptDomainKeepsNullPickings(OasisCase):
                       "dotted-domain bug that zeroed all demand")
 
     def test_that_move_is_classified_as_a_sale(self):
-        from odoo.addons.oasis_connector import mapping
+        from odoo.addons.oasis_telemetry import mapping
         movement = mapping.map_stock_move(
             {"id": 1, "product_qty": 3.0, "date": "2026-01-01 00:00:00",
              "location_usage": "internal", "location_dest_usage": "customer"},
             {"default_code": "X", "display_name": "X"})
         self.assertEqual(movement["movement_type"], mapping.SALE)
+
+
+@tagged("post_install", "-at_install")
+class TestTelemetryStandsAlone(OasisCase):
+    """Telemetry is a separate purchase from transfers and replenishment."""
+
+    def _deps(self):
+        module = self.env["ir.module.module"].sudo().search(
+            [("name", "=", "oasis_telemetry")], limit=1)
+        self.assertTrue(module)
+        return set(module.dependencies_id.mapped("name"))
+
+    def test_it_needs_only_the_base_and_stock(self):
+        self.assertEqual(self._deps(), {"oasis_connector", "stock"})
+
+    def test_point_of_sale_is_not_a_hard_dependency(self):
+        """It was one purely so pos.order.line could be read, which locked out
+        every Odoo retailer not running Odoo POS."""
+        self.assertNotIn("point_of_sale", self._deps())
+
+    def test_it_does_not_need_the_transfer_module(self):
+        self.assertNotIn("oasis_transfers", self._deps())
+
+    def test_it_works_with_transfers_absent(self):
+        if "oasis.transfer.suggestion" in self.env:
+            self.skipTest("oasis_transfers is installed in this database")
+        self.assertEqual(self.env["oasis.sync"].run_sync(), {"skipped": True})

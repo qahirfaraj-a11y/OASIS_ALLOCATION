@@ -47,7 +47,14 @@ services:
       USER: odoo
       PASSWORD: odoo
     volumes:
+      # Every OASIS addon is mounted separately, and that is deliberate:
+      # mounting the whole connectors/odoo directory would put the build
+      # and analysis scripts on Odoo's addons path too. Adding a module
+      # means adding a line here, or Odoo simply never sees it — it does
+      # not error, the module is just absent from the list.
       - ./oasis_connector:/mnt/extra-addons/oasis_connector:ro
+      - ./oasis_telemetry:/mnt/extra-addons/oasis_telemetry:ro
+      - ./oasis_transfers:/mnt/extra-addons/oasis_transfers:ro
       - odoo-web-data:/var/lib/odoo
     command: >
       odoo -i oasis_connector -d oasis
@@ -67,7 +74,14 @@ services:
       USER: odoo
       PASSWORD: odoo
     volumes:
+      # Every OASIS addon is mounted separately, and that is deliberate:
+      # mounting the whole connectors/odoo directory would put the build
+      # and analysis scripts on Odoo's addons path too. Adding a module
+      # means adding a line here, or Odoo simply never sees it — it does
+      # not error, the module is just absent from the list.
       - ./oasis_connector:/mnt/extra-addons/oasis_connector:ro
+      - ./oasis_telemetry:/mnt/extra-addons/oasis_telemetry:ro
+      - ./oasis_transfers:/mnt/extra-addons/oasis_transfers:ro
       - odoo-web-data:/var/lib/odoo
     command: >
       odoo -d oasis

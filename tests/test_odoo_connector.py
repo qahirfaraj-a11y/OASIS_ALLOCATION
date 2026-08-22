@@ -15,11 +15,16 @@ import pytest
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
-from connectors.odoo.oasis_connector import mapping, push_client
+from connectors.odoo.oasis_telemetry import mapping, push_client
 from oasis_hub.schemas import MovementIn
 
-ADDON = os.path.join(os.path.dirname(__file__), '..', 'connectors', 'odoo',
-                     'oasis_connector')
+#: The OASIS addons are now three modules, not one, so each can be bought
+#: and installed on its own. Anything asserted about "the addon" has to say
+#: WHICH.
+_ODOO = os.path.join(os.path.dirname(__file__), '..', 'connectors', 'odoo')
+BASE = os.path.join(_ODOO, 'oasis_connector')
+TELEMETRY = os.path.join(_ODOO, 'oasis_telemetry')
+TRANSFERS = os.path.join(_ODOO, 'oasis_transfers')
 
 ADMIN_KEY = "test-admin-key"
 SALT = "test-license-salt"
@@ -165,29 +170,49 @@ def test_push_client_raises_on_permanent_rejection():
         c.push([{"x": 1}])
 
 
-# ── addon manifest sanity ────────────────────────────────────────────────
-def test_manifest_is_well_formed_and_data_files_exist():
-    with open(os.path.join(ADDON, "__manifest__.py"), encoding="utf-8") as f:
-        manifest = ast.literal_eval(f.read())
-    assert manifest["name"] and manifest["version"]
-    assert "stock" in manifest["depends"]
-    assert manifest["installable"] is True
-    for rel in manifest["data"]:
-        assert os.path.exists(os.path.join(ADDON, rel)), f"missing data file: {rel}"
+# ── addon manifest sanity, per module ────────────────────────────────────
+def _manifest(path):
+    with open(os.path.join(path, "__manifest__.py"), encoding="utf-8") as f:
+        return ast.literal_eval(f.read())
 
 
-def test_point_of_sale_is_not_a_hard_dependency():
-    """POS must stay OPTIONAL.
+@pytest.mark.parametrize("path", [BASE, TELEMETRY, TRANSFERS])
+def test_every_manifest_is_well_formed_and_its_data_files_exist(path):
+    m = _manifest(path)
+    assert m["name"] and m["version"] and m["license"]
+    assert m["installable"] is True
+    for rel in m.get("data", []):
+        assert os.path.exists(os.path.join(path, rel)),             f"{os.path.basename(path)}: missing data file {rel}"
 
-    It was a hard dependency purely so the telemetry sync could read
-    pos.order.line — which locked every Odoo retailer not running Odoo POS out
-    of installing a module whose headline feature is stock transfers. This test
-    used to assert the opposite. Sell-through survives without POS: every Odoo
-    sale depletes inventory through a customer-bound stock move.
+
+def test_the_modules_are_separable():
+    """The whole point of the split: a client buys transfers, or telemetry, or
+    replenishment, in any combination.
+
+    That guarantee only holds while no feature module depends on a sibling —
+    the kind of dependency that creeps in through a shared helper or a settings
+    field someone else declares.
     """
-    with open(os.path.join(ADDON, "__manifest__.py"), encoding="utf-8") as f:
-        manifest = ast.literal_eval(f.read())
-    assert "point_of_sale" not in manifest["depends"]
+    base, tele, xfer = _manifest(BASE), _manifest(TELEMETRY), _manifest(TRANSFERS)
+
+    # the base must stay a base: no stock, no purchase, no features
+    assert base["depends"] == ["base"],         f"the base module has grown a dependency: {base['depends']}"
+
+    # neither feature may require the other
+    assert "oasis_telemetry" not in xfer["depends"]
+    assert "oasis_transfers" not in tele["depends"]
+
+    # and each hangs off the base
+    for m in (tele, xfer):
+        assert "oasis_connector" in m["depends"]
+
+
+def test_point_of_sale_is_not_a_hard_dependency_anywhere():
+    """POS was a hard dependency purely so the telemetry sync could read
+    pos.order.line, which locked out every Odoo retailer not running Odoo POS.
+    It is detected at runtime instead."""
+    for path in (BASE, TELEMETRY, TRANSFERS):
+        assert "point_of_sale" not in _manifest(path)["depends"],             f"{os.path.basename(path)} hard-depends on POS again"
 
 
 def test_the_console_embed_is_gone():
@@ -198,38 +223,33 @@ def test_the_console_embed_is_gone():
     stayed callable over RPC by any internal user. Removing a menu hides an
     entrance; it does not close a door.
     """
-    with open(os.path.join(ADDON, "__manifest__.py"), encoding="utf-8") as f:
-        manifest = ast.literal_eval(f.read())
-    assert not manifest.get("assets"), "the embed asset bundle is back"
+    for path in (BASE, TELEMETRY, TRANSFERS):
+        assert not _manifest(path).get("assets"),             f"{os.path.basename(path)}: the embed asset bundle is back"
 
-    src = os.path.join(ADDON, "models", "oasis_sync.py")
+    src = os.path.join(TELEMETRY, "models", "oasis_sync.py")
     with open(src, encoding="utf-8") as f:
         tree = ast.parse(f.read())
     methods = {n.name for n in ast.walk(tree) if isinstance(n, ast.FunctionDef)}
     assert "open_console" not in methods
 
     for gone in ("static/src/js/oasis_embed.js", "static/src/xml/oasis_embed.xml"):
-        assert not os.path.exists(os.path.join(ADDON, gone)), f"{gone} is back"
+        assert not os.path.exists(os.path.join(BASE, gone)), f"{gone} is back"
 
 
-def test_multi_company_record_rule_ships():
+def test_multi_company_record_rule_ships_with_transfers():
     """ir.model.access says which GROUPS; only an ir.rule says which RECORDS.
 
     Without one, a stock user in company A saw and could approve company B's
     suggestions — and approving creates a document in a company they are not
     in. The addon shipped no ir.rule at all.
     """
-    path = os.path.join(ADDON, "security", "oasis_security.xml")
+    path = os.path.join(TRANSFERS, "security", "oasis_security.xml")
     assert os.path.exists(path), "no record-rule file ships"
     with open(path, encoding="utf-8") as f:
         xml = f.read()
-    assert "oasis.transfer.suggestion" not in xml or "model_oasis_transfer_suggestion" in xml
+    assert "model_oasis_transfer_suggestion" in xml
     assert "company_ids" in xml, "the rule does not scope by company"
-
-    with open(os.path.join(ADDON, "__manifest__.py"), encoding="utf-8") as f:
-        manifest = ast.literal_eval(f.read())
-    assert "security/oasis_security.xml" in manifest["data"], \
-        "the rule exists but is not loaded"
+    assert "security/oasis_security.xml" in _manifest(TRANSFERS)["data"],         "the rule exists but is not loaded"
 
 
 # ── TRUE end-to-end: Odoo record → mapping → push → hub → supplier ───────
