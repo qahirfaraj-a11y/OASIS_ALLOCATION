@@ -265,3 +265,75 @@ class TestM2TruncationIsAnnounced:
         assert not offenders, (
             "capped reads with unnamed limits: %s — name them on the class and "
             "pass them through _warn_if_truncated" % offenders)
+
+
+class TestPerStoreCadenceOutranksTheChain:
+    """sigma and the fill target follow the SITE's own rhythm where it has one.
+
+    A supplier delivering daily to the flagship and fortnightly to the
+    forecourt is one supplier with two rhythms, and the chain-wide blend
+    describes neither. Measured on a real Odoo: 7d chain-wide for a supplier
+    that runs 7d at one site and 14d at another, leaving the forecourt
+    under-protected by exactly a week.
+    """
+
+    CHAIN = {"acme": {"median_gap_days": 7, "estimated_delivery_days": 1,
+                      "lata_variance_multiplier": 1.0}}
+
+    def _svc(self, by_store):
+        return ConsolidatedTransferService(
+            org_names={"FLAG": "Flagship", "FC1": "Forecourt"}, stock_data={},
+            supplier_rhythm=self.CHAIN, supplier_rhythm_by_store=by_store,
+            dead_stock_config={"perishability_tiers": {}, "days_default": 45})
+
+    def _rec(self, gap, receipts, confidence="HIGH"):
+        return {"median_gap_days": gap, "estimated_delivery_days": 1,
+                "lata_variance_multiplier": 1.0, "receipt_count": receipts,
+                "confidence": confidence}
+
+    def _p(self):
+        return {"supplier_name": "Acme", "estimated_delivery_days": 1,
+                "department": "DRY GOODS"}
+
+    def test_each_site_gets_its_own_horizon(self):
+        svc = self._svc({"FLAG": {"acme": self._rec(2, 40)},
+                         "FC1": {"acme": self._rec(21, 12)}})
+        assert svc._relief_days("Acme", 1, "DRY GOODS", "FLAG") == 3.0   # 2 + 1
+        assert svc._relief_days("Acme", 1, "DRY GOODS", "FC1") == 22.0   # 21 + 1
+
+    def test_sigma_follows_the_site(self):
+        """The floor is the horizon, so protection differs by site too."""
+        svc = self._svc({"FLAG": {"acme": self._rec(2, 40)},
+                         "FC1": {"acme": self._rec(21, 12)}})
+        assert svc._safety_days("FLAG", self._p()) == 3.0
+        assert svc._safety_days("FC1", self._p()) == 22.0
+
+    def test_a_site_with_no_rhythm_uses_the_chain(self):
+        svc = self._svc({"FLAG": {"acme": self._rec(2, 40)}})
+        assert svc._relief_days("Acme", 1, "DRY GOODS", "FC1") == 8.0    # 7 + 1
+
+    def test_no_org_at_all_still_uses_the_chain(self):
+        svc = self._svc({"FLAG": {"acme": self._rec(2, 40)}})
+        assert svc._relief_days("Acme", 1, "DRY GOODS") == 8.0
+
+    def test_a_thinly_evidenced_site_does_NOT_overrule_the_chain(self):
+        """Three receipts is an anecdote. The chain figure is drawn from every
+        site and is the better estimate until the site can out-evidence it."""
+        svc = self._svc({"FC1": {"acme": self._rec(21, 3, confidence="LOW")}})
+        assert svc._relief_days("Acme", 1, "DRY GOODS", "FC1") == 8.0
+
+    def test_shelf_life_still_caps_a_per_store_horizon(self):
+        """A site cadence cannot ask a store to hold more cover than the goods
+        survive — AMIT's ceiling applies to the local figure too."""
+        svc = ConsolidatedTransferService(
+            org_names={"FC1": "F"}, stock_data={}, supplier_rhythm=self.CHAIN,
+            supplier_rhythm_by_store={"FC1": {"acme": self._rec(21, 12)}},
+            dead_stock_config={"perishability_tiers": {"FRESH MILK": 4.0},
+                               "days_default": 45})
+        assert svc._relief_days("Acme", 1, "FRESH MILK", "FC1") == 4.0
+
+    def test_absent_per_store_data_changes_nothing(self):
+        """The common case: an install whose receipts carry no supplier."""
+        svc = self._svc({})
+        assert svc._relief_days("Acme", 1, "DRY GOODS", "FC1") == 8.0
+        assert svc._safety_days("FC1", self._p()) == 8.0

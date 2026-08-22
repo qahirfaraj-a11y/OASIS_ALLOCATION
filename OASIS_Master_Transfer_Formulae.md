@@ -187,9 +187,28 @@ $$
 > "protected identically"; they are protected to the same depth, which is
 > correct, and to different volumes, which is also correct.
 >
-> Remaining gap: `_relief_days` keys on **supplier only**, so a site that is
-> genuinely served on a different cadence from its siblings is not yet
-> distinguished. That needs GRN history per store, not per supplier.
+> **$R$ is now measured per site where the site has earned it.** A supplier's
+> cadence is a property of the LINE, but not only of the line: the same
+> supplier can serve the flagship daily and the forecourt fortnightly, and the
+> chain-wide blend describes neither. Measured on a real Odoo — 7d chain-wide
+> for a supplier running 7d at one site and 14d at another, leaving the
+> forecourt under-protected by exactly a week.
+>
+> $$R_{s,i} = \begin{cases}
+> R^{\text{site}}_{s,i} & \text{the site has} \ge 6 \text{ receipts of its own}\\
+> R^{\text{chain}}_{i} & \text{otherwise}
+> \end{cases}$$
+>
+> The evidence gate is not a formality. A site with three receipts knows less
+> about its own cadence than the chain does — the chain figure is drawn from
+> every site — so it does not get to overrule it. AMIT's shelf life caps the
+> local figure exactly as it caps the chain one: a site cadence can never ask a
+> store to hold more cover than the goods survive.
+>
+> Sourced by `--mode odoo-rhythm` from the client's own goods receipts, which
+> Odoo scopes by warehouse, so the per-store form costs nothing extra to
+> measure. An install whose receipts carry no supplier produces neither form,
+> and the fixed fallbacks apply — loudly.
 
 **Dead** (J2 donor) — zero demand, sustained, and worth a lorry:
 $$

@@ -223,3 +223,48 @@ class TestTheOutputFeedsTheEngine:
         flat = " ".join(text.split())
         assert "purchase orders so they carry a supplier" in flat
         text.encode("cp1252")          # a customer's Windows console
+
+
+class TestTheDerivedPerStoreFileReachesTheEngine:
+    """The loader path, end to end: Odoo -> file -> engine horizon.
+
+    The unit tests for the engine inject the per-store dict directly, so they
+    would pass even if nothing ever read supplier_patterns_by_store.json off
+    disk. This walks the whole path the way a customer install does.
+    """
+
+    def test_a_derived_per_store_cadence_changes_that_stores_horizon(self, tmp_path):
+        from oasis.logic.consolidated_transfer_service import (
+            ConsolidatedTransferService as CTS)
+
+        # one supplier, daily into A1 and fortnightly into B2
+        picks = (_picks("Split Co", 1, 14, warehouse_type=1)
+                 + _picks("Split Co", 14, 8, warehouse_type=2))
+        r = derive(adapter=FakeOdoo(picks), data_dir=str(tmp_path), write=True)
+        assert not r["refused"]
+        assert (tmp_path / PER_STORE_FILE).exists()
+
+        # constructed exactly as the Odoo scripts do: from data_dir alone
+        svc = CTS(org_names={"A1": "Alpha", "B2": "Beta"}, stock_data={},
+                  data_dir=str(tmp_path))
+        assert svc.supplier_rhythm_by_store, "the per-store file was not loaded"
+
+        a1 = svc._relief_days("Split Co", 0, "DRY GOODS", "A1")
+        b2 = svc._relief_days("Split Co", 0, "DRY GOODS", "B2")
+        assert a1 is not None and b2 is not None
+        assert b2 > a1, (
+            f"the fortnightly site got no longer a horizon than the daily one "
+            f"({b2} vs {a1}) — per-store cadence is not reaching the engine")
+
+    def test_sigma_differs_by_site_through_the_same_path(self, tmp_path):
+        from oasis.logic.consolidated_transfer_service import (
+            ConsolidatedTransferService as CTS)
+
+        picks = (_picks("Split Co", 1, 14, warehouse_type=1)
+                 + _picks("Split Co", 14, 8, warehouse_type=2))
+        derive(adapter=FakeOdoo(picks), data_dir=str(tmp_path), write=True)
+        svc = CTS(org_names={"A1": "A", "B2": "B"}, stock_data={},
+                  data_dir=str(tmp_path))
+        product = {"supplier_name": "Split Co", "estimated_delivery_days": 0,
+                   "department": "DRY GOODS"}
+        assert svc._safety_days("B2", product) > svc._safety_days("A1", product)

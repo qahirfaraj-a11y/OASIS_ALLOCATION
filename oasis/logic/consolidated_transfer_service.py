@@ -123,6 +123,40 @@ def load_supplier_rhythm(data_dir: str) -> Dict[str, dict]:
     return out
 
 
+def load_supplier_rhythm_by_store(data_dir: str) -> Dict[str, Dict[str, dict]]:
+    """store -> supplier (lowercased) -> that supplier's rhythm AT THAT STORE.
+
+    Written by ``odoo_supplier_rhythm`` from the client's own goods receipts.
+    Odoo scopes receipts by warehouse, so the same read that measures a
+    supplier's cadence across the chain also measures it per site — and a
+    supplier delivering daily to the flagship and fortnightly to the forecourt
+    is one supplier with two rhythms. The chain-wide blend describes neither.
+
+    Missing file is not fatal and not unusual: an install whose receipts carry
+    no supplier cannot produce it, and the chain-wide figure is then the only
+    honest answer available.
+    """
+    import json
+    import os
+    out: Dict[str, Dict[str, dict]] = {}
+    path = os.path.join(data_dir or "", "supplier_patterns_by_store.json")
+    if not os.path.exists(path):
+        return out
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            raw = json.load(f)
+    except Exception as e:
+        logger.warning("per-store supplier rhythm unreadable (%s)", str(e)[:120])
+        return out
+    for store, suppliers in (raw or {}).items():
+        if not isinstance(suppliers, dict):
+            continue
+        out[str(store).strip()] = {
+            str(name).strip().lower(): rec
+            for name, rec in suppliers.items() if isinstance(rec, dict)}
+    return out
+
+
 def load_dead_stock_config(data_dir: str) -> Dict[str, Any]:
     """AMIT's dead-stock thresholds — category tiers, default days, capital floor."""
     try:
@@ -163,6 +197,7 @@ class ConsolidatedTransferService:
                  next_delivery_days: Optional[Dict[str, float]] = None,
                  safety_days_by_org: Optional[Dict[str, float]] = None,
                  supplier_rhythm: Optional[Dict[str, dict]] = None,
+                 supplier_rhythm_by_store: Optional[Dict[str, Dict[str, dict]]] = None,
                  dead_stock_config: Optional[Dict[str, Any]] = None,
                  data_dir: Optional[str] = None,
                  settings: Optional[Dict[str, Any]] = None,
@@ -242,6 +277,12 @@ class ConsolidatedTransferService:
         if supplier_rhythm is None and data_dir:
             supplier_rhythm = load_supplier_rhythm(data_dir)
         self.supplier_rhythm = supplier_rhythm or {}
+        #: store -> supplier -> rhythm AT THAT STORE. Preferred over the
+        #: chain-wide figure where the site has enough evidence of its own;
+        #: see _relief_days for why "enough" is a real gate and not a formality.
+        if supplier_rhythm_by_store is None and data_dir:
+            supplier_rhythm_by_store = load_supplier_rhythm_by_store(data_dir)
+        self.supplier_rhythm_by_store = supplier_rhythm_by_store or {}
         if dead_stock_config is None and data_dir:
             dead_stock_config = load_dead_stock_config(data_dir)
         dsc = dead_stock_config or {}
@@ -369,7 +410,7 @@ class ConsolidatedTransferService:
                 str(product.get('supplier_name', product.get('supplier', '')) or ''),
                 float(product.get('estimated_delivery_days',
                                   product.get('lead_days', 0)) or 0),
-                dept)
+                dept, org_cd)
             if relief is not None:
                 return float(relief)
 
@@ -502,8 +543,30 @@ class ConsolidatedTransferService:
         return float(self._perishability.get(str(department or "").upper(),
                                              self._dead_days_default))
 
+    #: Receipts a SITE must have of its own before its cadence outranks the
+    #: chain's. A store with three deliveries has an anecdote; the chain-wide
+    #: figure is drawn from every site and is the better estimate until the
+    #: site can out-evidence it. Matches MIN_RECEIPTS_FOR_CONFIDENCE in
+    #: odoo_supplier_rhythm, which is what stamps the record HIGH.
+    MIN_STORE_RECEIPTS_FOR_LOCAL_RHYTHM = 6
+
+    def _store_rhythm(self, org_cd: str, supplier: str) -> Optional[dict]:
+        """This supplier's rhythm AT THIS STORE, if the site has earned one."""
+        if not (org_cd and supplier):
+            return None
+        rec = (self.supplier_rhythm_by_store.get(str(org_cd).strip(), {})
+               .get(str(supplier).strip().lower()))
+        if not rec:
+            return None
+        seen = int(rec.get("receipt_count") or 0)
+        if (rec.get("confidence") == "HIGH"
+                or seen >= self.MIN_STORE_RECEIPTS_FOR_LOCAL_RHYTHM):
+            return rec
+        return None
+
     def _relief_days(self, supplier: str, lead_days: float,
-                     department: str = "") -> Optional[float]:
+                     department: str = "",
+                     org_cd: Optional[str] = None) -> Optional[float]:
         """Days until replenishment actually LANDS, or None if unknown.
 
         This is the horizon every number in the PULL pass is measured against: a
@@ -542,7 +605,18 @@ class ConsolidatedTransferService:
             if department else self.MAX_RELIEF_DAYS
 
         key = (supplier or "").strip().lower()
-        r = self.supplier_rhythm.get(key)
+        # THE SITE'S OWN CADENCE WINS WHERE IT HAS EARNED THE RIGHT.
+        #
+        # A supplier delivering daily to the flagship and fortnightly to the
+        # forecourt is one supplier with two rhythms, and the chain-wide blend
+        # describes neither — measured on a real instance, 7d chain-wide for a
+        # supplier that is 7d at one site and 14d at another, leaving the
+        # forecourt under-protected by exactly a week.
+        #
+        # Gated on evidence rather than mere presence: a site with three
+        # receipts knows less about its own cadence than the chain does, so it
+        # does not get to overrule it.
+        r = self._store_rhythm(org_cd, supplier) or self.supplier_rhythm.get(key)
         if r:
             gap = float(r.get("median_gap_days") or r.get("avg_gap_days") or 0)
             lead = float(r.get("estimated_delivery_days") or lead_days or 0)
@@ -562,7 +636,8 @@ class ConsolidatedTransferService:
         return None
 
     def _target_cover(self, supplier: str, lead_days: float,
-                      department: str = "") -> float:
+                      department: str = "",
+                      org_cd: Optional[str] = None) -> float:
         """Days of cover a transfer should restore: exactly enough to reach relief.
 
         A TRANSFER PLUGS A GAP. It is not a replenishment, so the target is the
@@ -577,7 +652,7 @@ class ConsolidatedTransferService:
         stock out. The 14 survives only as the fallback for a supplier LATA has
         never seen.
         """
-        relief = self._relief_days(supplier, lead_days, department)
+        relief = self._relief_days(supplier, lead_days, department, org_cd)
         return relief if relief is not None else self.target_cover_days
 
     def _target_units(self, entry: dict) -> float:
@@ -596,7 +671,8 @@ class ConsolidatedTransferService:
         if horizon is None:
             horizon = self._target_cover(entry.get('supplier', ''),
                                          entry.get('lead_days', 0.0),
-                                         entry.get('department', ''))
+                                         entry.get('department', ''),
+                                         entry.get('org_cd'))
         return ads * float(horizon)
 
     @staticmethod
@@ -817,7 +893,8 @@ class ConsolidatedTransferService:
                 # flat figure is only the fallback for suppliers LATA cannot
                 # speak for.
                 relief = self._relief_days(entry['supplier'], entry['lead_days'],
-                                           entry['department'])
+                                           entry['department'],
+                                           entry.get('org_cd'))
                 trigger_days = relief if relief is not None else pull_deficit_days
                 # Only a DERIVED horizon is recorded on the entry. The trigger
                 # and the target have different fallbacks on purpose — a store
