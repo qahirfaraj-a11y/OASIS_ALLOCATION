@@ -162,6 +162,7 @@
         <field name="to_warehouse_id"/>
         <filter name="f_new" string="To review" domain="[('state','=','new')]"/>
         <filter name="f_approved" string="Approved" domain="[('state','=','approved')]"/>
+        <filter name="f_done" string="Completed" domain="[('state','=','done')]"/>
         <filter name="f_rejected" string="Rejected" domain="[('state','=','rejected')]"/>
         <separator/>
         <filter name="f_pull" string="Plug a gap" domain="[('kind','=','pull')]"/>

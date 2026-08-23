@@ -116,8 +116,19 @@ class OasisTransferSuggestion(models.Model):
 
     # ── lifecycle ─────────────────────────────────────────────────────────
     state = fields.Selection(
+        #: DONE is a real state, not an inference.
+        #:
+        #: A completed transfer used to sit on `approved` for ever. It left the
+        #: operator's view only because the default filter is state=new, so it
+        #: had no ending — merely a hiding place — and "has this been done?"
+        #: could only be answered by reading picking_state, a related field
+        #: that goes blank the moment somebody deletes the picking.
+        #:
+        #: Keeping the row is deliberate: it is the record of what OASIS
+        #: proposed, who approved it and that the goods actually landed. That
+        #: is the audit trail the review queue is worth having.
         [("new", "To review"), ("approved", "Approved"),
-         ("rejected", "Rejected")],
+         ("done", "Completed"), ("rejected", "Rejected")],
         default="new", required=True, index=True)
     picking_id = fields.Many2one("stock.picking", "Transfer", readonly=True,
                                  help="The draft transfer this suggestion became.")
@@ -279,6 +290,20 @@ class OasisTransferSuggestion(models.Model):
             "domain": [("id", "in", made.ids)],
         }
 
+    def _mark_completed(self):
+        """The goods landed, so the suggestion is finished rather than pending.
+
+        Mirrors _release_from_dead_picking: a picking that dies sends its
+        suggestion back to the queue, and a picking that completes closes it.
+        Between them the row always says something true about the movement.
+        """
+        live = self.filtered(lambda r: r.state == "approved")
+        if not live:
+            return
+        live.write({"state": "done"})
+        _logger.info("OASIS: %d suggestion(s) completed — the goods landed",
+                     len(live))
+
     def _release_from_dead_picking(self, reason):
         """The document died; the suggestion must stop claiming it is handled.
 
@@ -306,8 +331,19 @@ class OasisTransferSuggestion(models.Model):
         self.filtered(lambda r: r.state == "new").write({"state": "rejected"})
 
     def action_reset(self):
-        """Put a rejected suggestion back in the queue. Approved ones keep their
-        document — undoing that means cancelling the picking in Odoo."""
+        """Put a rejected suggestion back in the queue.
+
+        Approved ones keep their document — undoing that means cancelling the
+        picking in Odoo, which sends the suggestion back here by itself.
+        COMPLETED ones cannot be reset at all: the stock has physically moved,
+        and re-queueing the line would propose the movement a second time.
+        """
+        done = self.filtered(lambda r: r.state == "done")
+        if done:
+            raise UserError(_(
+                "%d of these have already been received. The stock has moved, "
+                "so there is nothing to put back on the queue — re-proposing "
+                "the line would move it twice.") % len(done))
         stuck = self.filtered(lambda r: r.state == "approved")
         if stuck:
             raise UserError(_(

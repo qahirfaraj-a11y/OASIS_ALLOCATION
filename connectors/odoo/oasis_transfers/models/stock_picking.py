@@ -31,6 +31,14 @@ class StockPicking(models.Model):
             _("the transfer was cancelled in Inventory"))
         return res
 
+    def _action_done(self):
+        """Validating the transfer closes the suggestion that proposed it."""
+        res = super()._action_done()
+        # after super(), because a validation Odoo refuses must leave the
+        # suggestion exactly as it was
+        self._oasis_suggestions()._mark_completed()
+        return res
+
     def unlink(self):
         # Before the delete, because picking_id is `set null` on unlink — once
         # the rows are gone the link is gone with them and there is nothing
