@@ -32,8 +32,19 @@ from oasis.logic.db_connector import (
 TEST_DB_PATH = os.path.join(os.path.dirname(__file__), "test_phase1.db")
 
 # Seed password injected via env — credentials are no longer hardcoded in source.
-TEST_SEED_PASSWORD = "test-seed-password"
-os.environ.setdefault("OASIS_SEED_PASSWORD", TEST_SEED_PASSWORD)
+#
+# TAKE BACK WHAT setdefault ACTUALLY SET. It is a no-op when the variable
+# already exists, so writing the literal here and then authenticating with it
+# is only correct in an environment that does not define one. CI does define
+# one (OASIS_SEED_PASSWORD=ci-test-password), so the database was seeded with
+# CI's value while every test below signed in with this file's — and the whole
+# suite stopped on "invalid password for 'ops_admin'" while passing locally.
+#
+# setdefault returns the EFFECTIVE value, which is the one the seeder used.
+# Same shape as test_bridge_api.py, which reads api_security._API_KEY back
+# rather than trusting its own literal.
+TEST_SEED_PASSWORD = os.environ.setdefault("OASIS_SEED_PASSWORD",
+                                           "test-seed-password")
 
 
 @pytest.fixture(scope="module")
