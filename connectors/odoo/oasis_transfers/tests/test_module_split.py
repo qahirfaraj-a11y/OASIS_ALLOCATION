@@ -9,6 +9,8 @@ someone else declares, or a menu that assumes a sibling's parent exists.
 
 from odoo.tests.common import tagged
 
+from odoo.tools.safe_eval import safe_eval
+
 from .common import OasisCase
 
 
@@ -73,6 +75,36 @@ class TestTransfersMenuAndSecurity(OasisCase):
         root = self.env.ref("oasis_connector.menu_oasis_root")
         section = self.env.ref("oasis_transfers.menu_oasis_transfers")
         self.assertEqual(section.parent_id, root)
+
+    def test_completed_work_has_its_own_place(self):
+        """Not a filter somebody has to know to apply.
+
+        Mixing finished work into a list whose job is "what needs deciding
+        today" is how a queue stops being read.
+        """
+        menu = self.env.ref("oasis_transfers.menu_oasis_transfer_completed")
+        self.assertEqual(menu.parent_id,
+                         self.env.ref("oasis_transfers.menu_oasis_transfers"))
+        action = self.env.ref("oasis_transfers.action_oasis_transfer_completed")
+        self.assertIn("'done'", action.domain,
+                      "the Completed area does not filter to completed rows")
+
+    def test_the_completed_area_shows_completed_work_and_nothing_else(self):
+        self._stock(self.product, self.wh_a, 100.0)
+        pending = self._suggest(qty=2)
+        finished = self._suggest(qty=3)
+        finished.action_approve()
+        p = finished.picking_id
+        p.action_confirm()
+        p.action_assign()
+        for ml in p.move_ids.move_line_ids:
+            ml.qty_done = ml.reserved_uom_qty or 3
+        p._action_done()
+
+        action = self.env.ref("oasis_transfers.action_oasis_transfer_completed")
+        shown = self.Suggestion.search(safe_eval(action.domain))
+        self.assertIn(finished, shown)
+        self.assertNotIn(pending, shown, "a pending row reached the archive")
 
     def test_the_menu_points_only_at_the_review_queue(self):
         root = self.env.ref("oasis_connector.menu_oasis_root")

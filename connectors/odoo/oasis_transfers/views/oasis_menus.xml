@@ -11,4 +11,9 @@
     <menuitem id="menu_oasis_transfer_suggestions" name="Suggestions"
               parent="menu_oasis_transfers"
               action="action_oasis_transfer_suggestion" sequence="10"/>
+
+    <!-- Finished work, kept for audit, out of the way of today's decisions. -->
+    <menuitem id="menu_oasis_transfer_completed" name="Completed"
+              parent="menu_oasis_transfers"
+              action="action_oasis_transfer_completed" sequence="20"/>
 </odoo>

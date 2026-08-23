@@ -184,6 +184,32 @@
     </field>
   </record>
 
+  <!--
+    COMPLETED IS ITS OWN PLACE, not a filter somebody has to know to apply.
+
+    A received transfer leaves the review queue, and the record of it is worth
+    keeping: what OASIS proposed, who approved it, and that the goods actually
+    landed. That is the audit trail the review queue is worth having — but it
+    belongs somewhere separate, because mixing finished work into a list whose
+    job is "what needs deciding today" is how a queue stops being read.
+  -->
+  <record id="action_oasis_transfer_completed" model="ir.actions.act_window">
+    <field name="name">Completed transfers</field>
+    <field name="res_model">oasis.transfer.suggestion</field>
+    <field name="view_mode">tree,form,pivot,graph</field>
+    <field name="domain">[('state','=','done')]</field>
+    <field name="context">{'create': False}</field>
+    <field name="help" type="html">
+      <p class="o_view_nocontent_smiling_face">Nothing completed yet.</p>
+      <p>
+        A suggestion lands here once its transfer has been validated in
+        Inventory and the stock has physically moved. Each row keeps the
+        reasoning it was approved on, so a month later you can still see why
+        the movement was made and what it was worth.
+      </p>
+    </field>
+  </record>
+
   <record id="action_oasis_transfer_suggestion" model="ir.actions.act_window">
     <field name="name">Transfer suggestions</field>
     <field name="res_model">oasis.transfer.suggestion</field>
