@@ -112,19 +112,19 @@ class TestTheDonorAlarmIsTrustworthy:
     """The one number that would make a chain stop trusting the queue.
 
     The first version parsed the warehouse code out of a DISPLAY LABEL that had
-    already been truncated to 28 characters, so "Chandarana Diamond Plaza
-    (CFP-009)" became "CF", the site lookup missed, the adapter fell back to
+    already been truncated to 28 characters, so "Meridian Fresh Northgate
+    (NGATE-009)" became "NG", the site lookup missed, the adapter fell back to
     company-wide stock, and the scorecard raised a donor alarm that was not
     real.
     """
 
     def test_the_site_is_looked_up_by_code_not_parsed_from_a_label(self):
-        long_name = "Chandarana Diamond Plaza Extremely Long Site Name"
-        rows = [_row("done", frm=(2, f"{long_name} (CFP-009)"))]
-        fake = FakeOdoo(rows, warehouses=[{"id": 2, "code": "CFP-009",
+        long_name = "Meridian Fresh Northgate Extremely Long Site Name"
+        rows = [_row("done", frm=(2, f"{long_name} (NGATE-009)"))]
+        fake = FakeOdoo(rows, warehouses=[{"id": 2, "code": "NGATE-009",
                                            "name": long_name}])
         collect(adapter=fake)
-        assert fake.sites_read == ["CFP-009"], (
+        assert fake.sites_read == ["NGATE-009"], (
             f"read stock for {fake.sites_read} — a truncated label, not the code")
 
     def test_a_donor_still_above_its_floor_raises_nothing(self):

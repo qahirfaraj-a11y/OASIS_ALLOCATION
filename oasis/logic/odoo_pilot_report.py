@@ -126,7 +126,7 @@ def _donors_left_short(a, done_rows) -> List[dict]:
     #
     # The first version took from_warehouse_id's label, truncated it to 28
     # characters for the report, and then split on "(" to recover the code —
-    # so "Chandarana Diamond Plaza (CFP-009)" became "CF", the site lookup
+    # so "Meridian Fresh Northgate (NGATE-009)" became "NG", the site lookup
     # missed, and the adapter fell back to COMPANY-WIDE stock. The floor was
     # then compared against the wrong scope and the scorecard raised a donor
     # alarm that was not real. A false alarm here is worse than none: it is
