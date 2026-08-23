@@ -289,6 +289,50 @@ class OdooAdapter(_contract.ErpAdapter):
     PRODUCT_LOOKUP_LIMIT = 100000
     TRANSFER_PRODUCT_LOOKUP_LIMIT = 10000
 
+    #: Rows per request when reading a large set in pages, and the ceiling on
+    #: how many pages are worth taking. 5,000 x 200 = a million rows, which is
+    #: an order of magnitude past any read here, so the ceiling exists to stop
+    #: a runaway loop rather than to bound normal work.
+    PAGE_SIZE = 5000
+    MAX_PAGES = 200
+
+    def _read_paged(self, model: str, domain: list, fields: list,
+                    order: str = "id", what: str = "", org_cd=None,
+                    consequence: str = "") -> list:
+        """Read a whole set in pages instead of one capped request.
+
+        WHY NOT JUST RAISE THE CAP, OR AGGREGATE SERVER-SIDE
+        ---------------------------------------------------
+        Both were tried. A single unbounded request is what killed the worker
+        during the connector sync — 240,966 moves in one pass — and the same
+        thing happens with ``read_group``: asking Odoo to aggregate the whole
+        move table over XML-RPC took the container down mid-call and left the
+        database exited. Server-side aggregation is not free; it just moves the
+        cost somewhere the client cannot see it fail.
+
+        Paging keeps every request small and bounded, which is the property
+        that matters: one page is one modest query, and a slow instance
+        degrades instead of dying.
+
+        ORDERED BY id, ALWAYS. Paging over an unstable order silently skips and
+        duplicates rows as the underlying set shifts between requests — worse
+        than truncation, because the total still looks plausible.
+        """
+        out: list = []
+        for page in range(self.MAX_PAGES):
+            got = self._ex(model, "search_read", [domain],
+                           {"fields": fields, "limit": self.PAGE_SIZE,
+                            "offset": page * self.PAGE_SIZE,
+                            "order": order}) or []
+            out.extend(got)
+            if len(got) < self.PAGE_SIZE:
+                return out
+        logger.warning(
+            "%s hit the paging ceiling at %s rows for site %r. %s",
+            what or model, f"{len(out):,}", org_cd or "company-wide",
+            consequence or "Results are incomplete.")
+        return out
+
     def _warn_if_truncated(self, rows, limit: int, what: str,
                            org_cd: Optional[str] = None,
                            consequence: str = "") -> bool:
@@ -439,14 +483,15 @@ class OdooAdapter(_contract.ErpAdapter):
                     logger.debug("no pos_order_id on stock.picking; counting "
                                  "customer moves unfiltered")
 
-            moves = self._ex("stock.move", "search_read", [dom],
-                             {"fields": ["product_id", "product_uom_qty"],
-                              "limit": self.SALES_MOVE_READ_LIMIT}) or []
-            self._warn_if_truncated(
-                moves, self.SALES_MOVE_READ_LIMIT, "outgoing customer moves",
-                org_cd,
-                "ADS is UNDERSTATED for this site — every horizon, reorder "
-                "point and transfer quantity derives from it.")
+            # PAGED, not capped. ADS derives from this and every horizon
+            # derives from ADS, so a silent truncation understates demand
+            # across the whole plan. The busiest depot site was already at 80%
+            # of the old 200,000 cap.
+            moves = self._read_paged(
+                "stock.move", dom, ["product_id", "product_uom_qty"],
+                what="outgoing customer moves", org_cd=org_cd,
+                consequence="ADS is UNDERSTATED for this site — every horizon, "
+                            "reorder point and transfer quantity derives from it.")
             for m in moves:
                 pid = _id_of(m.get("product_id"))
                 if pid is None:
@@ -968,19 +1013,18 @@ class OdooAdapter(_contract.ErpAdapter):
             dom += ["|", ["location_id", "child_of", root],
                     ["location_dest_id", "child_of", root]]
         try:
-            picks = self._ex("stock.picking", "search_read", [dom],
-                             {"fields": ["name", "state", "priority", "origin",
-                                         "location_id", "location_dest_id",
-                                         "create_date", "date_done", "create_uid",
-                                         "move_ids"],
-                              "order": "create_date desc",
-                              "limit": self.TRANSFER_READ_LIMIT}) or []
-            self._warn_if_truncated(
-                picks, self.TRANSFER_READ_LIMIT, "open internal transfers",
-                org_cd,
-                "Transfers beyond the cap are INVISIBLE as stock in flight, so "
-                "the scan may re-propose a movement already queued — approve "
-                "both and the shop ships twice.")
+            # PAGED. Truncation here is the H2 defect returning: stock already
+            # on a lorry becomes invisible, the scan re-proposes it, and
+            # approving both ships twice.
+            picks = self._read_paged(
+                "stock.picking", dom,
+                ["name", "state", "priority", "origin", "location_id",
+                 "location_dest_id", "create_date", "date_done", "create_uid",
+                 "move_ids"],
+                what="open internal transfers", org_cd=org_cd,
+                consequence="Transfers past the ceiling are INVISIBLE as stock "
+                            "in flight, so the scan may re-propose a movement "
+                            "already queued.")
         except Exception as e:
             logger.error("fetch_transfers failed: %s", str(e)[:140])
             return empty
@@ -1236,14 +1280,14 @@ class OdooAdapter(_contract.ErpAdapter):
         try:
             dom = [["order_id.state", "in", ["draft", "sent", "purchase"]]]
             dom += self._po_site_domain(org_cd)
-            rows = self._ex("purchase.order.line", "search_read", [dom],
-                            {"fields": ["product_id", "product_qty", "qty_received"],
-                             "limit": self.PENDING_PO_SKU_READ_LIMIT}) or []
-            self._warn_if_truncated(
-                rows, self.PENDING_PO_SKU_READ_LIMIT,
-                "open purchase order lines by SKU", org_cd,
-                "on_order_qty reads LOW, so inbound stock is invisible to "
-                "ordering and to the transfer scan.")
+            # PAGED. A short read makes a store with stock already on order
+            # look empty, so it is ordered for or transferred to twice.
+            rows = self._read_paged(
+                "purchase.order.line", dom,
+                ["product_id", "product_qty", "qty_received"],
+                what="open purchase order lines by SKU", org_cd=org_cd,
+                consequence="on_order_qty reads LOW, so inbound stock is "
+                            "invisible to ordering and to the transfer scan.")
         except Exception:
             return out
         pids = [_id_of(r.get("product_id")) for r in rows if r.get("product_id")]

@@ -609,7 +609,11 @@ def render_transfers(ctx) -> None:
                 if adapter.push_transfer_request(o.from_org, o.to_org, [{
                     "item_code": o.itm_cd, "product_name": o.product_name,
                     "transfer_qty": o.transfer_qty, "transfer_value": o.value_kes,
-                    "urgency": "HIGH" if o.recipient_days_cover <= 1 else "MEDIUM",
+                    # cover is None where the recipient has no measured demand;
+                    # that is not urgent, it is unmeasurable, so it is MEDIUM
+                    "urgency": ("HIGH" if (o.recipient_days_cover is not None
+                                           and o.recipient_days_cover <= 1)
+                                else "MEDIUM"),
                 }]):
                     queued += 1
             except Exception:

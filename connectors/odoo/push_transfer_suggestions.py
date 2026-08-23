@@ -54,15 +54,20 @@ def reason_for(o, relief=None):
     what it costs to ignore. So it names the horizon, both positions, and the
     consequence — never 'risk_kes' or 'RELEASE_FRACTION'.
     """
-    # 999 is the engine's sentinel for "no demand at all" — never show it to an
-    # operator, who would read it as a real 999-day cover figure.
+    # Cover is None where nothing sells — the engine no longer emits a 999
+    # sentinel, so there is no magic number left to guard against here. An
+    # operator must never be shown either form as if it were a measurement.
     def position(days):
-        return ("is not selling it at all" if days >= 900
+        return ("is not selling it at all" if days is None
                 else f"has {days:.0f} days of cover")
 
     if o.type == "PULL":
-        head = (f"{o.to_org} runs out in about {o.recipient_days_cover:.0f} day"
-                f"{'s' if round(o.recipient_days_cover) != 1 else ''}")
+        cover = o.recipient_days_cover
+        if cover is None:
+            head = f"{o.to_org} has none of this line and no measured demand"
+        else:
+            head = (f"{o.to_org} runs out in about {cover:.0f} day"
+                    f"{'s' if round(cover) != 1 else ''}")
         if relief:
             head += f", before its next delivery is due in {relief:.0f}"
         body = (f". {o.from_org} is holding {o.donor_excess:.0f} spare and "
@@ -71,7 +76,7 @@ def reason_for(o, relief=None):
         tail = (f" Leaving it costs roughly KES {o.value_kes:,.0f} of sales "
                 f"on this line.")
         return head + body + tail
-    if o.donor_days_cover >= 900:
+    if o.donor_days_cover is None:
         head = (f"{o.from_org} is not selling this line at all and is sitting on "
                 f"{o.donor_excess:.0f} units of it")
     else:

@@ -17,6 +17,7 @@ Does NOT modify any per-store OASIS engine logic.
 """
 
 import logging
+from collections import defaultdict
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional, Any
 
@@ -72,8 +73,21 @@ class TransferOpportunity:
     from_org: str
     to_org: str
     transfer_qty: float
-    donor_days_cover: float
-    recipient_days_cover: float
+    #: Days of cover at each end, or None where nothing sells.
+    #:
+    #: NOT 999. Cover is stock/ADS, which is undefined at zero demand, and the
+    #: engine uses 999 INTERNALLY as "effectively infinite" so comparisons like
+    #: `cover > threshold` behave. Emitting that sentinel on the output object
+    #: is a different matter: it is a real number to everything downstream, and
+    #: it poisons every average, pivot and export that touches it. Measured on
+    #: the depot, 1,431 of 3,590 opportunities carried it.
+    #:
+    #: The Odoo queue already stripped it at ingestion — but that is one
+    #: boundary, and the console, the analysers and any export read these
+    #: objects directly. Absent demand is absent, so it is None here and each
+    #: surface decides how to say so.
+    donor_days_cover: Optional[float]
+    recipient_days_cover: Optional[float]
     donor_excess: float
     value_kes: float
     department: str = ""
@@ -81,6 +95,20 @@ class TransferOpportunity:
     uom: str = "EA"
     is_fresh: bool = False
     manual_only: bool = False   # fresh items: surface but never auto-queue
+
+
+#: Cover at or above this is the engine's "nothing sells here" sentinel rather
+#: than a measurement. 999 is what _coverage_entry and _build_network_map use.
+_COVER_SENTINEL = 900.0
+
+
+def _reported_cover(value) -> Optional[float]:
+    """Days of cover as a FACT, or None where there is no demand to divide by."""
+    try:
+        v = float(value)
+    except (TypeError, ValueError):
+        return None
+    return None if v >= _COVER_SENTINEL else round(v, 1)
 
 
 @dataclass
@@ -1138,8 +1166,8 @@ class ConsolidatedTransferService:
                 from_org=donor_org,
                 to_org=rec_org,
                 transfer_qty=xfer,
-                donor_days_cover=round(donor_cov.get('days_cover', 999.0), 1),
-                recipient_days_cover=round(item['days_cover'], 1),
+                donor_days_cover=_reported_cover(donor_cov.get('days_cover')),
+                recipient_days_cover=_reported_cover(item.get('days_cover')),
                 donor_excess=round(donor_cov.get('donor_excess', 0.0), 1),
                 value_kes=round(xfer * item['sell_price'], 0),
                 department=item['department'],
@@ -1151,6 +1179,8 @@ class ConsolidatedTransferService:
 
         # ── Pass 3: PUSH, via the shared implementation ──
         push_opps = self._push_opportunities(item_coverage, booked, recip_booked)
+        push_opps = self._drop_pushes_into_net_donors(result.opportunities,
+                                                      push_opps)
         push_opps.sort(key=lambda o: -o.value_kes)
         kept_push = push_opps if max_push <= 0 else push_opps[:max_push]
         for o in kept_push:
@@ -1178,6 +1208,48 @@ class ConsolidatedTransferService:
             result.pending_outbound_units, result.pending_inbound_units,
         )
         return result
+
+    @staticmethod
+    def _drop_pushes_into_net_donors(pull_opps, push_opps):
+        """A store must not receive a line it is already emptying its shelf of.
+
+        The two passes answer different questions and neither is wrong on its
+        own: PULL takes surplus flour OUT of a store because a sibling will run
+        out, and PUSH puts dead flour IN because somewhere has to trade it. Run
+        together they produced a store shipping 120 units of a line while
+        receiving 1 unit of the same line from a third store — a unit on a
+        lorry to a shop that is emptying its shelf of exactly that product.
+        Measured on the depot: 17 store/SKU pairs.
+
+        No operator would defend that movement, and the cost of it is not the
+        unit — it is the credibility of every other line in the queue.
+
+        The rule is deliberately one-directional. A store that is a NET DONOR of
+        a SKU (shipping out more than it is taking in) stops being a valid
+        recipient for it; the reverse is left alone, because a store that is a
+        net recipient may still legitimately pass surplus on to a third site.
+        """
+        if not push_opps or not pull_opps:
+            return push_opps
+        net = defaultdict(float)
+        for o in pull_opps:
+            net[(o.from_org, o.itm_cd)] += o.transfer_qty
+            net[(o.to_org, o.itm_cd)] -= o.transfer_qty
+        for o in push_opps:
+            net[(o.from_org, o.itm_cd)] += o.transfer_qty
+
+        kept, dropped, units = [], 0, 0.0
+        for o in push_opps:
+            if net.get((o.to_org, o.itm_cd), 0.0) > 0:
+                dropped += 1
+                units += o.transfer_qty
+                continue
+            kept.append(o)
+        if dropped:
+            logger.info("Network scan: dropped %d push line(s) (%.0f units) "
+                        "into stores that are net donors of the same SKU",
+                        dropped, units)
+        return kept
 
     def _push_opportunities(self, item_coverage, booked, recip_booked):
         """Idle capital -> nodes that will sell it. THE one implementation.
@@ -1343,8 +1415,8 @@ class ConsolidatedTransferService:
                         from_org=donor['org_cd'],
                         to_org=r['org_cd'],
                         transfer_qty=xfer,
-                        donor_days_cover=round(donor['days_cover'], 1),
-                        recipient_days_cover=round(d['eff_days'], 1),
+                        donor_days_cover=_reported_cover(donor.get('days_cover')),
+                        recipient_days_cover=_reported_cover(d.get('eff_days')),
                         donor_excess=round(donor['donor_excess'], 1),
                         value_kes=round(xfer * donor['sell_price'], 0),
                         department=donor['department'],

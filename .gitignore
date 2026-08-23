@@ -38,6 +38,18 @@ monitoring/inbound/
 *.gguf
 *.pt
 
+# ── An Odoo addon's access rules are SOURCE, not bulk data ───────────────
+# `*.csv` above had silently excluded every ir.model.access.csv since the
+# connector was written — not one had ever been committed. The modules worked
+# only because the files existed on one developer's disk; a clean clone
+# installed them with NO access rules, and an Odoo model without those is
+# unusable by exactly the stock users the review queue is built for.
+#
+# It stayed invisible because every local run had the files and only a fresh
+# checkout does not. test_declared_data_files_are_tracked_in_git now fails if
+# any manifest lists a file git does not have.
+!connectors/odoo/*/security/*.csv
+
 # Generated intelligence vault (ObsidianMixin output, ~48k files)
 oasis_vault/Nodes/
 oasis_vault/Runs/

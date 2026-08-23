@@ -185,6 +185,33 @@ def test_every_manifest_is_well_formed_and_its_data_files_exist(path):
         assert os.path.exists(os.path.join(path, rel)),             f"{os.path.basename(path)}: missing data file {rel}"
 
 
+@pytest.mark.parametrize("path", [BASE, TELEMETRY, TRANSFERS])
+def test_declared_data_files_are_tracked_in_git(path):
+    """On disk is not the same as shipped.
+
+    `*.csv` in .gitignore had silently excluded every ir.model.access.csv since
+    the connector was written — not one had ever been committed. Every local
+    run passed, because every local run had the files. A clean clone installed
+    the modules with NO access rules, and an Odoo model without those is
+    unusable by exactly the stock users the queue is built for.
+
+    Checking os.path.exists cannot see this; only git can.
+    """
+    import subprocess
+    m = _manifest(path)
+    repo = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+    missing = []
+    for rel in m.get("data", []):
+        full = os.path.abspath(os.path.join(path, rel))
+        r = subprocess.run(["git", "ls-files", "--error-unmatch", full],
+                           cwd=repo, capture_output=True)
+        if r.returncode != 0:
+            missing.append(rel)
+    assert not missing, (
+        f"{os.path.basename(path)} declares data files git does not have, so a "
+        f"clean checkout installs without them: {missing}")
+
+
 def test_the_modules_are_separable():
     """The whole point of the split: a client buys transfers, or telemetry, or
     replenishment, in any combination.
