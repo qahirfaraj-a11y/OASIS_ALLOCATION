@@ -41,6 +41,17 @@ sys.path.insert(0, REPO)
 sys.path.insert(0, HERE)
 sys.path.insert(0, os.path.join(REPO, "devkit"))
 
+# Honour the same .env the rest of OASIS reads. This path was the exception:
+# oasis/api/server.py has always called load_dotenv, but the scan — the thing a
+# customer actually schedules — read only the raw process environment, so
+# settings put in .env silently did nothing here. load_dotenv does NOT override
+# an already-set variable, so an explicit environment still wins.
+try:
+    from dotenv import load_dotenv                                    # noqa: E402
+    load_dotenv(os.path.join(REPO, ".env"))
+except ImportError:                       # optional; the scan still runs
+    pass
+
 from oasis.logic.odoo_adapter import OdooAdapter                      # noqa: E402
 from oasis.logic.consolidated_transfer_service import (               # noqa: E402
     ConsolidatedTransferService as CTS)
