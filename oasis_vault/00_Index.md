@@ -17,6 +17,8 @@ Welcome to the operational headquarters for the **Optimized Acquisition & Stock 
 
 ## 📜 History & Decisions
 - [[Decisions/Log| Decision Log]] — Tracking the evolution of the engine.
+- [[Decisions/Odoo_Transfer_Module_2026-08| Transfers as an Odoo Module]] — σ = R, the three-way module split, and the traps paid for once.
+- [[Decisions/OASIS_ERP_Agnostic_2026-08| ERP-Agnostic (Odoo)]] — Ordering over XML-RPC, no schema bridge.
 
 ## 🏮 Store Insights
 - **[[global_neural_deep_dive| Global Network Deep-Dive]]** — 100% census of 23,511 SKUs, fragility index, and supplier hubs.
