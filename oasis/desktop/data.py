@@ -1473,7 +1473,10 @@ def queue_transfers(opportunities: List[Dict[str, Any]], username: str,
                 "product_name": o["product"],
                 "transfer_qty": o["qty"],
                 "transfer_value": o["value"],
-                "urgency": "HIGH" if o.get("recipient_cover", 99) <= 1 else "MEDIUM",
+                # None means no measured demand, which is not urgent
+                "urgency": ("HIGH" if (o.get("recipient_cover") is not None
+                                       and o["recipient_cover"] <= 1)
+                            else "MEDIUM"),
             }]
             if adapter.push_transfer_request(o["from_org"], o["to_org"], payload):
                 queued += 1

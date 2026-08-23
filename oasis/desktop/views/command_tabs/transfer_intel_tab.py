@@ -26,6 +26,11 @@ _SEV_LABEL = {
 }
 
 
+
+def _cover(days):
+    """Days of cover for display, or an em dash where there is no demand."""
+    return "—" if days is None else f"{days:.1f}"
+
 def _warn_card(title: str, msg: str) -> ft.Container:
     return T.card_container(content=ft.Column([
         T.section_header(title, ""),
@@ -94,9 +99,13 @@ def _network_opportunities(page, project_root: str, org: str,
                 _cell(o["from"][:18]),
                 _cell(o["to"][:18]),
                 _cell(f"{o['qty']:,.0f}", T.SUCCESS),
-                _cell(f"{o['donor_cover']:.1f}"),
-                _cell(f"{o['recipient_cover']:.1f}",
-                      T.DANGER if o["recipient_cover"] <= 1 else None),
+                # Cover is None where nothing sells — it is not a number to
+                # format, and showing 999 or 0.0 would both read as a
+                # measurement. An em dash says "no demand to divide by".
+                _cell(_cover(o["donor_cover"])),
+                _cell(_cover(o["recipient_cover"]),
+                      T.DANGER if (o["recipient_cover"] is not None
+                                   and o["recipient_cover"] <= 1) else None),
                 _cell(_money(o["value"])),
                 _cell(str(o["department"])[:16]),
             ]) for o in opps[:100]
