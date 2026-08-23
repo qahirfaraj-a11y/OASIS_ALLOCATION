@@ -88,19 +88,110 @@ def reason_for(o, relief=None):
             f"back in circulation once it does.")
 
 
+def store_universe(a, log=print):
+    """Which warehouses take part in the scan, and where they are.
+
+    THIS USED TO READ A DEPOT FIXTURE. `store_network_seed.json` is built by
+    build_store_network_seed.py from an 82MB Rhapta network file, it is
+    gitignored, and it exists on exactly one machine — so the script behind the
+    Refresh button could not run against a customer's Odoo at all. It did not
+    degrade; it raised FileNotFoundError on its first line.
+
+    Odoo already knows its own warehouses, so ask it. The seed is still
+    honoured where it exists, because it carries surveyed coordinates for the
+    depot and Odoo's are un-geocoded zeroes, but it is no longer required.
+
+    Precedence, most specific first:
+
+      1. OASIS_ODOO_STORES — an explicit comma-separated list of warehouse
+         codes. Needed wherever not every warehouse is a shop: a central DC, a
+         returns location, a scrap bin. Transfers between those are not
+         movements anyone wants proposed.
+      2. the depot seed, when present.
+      3. every warehouse Odoo reports — the right default for a customer,
+         since it is their own list rather than one we invented.
+
+    Coordinates only sharpen the donor ranking; where they are missing the
+    engine falls back to a neutral distance, so a customer who has not
+    geocoded their sites still gets a plan.
+    """
+    seed_path = os.path.join(HERE, "store_network_seed.json")
+    coords, names, codes = {}, {}, []
+
+    if os.path.exists(seed_path):
+        seed = json.load(open(seed_path, encoding="utf-8"))
+        codes = [s["code"] for s in seed["stores"]]
+        names = {s["code"]: s["name"] for s in seed["stores"]}
+        coords = {s["code"]: {"lat": s["latitude"], "lon": s["longitude"]}
+                  for s in seed["stores"] if s.get("latitude") is not None}
+        log(f"   stores: {len(codes)} from the depot seed")
+    else:
+        orgs = a.fetch_all_organizations() or []
+        codes = [o["ORG_CD"] for o in orgs]
+        names = {o["ORG_CD"]: o["ORG_NAME"] for o in orgs}
+        coords = _coords_from_odoo(a)
+        log(f"   stores: {len(codes)} read from Odoo's own warehouses"
+            + (f", {len(coords)} geocoded" if coords else ", none geocoded"))
+
+    only = [c.strip() for c in os.getenv("OASIS_ODOO_STORES", "").split(",")
+            if c.strip()]
+    if only:
+        missing = [c for c in only if c not in codes]
+        codes = [c for c in codes if c in only]
+        log(f"   stores: narrowed to {len(codes)} by OASIS_ODOO_STORES")
+        if missing:
+            log(f"   ! OASIS_ODOO_STORES names {len(missing)} warehouse(s) this "
+                f"Odoo does not have: {', '.join(missing[:5])}")
+    if len(codes) < 2:
+        raise SystemExit(
+            "A transfer needs at least two warehouses; this instance offers "
+            f"{len(codes)}. Check OASIS_ODOO_STORES, or that the Odoo user can "
+            "see the warehouses.")
+    return codes, names, coords
+
+
+def _coords_from_odoo(a):
+    """Warehouse coordinates via its partner, where the customer has geocoded.
+
+    Odoo hangs an address off every warehouse, and res.partner carries
+    partner_latitude/partner_longitude. Un-geocoded partners read 0.0/0.0,
+    which is a real place in the Gulf of Guinea rather than a missing value —
+    so those are dropped rather than passed to a distance calculation.
+    """
+    out = {}
+    try:
+        whs = a._ex("stock.warehouse", "search_read", [[]],
+                    {"fields": ["code", "partner_id"]}) or []
+        pids = [w["partner_id"][0] for w in whs
+                if isinstance(w.get("partner_id"), (list, tuple)) and w["partner_id"]]
+        if not pids:
+            return out
+        geo = {g["id"]: g for g in (a._ex(
+            "res.partner", "read",
+            [pids, ["partner_latitude", "partner_longitude"]]) or [])}
+        for w in whs:
+            pid = (w["partner_id"][0]
+                   if isinstance(w.get("partner_id"), (list, tuple)) and w["partner_id"]
+                   else None)
+            g = geo.get(pid) or {}
+            lat, lon = g.get("partner_latitude") or 0, g.get("partner_longitude") or 0
+            code = (w.get("code") or "").strip()
+            if code and (lat or lon):
+                out[code] = {"lat": float(lat), "lon": float(lon)}
+    except Exception as e:
+        logger_msg = str(e)[:100]
+        print(f"   ! warehouse coordinates unreadable ({logger_msg}); donor "
+              f"ranking falls back to a neutral distance")
+    return out
+
+
 def _build(limit=0, log=print):
     """Read the depot, compute the plan, and shape it for the queue."""
-    seed = json.load(open(os.path.join(HERE, "store_network_seed.json"),
-                          encoding="utf-8"))
-    codes = [s["code"] for s in seed["stores"]]
-    names = {s["code"]: s["name"] for s in seed["stores"]}
-    coords = {s["code"]: {"lat": s["latitude"], "lon": s["longitude"]}
-              for s in seed["stores"]}
-
     from verify_store_network import fetch_with_retry
     from oasis.desktop.data import store_db_path
-    log("-> reading the depot through OdooAdapter…")
+    log("-> reading through OdooAdapter…")
     a = adapter()
+    codes, names, coords = store_universe(a, log=log)
     # WHEN each site was read, not when the write finishes.
     #
     # The 14 sites are read one after another while tills are selling, so the
@@ -161,11 +252,8 @@ def _build(limit=0, log=print):
     #
     # safety_days_by_org stays supported for a client whose ERP carries a real
     # per-site service level. A depot fixture is not that.
-    distinct = sorted({s["safety_days"] for s in seed["stores"]
-                       if s.get("safety_days")})
-    if len(distinct) == 1:
-        log(f"   seed safety_days is a uniform {distinct[0]} and is IGNORED — "
-            f"the floor is derived per store-SKU from LATA's supplier rhythm")
+    log("   safety floor: derived per store-SKU from LATA's supplier rhythm "
+        "(no per-store override passed)")
 
     with contextlib.redirect_stderr(io.StringIO()):
         svc = CTS(org_names=names, stock_data=data, distance_map=coords,
