@@ -616,7 +616,9 @@ def main():
                                  "odoo-preflight",
                                  # derive LATA's supplier rhythm from the
                                  # customer's own Odoo goods receipts
-                                 "odoo-rhythm", "web",
+                                 "odoo-rhythm",
+                                 # how is the pilot going? read-only
+                                 "odoo-pilot", "web",
                                  # Dev-toolkit modes: each drives a script in
                                  # devkit/, which never ships. They dispatch
                                  # fine here and degrade with an explicit
@@ -773,6 +775,13 @@ def main():
         report = run_preflight()
         print(format_report(report))
         sys.exit(0 if report["overall"] != "FAIL" else 2)
+    elif args.mode == "odoo-pilot":
+        # A pilot that cannot be measured is a demo. The question is never
+        # "did it produce suggestions" but whether the people reading them act
+        # on them, and where they consistently decide OASIS is wrong.
+        from oasis.logic.odoo_pilot_report import collect, format_report
+        print(format_report(collect(days=args.days)))
+        sys.exit(0)
     elif args.mode == "odoo-rhythm":
         # Every horizon the transfer engine uses is derived from LATA's measured
         # supplier rhythm, and lata_shield only ENRICHES that rhythm — the only
