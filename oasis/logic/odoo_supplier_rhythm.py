@@ -225,7 +225,16 @@ def derive(adapter=None, days: int = 730, data_dir: str = None,
         if rec:
             per_store[site][key] = rec
 
+    existing = 0
+    if data_dir:
+        try:
+            with open(os.path.join(data_dir, PATTERNS_FILE), encoding="utf-8") as f:
+                existing = len(json.load(f) or {})
+        except Exception:
+            existing = 0
+
     result = {
+        "existing_suppliers": existing,
         "suppliers": len(patterns),
         "receipts_read": len(picks),
         "stores_with_rhythm": len(per_store),
@@ -346,8 +355,20 @@ def format_report(r: Dict[str, Any]) -> str:
     if not r.get("suppliers"):
         w.append("  NOTHING DERIVED. Receipts must be created from purchase")
         w.append("  orders so they carry a supplier; bare stock moves cannot")
-        w.append("  say who delivered. The engine will fall back to a flat")
-        w.append("  14-day horizon and say so on every scan.")
+        w.append("  say who delivered.")
+        # What happens next depends on whether a rhythm is ALREADY present,
+        # and saying "the engine will fall back to 14 days" regardless is a
+        # half-truth on any install that already has one — this depot has 599
+        # supplier rhythms and keeps using them.
+        had = r.get("existing_suppliers")
+        if had:
+            w.append("")
+            w.append(f"  The {had:,} supplier rhythm(s) already present are")
+            w.append("  UNCHANGED and still in use. Nothing was overwritten.")
+        else:
+            w.append("")
+            w.append("  There is no rhythm already present, so horizons fall")
+            w.append("  back to a flat 14 days — announced on every scan.")
     else:
         for p in r.get("written", []):
             w.append(f"  wrote  {p}")

@@ -151,25 +151,29 @@ def run_preflight(adapter=None, org_cd: str = None) -> Dict[str, Any]:
           "location_dest_id"),
          a.RECEIPT_READ_LIMIT,
          "receipt ages fall back to a lower bound, weakening the dead-stock guard"),
+        # PAGED reads carry no cap to breach — see OdooAdapter._read_paged.
+        # They are still counted, because volume drives scan TIME even when it
+        # no longer threatens accuracy, but reporting them against a limit that
+        # no longer binds would be a warning about nothing. A preflight that
+        # cries wolf is worse than one that stays quiet.
         ("customer moves (busiest site)", None,
          ("stock.move",
           [["state", "=", "done"], ["location_dest_id.usage", "=", "customer"]],
           "location_id"),
-         a.SALES_MOVE_READ_LIMIT,
-         "ADS is understated, and every horizon derives from ADS"),
+         None,
+         "ADS derives from this; it is paged, so volume costs time not accuracy."),
         ("supplier info", "product.supplierinfo", [],
          a.SUPPLIERINFO_READ_LIMIT,
          "products fall back to a default lead time instead of LATA's rhythm"),
         ("open internal transfers", "stock.picking",
          [["picking_type_id.code", "=", "internal"],
           ["state", "not in", ["done", "cancel"]]],
-         a.TRANSFER_READ_LIMIT,
-         "stock in flight is invisible, so the scan re-proposes it — "
-         "approve both and the shop ships twice"),
+         None,
+         "paged — stock in flight is read in full."),
         ("open purchase order lines", "purchase.order.line",
          [["order_id.state", "in", ["purchase", "done"]]],
-         a.PENDING_PO_SKU_READ_LIMIT,
-         "on_order_qty reads low, so a store with stock coming looks short"),
+         None,
+         "paged — inbound stock is read in full."),
     ]
     for label, model, dom, cap, consequence in caps:
         if model is None:                       # site-scoped: judge the worst
@@ -180,6 +184,9 @@ def run_preflight(adapter=None, org_cd: str = None) -> Dict[str, Any]:
         out["scale"][label] = n
         if n < 0:
             _check(checks, WARN, label, "could not be counted on this instance")
+        elif cap is None:
+            _check(checks, PASS, f"{label} (paged)",
+                   f"{n:,} rows, read in pages — no cap. {consequence}")
         elif n >= cap:
             _check(checks, FAIL, f"{label} EXCEEDS its cap",
                    f"{n:,} rows vs a {cap:,} cap — {consequence}")
