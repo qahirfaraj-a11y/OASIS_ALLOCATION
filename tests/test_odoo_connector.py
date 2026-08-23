@@ -197,9 +197,19 @@ def test_declared_data_files_are_tracked_in_git(path):
 
     Checking os.path.exists cannot see this; only git can.
     """
+    import shutil
     import subprocess
-    m = _manifest(path)
+    # Needs the git binary and a real work tree. Absent either — a slim
+    # container, an install from a tarball — there is nothing to check and
+    # skipping is the honest answer; failing would just be the test reporting
+    # on its own environment.
+    if not shutil.which("git"):
+        pytest.skip("git is not available in this environment")
     repo = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+    if not os.path.isdir(os.path.join(repo, ".git")):
+        pytest.skip("not a git work tree")
+
+    m = _manifest(path)
     missing = []
     for rel in m.get("data", []):
         full = os.path.abspath(os.path.join(path, rel))
