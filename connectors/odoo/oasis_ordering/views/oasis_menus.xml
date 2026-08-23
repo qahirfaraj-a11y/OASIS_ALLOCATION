@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!--
+      Replenishment hangs its own section under the base module's OASIS root, so
+      a client who bought only this module sees only this. Transfers adds its
+      own alongside; neither knows about the other.
+    -->
+    <menuitem id="menu_oasis_ordering" name="Replenishment"
+              parent="oasis_connector.menu_oasis_root" sequence="20"/>
+
+    <menuitem id="menu_oasis_order_suggestions" name="Suggestions"
+              parent="menu_oasis_ordering"
+              action="action_oasis_order_suggestion" sequence="10"/>
+
+    <!-- Finished work, kept for audit, out of the way of today's decisions. -->
+    <menuitem id="menu_oasis_order_completed" name="Confirmed"
+              parent="menu_oasis_ordering"
+              action="action_oasis_order_completed" sequence="20"/>
+</odoo>

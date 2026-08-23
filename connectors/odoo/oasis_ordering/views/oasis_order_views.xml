@@ -1,0 +1,212 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+  <!-- List: the review queue. Ordered by value, because the buyer works down
+       from the money, not down from whatever was computed first. -->
+  <record id="view_oasis_order_suggestion_tree" model="ir.ui.view">
+    <field name="name">oasis.order.suggestion.tree</field>
+    <field name="model">oasis.order.suggestion</field>
+    <field name="arch" type="xml">
+      <tree string="Replenishment suggestions" multi_edit="0"
+            decoration-muted="state == 'rejected'"
+            decoration-success="state in ('approved', 'done')"
+            decoration-warning="is_fresh == True and state == 'new'"
+            decoration-danger="is_stale == True and state == 'new'">
+        <header>
+          <button name="action_approve" type="object"
+                  string="Approve → draft order" class="btn-primary"/>
+          <button name="action_reject" type="object" string="Reject"/>
+          <!-- Odoo cannot compute the plan itself; this asks OASIS to. Rows go
+               red once the plan is older than the staleness window, because a
+               queue with no age on it looks equally trustworthy at an hour and
+               a fortnight old. -->
+          <button name="action_refresh_suggestions" type="object"
+                  string="Refresh from OASIS" class="btn-secondary"/>
+        </header>
+        <field name="partner_id" string="Supplier"/>
+        <field name="product_id"/>
+        <field name="categ_id" string="Category" optional="hide"/>
+        <field name="warehouse_id" string="Store"/>
+        <field name="quantity" sum="Units"/>
+        <field name="uom_id" string="UoM" optional="hide"/>
+        <!-- The position the order answers. A buyer cannot judge "48 units"
+             without knowing what is on the shelf and how fast it leaves. -->
+        <field name="current_stock" string="On hand" optional="show"/>
+        <field name="avg_daily_sales" string="Sales/day" optional="show"/>
+        <field name="cover_label" string="Cover" optional="show"/>
+        <field name="lead_time_days" string="Lead time" optional="show"
+               widget="float" digits="[12,0]"/>
+        <field name="on_order_qty" string="On order" optional="show"/>
+        <field name="days_cover" string="Cover (n)" optional="hide"/>
+        <field name="target_cover_days" string="Ordering to (days)" optional="hide"/>
+        <field name="unit_cost" optional="hide" widget="monetary"/>
+        <field name="value" sum="Value" widget="monetary"/>
+        <field name="currency_id" invisible="1"/>
+        <field name="is_fresh" string="Fresh" optional="show"/>
+        <field name="computed_on" string="Computed" optional="show"/>
+        <field name="is_stale" invisible="1"/>
+        <field name="state"/>
+        <field name="purchase_order_id" optional="hide"/>
+      </tree>
+    </field>
+  </record>
+
+  <!-- Form: the argument, then the numbers. -->
+  <record id="view_oasis_order_suggestion_form" model="ir.ui.view">
+    <field name="name">oasis.order.suggestion.form</field>
+    <field name="model">oasis.order.suggestion</field>
+    <field name="arch" type="xml">
+      <form string="Replenishment suggestion">
+        <header>
+          <button name="action_approve" type="object"
+                  string="Approve → draft order" class="oe_highlight"
+                  states="new"/>
+          <!-- Deliberately a second, plainer button. Approving under a
+               supplier's minimum is a real decision a buyer is sometimes right
+               to make, but it should never happen by reflex. -->
+          <button name="action_approve_below_minimum" type="object"
+                  string="Approve below minimum" states="new"
+                  confirm="This basket may be under the supplier's minimum order. Approve it anyway?"/>
+          <button name="action_reject" type="object" string="Reject" states="new"/>
+          <button name="action_reset" type="object" string="Back to queue"
+                  states="rejected"/>
+          <button name="action_open_purchase_order" type="object"
+                  string="Open order" states="approved,done"/>
+          <field name="state" widget="statusbar"
+                 statusbar_visible="new,approved,done"/>
+        </header>
+        <sheet>
+          <div class="oe_title">
+            <h1><field name="display_name" readonly="1"/></h1>
+          </div>
+          <div class="alert alert-info" role="alert"
+               attrs="{'invisible': [('reason', '=', False)]}">
+            <field name="reason" readonly="1" nolabel="1"/>
+          </div>
+          <div class="alert alert-warning" role="alert"
+               attrs="{'invisible': [('is_stale', '=', False)]}">
+            This plan was computed a while ago and the stores have been trading
+            since. Refresh from OASIS before approving.
+          </div>
+          <group>
+            <group string="What to buy">
+              <field name="product_id" readonly="1"/>
+              <field name="quantity" readonly="1"/>
+              <field name="uom_id" readonly="1"/>
+              <field name="partner_id" readonly="1"/>
+              <field name="warehouse_id" readonly="1"/>
+              <field name="unit_cost" readonly="1"/>
+              <field name="value" readonly="1"/>
+              <field name="currency_id" invisible="1"/>
+            </group>
+            <group string="Why">
+              <field name="current_stock" readonly="1"/>
+              <field name="avg_daily_sales" readonly="1"/>
+              <field name="cover_label" readonly="1"/>
+              <field name="lead_time_days" readonly="1"/>
+              <field name="target_cover_days" readonly="1"/>
+              <field name="on_order_qty" readonly="1"/>
+              <field name="on_order_eta_days" readonly="1"
+                     attrs="{'invisible': [('on_order_qty', '&lt;=', 0)]}"/>
+              <field name="is_fresh" readonly="1"/>
+            </group>
+          </group>
+          <group string="This supplier's minimum order"
+                 attrs="{'invisible': ['&amp;', ('supplier_min_units', '&lt;=', 0), ('supplier_min_value', '&lt;=', 0)]}">
+            <field name="supplier_min_units" readonly="1"/>
+            <field name="supplier_min_value" readonly="1"/>
+            <field name="pack_size" readonly="1"/>
+            <div colspan="2" class="text-muted">
+              OASIS admitted this line because the whole basket for this
+              supplier cleared their minimum. Approving only part of it can put
+              the rest below — you will be told before the order is created.
+            </div>
+          </group>
+          <group string="Provenance">
+            <field name="computed_on" readonly="1"/>
+            <field name="purchase_order_id" readonly="1"/>
+            <field name="purchase_state" readonly="1"/>
+            <field name="company_id" groups="base.group_multi_company"
+                   readonly="1"/>
+            <field name="is_stale" invisible="1"/>
+          </group>
+        </sheet>
+      </form>
+    </field>
+  </record>
+
+  <record id="view_oasis_order_suggestion_search" model="ir.ui.view">
+    <field name="name">oasis.order.suggestion.search</field>
+    <field name="model">oasis.order.suggestion</field>
+    <field name="arch" type="xml">
+      <search string="Replenishment suggestions">
+        <field name="product_id"/>
+        <field name="partner_id"/>
+        <field name="warehouse_id"/>
+        <field name="categ_id"/>
+        <filter name="to_review" string="To review"
+                domain="[('state', '=', 'new')]"/>
+        <filter name="ordered" string="Ordered"
+                domain="[('state', 'in', ('approved', 'done'))]"/>
+        <filter name="rejected" string="Rejected"
+                domain="[('state', '=', 'rejected')]"/>
+        <separator/>
+        <filter name="perishable" string="Perishable"
+                domain="[('is_fresh', '=', True)]"/>
+        <filter name="stale" string="Out of date"
+                domain="[('is_stale', '=', True)]"/>
+        <separator/>
+        <filter name="already_on_order" string="Already partly on order"
+                domain="[('on_order_qty', '&gt;', 0)]"/>
+        <group expand="0" string="Group by">
+          <filter name="by_supplier" string="Supplier"
+                  context="{'group_by': 'partner_id'}"/>
+          <filter name="by_store" string="Store"
+                  context="{'group_by': 'warehouse_id'}"/>
+          <filter name="by_category" string="Category"
+                  context="{'group_by': 'categ_id'}"/>
+          <filter name="by_state" string="Status"
+                  context="{'group_by': 'state'}"/>
+        </group>
+      </search>
+    </field>
+  </record>
+
+  <!-- The queue: what needs deciding today. -->
+  <record id="action_oasis_order_suggestion" model="ir.actions.act_window">
+    <field name="name">Replenishment suggestions</field>
+    <field name="res_model">oasis.order.suggestion</field>
+    <field name="view_mode">tree,form,pivot</field>
+    <field name="search_view_id" ref="view_oasis_order_suggestion_search"/>
+    <field name="context">{'search_default_to_review': 1,
+                           'search_default_by_supplier': 1}</field>
+    <field name="help" type="html">
+      <p class="o_view_nocontent_smiling_face">Nothing to review.</p>
+      <p>
+        OASIS posts what it would order here, with the reasoning behind each
+        line. Press <b>Refresh from OASIS</b>, or run the scan from OASIS
+        itself.
+      </p>
+    </field>
+  </record>
+
+  <!-- Finished work: kept for audit, out of the way of today's decisions.
+       Mixing confirmed orders into the list whose job is "what needs deciding
+       today" is how a queue stops being read. -->
+  <record id="action_oasis_order_completed" model="ir.actions.act_window">
+    <field name="name">Confirmed orders</field>
+    <field name="res_model">oasis.order.suggestion</field>
+    <field name="view_mode">tree,form,pivot</field>
+    <field name="search_view_id" ref="view_oasis_order_suggestion_search"/>
+    <field name="domain">[('state', '=', 'done')]</field>
+    <field name="context">{'search_default_by_supplier': 1}</field>
+    <field name="help" type="html">
+      <p class="o_view_nocontent_smiling_face">No confirmed orders yet.</p>
+      <p>
+        Suggestions that became a purchase order somebody confirmed. Kept as the
+        record of what OASIS proposed and what was actually bought.
+      </p>
+    </field>
+  </record>
+
+</odoo>

@@ -1,12 +1,19 @@
-"""Transfers' own settings.
+"""How Odoo reaches OASIS — one connection, declared once.
 
-These were `ir.config_parameter` keys with no interface at all: an operator had
-to be told to run `set_param` from a shell, or read INTEGRATION.md. That was
-survivable while transfers shipped inside a module whose settings page existed
-for something else. A module sold on its own has to be configurable on its own.
+These settings describe the OASIS INSTANCE, not any one feature. Transfers and
+Replenishment both ask the same OASIS to recompute, and both judge their queue
+against the same staleness window, so they must not each own a copy: two
+modules declaring `oasis_scan_url` on res.config.settings would render it twice
+on the settings page and leave an operator wondering which one the Refresh
+button actually reads.
+
+They lived in oasis_transfers while transfers was the only feature module.
+Moving them here is safe on upgrade — these are `config_parameter` fields on a
+TransientModel, so nothing is stored against them; the underlying
+ir.config_parameter rows are untouched and keep their values.
 """
 
-from odoo import models, fields
+from odoo import fields, models
 
 
 class ResConfigSettings(models.TransientModel):

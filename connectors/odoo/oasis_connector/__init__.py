@@ -1,1 +1,3 @@
-# The base module owns no models — only the app menu and the settings shell.
+# The base module owns no business models — only the app menu, the settings
+# shell, and the connection settings every feature module shares.
+from . import models  # noqa: F401

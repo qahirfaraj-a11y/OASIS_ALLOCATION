@@ -18,7 +18,36 @@
             <xpath expr="//form" position="inside">
                 <app data-string="OASIS" string="OASIS" name="oasis_connector">
                     <block title="OASIS Retail Intelligence"
-                           name="oasis_settings_block"/>
+                           name="oasis_settings_block">
+                        <!--
+                          THE CONNECTION, not a feature. Every OASIS module
+                          reaches the same instance and judges its queue by the
+                          same staleness window, so this is declared once here
+                          rather than copied into each module.
+                        -->
+                        <setting string="Connection"
+                                 title="Where Odoo reaches OASIS to recompute a plan.">
+                            <div class="content-group">
+                                <div class="mt16">
+                                    <label for="oasis_scan_url"
+                                           string="Scan endpoint"/>
+                                    <field name="oasis_scan_url"
+                                           placeholder="http://host.docker.internal:8710/scan"/>
+                                </div>
+                                <div class="mt16">
+                                    <label for="oasis_scan_token"
+                                           string="Scan token"/>
+                                    <field name="oasis_scan_token"
+                                           password="True"/>
+                                </div>
+                                <div class="mt16">
+                                    <label for="oasis_scan_stale_hours"
+                                           string="Stale after (hours)"/>
+                                    <field name="oasis_scan_stale_hours"/>
+                                </div>
+                            </div>
+                        </setting>
+                    </block>
                 </app>
             </xpath>
         </field>

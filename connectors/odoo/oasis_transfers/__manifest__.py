@@ -40,7 +40,6 @@ Replenishment; install Replenishment as well and the two cooperate.
         "security/oasis_security.xml",
         "views/oasis_transfer_views.xml",
         "views/oasis_menus.xml",
-        "views/res_config_settings_views.xml",
     ],
     "installable": True,
     "application": False,

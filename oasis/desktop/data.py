@@ -387,7 +387,13 @@ def generate_smart_orders(org_cd: str, thresholds: Optional[Dict[str, Any]] = No
             "ordered": len(mot_result["po_recs"]),
             "below_moq": len(dropped_recs),
             "no_order_needed": len(mot_result.get("no_order", [])),
+            # BOTH halves of the supplier gate, because a caller that has to
+            # act on it needs both. The Odoo review queue carries these onto
+            # every suggestion so approval can tell a buyer that striking half
+            # a basket has put the rest under the supplier's minimum — it
+            # cannot ask the engine at button-press time.
             "min_order_units": sim_util.thresholds.get("min_order_units", 10),
+            "min_order_value_kes": sim_util.thresholds.get("min_order_value_kes", 5000),
         }
         if not mot_result["po_recs"]:
             logger.info("No PO lines for %s — read=%d, below_moq=%d, no_order=%d",

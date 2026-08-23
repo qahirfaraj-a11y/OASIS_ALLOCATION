@@ -26,12 +26,37 @@ class TestBaseStaysABase(TransactionCase):
             set(deps), {"base"},
             "the base module has grown a dependency: %s" % deps)
 
-    def test_the_base_owns_no_models(self):
+    #: The ONE model the base may touch, and only by extending it.
+    #:
+    #: Odoo records an ir.model.data row for every module in a model's
+    #: inheritance chain, so extending res.config.settings registers
+    #: `model_res_config_settings` against this module even though it defines
+    #: nothing and stores nothing. The connection settings — the OASIS endpoint
+    #: and its token — belong here precisely because they describe the OASIS
+    #: INSTANCE rather than any one feature: two feature modules each declaring
+    #: `oasis_scan_url` would render it twice and leave an operator guessing
+    #: which one Refresh reads.
+    _MAY_EXTEND = {"model_res_config_settings"}
+
+    def test_the_base_owns_no_models_of_its_own(self):
         owned = self.env["ir.model.data"].sudo().search([
             ("module", "=", "oasis_connector"), ("model", "=", "ir.model")])
+        unexpected = set(owned.mapped("name")) - self._MAY_EXTEND
         self.assertFalse(
-            owned, "the base module now defines models: %s"
-            % owned.mapped("name"))
+            unexpected, "the base module now defines models: %s" % unexpected)
+
+    def test_the_base_defines_no_oasis_model(self):
+        """The failure the rule above is really guarding against. A business
+        model in the base is what would make the modules inseparable — every
+        client would carry it whether they bought that feature or not."""
+        oasis_models = self.env["ir.model"].sudo().search(
+            [("model", "=like", "oasis.%")])
+        owned_here = self.env["ir.model.data"].sudo().search([
+            ("module", "=", "oasis_connector"), ("model", "=", "ir.model"),
+            ("res_id", "in", oasis_models.ids)])
+        self.assertFalse(
+            owned_here, "the base module defines an OASIS model: %s"
+            % owned_here.mapped("name"))
 
     def test_the_app_root_menu_exists(self):
         self.assertTrue(self.env.ref("oasis_connector.menu_oasis_root", False))

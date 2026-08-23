@@ -17,8 +17,16 @@ Standard library only, like the rest of the connector.
     python connectors/odoo/scan_service.py
     python connectors/odoo/scan_service.py --host 0.0.0.0 --port 8710
 
-    POST /scan      {"limit": 200}  ->  {"created": 200, "skipped": 0}
-    GET  /health                    ->  {"ok": true, "scanning": false}
+    POST /scan   {"limit": 200}                   -> transfers (the default)
+    POST /scan   {"kind": "orders", "limit": 200} -> replenishment
+                 ->  {"created": 200, "skipped": 0, "kind": "orders"}
+    GET  /health                                  -> {"ok": true, "scanning": false}
+
+ONE ENDPOINT, TWO PLANS. `kind` selects which queue is rebuilt. It defaults to
+transfers because that is what every request from an older OASIS Transfers
+looks like, and upgrading this service must not break an installed Refresh
+button. An unrecognised kind is refused rather than defaulted: computing the
+wrong plan and reporting success is the worst available outcome.
 
 SECURITY
 --------
@@ -53,6 +61,18 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 
 from push_transfer_suggestions import run_scan            # noqa: E402
+from push_order_suggestions import run_scan as run_order_scan   # noqa: E402
+
+#: One endpoint, two plans. The body says which.
+#:
+#: `kind` is absent from every request an older OASIS Transfers sends, so the
+#: default MUST stay transfers — an existing install's Refresh button has to go
+#: on working after this service is upgraded. Replenishment sends
+#: {"kind": "orders"} explicitly.
+_SCANS = {
+    "transfers": run_scan,
+    "orders": run_order_scan,
+}
 
 log = logging.getLogger("oasis.scan")
 
@@ -108,6 +128,14 @@ class Handler(BaseHTTPRequestHandler):
             return self._send(400, {"error": "body must be JSON"})
 
         limit = int(body.get("limit") or self.default_limit)
+        kind = str(body.get("kind") or "transfers").strip().lower()
+        if kind not in _SCANS:
+            return self._send(400, {
+                "error": "unknown scan kind %r" % kind,
+                "detail": "Expected one of: %s. An unrecognised kind is refused "
+                          "rather than defaulting, because silently computing "
+                          "the wrong plan and reporting success is worse than "
+                          "an error." % ", ".join(sorted(_SCANS))})
 
         if not _LOCK.acquire(blocking=False):
             return self._send(409, {
@@ -117,8 +145,10 @@ class Handler(BaseHTTPRequestHandler):
         try:
             _STATE["scanning"] = True
             t0 = time.time()
-            log.info("scan requested by %s (limit=%s)", self.address_string(), limit)
-            res = run_scan(limit=limit, log=lambda m: log.info("%s", m))
+            log.info("%s scan requested by %s (limit=%s)",
+                     kind, self.address_string(), limit)
+            res = _SCANS[kind](limit=limit, log=lambda m: log.info("%s", m))
+            res["kind"] = kind
             res["seconds"] = round(time.time() - t0, 1)
             _STATE["last"] = time.strftime("%Y-%m-%d %H:%M:%S")
             _STATE["last_result"] = res
@@ -157,7 +187,20 @@ def _scheduled(interval_min, offset_min, limit):
         try:
             _STATE["scanning"] = True
             t0 = time.time()
-            res = run_scan(limit=limit, log=lambda m: log.info("%s", m))
+            # BOTH plans on the schedule, in one slot under one lock.
+            #
+            # A client running Replenishment on a cadence should not have to
+            # stand up a second service, and running the two on separate
+            # timers would let them overlap — the thing the lock exists to
+            # prevent. A kind whose module is not installed simply reports a
+            # failure for that half; the other still lands.
+            res = {}
+            for kind, fn in sorted(_SCANS.items()):
+                try:
+                    res[kind] = fn(limit=limit, log=lambda m: log.info("%s", m))
+                except Exception as e:
+                    log.warning("scheduled %s scan failed: %s", kind, str(e)[:200])
+                    res[kind] = {"error": type(e).__name__, "detail": str(e)[:200]}
             res["seconds"] = round(time.time() - t0, 1)
             _STATE["last"] = time.strftime("%Y-%m-%d %H:%M:%S")
             _STATE["last_result"] = res

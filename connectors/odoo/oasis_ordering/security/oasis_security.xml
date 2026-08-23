@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!--
+      MULTI-COMPANY ISOLATION.
+
+      ir.model.access.csv says WHICH GROUPS may touch the model. It says nothing
+      about WHICH RECORDS. Without a rule, a purchase user in company A sees,
+      and can approve, company B's order suggestions — and an order suggestion
+      is commercially sensitive between sibling companies: it carries the
+      supplier, the cost price, the quantity and the store's own demand.
+      Approving one creates a purchase order in a company the user does not
+      belong to.
+
+      This is not hypothetical here. The depot already contains a second company
+      alongside the outlets.
+
+      The domain is Odoo's standard multi-company shape. `company_id = False` is
+      admitted deliberately: a record belonging to no company must remain
+      visible rather than becoming an orphan nobody can see or clean up.
+      oasis_replace_queue stamps company_id from the STORE, so a row is owned by
+      the company that would actually place the order.
+    -->
+    <record id="oasis_order_suggestion_company_rule" model="ir.rule">
+        <field name="name">OASIS order suggestion: company isolation</field>
+        <field name="model_id" ref="model_oasis_order_suggestion"/>
+        <field name="domain_force">
+            ['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]
+        </field>
+        <field name="global" eval="True"/>
+    </record>
+</odoo>
