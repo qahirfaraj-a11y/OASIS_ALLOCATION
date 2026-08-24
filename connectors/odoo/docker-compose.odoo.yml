@@ -100,9 +100,23 @@ services:
     environment:
       OASIS_HUB_DB_URL: sqlite:////data/oasis_hub.db
       OASIS_LICENSE_SALT: ${OASIS_LICENSE_SALT:-demo-salt}
-      # No fixed admin key (finding F-8): compose fails fast until one is set.
-      OASIS_HUB_ADMIN_KEY: ${OASIS_HUB_ADMIN_KEY:?set OASIS_HUB_ADMIN_KEY in .env or the shell}
-      OASIS_HUB_TOKEN_SECRET: ${OASIS_HUB_TOKEN_SECRET:?set OASIS_HUB_TOKEN_SECRET in .env or the shell}
+      # NO FIXED SECRET, AND NO HOSTAGE EITHER (finding F-8, revised).
+      #
+      # These were `:?` — compose refused to parse until both were set. But
+      # compose interpolates the WHOLE file regardless of which service you
+      # asked for, so `docker compose up -d odoo` died on a variable only the
+      # hub uses. Anyone wanting to look at Transfers or Replenishment offline
+      # had to invent two throwaway values first, which teaches exactly the
+      # habit the guard was meant to prevent.
+      #
+      # Empty is safe here: oasis_hub.security._load_or_generate_key treats an
+      # empty value as unset, reuses its persisted key file, and otherwise
+      # generates a random key and warns. So the hub still never runs on a
+      # fixed demo secret — the enforcement just lives in the application,
+      # which is the only place that can tell the difference between "not
+      # configured" and "configured empty".
+      OASIS_HUB_ADMIN_KEY: ${OASIS_HUB_ADMIN_KEY:-}
+      OASIS_HUB_TOKEN_SECRET: ${OASIS_HUB_TOKEN_SECRET:-}
     volumes:
       - oasis-hub-data:/data
     ports:
