@@ -58,6 +58,46 @@ class TestBaseStaysABase(TransactionCase):
             owned_here, "the base module defines an OASIS model: %s"
             % owned_here.mapped("name"))
 
+    #: The commercial shape, in one place.
+    #:
+    #: The base is LGPL-3 on purpose: it holds no business logic, so it can be
+    #: handed out freely as the install hook every feature module depends on.
+    #: The feature modules are the product and are OPL-1 — under LGPL-3 a
+    #: customer could lawfully redistribute them to a competitor, which would
+    #: make per-module licensing decorative.
+    #:
+    #: A proprietary module may depend on LGPL-3 ones (oasis_connector, and
+    #: Odoo Community's stock and purchase). That is exactly what LGPL permits
+    #: and AGPL would not — so the dependency direction here is load-bearing,
+    #: not incidental.
+    _EXPECTED_LICENCE = {
+        "oasis_connector": "LGPL-3",
+        "oasis_transfers": "OPL-1",
+        "oasis_ordering": "OPL-1",
+        "oasis_telemetry": "OPL-1",
+    }
+
+    def test_the_licence_classification_is_what_was_decided(self):
+        for name, expected in self._EXPECTED_LICENCE.items():
+            module = self.env["ir.module.module"].sudo().search(
+                [("name", "=", name)], limit=1)
+            if not module:
+                continue        # a module this database does not carry
+            self.assertEqual(
+                module.license, expected,
+                "%s is %s, expected %s — see the note above before changing it"
+                % (name, module.license, expected))
+
+    def test_a_proprietary_module_never_becomes_a_dependency_of_the_base(self):
+        """If the LGPL-3 base ever depended on an OPL-1 module, the base could
+        no longer be redistributed freely and the whole arrangement collapses."""
+        deps = self._manifest_deps("oasis_connector")
+        proprietary = {n for n, lic in self._EXPECTED_LICENCE.items()
+                       if lic == "OPL-1"}
+        self.assertFalse(
+            set(deps) & proprietary,
+            "the LGPL-3 base now depends on a proprietary module: %s" % deps)
+
     def test_the_app_root_menu_exists(self):
         self.assertTrue(self.env.ref("oasis_connector.menu_oasis_root", False))
 

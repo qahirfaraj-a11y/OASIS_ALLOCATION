@@ -26,7 +26,7 @@ stores never has to install it.
     "author": "iLink",
     "website": "https://www.oasis-systems.example",
     "category": "Inventory/Inventory",
-    "license": "LGPL-3",
+    "license": "OPL-1",
     # `stock` because the receipt and on-hand feeds read stock moves and
     # quants. NOT point_of_sale: that was a hard dependency purely to read
     # pos.order.line, which locked out every Odoo retailer not running Odoo

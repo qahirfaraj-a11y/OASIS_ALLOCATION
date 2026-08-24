@@ -33,7 +33,7 @@ Replenishment; install Replenishment as well and the two cooperate.
     "author": "iLink",
     "website": "https://www.oasis-systems.example",
     "category": "Inventory/Inventory",
-    "license": "LGPL-3",
+    "license": "OPL-1",
     "depends": ["oasis_connector", "stock"],
     "data": [
         "security/ir.model.access.csv",

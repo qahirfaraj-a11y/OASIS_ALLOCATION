@@ -1,0 +1,27 @@
+Odoo Proprietary License v1.0 (OPL-1)
+
+This module is licensed under the Odoo Proprietary License v1.0.
+
+It is a PAID module. In summary, and without replacing the licence itself:
+you may use and modify it for the Odoo instances of the organisation that
+purchased it, and you may not distribute, sublicense, publish or resell it
+to anyone else.
+
+  Authoritative text:
+  https://www.odoo.com/documentation/16.0/legal/licenses.html
+
+----------------------------------------------------------------------------
+BEFORE PUBLISHING ON apps.odoo.com: replace everything above with the VERBATIM
+OPL-1 text from the URL above. This file is a pointer, not the licence. The
+manifest's `license: "OPL-1"` is what Odoo reads and is already correct; this
+file exists so a human reading the source is not left guessing.
+----------------------------------------------------------------------------
+
+The OASIS base module (oasis_connector) is deliberately LGPL-3 instead: it
+carries no business logic, only the app menu, the settings shell and the OASIS
+connection settings, so it can be redistributed freely as an install hook.
+Depending on LGPL-3 modules (oasis_connector, and Odoo Community's own stock
+and purchase) from a proprietary module is permitted — that is precisely what
+LGPL allows and AGPL would not.
+
+Copyright (c) iLink. All rights reserved.

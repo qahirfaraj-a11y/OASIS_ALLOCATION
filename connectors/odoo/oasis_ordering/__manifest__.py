@@ -33,7 +33,7 @@ Telemetry; install Transfers as well and the two cooperate.
     "author": "iLink",
     "website": "https://www.oasis-systems.example",
     "category": "Inventory/Purchase",
-    "license": "LGPL-3",
+    "license": "OPL-1",
     # `purchase` and the OASIS base — nothing else. Not `stock`: purchase
     # already brings what is needed to receive goods, and a client buying
     # replenishment alone must not be made to carry the transfer machinery.
