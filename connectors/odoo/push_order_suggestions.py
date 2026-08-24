@@ -99,13 +99,33 @@ def reason_for(rec, store_name):
         eta = float(rec.get("on_order_eta_days") or 0)
         body += (f" on top of {on_order:.0f} already on order"
                  + (f" due in about {eta:.0f} days" if 0 < eta < 900 else ""))
-    target = float(rec.get("target_coverage_days") or 0)
-    if target > 0:
-        body += f" brings it back to about {target:.0f} days of cover"
+
+    # STATE THE COVER THIS ACTUALLY DELIVERS, not the target it was aiming for.
+    #
+    # These are not the same number and the gap is not small: the ordering
+    # stage re-floors the coverage target at gap + lead + safety, overriding
+    # the ceiling the enrichment stage applied, on 61% of ordered lines
+    # (median 1.36x, worst 6.2x — a 7-day UHT ceiling delivering 43 days).
+    # Quoting the target made the queue claim a position it does not reach,
+    # which is the fastest way to lose a buyer's trust: they can count the
+    # cartons.
+    delivered = ((stock + qty) / ads) if ads > 0 else 0.0
+    if delivered > 0:
+        body += f" takes it to about {delivered:.0f} days of cover"
+        target = float(rec.get("target_coverage_days") or 0)
+        if target > 0 and delivered > target * 1.25:
+            body += (f", well past the {target:.0f} days this line is meant to "
+                     f"hold — the supplier's own rhythm is what forces the depth")
     body += "."
 
     tail = ""
-    if fresh:
+    shelf = float(rec.get("shelf_life_days") or 0)
+    if shelf > 0 and delivered > shelf:
+        # The sharpest failure there is: buying more than the item can survive.
+        # Say it first, before anything else in the tail.
+        tail = (f" WARNING: that is more than its {shelf:.0f}-day shelf life. "
+                f"Some of this will expire before it sells.")
+    elif fresh:
         tail = (" Perishable — check the shelf before approving; an over-order "
                 "here becomes waste rather than stock.")
     elif ads > 0 and stock <= ads * max(lead, 1):
