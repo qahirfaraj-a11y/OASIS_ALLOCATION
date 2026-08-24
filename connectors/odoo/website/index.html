@@ -1,0 +1,686 @@
+<title>OASIS Retail Intelligence</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;1,8..60,400&display=swap">
+
+<style>
+  :root {
+    --ink:        #14202B;
+    --paper:      #F1F4F3;
+    --surface:    #FFFFFF;
+    --surface-2:  #E7ECEA;
+    --rule:       #CBD5D2;
+    --muted:      #5C6B6E;
+    --amber:      #B57D10;
+    --amber-bg:   #F6E7C4;
+    --petrol:     #1F5C63;
+    --clay:       #A33F26;
+    --sage:       #4F7150;
+
+    --display: "Archivo", "Helvetica Neue", Arial, sans-serif;
+    --body:    "Source Serif 4", Georgia, "Times New Roman", serif;
+    --mono:    "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
+
+    --measure: 66ch;
+    --gut: clamp(1.25rem, 4vw, 3rem);
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ink:       #E4EAE7;
+      --paper:     #0E1618;
+      --surface:   #16211F;
+      --surface-2: #1E2B29;
+      --rule:      #33443F;
+      --muted:     #93A5A2;
+      --amber:     #E8B44C;
+      --amber-bg:  #34290F;
+      --petrol:    #6FB3B8;
+      --clay:      #E08063;
+      --sage:      #8FB08C;
+    }
+  }
+
+  :root[data-theme="dark"] {
+    --ink:       #E4EAE7;
+    --paper:     #0E1618;
+    --surface:   #16211F;
+    --surface-2: #1E2B29;
+    --rule:      #33443F;
+    --muted:     #93A5A2;
+    --amber:     #E8B44C;
+    --amber-bg:  #34290F;
+    --petrol:    #6FB3B8;
+    --clay:      #E08063;
+    --sage:      #8FB08C;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: var(--body);
+    font-size: 1.0625rem;
+    line-height: 1.65;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .wrap {
+    max-width: 78rem;
+    margin: 0 auto;
+    padding-inline: var(--gut);
+  }
+
+  h1, h2, h3, .eyebrow, .lede {
+    font-family: var(--display);
+    text-wrap: balance;
+  }
+
+  .eyebrow {
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--petrol);
+    margin: 0 0 0.75rem;
+  }
+
+  /* ── masthead ─────────────────────────────────────────── */
+  .masthead {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem 2rem;
+    align-items: baseline;
+    justify-content: space-between;
+    padding-block: 1.5rem;
+    border-bottom: 1px solid var(--rule);
+  }
+  .wordmark {
+    font-family: var(--display);
+    font-weight: 800;
+    font-size: 1.25rem;
+    letter-spacing: 0.02em;
+    margin: 0;
+  }
+  .wordmark span { color: var(--petrol); }
+  .masthead nav {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1.5rem;
+    font-family: var(--mono);
+    font-size: 0.8125rem;
+  }
+  .masthead nav a { color: var(--muted); text-decoration: none; }
+  .masthead nav a:hover { color: var(--ink); text-decoration: underline; }
+
+  /* ── hero ─────────────────────────────────────────────── */
+  .hero {
+    display: grid;
+    grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr);
+    gap: clamp(2rem, 5vw, 4.5rem);
+    align-items: start;
+    padding-block: clamp(3rem, 8vw, 6rem);
+  }
+  @media (max-width: 60rem) { .hero { grid-template-columns: 1fr; } }
+
+  .hero h1 {
+    font-size: clamp(2.25rem, 5.5vw, 3.75rem);
+    font-weight: 800;
+    line-height: 1.02;
+    letter-spacing: -0.025em;
+    margin: 0 0 1.25rem;
+  }
+  .hero h1 em {
+    font-style: normal;
+    color: var(--petrol);
+  }
+  .hero p { max-width: var(--measure); margin: 0 0 1.25rem; }
+  .hero .sub { font-size: 1.1875rem; }
+
+  /* ── the suggestion card: the product's own artifact ──── */
+  .ticket {
+    background: var(--surface);
+    border: 1px solid var(--rule);
+    border-left: 5px solid var(--amber);
+    border-radius: 2px;
+    padding: 1.5rem 1.5rem 1.25rem;
+    box-shadow: 0 1px 0 var(--rule);
+  }
+  .ticket-head {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem 1rem;
+    align-items: baseline;
+    justify-content: space-between;
+    padding-bottom: 0.875rem;
+    margin-bottom: 1rem;
+    border-bottom: 1px dashed var(--rule);
+  }
+  .tag {
+    font-family: var(--mono);
+    font-size: 0.6875rem;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    padding: 0.2rem 0.5rem;
+    border-radius: 2px;
+    background: var(--amber-bg);
+    color: var(--amber);
+    white-space: nowrap;
+  }
+  .ticket-title {
+    font-family: var(--display);
+    font-weight: 700;
+    font-size: 1.0625rem;
+    margin: 0;
+  }
+  .ticket-reason {
+    margin: 0 0 1.25rem;
+    font-size: 1rem;
+    line-height: 1.6;
+  }
+  .figures {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(6.5rem, 1fr));
+    gap: 1px;
+    background: var(--rule);
+    border: 1px solid var(--rule);
+  }
+  .fig {
+    background: var(--surface);
+    padding: 0.625rem 0.75rem;
+  }
+  .fig dt {
+    font-family: var(--mono);
+    font-size: 0.625rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin: 0 0 0.25rem;
+  }
+  .fig dd {
+    font-family: var(--mono);
+    font-size: 1.0625rem;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    margin: 0;
+  }
+  .fig dd.warn { color: var(--clay); }
+  .fig dd.ok { color: var(--sage); }
+  .ticket-foot {
+    margin-top: 1rem;
+    font-family: var(--mono);
+    font-size: 0.75rem;
+    color: var(--muted);
+  }
+
+  /* ── sections ─────────────────────────────────────────── */
+  section { padding-block: clamp(2.75rem, 6vw, 4.5rem); border-top: 1px solid var(--rule); }
+  section > .wrap > h2 {
+    font-size: clamp(1.5rem, 3vw, 2.125rem);
+    font-weight: 700;
+    letter-spacing: -0.015em;
+    line-height: 1.15;
+    margin: 0 0 1rem;
+    max-width: 30ch;
+  }
+  .intro { max-width: var(--measure); color: var(--muted); margin: 0 0 2.5rem; }
+
+  .pair {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(19rem, 1fr));
+    gap: 1.5rem;
+  }
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--rule);
+    border-radius: 2px;
+    padding: 1.75rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.875rem;
+  }
+  .card h3 {
+    font-size: 1.25rem;
+    font-weight: 700;
+    margin: 0;
+    letter-spacing: -0.01em;
+  }
+  .card .role {
+    font-family: var(--mono);
+    font-size: 0.6875rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin: 0;
+  }
+  .card p { margin: 0; }
+  .card ul {
+    margin: 0;
+    padding-left: 1.1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+  }
+  .card li::marker { color: var(--petrol); }
+
+  /* ── pull quote ───────────────────────────────────────── */
+  .thesis {
+    background: var(--surface-2);
+  }
+  .thesis blockquote {
+    margin: 0;
+    max-width: 34ch;
+    font-family: var(--display);
+    font-weight: 600;
+    font-size: clamp(1.5rem, 3.4vw, 2.25rem);
+    line-height: 1.2;
+    letter-spacing: -0.02em;
+  }
+  .thesis-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr);
+    gap: clamp(1.5rem, 5vw, 4rem);
+    align-items: start;
+  }
+  @media (max-width: 56rem) { .thesis-grid { grid-template-columns: 1fr; } }
+  .thesis-grid p { margin: 0 0 1rem; max-width: var(--measure); }
+  .thesis-grid p:last-child { margin-bottom: 0; }
+
+  /* ── table ────────────────────────────────────────────── */
+  .table-scroll { overflow-x: auto; border: 1px solid var(--rule); background: var(--surface); }
+  table { border-collapse: collapse; width: 100%; min-width: 42rem; }
+  th, td {
+    text-align: left;
+    padding: 0.875rem 1rem;
+    border-bottom: 1px solid var(--rule);
+    vertical-align: top;
+  }
+  thead th {
+    font-family: var(--mono);
+    font-size: 0.6875rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--muted);
+    font-weight: 600;
+    background: var(--surface-2);
+    white-space: nowrap;
+  }
+  tbody tr:last-child td { border-bottom: 0; }
+  td code, .mono { font-family: var(--mono); font-size: 0.875rem; }
+  .pill {
+    display: inline-block;
+    font-family: var(--mono);
+    font-size: 0.6875rem;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    padding: 0.15rem 0.5rem;
+    border-radius: 2px;
+    white-space: nowrap;
+    border: 1px solid currentColor;
+  }
+  .pill.free { color: var(--sage); }
+  .pill.paid { color: var(--amber); }
+
+  /* ── steps / deploy ───────────────────────────────────── */
+  .steps { display: grid; gap: 0; counter-reset: step; }
+  .step {
+    display: grid;
+    grid-template-columns: 3.5rem minmax(0, 1fr);
+    gap: 1.25rem;
+    padding: 1.25rem 0;
+    border-top: 1px solid var(--rule);
+  }
+  .step:first-child { border-top: 0; }
+  .step-n {
+    font-family: var(--mono);
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: var(--petrol);
+    padding-top: 0.2rem;
+  }
+  .step h3 { font-size: 1.0625rem; font-weight: 700; margin: 0 0 0.35rem; }
+  .step p { margin: 0; max-width: var(--measure); }
+
+  /* ── support / footer ─────────────────────────────────── */
+  .cols {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr));
+    gap: 2rem;
+  }
+  .cols h3 {
+    font-size: 0.8125rem;
+    font-family: var(--display);
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--petrol);
+    margin: 0 0 0.75rem;
+  }
+  .cols p, .cols ul { margin: 0 0 0.75rem; }
+  .cols ul { padding-left: 1.1rem; display: flex; flex-direction: column; gap: 0.35rem; }
+
+  .fillin {
+    font-family: var(--mono);
+    font-size: 0.9375rem;
+    background: var(--amber-bg);
+    color: var(--amber);
+    padding: 0.1rem 0.4rem;
+    border-radius: 2px;
+    border: 1px dashed currentColor;
+  }
+
+  footer {
+    border-top: 1px solid var(--rule);
+    padding-block: 2.5rem 3.5rem;
+    color: var(--muted);
+    font-size: 0.875rem;
+  }
+  footer .fine { font-family: var(--mono); font-size: 0.75rem; line-height: 1.7; }
+  a { color: var(--petrol); }
+  a:focus-visible, nav a:focus-visible {
+    outline: 2px solid var(--amber);
+    outline-offset: 3px;
+  }
+</style>
+
+<div class="wrap">
+  <header class="masthead">
+    <p class="wordmark">O<span>·</span>A<span>·</span>S<span>·</span>I<span>·</span>S</p>
+    <nav>
+      <a href="#what">What it does</a>
+      <a href="#queue">The queue</a>
+      <a href="#modules">Modules &amp; licensing</a>
+      <a href="#deploy">Deployment</a>
+      <a href="#support">Support</a>
+      <a href="#privacy">Privacy</a>
+    </nav>
+  </header>
+
+  <div class="hero">
+    <div>
+      <p class="eyebrow">Retail inventory intelligence · for Odoo</p>
+      <h1>Your stock already knows what to do. <em>Somebody has to say why.</em></h1>
+      <p class="sub">OASIS reads what every branch holds and sells, works out what
+        should move between stores and what should be bought, and puts each
+        decision in front of a human with the argument attached.</p>
+      <p>It runs on your own hardware, against your own Odoo. Nothing is ordered
+        and nothing is moved until one of your people presses Approve.</p>
+    </div>
+
+    <div class="ticket">
+      <div class="ticket-head">
+        <p class="ticket-title">48 &times; Maize Meal 2kg</p>
+        <span class="tag">Replenishment</span>
+      </div>
+      <p class="ticket-reason">Meridian Fresh Northgate holds 41, about 3 days at
+        13.60 a day, and Highland Millers takes about 9 days to deliver.
+        Ordering 48 brings it back to about 21 days of cover. It runs out
+        before the delivery lands, so anything not ordered now is a gap on the
+        shelf.</p>
+      <dl class="figures">
+        <div class="fig"><dt>On hand</dt><dd>41</dd></div>
+        <div class="fig"><dt>Sales / day</dt><dd>13.60</dd></div>
+        <div class="fig"><dt>Cover</dt><dd class="warn">3 d</dd></div>
+        <div class="fig"><dt>Lead time</dt><dd>9 d</dd></div>
+        <div class="fig"><dt>On order</dt><dd>0</dd></div>
+        <div class="fig"><dt>Ordering to</dt><dd class="ok">21 d</dd></div>
+      </dl>
+      <p class="ticket-foot">This is a suggestion, not an order. Approving it
+        creates a draft purchase order in Odoo.</p>
+    </div>
+  </div>
+</div>
+
+<section id="what">
+  <div class="wrap">
+    <p class="eyebrow">Two decisions</p>
+    <h2>Move what you already own, before buying more of it.</h2>
+    <p class="intro">Most chains run these as one job and get both wrong. A store
+      runs dry while the same line sits dead in a branch four kilometres away;
+      meanwhile the buying system orders more of it. OASIS separates them,
+      because they are answered from different evidence.</p>
+
+    <div class="pair">
+      <div class="card">
+        <p class="role">Module — OASIS Transfers</p>
+        <h3>Stock you have, in the wrong branch</h3>
+        <p>Two jobs, kept separate so you can tell which one drove a movement:
+          plugging a gap before a store runs out, and clearing capital that is
+          sitting still.</p>
+        <ul>
+          <li>Days of cover at both ends, and what each store actually sells per day</li>
+          <li>A release cap, so a donor is never pushed below its own safety floor</li>
+          <li>Approve creates a draft internal transfer — one picking per route, not one per line</li>
+          <li>Perishables are surfaced but never queued automatically; transit costs shelf life</li>
+        </ul>
+      </div>
+      <div class="card">
+        <p class="role">Module — OASIS Replenishment</p>
+        <h3>Stock you need, from the right supplier</h3>
+        <p>What to buy, for which branch, against the lead time that supplier
+          actually keeps — measured from their delivery history, not the one on
+          the contract.</p>
+        <ul>
+          <li>What is already in transit is subtracted before anything is recommended</li>
+          <li>Supplier minimums are checked against the lines you actually approved</li>
+          <li>Approve creates a draft purchase order per supplier, per store</li>
+          <li>Each order is aimed at that store's own receipt operation, so goods land where the demand was measured</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="queue" class="thesis">
+  <div class="wrap thesis-grid">
+    <blockquote>The reasoning is the product. The document is just its output.</blockquote>
+    <div>
+      <p>OASIS has always been able to write a draft order straight into Odoo.
+        That was never the hard part, and it was never worth much: a draft order
+        says <em>buy 48</em> and nothing else. The buyer either approves
+        everything without reading it or refuses the lot, and neither is a
+        decision.</p>
+      <p>So every line carries its argument — the position it answers, the
+        horizon it covers, and what it costs to ignore. A person can disagree
+        with it. That is the point: when your branch manager overrules a
+        suggestion, they are telling you something the data did not, and OASIS
+        records where and how often it happens.</p>
+      <p>It is a review queue, deliberately. Not an autopilot with a confirmation
+        dialog.</p>
+    </div>
+  </div>
+</section>
+
+<section id="modules">
+  <div class="wrap">
+    <p class="eyebrow">Modules &amp; licensing</p>
+    <h2>Buy the part you need. They install and run independently.</h2>
+    <p class="intro">A chain that only wants to stop cross-branch stockouts takes
+      Transfers and nothing else. A chain that only wants better buying takes
+      Replenishment. Install both and they cooperate — a line too small to buy
+      becomes a line worth moving.</p>
+
+    <div class="table-scroll">
+      <table>
+        <thead>
+          <tr>
+            <th scope="col">Module</th>
+            <th scope="col">Technical name</th>
+            <th scope="col">Requires</th>
+            <th scope="col">Licence</th>
+            <th scope="col">What it is</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>OASIS Retail Intelligence</strong></td>
+            <td><code>oasis_connector</code></td>
+            <td><code>base</code></td>
+            <td><span class="pill free">LGPL-3 · free</span></td>
+            <td>The base. The OASIS app menu, the settings section and the
+              connection to your OASIS instance — no business logic, so it can
+              be redistributed freely.</td>
+          </tr>
+          <tr>
+            <td><strong>OASIS Transfers</strong></td>
+            <td><code>oasis_transfers</code></td>
+            <td><code>oasis_connector</code>, <code>stock</code></td>
+            <td><span class="pill paid">OPL-1 · paid</span></td>
+            <td>The inter-branch movement queue. Approve into native internal
+              transfers.</td>
+          </tr>
+          <tr>
+            <td><strong>OASIS Replenishment</strong></td>
+            <td><code>oasis_ordering</code></td>
+            <td><code>oasis_connector</code>, <code>purchase</code></td>
+            <td><span class="pill paid">OPL-1 · paid</span></td>
+            <td>The buying queue. Approve into native draft purchase orders.</td>
+          </tr>
+          <tr>
+            <td><strong>OASIS Telemetry</strong></td>
+            <td><code>oasis_telemetry</code></td>
+            <td><code>oasis_connector</code></td>
+            <td><span class="pill paid">OPL-1 · paid</span></td>
+            <td>Opt-in only. Streams agreed stock movement to the OASIS Cloud
+              Hub, which powers the supplier portal.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<section id="deploy">
+  <div class="wrap">
+    <p class="eyebrow">Deployment</p>
+    <h2>On your hardware, beside your Odoo, and it works with the line down.</h2>
+    <p class="intro">The analysis needs full visibility of cost price, item master
+      and receipt dates. That data does not leave the premises, so neither does
+      the engine that reads it.</p>
+
+    <div class="steps">
+      <div class="step">
+        <div class="step-n">01</div>
+        <div>
+          <h3>Install the modules</h3>
+          <p>From the Odoo Apps list, or by dropping them on the addons path.
+            The base first; then whichever features you bought.</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-n">02</div>
+        <div>
+          <h3>Point them at your OASIS instance</h3>
+          <p>Settings → OASIS → Connection. One endpoint serves both queues.
+            OASIS runs on-premises, on the same network as Odoo.</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-n">03</div>
+        <div>
+          <h3>Read the queue before you trust it</h3>
+          <p>Run it alongside your existing process for a fortnight and compare.
+            Every suggestion states its own reasoning, so disagreement is
+            specific rather than a general feeling that the numbers are off.</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-n">04</div>
+        <div>
+          <h3>Then start approving</h3>
+          <p>Approving is the only thing that writes to your inventory or your
+            purchasing. Everything before it is analysis.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="support">
+  <div class="wrap">
+    <p class="eyebrow">Support</p>
+    <h2>Who to contact, and what to expect.</h2>
+    <div class="cols">
+      <div>
+        <h3>Getting help</h3>
+        <p>Email <a href="mailto:support@oasisretail.co.ke">support@oasisretail.co.ke</a> with your Odoo
+          version, the module and version, and what you expected to happen.</p>
+        <p>Screenshots of the queue are useful. Never send us database
+          credentials — we will not ask for them.</p>
+      </div>
+      <div>
+        <h3>Response times</h3>
+        <ul>
+          <li><strong>Queue is wrong or empty</strong> — one working day</li>
+          <li><strong>Module will not install or upgrade</strong> — one working day</li>
+          <li><strong>Anything that wrote to your inventory incorrectly</strong> — same working day</li>
+          <li><strong>Feature requests</strong> — acknowledged within a week</li>
+        </ul>
+      </div>
+      <div>
+        <h3>Supported versions</h3>
+        <p>Odoo 16.0, Community and Enterprise. The modules depend only on
+          Community modules (<code>stock</code>, <code>purchase</code>), so
+          Enterprise is not required.</p>
+        <p>Included with a current licence: fixes, and compatibility with
+          supported Odoo point releases.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="privacy">
+  <div class="wrap">
+    <p class="eyebrow">Privacy &amp; data</p>
+    <h2>What leaves your premises: by default, nothing.</h2>
+    <div class="cols">
+      <div>
+        <h3>The modules</h3>
+        <p>OASIS Transfers and OASIS Replenishment make no outbound connection
+          except to the OASIS instance you configure, on your own network. They
+          send us nothing.</p>
+      </div>
+      <div>
+        <h3>Telemetry, if you install it</h3>
+        <p>OASIS Telemetry is opt-in and separately purchased. It streams only
+          the stock movement categories you agree to, filtered before it leaves
+          your system. Cost price, margin and supplier credit terms are excluded
+          and cannot be enabled.</p>
+      </div>
+      <div>
+        <h3>Personal data</h3>
+        <p>The modules process inventory and supplier records, not customer
+          data. No personal data is collected by us. Full policy:
+          <a href="https://oasisretail.co.ke/privacy">oasisretail.co.ke/privacy</a>.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <div class="cols">
+      <div>
+        <h3>Publisher</h3>
+        <p class="fine">iLink<br>
+          <a href="https://oasisretail.co.ke">oasisretail.co.ke</a><br>
+          <a href="mailto:support@oasisretail.co.ke">support@oasisretail.co.ke</a></p>
+      </div>
+      <div>
+        <h3>Licensing</h3>
+        <p class="fine">oasis_connector — LGPL-3<br>
+          oasis_transfers · oasis_ordering · oasis_telemetry — OPL-1<br>
+          Odoo® is a trademark of Odoo S.A. OASIS is not affiliated with Odoo S.A.</p>
+      </div>
+      <div>
+        <h3>Sample data</h3>
+        <p class="fine">Every figure and store name shown on this page is from
+          the built-in demonstration dataset. Meridian Fresh and Highland
+          Millers are invented; they are not customers.</p>
+      </div>
+    </div>
+  </div>
+</footer>

@@ -31,7 +31,7 @@ Installs and runs on its own. It does not require OASIS Telemetry or OASIS
 Replenishment; install Replenishment as well and the two cooperate.
 """,
     "author": "iLink",
-    "website": "https://www.oasis-systems.example",
+    "website": "https://oasisretail.co.ke",
     "category": "Inventory/Inventory",
     "license": "OPL-1",
     "depends": ["oasis_connector", "stock"],

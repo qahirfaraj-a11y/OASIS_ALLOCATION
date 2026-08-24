@@ -22,11 +22,11 @@ installs itself automatically and does nothing until both sides are present.
 
 Nothing here reads or writes your stock, and nothing leaves your system.
 """,
-    # TODO before submitting to apps.odoo.com: replace with iLink's real,
-    # working support/marketing URL. apps.odoo.com requires a live publisher
-    # website — a placeholder here will fail listing review.
+    # apps.odoo.com requires a LIVE publisher website — it is checked at review,
+    # and a domain that does not resolve, or resolves to a parked page, fails.
+    # There is no TLD requirement; a ccTLD is fine.
     "author": "iLink",
-    "website": "https://www.oasis-systems.example",
+    "website": "https://oasisretail.co.ke",
     "category": "Inventory/Inventory",
     "license": "LGPL-3",
     # `base` ONLY. The base module must never drag in stock or purchase: a

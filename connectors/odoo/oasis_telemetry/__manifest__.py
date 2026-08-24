@@ -24,7 +24,7 @@ needs neither. A client who only wants OASIS to move stock between their own
 stores never has to install it.
 """,
     "author": "iLink",
-    "website": "https://www.oasis-systems.example",
+    "website": "https://oasisretail.co.ke",
     "category": "Inventory/Inventory",
     "license": "OPL-1",
     # `stock` because the receipt and on-hand feeds read stock moves and

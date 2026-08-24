@@ -31,7 +31,7 @@ Installs and runs on its own. It does not require OASIS Transfers or OASIS
 Telemetry; install Transfers as well and the two cooperate.
 """,
     "author": "iLink",
-    "website": "https://www.oasis-systems.example",
+    "website": "https://oasisretail.co.ke",
     "category": "Inventory/Purchase",
     "license": "OPL-1",
     # `purchase` and the OASIS base — nothing else. Not `stock`: purchase
