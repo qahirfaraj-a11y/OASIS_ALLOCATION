@@ -618,7 +618,10 @@ def main():
                                  # customer's own Odoo goods receipts
                                  "odoo-rhythm",
                                  # how is the pilot going? read-only
-                                 "odoo-pilot", "web",
+                                 "odoo-pilot",
+                                 # was each delivery sized for the gap it had
+                                 # to cover? the outcome measure for a horizon
+                                 "residual-cover", "web",
                                  # Dev-toolkit modes: each drives a script in
                                  # devkit/, which never ships. They dispatch
                                  # fine here and degrade with an explicit
@@ -781,6 +784,17 @@ def main():
         # on them, and where they consistently decide OASIS is wrong.
         from oasis.logic.odoo_pilot_report import collect, format_report
         print(format_report(collect(days=args.days)))
+        sys.exit(0)
+    elif args.mode == "residual-cover":
+        # THE ONLY CHECK ON A HORIZON THAT CANNOT BE CIRCULAR.
+        #
+        # Every other way of judging "how long until the next delivery" compares
+        # one estimate of supplier cadence against another, and the observed
+        # interval is downstream of our own past ordering — so agreement proves
+        # nothing. This asks what actually happened afterwards: how much cover
+        # each delivery carried against the gap it really had to span.
+        from oasis.logic.residual_cover import format_report, read_from_odoo
+        print(format_report(read_from_odoo(org_cd=args.org or None)))
         sys.exit(0)
     elif args.mode == "odoo-rhythm":
         # Every horizon the transfer engine uses is derived from LATA's measured
