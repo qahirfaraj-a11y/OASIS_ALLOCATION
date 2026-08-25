@@ -69,11 +69,11 @@ class TestItDerivesARhythm:
     def test_a_weekly_supplier_reads_as_weekly(self):
         r = derive(adapter=FakeOdoo(_picks("Brookside", 7, 10)), write=False)
         assert r["suppliers"] == 1
-        assert r["patterns"]["brookside"]["median_gap_days"] == 7
+        assert r["patterns"]["BROOKSIDE"]["median_gap_days"] == 7
 
     def test_a_daily_supplier_reads_as_daily(self):
         r = derive(adapter=FakeOdoo(_picks("Daily Co", 1, 20)), write=False)
-        assert r["patterns"]["daily co"]["median_gap_days"] == 1
+        assert r["patterns"]["DAILY CO"]["median_gap_days"] == 1
 
     def test_too_few_receipts_yield_no_rhythm(self):
         """One gap is an anecdote. The engine's own fallback is safer."""
@@ -83,8 +83,8 @@ class TestItDerivesARhythm:
     def test_confidence_reflects_how_much_evidence_there_was(self):
         thin = derive(adapter=FakeOdoo(_picks("Thin", 7, 3)), write=False)
         thick = derive(adapter=FakeOdoo(_picks("Thick", 7, 12)), write=False)
-        assert thin["patterns"]["thin"]["confidence"] == "LOW"
-        assert thick["patterns"]["thick"]["confidence"] == "HIGH"
+        assert thin["patterns"]["THIN"]["confidence"] == "LOW"
+        assert thick["patterns"]["THICK"]["confidence"] == "HIGH"
 
     def test_one_delivery_split_across_pickings_is_one_arrival(self):
         """Three pickings on the SAME day is one delivery. Counting them as
@@ -92,7 +92,7 @@ class TestItDerivesARhythm:
         same_day = _picks("Split", 0, 3) + _picks("Split", 7, 5,
                                                   start_days_ago=380)
         r = derive(adapter=FakeOdoo(same_day), write=False)
-        assert r["patterns"]["split"]["median_gap_days"] == 7
+        assert r["patterns"]["SPLIT"]["median_gap_days"] == 7
 
     def test_an_absurd_gap_is_excluded(self):
         """A supplier that last delivered a year ago has a discontinued line or
@@ -100,7 +100,7 @@ class TestItDerivesARhythm:
         picks = _picks("Gappy", 7, 6)
         picks += _picks("Gappy", 7, 4, start_days_ago=20)   # a long hole between
         r = derive(adapter=FakeOdoo(picks), write=False)
-        assert r["patterns"]["gappy"]["median_gap_days"] <= 14
+        assert r["patterns"]["GAPPY"]["median_gap_days"] <= 14
 
 
 class TestLeadTimeProvenance:
@@ -114,14 +114,14 @@ class TestLeadTimeProvenance:
             supplierinfo=[{"partner_id": [7, "Measured"], "delay": 99}],
             orders=[{"id": 55, "date_order": ordered}])
         r = derive(adapter=fake, write=False)
-        rec = r["patterns"]["measured"]
+        rec = r["patterns"]["MEASURED"]
         assert rec["lead_time_source"] == "measured"
         assert rec["estimated_delivery_days"] != 99
 
     def test_the_stated_lead_is_used_only_when_nothing_was_measured(self):
         fake = FakeOdoo(_picks("Claimed", 7, 6),
                         supplierinfo=[{"partner_id": [7, "Claimed"], "delay": 4}])
-        rec = derive(adapter=fake, write=False)["patterns"]["claimed"]
+        rec = derive(adapter=fake, write=False)["patterns"]["CLAIMED"]
         assert rec["lead_time_source"] == "stated"
         assert rec["estimated_delivery_days"] == 4
 
@@ -136,8 +136,8 @@ class TestPerStore:
                  + _picks("Split Co", 14, 8, warehouse_type=2))
         r = derive(adapter=FakeOdoo(picks), write=False)
         per_store = r["per_store"]
-        assert per_store["A1"]["split co"]["median_gap_days"] == 1
-        assert per_store["B2"]["split co"]["median_gap_days"] == 14
+        assert per_store["A1"]["SPLIT CO"]["median_gap_days"] == 1
+        assert per_store["B2"]["SPLIT CO"]["median_gap_days"] == 14
 
     def test_store_pairs_are_counted(self):
         picks = (_picks("S", 7, 6, warehouse_type=1)

@@ -98,6 +98,17 @@ GAPS_FILE = "supplier_delivery_gaps.json"
 PER_STORE_FILE = "supplier_patterns_by_store.json"
 
 
+def _supplier_key(name: str) -> str:
+    """The one form a supplier name is stored and looked up under.
+
+    UPPERCASE and whitespace-collapsed, matching what the engine does at every
+    read site: ``str(product['supplier_name']).upper().strip()``, and its
+    fallback ``normalize_product_name``, which also uppercases. Written here
+    once so the write side and the read side cannot drift apart again.
+    """
+    return " ".join(str(name or "").upper().split())
+
+
 def _as_date(value) -> Optional[datetime]:
     try:
         return datetime.strptime(str(value)[:19], "%Y-%m-%d %H:%M:%S")
@@ -214,7 +225,22 @@ def derive(adapter=None, days: int = 730, data_dir: str = None,
         when = _as_date(p.get("date_done"))
         if not (name and when):
             continue
-        key = name.lower()
+        # UPPERCASE, because that is what every consumer looks up with.
+        #
+        # This wrote lower-case keys. Nothing complained, because the file was
+        # only ever written on an instance too thin to pass _may_replace. The
+        # first customer it DID write for would have got a perfectly valid file
+        # that the engine could not read a single entry from: enrichment looks
+        # up `supplier_name.upper().strip()`, and its fallback,
+        # normalize_product_name, also uppercases. Zero of 486 keys matched the
+        # 599 in the file it would have replaced.
+        #
+        # The failure mode is the worst kind — silent and plausible. Every
+        # supplier would miss, every lookup would fall through to
+        # estimated_delivery_days = 7.0 and median_gap_days = 7, and the engine
+        # would run on exactly the flat constant this derivation exists to
+        # remove, with a freshly written file on disk proving it had worked.
+        key = _supplier_key(name)
         chain_dates[key].append(when)
 
         pt = p.get("picking_type_id")
@@ -356,7 +382,7 @@ def _stated_lead_times(adapter) -> Dict[str, float]:
     for r in rows:
         p = r.get("partner_id")
         if isinstance(p, (list, tuple)) and len(p) > 1:
-            name = str(p[1]).strip().lower()
+            name = _supplier_key(p[1])
             if name and name not in out:
                 out[name] = float(r.get("delay") or 0)
     return out
