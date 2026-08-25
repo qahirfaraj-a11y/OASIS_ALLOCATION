@@ -197,8 +197,25 @@ class IntelligenceMixin:
         rhythm_db = getattr(self, 'rhythm_db', {})
         s_rhythm = rhythm_db.get(supplier_name, {})
         
-        # Default cycle is 7 days (Weekly) unless history proves otherwise
-        order_cycle = float(s_rhythm.get('median_gap', 7.0))
+        # ONE ORDER CYCLE, ONE SOURCE.
+        #
+        # This read `s_rhythm.get('median_gap', 7.0)` — the PO-rhythm file — and
+        # fell back to a literal 7 whenever a supplier was missing from it. The
+        # ordering stage meanwhile floors coverage at the product's OWN
+        # median_gap_days, measured from real goods receipts. So for a supplier
+        # absent from the rhythm file the two stages used 7 and 30 for the same
+        # quantity, enrichment computed a target the order then overrode, and
+        # the queue displayed a number the order never honoured.
+        #
+        # Precedence: the PO rhythm file where it actually covers this
+        # supplier, then the receipt-derived gap on the product, then 7 as the
+        # last resort. 7 is now what it always claimed to be — a default for
+        # "no history at all" — rather than a value that quietly outranks
+        # measured history.
+        order_cycle = s_rhythm.get('median_gap')
+        if order_cycle is None:
+            order_cycle = product.get('median_gap_days')
+        order_cycle = float(order_cycle) if order_cycle else 7.0
         
         # 2. Safety Buffer (LATA & Simulation Aware)
         # Fresh items get a lean 1.2-day TOTAL BASE if supplied daily, 
@@ -671,34 +688,87 @@ class IntelligenceMixin:
                 p['target_coverage_days'] = 3.0
                 p['floor_applied'] = True
 
-            # --- FINAL STAGE STRATEGIC CAPS (FIX 6 & 7) ---
-            # FIX 6: Raised fresh cap from 1.5 → 3.0 days (Guide: "Cycle + 0.5 Days" + weekend coverage).
-            # FIX 7: Category boosts are honored as a floor — cap cannot go BELOW the boosted value.
-            #         Previously, a Dairy item boosted from 1.5 → 2.25 days was capped back to 1.5.
+            # --- FINAL STAGE STRATEGIC CAPS ---
+            #
+            # OPERATOR RULING (2026-08-25): an order must ALWAYS aim to cover
+            # until the next delivery. The ceilings are a guard against
+            # over-ordering lines that arrive on a DAILY cadence — they were
+            # never meant to cut an order below the horizon it has to survive.
+            #
+            # They were doing exactly that. A 7-day ceiling on UHT whose
+            # supplier comes every 14 days does not prevent overstock; it
+            # guarantees a 7-day hole on the shelf. The ordering stage then
+            # quietly overrode the ceiling anyway (simulation_bridge's
+            # min_cycle_coverage floor), so the two stages disagreed on 61% of
+            # ordered lines and the queue displayed a target the order never
+            # honoured. One rule, applied once, in the open.
+            #
+            # FIX 7 retained: a category boost is a floor, so a ceiling never
+            # cuts below the boosted value either.
             target_days = float(p['target_coverage_days'])
             category_boost_applied = p.get('category_boost', 1.0)
             boosted_floor = float(base_coverage * category_boost_applied) if category_boost_applied > 1.0 else 0.0
-            
+
+            # The horizon this line actually has to survive: the wait until the
+            # next delivery lands. Same quantity the ordering stage computes,
+            # so the two agree by construction rather than by luck.
+            _gap = float(p.get('median_gap_days', 7) or 7)
+            _lead = float(p.get('estimated_delivery_days', 7) or 7)
+            _safety = 1.2 if is_fresh else 3.0
+            next_delivery_days = _gap + _lead + _safety
+
+            # DAILY CADENCE is what the ceilings are for. Where a supplier
+            # genuinely comes every day, the next-delivery horizon is ~2 days
+            # and the ceiling binds — which is the intended guard against
+            # holding a week of something that arrives tomorrow.
+            daily_cadence = _gap <= 1.5
+
+            def _ceiling(nominal):
+                """A ceiling that guards daily lines without starving slow ones."""
+                c = max(float(nominal), boosted_floor)
+                if not daily_cadence:
+                    c = max(c, next_delivery_days)
+                return c
+
             if is_fresh:
-                # User directive: strict 1.2 day cap, relaxable to 1.5 with sim feedback
                 cap = 1.2
                 if p.get('sim_stockout_frequency', 0) > 0.3:
                     cap = 1.5
-                
                 is_dairy = any(x in p_upper for x in ['DAIMA', 'BIO ', 'FRESH MILK', 'MAZIWA'])
-                
-                # For dairy, enforce strict cap (ignore boosted_floor)
-                effective_cap = cap if is_dairy else max(cap, boosted_floor)
-                
+                # Dairy on a daily round keeps the strict JIT ceiling: it is the
+                # shortest-lived thing in the shop and it arrives tomorrow.
+                effective_cap = cap if (is_dairy and daily_cadence) else _ceiling(cap)
                 if target_days > effective_cap:
                     p['target_coverage_days'] = effective_cap
                     p['cap_applied'] = True
                     p['cap_reason'] = f'Fresh Ceiling ({effective_cap:.1f}d)'
             elif any(x in p_upper for x in ['UHT', 'ESL', 'LONG LIFE']):
-                p['target_coverage_days'] = min(target_days, 7.0)
-            else:
-                effective_cap = max(25.0, boosted_floor)  # FIX 7: Honor category boost for dry goods too
+                effective_cap = _ceiling(7.0)
                 p['target_coverage_days'] = min(target_days, effective_cap)
+                if effective_cap > 7.0:
+                    p['cap_reason'] = (f'UHT ceiling raised 7d -> {effective_cap:.0f}d '
+                                       f'to reach a delivery every {_gap:.0f}d')
+            else:
+                effective_cap = _ceiling(25.0)
+                p['target_coverage_days'] = min(target_days, effective_cap)
+
+            # NEVER ORDER PAST SPOILAGE. Where the wait for the next delivery
+            # is longer than the item survives, no quantity is correct: cover
+            # the horizon and it rots, respect the shelf life and it runs out.
+            # That is a buying-cadence problem, and it is flagged rather than
+            # silently resolved in either direction — it is also the strongest
+            # possible case for a transfer from another branch.
+            _shelf = float(p.get('shelf_life_days', 0) or 0)
+            if _shelf > 0 and float(p['target_coverage_days']) > _shelf:
+                p['target_coverage_days'] = _shelf
+                p['cap_applied'] = True
+                p['cap_reason'] = f'Shelf life ({_shelf:.0f}d)'
+                if next_delivery_days > _shelf:
+                    p['cadence_conflict'] = True
+                    p['cadence_conflict_note'] = (
+                        f'next delivery is {next_delivery_days:.0f}d away but this '
+                        f'line only lasts {_shelf:.0f}d — it cannot be covered by '
+                        f'ordering, only by ordering more often or transferring in')
 
             # Re-calculate ROP/Safety after ALL boosts and caps
             # R4: Golden Parity — ROP uses sales_velocity (historical), safety_stock uses avg_daily_sales (forecasted)
