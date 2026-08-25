@@ -26,6 +26,66 @@ from .allocation_strategies import AllocationConfig
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("OrderEngine")
 
+
+def pick_intelligence_file(data_dir: str, search_term: str,
+                           available_files: Optional[List[str]] = None) -> Optional[str]:
+    """Which file backs an intelligence database, chosen deterministically.
+
+    THE BUG THIS EXISTS TO PREVENT. The old rule was
+    ``next(f for f in os.listdir(...) if term in f and f.endswith('.json'))`` —
+    first match in whatever order the filesystem happened to return. Copy a
+    file in Windows Explorer and you get ``supplier_patterns_2025 (3).json``
+    sitting beside ``supplier_patterns_2025.json``; the space sorts first, so
+    the engine silently loaded a THREE-WEEK-OLD duplicate and ignored the
+    patterns freshly derived from the customer's own goods receipts.
+
+    It was invisible from every direction. Nothing errored, the log said
+    "Loaded supplier_patterns", the file it named looked plausible, and the
+    only symptom was that lead times were wrong — KAMILI PACKERS carried 21
+    days against a measured 3, a 7x inflation that fed straight into
+    ``gap + lead + safety`` and inflated every order for that supplier.
+
+    Precedence, most specific first:
+
+      1. ``<term>_updated.json`` exactly — what the bootstrap writes.
+      2. ``<term>.json`` exactly — the canonical name.
+      3. of anything else that merely CONTAINS the term, the newest by
+         modification time, because a stale duplicate is the likelier accident.
+
+    Ambiguity is logged rather than resolved quietly: if two files could have
+    served, the operator is told which was used and which were ignored.
+    """
+    if available_files is None:
+        try:
+            available_files = os.listdir(data_dir)
+        except OSError:
+            return None
+
+    candidates = [f for f in available_files
+                  if search_term in f and f.endswith(".json")]
+    if not candidates:
+        return None
+
+    exact_updated = "%s_updated.json" % search_term
+    exact_plain = "%s.json" % search_term
+
+    if exact_updated in candidates:
+        chosen = exact_updated
+    elif exact_plain in candidates:
+        chosen = exact_plain
+    else:
+        chosen = max(candidates,
+                     key=lambda f: os.path.getmtime(os.path.join(data_dir, f)))
+
+    if len(candidates) > 1:
+        ignored = [c for c in candidates if c != chosen]
+        logger.warning(
+            "%s: %d files could serve this database. Using %r and IGNORING %s. "
+            "A stale duplicate here silently replaces real derived data — "
+            "delete the ones you do not want.",
+            search_term, len(candidates), chosen, ", ".join(repr(i) for i in ignored))
+    return chosen
+
 class OrderEngine(IntelligenceMixin, ProcurementMixin, MaintenanceMixin, DataMixin, ObsidianMixin):
     """
     The O.A.S.I.S. Order Engine.
@@ -285,10 +345,10 @@ class OrderEngine(IntelligenceMixin, ProcurementMixin, MaintenanceMixin, DataMix
         }
         
         async def load_single_db(db_key, search_term):
-            # Prioritize updated/v10.0 versions
-            match = next((f for f in available_files if search_term in f and '_updated.json' in f), None)
-            if not match:
-                match = next((f for f in available_files if search_term in f and f.endswith('.json')), None)
+            # Deterministic: exact _updated, then exact, then newest. Never
+            # "whatever os.listdir returned first" — see pick_intelligence_file.
+            match = pick_intelligence_file(self.data_dir, search_term,
+                                           available_files)
             
             if match:
                 try:
@@ -346,11 +406,9 @@ class OrderEngine(IntelligenceMixin, ProcurementMixin, MaintenanceMixin, DataMix
             'simulation_feedback': 'simulation_feedback'
         }
         
+        available_files = os.listdir(data_dir)
         for key, search_term in db_configs.items():
-            available_files = os.listdir(data_dir)
-            match = next((f for f in available_files if search_term in f and '_updated.json' in f), None)
-            if not match:
-                match = next((f for f in available_files if search_term in f and f.endswith('.json')), None)
+            match = pick_intelligence_file(data_dir, search_term, available_files)
             
             if match:
                 try:
