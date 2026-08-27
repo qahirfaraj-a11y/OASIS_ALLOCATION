@@ -12,6 +12,13 @@ from .order_logic_guards import apply_safety_guards
 
 logger = logging.getLogger("OrderEngine.Intelligence")
 
+#: A "top SKU" is one inside this rank. Named once because the threshold was
+#: written out in four places, and one of them had drifted into meaning
+#: "we hold a profitability record for this line" — which fired the +20%
+#: order uplift on 86% of a 3,346-line catalogue.
+TOP_SKU_RANK = 500
+
+
 class IntelligenceMixin:
     """
     IntelligenceMixin handles all analytical logic, including demand forecasting,
@@ -808,11 +815,29 @@ class IntelligenceMixin:
                 prof_data = self.find_best_match(p_code, p_barcode, p_name, sales_profitability)
 
             if prof_data:
-                p['sales_rank'] = prof_data.get('sales_rank', 999)
+                try:
+                    p['sales_rank'] = int(prof_data.get('sales_rank', 999) or 999)
+                except (TypeError, ValueError):
+                    p['sales_rank'] = 999
                 # Preserve existing margin if prof_data doesn't have one
                 p['margin_pct'] = float(prof_data.get('margin_pct', p.get('margin_pct', 0.0)))
                 p['revenue'] = float(prof_data.get('revenue', 0.0))  # R15: Golden Parity
-                p['is_top_sku'] = True
+                # TOP SKU IS A STATEMENT ABOUT RANK, NOT ABOUT HAVING A RECORD.
+                #
+                # This was `p['is_top_sku'] = True` for anything that matched a
+                # profitability row — the rank was read on the line above and
+                # then never consulted. A SKU ranked 20,000th was flagged a top
+                # SKU because we happened to hold data on it, and the flag's
+                # only real consumer is a +20% uplift on the order quantity.
+                #
+                # Measured on the census: it fired on 85.9% of ordered lines,
+                # for a rule meant to cover the top 500 of 3,346.
+                p['is_top_sku'] = p['sales_rank'] < TOP_SKU_RANK
+                # is_key_sku deliberately unchanged: it reads "we hold
+                # profitability data for this line" and four other consumers
+                # (rounding, order guards, procurement, LLM inference) depend on
+                # that meaning. It is misnamed, but renaming it is a separate
+                # change with a wider blast radius.
                 p['is_key_sku'] = True
             else:
                 p['sales_rank'] = 999
@@ -859,12 +884,28 @@ class IntelligenceMixin:
         # GAP 1 FIX: Compute missing sales_rank
         missing_rank = [p for p in products if p.get('sales_rank', 999) == 999]
         if missing_rank:
+            # RANK THEM AFTER THE ALREADY-RANKED, NOT FROM ONE.
+            #
+            # This restarted at 1 for the leftovers, so the fastest 499 of the
+            # products we had NO profitability data for were promoted to top-SKU
+            # status — ranked against each other rather than against the
+            # catalogue. A line genuinely 3,000th overall became rank 12 of the
+            # unranked and collected the +20% uplift.
+            #
+            # Offsetting by the ranked population makes the fallback rank mean
+            # what it says: "after everything we could actually rank". It also
+            # means the top-SKU test can only fire here when fewer than
+            # TOP_SKU_RANK products carry a real rank, which is the honest
+            # condition.
+            already_ranked = sum(1 for p in products
+                                 if int(p.get('sales_rank', 999) or 999) != 999)
             sorted_by_ads = sorted(missing_rank, key=lambda x: float(x.get('avg_daily_sales', 0)), reverse=True)
             for idx, p in enumerate(sorted_by_ads):
                 # Only give meaningful rank if it has sales
                 if float(p.get('avg_daily_sales', 0)) > 0:
-                    p['sales_rank'] = idx + 1
-                    if p['sales_rank'] < 500:
+                    p['sales_rank'] = already_ranked + idx + 1
+                    p['rank_source'] = 'velocity_fallback'
+                    if p['sales_rank'] < TOP_SKU_RANK:
                         p['is_top_sku'] = True
                         p['is_key_sku'] = True
 
