@@ -9,6 +9,7 @@ sys.path.append(os.getcwd())
 
 from oasis.logic.order_engine import OrderEngine, apply_safety_guards
 from oasis.data.supplier_calendar import SupplierCalendar
+from oasis.logic import order_up_to as _ou
 
 
 def _supplier_phase_offset(supplier: str, gap_days: int) -> int:
@@ -55,6 +56,16 @@ class SimulationOrderUtil:
             # Synchronous load for simulation speed
             self.engine.load_local_databases()
         
+        # The declared order schedule, for the derived model. Loaded once here
+        # rather than per line: it is a policy file, not per-SKU data, and
+        # re-reading it 3,000 times a scan would be the kind of quiet cost that
+        # only shows up at a customer with a real catalogue.
+        try:
+            self._review_schedule = _ou.load_review_schedule(
+                os.path.dirname(os.path.abspath(data_dir)))
+        except Exception:
+            self._review_schedule = {}
+
         # Calendar Integration (G2 Fix: relative path discovery)
         cal_path = _find_calendar_path(data_dir)
         self.calendar = SupplierCalendar(cal_path)
@@ -360,6 +371,39 @@ class SimulationOrderUtil:
             
             # Check reorder trigger
             if current_stock <= reorder_point:
+                # ── DERIVED MODEL, behind OASIS_ORDER_MODEL ────────────────
+                #
+                # S = d(R+L) + z·sqrt((R+L)·sigma_d^2 + d^2·sigma_L^2)
+                #
+                # The classic path below computes the horizon from the OBSERVED
+                # order gap and then multiplies it by five factors. This one
+                # takes R from the client's declared order schedule, adds the
+                # supplier's measured lead-time variance — which the classic
+                # path omits entirely, though it is the larger of the two
+                # variance terms — and buys one explicit service level instead
+                # of an implicit product of multipliers.
+                #
+                # The TRIGGER above is deliberately shared, so a difference in
+                # the result is attributable to the quantity decision alone.
+                if _ou.is_enabled():
+                    terms = _ou.recommend(
+                        p, schedule=self._review_schedule,
+                        patterns=self.engine.databases.get('supplier_patterns', {}))
+                    q = float(terms.get("quantity") or 0)
+                    if q > 0:
+                        rec['recommended_quantity'] = q
+                        rec['order_up_to_terms'] = terms
+                        rec['target_coverage_days'] = (
+                            terms["S"] / avg_daily_sales if avg_daily_sales > 0 else 0)
+                        rec['reasoning'] += (
+                            f" [order-up-to: R={terms['R']:.0f}d L={terms['L']:.0f}d "
+                            f"z={terms['z']:.2f} sigmaL={terms['sigma_lead']:.1f}d "
+                            f"S={terms['S']:.0f}]")
+                    else:
+                        rec['reasoning'] += " [order-up-to: position already covers P]"
+                    recommendations.append(rec)
+                    continue
+
                 # Calculate Target Stock
                 target_coverage_days = p.get('target_coverage_days', 7)
                 
