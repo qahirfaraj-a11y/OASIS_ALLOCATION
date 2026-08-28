@@ -56,6 +56,25 @@ COLUMNS = ["Department", "SKU_Count", "Avg_Price", "Avg_Daily_Sales",
 #: real weights so it can never dilute a measured one.
 MIN_WEIGHT = 0.0001
 
+#: THE HIERARCHY THIS TOOL MUST NOT BREAK.
+#:
+#: Allocation_Logic_Breakdown.docx states the wallet split as "Staples 60%,
+#: General 40%". The shipped ratios file holds 60.7% in ESSENTIAL_DEPARTMENTS —
+#: that is the documented design encoded in data, not an accident.
+#:
+#: Rebuilding weights from raw turnover share ACROSS ALL DEPARTMENTS halves it
+#: (measured: essential 60.7% -> 31.3%, Fast Five anchors 35.0% -> 14.6%),
+#: because a full catalogue has hundreds of discretionary departments and only
+#: a couple of dozen staple ones. The departments carrying no price in the
+#: shipped file are largely low-priority discretionary lines deliberately left
+#: in the orphan reserve so the staples could hold their share. Filling their
+#: prices in is not a repair; it is a redistribution away from Day-1 survival.
+#:
+#: So the rebuild refuses to run if it would move the staple share by more than
+#: this. A tool that can silently invert the engine's priority ordering is a
+#: hazard, however clean its arithmetic.
+MAX_STAPLE_SHARE_DRIFT = 0.05
+
 
 def _f(row: Dict[str, Any], key: str) -> float:
     try:
@@ -130,6 +149,29 @@ def read_scorecard(path: str) -> List[Dict[str, Any]]:
         return list(csv.DictReader(f))
 
 
+def staple_share(weights: Dict[str, float]) -> float:
+    """Fraction of capital held by the essential departments.
+
+    The number the documented "Staples 60% / General 40%" split refers to, and
+    the one a rebuild must not quietly move.
+    """
+    try:
+        from .department_constants import ESSENTIAL_DEPARTMENTS
+    except ImportError:
+        return 0.0
+    names = {" ".join(str(n).upper().split()) for n in ESSENTIAL_DEPARTMENTS}
+    return sum(v for k, v in weights.items() if k in names)
+
+
+def _existing_weights(path: str) -> Dict[str, float]:
+    try:
+        with io.open(path, encoding="utf-8", errors="replace", newline="") as f:
+            return {r["Department"].strip().upper(): _f(r, "Capital_Weight")
+                    for r in csv.DictReader(f)}
+    except (OSError, KeyError):
+        return {}
+
+
 def _priced_count(path: str) -> int:
     """How many departments in an existing file carry a real value."""
     try:
@@ -169,6 +211,27 @@ def regenerate(scorecard_path: str, data_dir: str, write: bool = True,
             f"the existing file prices {before_priced} departments and this "
             f"scorecard prices only {after_priced}; refusing to replace richer "
             f"data with thinner. Pass force=True if that is intended.")
+        logger.warning("REFUSED to write: %s", result["refused"])
+        return result
+
+    # THE HIERARCHY GUARD. Turnover share across a full catalogue buries the
+    # staples: measured on this book it took essential departments from 60.7%
+    # to 31.3% and Fast Five anchors from 35.0% to 14.6%, inverting the
+    # engine's own Day-1 survival priority. Arithmetically clean, strategically
+    # backwards — exactly the kind of change that passes every test and ruins
+    # an opening.
+    old_share = staple_share(_existing_weights(out_path))
+    new_share = staple_share(capital_weights(agg))
+    result["staple_share_before"] = round(old_share, 4)
+    result["staple_share_after"] = round(new_share, 4)
+    if old_share > 0 and abs(new_share - old_share) > MAX_STAPLE_SHARE_DRIFT and not force:
+        result["refused"] = (
+            f"this would move the staple share from {old_share:.1%} to "
+            f"{new_share:.1%}. The documented split is 'Staples 60%, General "
+            f"40%', and rebuilding from raw turnover share across every "
+            f"department inverts it. Rebalance WITHIN the staple and general "
+            f"groups instead, or pass force=True if the redistribution is "
+            f"intended.")
         logger.warning("REFUSED to write: %s", result["refused"])
         return result
 

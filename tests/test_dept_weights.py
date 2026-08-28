@@ -19,6 +19,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
 from oasis.logic.dept_weights import (
     MIN_WEIGHT, aggregate_departments, build_rows, capital_weights, regenerate,
+    staple_share,
 )
 
 
@@ -146,8 +147,10 @@ class TestRegenerate:
         return str(p)
 
     def test_it_prices_departments_the_old_file_could_not(self, tmp_path):
-        self._existing(tmp_path, ["BREAD"], ["HEATERS", "SWEETS"])
-        sc = self._scorecard(tmp_path, [("BREAD", 20, 2, 100),
+        # Non-essential departments throughout, so the staple-share guard is
+        # neutral and this test measures only the pricing behaviour.
+        self._existing(tmp_path, ["GIFTWARE"], ["HEATERS", "SWEETS"])
+        sc = self._scorecard(tmp_path, [("GIFTWARE", 20, 2, 100),
                                         ("HEATERS", 9000, 0.01, 500),
                                         ("SWEETS", 5, 3, 90)])
         r = regenerate(sc, str(tmp_path))
@@ -156,8 +159,8 @@ class TestRegenerate:
         assert r["written"] is True
 
     def test_it_keeps_the_previous_file(self, tmp_path):
-        self._existing(tmp_path, ["BREAD"], [])
-        sc = self._scorecard(tmp_path, [("BREAD", 20, 2, 100)])
+        self._existing(tmp_path, ["GIFTWARE"], [])
+        sc = self._scorecard(tmp_path, [("GIFTWARE", 20, 2, 100)])
         r = regenerate(sc, str(tmp_path))
         assert r["backup"]
         assert os.path.exists(os.path.join(str(tmp_path), r["backup"]))
@@ -165,21 +168,107 @@ class TestRegenerate:
     def test_it_refuses_to_replace_richer_data_with_thinner(self, tmp_path):
         """A fresher scorecard that prices FEWER departments is a worse input,
         however recent it is — the same rule the rhythm derivation keeps."""
-        self._existing(tmp_path, ["BREAD", "MILK", "BEER"], [])
-        sc = self._scorecard(tmp_path, [("BREAD", 20, 2, 100)])
+        self._existing(tmp_path, ["GIFTWARE", "TOYS", "STATIONARIES"], [])
+        sc = self._scorecard(tmp_path, [("GIFTWARE", 20, 2, 100)])
         r = regenerate(sc, str(tmp_path))
         assert r["written"] is False
         assert "refusing to replace richer data" in r["refused"]
 
     def test_force_overrides_the_refusal(self, tmp_path):
-        self._existing(tmp_path, ["BREAD", "MILK", "BEER"], [])
-        sc = self._scorecard(tmp_path, [("BREAD", 20, 2, 100)])
+        self._existing(tmp_path, ["GIFTWARE", "TOYS", "STATIONARIES"], [])
+        sc = self._scorecard(tmp_path, [("GIFTWARE", 20, 2, 100)])
         assert regenerate(sc, str(tmp_path), force=True)["written"] is True
 
     def test_dry_run_writes_nothing(self, tmp_path):
-        self._existing(tmp_path, ["BREAD"], ["HEATERS"])
-        sc = self._scorecard(tmp_path, [("BREAD", 20, 2, 100),
+        self._existing(tmp_path, ["GIFTWARE"], ["HEATERS"])
+        sc = self._scorecard(tmp_path, [("GIFTWARE", 20, 2, 100),
                                         ("HEATERS", 9000, 0.01, 500)])
         r = regenerate(sc, str(tmp_path), write=False)
         assert r["written"] is False
         assert r["priced_after"] == 2
+
+
+class TestTheHierarchyGuard:
+    """The engine allocates Width first, then Day-1 Depth on staples, and the
+    documented wallet split is "Staples 60%, General 40%".
+
+    Rebuilding weights from raw turnover share across a full catalogue halves
+    that -- measured on the real book, essential departments went 60.7% ->
+    31.3% and Fast Five anchors 35.0% -> 14.6%. Arithmetically clean,
+    strategically backwards. It shipped, and it was reverted.
+    """
+
+    def test_staple_share_is_measurable(self):
+        from oasis.logic.department_constants import ESSENTIAL_DEPARTMENTS
+        first = " ".join(str(next(iter(ESSENTIAL_DEPARTMENTS))).upper().split())
+        assert staple_share({first: 0.6, "SOMETHING ELSE": 0.4}) == pytest.approx(0.6)
+
+    def test_an_unknown_department_contributes_nothing(self):
+        assert staple_share({"NOT A REAL DEPARTMENT": 1.0}) == 0.0
+
+    def test_a_rebuild_that_guts_the_staples_is_refused(self, tmp_path):
+        from oasis.logic.department_constants import ESSENTIAL_DEPARTMENTS
+        staple = " ".join(str(next(iter(ESSENTIAL_DEPARTMENTS))).upper().split())
+        # existing file: the staple holds essentially everything
+        p = tmp_path / "department_scaling_ratios.csv"
+        with io.open(str(p), "w", encoding="utf-8", newline="") as f:
+            w = csv.DictWriter(f, fieldnames=["Department", "SKU_Count", "Avg_Price",
+                                              "Avg_Daily_Sales", "Total_Value",
+                                              "Capital_Weight", "SKU_per_Million"])
+            w.writeheader()
+            w.writerow({"Department": staple, "SKU_Count": 1, "Avg_Price": 10,
+                        "Avg_Daily_Sales": 1, "Total_Value": 100,
+                        "Capital_Weight": 0.95, "SKU_per_Million": 1})
+            w.writerow({"Department": "TOYS", "SKU_Count": 1, "Avg_Price": 0,
+                        "Avg_Daily_Sales": 1, "Total_Value": 0,
+                        "Capital_Weight": 0.05, "SKU_per_Million": 1})
+        # scorecard: discretionary turnover swamps the staple
+        sc = tmp_path / "sc.csv"
+        with io.open(str(sc), "w", encoding="utf-8", newline="") as f:
+            w = csv.DictWriter(f, fieldnames=["Product", "Department", "Unit_Price",
+                                              "Avg_Daily_Sales", "Total_Revenue"])
+            w.writeheader()
+            w.writerow({"Product": "a", "Department": staple, "Unit_Price": 10,
+                        "Avg_Daily_Sales": 1, "Total_Revenue": 100})
+            w.writerow({"Product": "b", "Department": "TOYS", "Unit_Price": 10,
+                        "Avg_Daily_Sales": 1, "Total_Revenue": 9000})
+        r = regenerate(str(sc), str(tmp_path))
+        assert r["written"] is False
+        assert "staple share" in r["refused"]
+        assert "Staples 60%" in r["refused"]
+
+    def test_force_still_allows_it_deliberately(self, tmp_path):
+        from oasis.logic.department_constants import ESSENTIAL_DEPARTMENTS
+        staple = " ".join(str(next(iter(ESSENTIAL_DEPARTMENTS))).upper().split())
+        p = tmp_path / "department_scaling_ratios.csv"
+        with io.open(str(p), "w", encoding="utf-8", newline="") as f:
+            w = csv.DictWriter(f, fieldnames=["Department", "SKU_Count", "Avg_Price",
+                                              "Avg_Daily_Sales", "Total_Value",
+                                              "Capital_Weight", "SKU_per_Million"])
+            w.writeheader()
+            w.writerow({"Department": staple, "SKU_Count": 1, "Avg_Price": 10,
+                        "Avg_Daily_Sales": 1, "Total_Value": 100,
+                        "Capital_Weight": 0.95, "SKU_per_Million": 1})
+        sc = tmp_path / "sc.csv"
+        with io.open(str(sc), "w", encoding="utf-8", newline="") as f:
+            w = csv.DictWriter(f, fieldnames=["Product", "Department", "Unit_Price",
+                                              "Avg_Daily_Sales", "Total_Revenue"])
+            w.writeheader()
+            w.writerow({"Product": "a", "Department": staple, "Unit_Price": 10,
+                        "Avg_Daily_Sales": 1, "Total_Revenue": 100})
+            w.writerow({"Product": "b", "Department": "TOYS", "Unit_Price": 10,
+                        "Avg_Daily_Sales": 1, "Total_Revenue": 9000})
+        assert regenerate(str(sc), str(tmp_path), force=True)["written"] is True
+
+    def test_the_shipped_file_still_matches_the_documented_split(self):
+        """The live guard: 60.7% in essential departments is the design."""
+        path = os.path.join(os.path.dirname(__file__), "..", "oasis", "data",
+                            "department_scaling_ratios.csv")
+        if not os.path.exists(path):
+            pytest.skip("no ratios file in this checkout")
+        with io.open(path, encoding="utf-8", errors="replace", newline="") as f:
+            w = {r["Department"].strip().upper(): float(r["Capital_Weight"] or 0)
+                 for r in csv.DictReader(f)}
+        assert 0.50 <= staple_share(w) <= 0.70, (
+            "staple share is %.1f%%; the documented split is 'Staples 60%%'"
+            % (100 * staple_share(w)))
