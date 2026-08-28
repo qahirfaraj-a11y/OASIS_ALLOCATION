@@ -95,6 +95,20 @@ _SRC_KEYS = ("source", "dataset", "provider")
 _BUCKET_DEG = 0.1
 
 _EARTH_KM = 6371.0
+#: Length of one degree of latitude. Longitude shrinks by cos(lat).
+KM_PER_DEGREE = 111.32
+
+#: WorldPop publishes UN-adjusted 1 km density per country as an ASCII XYZ zip.
+#: One file per country per year, so a client fetches only their own country.
+WORLDPOP_URL = ("https://data.worldpop.org/GIS/Population_Density/"
+                "Global_2000_2020_1km_UNadj/{year}/{iso3}/"
+                "{iso3_lower}_pd_{year}_1km_UNadj_ASCII_XYZ.zip")
+WORLDPOP_ATTRIBUTION = ATTRIBUTIONS["worldpop"]
+
+#: Overpass and WorldPop both reject the default urllib/requests agent with
+#: HTTP 406, which is silent from the caller's side and looks like "no data in
+#: your region". Identify the client properly.
+USER_AGENT = "OASIS-Retail-Intelligence/1.0 (site selection; open data client)"
 
 
 def haversine_km(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
@@ -281,6 +295,135 @@ def load_population(root: Optional[str] = None) -> Dict[str, Any]:
     grid = PopulationGrid(cells, attribution=attribution, source=source)
     return {"grid": grid, "rows": len(cells), "people": grid.total_people,
             "source": source, "attribution": attribution, "error": None}
+
+
+# ── fetching a real grid ────────────────────────────────────────────────────
+def cell_area_km2(lat: float, step_deg: float) -> float:
+    """Ground area of one grid cell at this latitude (pure).
+
+    WorldPop's "1km" grid is really 30 arc-seconds, which is 0.9277 km at the
+    equator and narrows with the cosine of latitude going north or south.
+    """
+    ns = step_deg * KM_PER_DEGREE
+    ew = step_deg * KM_PER_DEGREE * math.cos(math.radians(lat))
+    return abs(ns * ew)
+
+
+def density_to_count(density: float, lat: float, step_deg: float) -> float:
+    """Persons per square kilometre -> persons in this cell (pure).
+
+    THE CORRECTION THAT MATTERS. WorldPop's Z column is a DENSITY. Reading it
+    as a headcount overstates a country by the reciprocal of the cell area:
+    summed raw, Kenya comes to 63.1M against a UN estimate of 53.8M (+17%).
+    Multiplied by the true cell area it comes to 54.2M, within 0.9%. Everything
+    downstream of this module deals in people, never in density, so the
+    conversion happens once here and the stored grid is unambiguous.
+    """
+    return max(0.0, float(density)) * cell_area_km2(lat, step_deg)
+
+
+def infer_step_deg(rows: Sequence[Dict[str, Any]]) -> float:
+    """Grid spacing in degrees, read off the data rather than assumed."""
+    lons = []
+    for r in rows[:64]:
+        v = _pick(r, _LON_KEYS)
+        try:
+            lons.append(float(v))
+        except (TypeError, ValueError):
+            continue
+    gaps = sorted({round(abs(b - a), 10) for a, b in zip(lons, lons[1:])
+                   if abs(b - a) > 1e-9})
+    return gaps[0] if gaps else 1.0 / 120.0      # 30 arc-seconds
+
+
+def fetch_worldpop(iso3: str, bbox: Tuple[float, float, float, float],
+                   year: int = 2020, root: Optional[str] = None,
+                   timeout: int = 300,
+                   write: bool = True) -> Dict[str, Any]:
+    """Fetch one country's WorldPop density grid, clip it, and cache it here.
+
+    ``bbox`` is ``(south, west, north, east)`` — the same order Overpass uses in
+    ``geo_sources``, so an operator supplies one region for both fetches.
+
+    Nothing is bundled with OASIS. This writes the CLIENT's own copy of public
+    CC BY 4.0 data on the CLIENT's machine, for the CLIENT's region: the rule
+    ``geo_sources`` keeps for competitors, kept here for the same reason.
+
+    The clip matters practically as well as legally — Kenya is 680,000 cells
+    and a metropolitan catchment needs a few thousand.
+    """
+    try:
+        import requests
+    except Exception as e:
+        return {"rows": 0, "written": 0, "error": f"requests unavailable: {e}"}
+
+    iso = str(iso3 or "").strip().upper()
+    url = WORLDPOP_URL.format(year=int(year), iso3=iso, iso3_lower=iso.lower())
+    south, west, north, east = (float(b) for b in bbox)
+
+    try:
+        resp = requests.get(url, headers={"User-Agent": USER_AGENT},
+                            timeout=timeout)
+        resp.raise_for_status()
+    except Exception as e:
+        return {"rows": 0, "written": 0, "url": url,
+                "error": f"could not fetch {iso} {year}: {str(e)[:160]}"}
+
+    import io as _io
+    import zipfile
+    try:
+        zf = zipfile.ZipFile(_io.BytesIO(resp.content))
+        member = next(n for n in zf.namelist() if n.lower().endswith(".csv"))
+        with zf.open(member) as fh:
+            text = _io.TextIOWrapper(fh, encoding="utf-8", errors="replace")
+            raw = list(csv.DictReader(text))
+    except Exception as e:
+        return {"rows": 0, "written": 0, "url": url,
+                "error": f"could not read the archive: {str(e)[:160]}"}
+
+    step = infer_step_deg(raw)
+    cells: List[tuple] = []
+    for r in raw:
+        lat, lon, dens = (_pick(r, _LAT_KEYS), _pick(r, _LON_KEYS),
+                          _pick(r, _POP_KEYS))
+        try:
+            flat, flon, fdens = float(lat), float(lon), float(dens)
+        except (TypeError, ValueError):
+            continue
+        if not (south <= flat <= north and west <= flon <= east):
+            continue
+        people = density_to_count(fdens, flat, step)
+        if people > 0:
+            cells.append((flat, flon, people))
+
+    result = {"rows": len(cells), "written": 0, "step_deg": step,
+              "people": sum(c[2] for c in cells), "url": url,
+              "source": f"WorldPop {year} 1km UN-adjusted",
+              "attribution": WORLDPOP_ATTRIBUTION, "error": None}
+    if not cells:
+        result["error"] = ("no cells inside that bounding box — check the "
+                           "order is (south, west, north, east)")
+        return result
+    if not write:
+        return result
+
+    path = cache_path(root)
+    try:
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        with open(path, "w", encoding="utf-8", newline="") as f:
+            w = csv.DictWriter(f, fieldnames=["latitude", "longitude",
+                                              "population", "source"])
+            w.writeheader()
+            for lat, lon, people in cells:
+                w.writerow({"latitude": f"{lat:.6f}", "longitude": f"{lon:.6f}",
+                            "population": f"{people:.2f}",
+                            "source": result["source"]})
+    except OSError as e:
+        result["error"] = str(e)[:200]
+        return result
+
+    result["written"] = len(cells)
+    return result
 
 
 def summarise(loaded: Dict[str, Any]) -> str:

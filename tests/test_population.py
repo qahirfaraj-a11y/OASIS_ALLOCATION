@@ -247,6 +247,47 @@ class TestCapitalOnPeople:
         assert p["opening_capital"] is None
 
 
+class TestDensityIsNotAHeadcount:
+    """WorldPop's Z column is persons per SQUARE KILOMETRE, and its "1 km"
+    cells are 30 arc-seconds — 0.9277 km at the equator, narrowing with the
+    cosine of latitude. Reading density as a count overstates Kenya by 17%
+    (63.1M against a UN estimate of 53.8M); with the area correction it comes
+    to 54.2M, within 0.9%. Everything downstream deals in people, so this
+    conversion has to be right.
+    """
+
+    def test_a_cell_is_not_one_square_kilometre(self):
+        step = 1.0 / 120.0                       # 30 arc-seconds
+        equator = P.cell_area_km2(0.0, step)
+        assert 0.85 < equator < 0.87, equator
+
+    def test_cells_narrow_towards_the_poles(self):
+        step = 1.0 / 120.0
+        assert P.cell_area_km2(60.0, step) < P.cell_area_km2(0.0, step) * 0.55
+        # Nairobi is close enough to the equator that the correction is small,
+        # which is exactly why an unconverted grid looks plausible there.
+        assert abs(P.cell_area_km2(-1.28, step)
+                   - P.cell_area_km2(0.0, step)) < 0.001
+
+    def test_density_converts_to_a_count(self):
+        step = 1.0 / 120.0
+        people = P.density_to_count(1000.0, 0.0, step)
+        assert abs(people - 1000.0 * P.cell_area_km2(0.0, step)) < 1e-9
+        assert people < 1000.0, "an uncorrected read would return 1000"
+
+    def test_negative_density_cannot_become_negative_people(self):
+        assert P.density_to_count(-50.0, 0.0, 1.0 / 120.0) == 0.0
+
+    def test_the_step_is_read_off_the_data_not_assumed(self):
+        rows = [{"X": "35.0000", "Y": "5.0", "Z": "1"},
+                {"X": "35.0250", "Y": "5.0", "Z": "1"},
+                {"X": "35.0500", "Y": "5.0", "Z": "1"}]
+        assert abs(P.infer_step_deg(rows) - 0.025) < 1e-9
+
+    def test_an_unreadable_grid_falls_back_to_thirty_arc_seconds(self):
+        assert abs(P.infer_step_deg([]) - 1.0 / 120.0) < 1e-12
+
+
 class TestLoading:
     def test_an_absent_grid_is_not_an_error_state(self, tmp_path):
         res = P.load_population(root=str(tmp_path))

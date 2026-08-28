@@ -37,6 +37,12 @@ OSM_ATTRIBUTION = "Competitor locations © OpenStreetMap contributors (ODbL)"
 #: fetches once and caches, it does not query per page view.
 OVERPASS_URL = "https://overpass-api.de/api/interpreter"
 
+#: Overpass rejects the default ``python-requests/x.y`` agent with HTTP 406,
+#: which surfaces to the operator as "no competitors in your region" rather
+#: than as a failure. Measured against the live endpoint 2026-08-28: identical
+#: query, 406 without this header and 200 with it. Identify the client.
+USER_AGENT = "OASIS-Retail-Intelligence/1.0 (site selection; open data client)"
+
 #: Where a fetched extract is cached, per install. Never shipped, never
 #: redistributed — it is the client's own copy of public data.
 CACHE_FILE = "competitor_network.csv"
@@ -90,6 +96,7 @@ def fetch_competitors(brands: List[str], bbox: str,
                  f'node["name"~"{brand}",i]({bbox});out center;')
         try:
             resp = requests.get(OVERPASS_URL, params={"data": query},
+                                headers={"User-Agent": USER_AGENT},
                                 timeout=timeout)
             resp.raise_for_status()
             for el in resp.json().get("elements", []):
