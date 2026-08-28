@@ -1411,6 +1411,41 @@ def test_score_sites_attaches_a_capital_proposal_to_every_site(store):
     assert "calibration" in res and "validation" in res
 
 
+def test_the_tab_says_when_it_is_pricing_a_share_and_not_people(store, monkeypatch):
+    """The commonest client state is "no population grid loaded", and the
+    operator must be able to see that the number in front of them rests on how
+    CONTESTED a catchment is rather than on how many people live in it."""
+    monkeypatch.setattr(D, "allowed_modules", lambda: set(LM.KNOWN_MODULES))
+    D.set_store_location(D.default_org(store), -1.2680, 36.7930, 14000,
+                         root=store)
+    from oasis.desktop.views.command_tabs.location_tab import build_location_tab
+
+    tab = build_location_tab(None, store)
+    controls = _walk(tab)
+    for c in controls:
+        if getattr(c, "label", None) == "Latitude":
+            c.value = "-1.2860"
+        elif getattr(c, "label", None) == "Longitude":
+            c.value = "36.7780"
+    [b for b in controls if getattr(b, "text", None) == "Score site"][0].on_click(None)
+
+    body = _text(tab)
+    assert "no population data loaded" in body
+    assert "contested" in body
+
+
+def test_score_sites_reports_population_status(store):
+    D.set_store_location(D.default_org(store), -1.2680, 36.7930, 14000,
+                         root=store)
+    res = D.score_sites([{"name": "C", "lat": -1.2860, "lon": 36.7780,
+                          "size_sqft": 10000}], root=store)
+    assert "population" in res
+    # No grid on a fresh install: the headcount must be absent, never zero,
+    # so nothing downstream can read "no data" as "nobody lives there".
+    assert res["sites"][0]["captured_population"] is None
+    assert res["sites"][0]["has_population"] is False
+
+
 def test_an_isolated_candidate_is_refused_a_budget(store):
     """100% of an empty catchment is still 100%. The old recommend_format
     called that a flagship; nothing may now spend against it."""

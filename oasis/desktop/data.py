@@ -494,6 +494,21 @@ def estate_economics(days: int = 90, root: Optional[str] = None,
     return out
 
 
+def population_set(root: Optional[str] = None) -> Dict[str, Any]:
+    """This install's population grid. See oasis.logic.population.
+
+    Absent is not an error — site scoring then measures how contested a
+    catchment is rather than how many people live in it, and says so.
+    """
+    try:
+        from oasis.logic.population import PopulationGrid, load_population
+        return load_population(root=root)
+    except Exception as e:
+        from oasis.logic.population import PopulationGrid
+        return {"grid": PopulationGrid(), "rows": 0, "people": 0.0,
+                "source": None, "attribution": None, "error": str(e)[:200]}
+
+
 def site_calibration(days: int = 90,
                      root: Optional[str] = None) -> Dict[str, Any]:
     """Calibrate the estate, and run the gate that decides what may be claimed."""
@@ -501,16 +516,21 @@ def site_calibration(days: int = 90,
         from oasis.logic import site_capital as SC
         placed = store_map(root)
         econ = estate_economics(days, root)
+        pop = population_set(root)
+        grid = pop.get("grid")
         obs = SC.estate_observations(
             placed.get("located") or [], competitor_set(root).get("rows") or [],
-            econ.get("revenue"), econ.get("stock_value"))
+            econ.get("revenue"), econ.get("stock_value"),
+            population=(grid if grid else None))
         cal = SC.calibrate(obs)
         val = SC.loo_validate(obs)
         return {"calibration": cal, "validation": val, "observations": obs,
-                "days": int(days), "error": econ.get("error")}
+                "population": pop, "days": int(days),
+                "error": econ.get("error")}
     except Exception as e:
         return {"calibration": {"usable": False, "reason": str(e)[:200]},
-                "validation": {}, "observations": [], "error": str(e)[:200]}
+                "validation": {}, "observations": [], "population": {},
+                "error": str(e)[:200]}
 
 
 def score_sites(candidates: List[Dict[str, Any]],
@@ -537,16 +557,22 @@ def score_sites(candidates: List[Dict[str, Any]],
                              "existing stores first, so a candidate can be "
                              "scored against them."}
         comps = competitor_set(root)
-        ranked = rank_sites(candidates, placed["located"],
-                            comps.get("rows") or [], size_sqft=size_sqft)
-
         calib = site_calibration(root=root)
+        pop = calib.get("population") or {}
+        grid = pop.get("grid")
+        grid = grid if grid else None
+
+        ranked = rank_sites(candidates, placed["located"],
+                            comps.get("rows") or [], size_sqft=size_sqft,
+                            population=grid)
+
         cal, val = calib["calibration"], calib["validation"]
         own, rivals = placed["located"], (comps.get("rows") or [])
         for s in ranked:
             s["capital"] = SC.propose_capital(
                 s["adjusted_capture_pct"], s["size_sqft"], cal, val,
-                isolated=s.get("isolated", False))
+                isolated=s.get("isolated", False),
+                captured_population=s.get("captured_population"))
             # The non-circular size answer. site_scoring.recommend_format reads
             # the size off a capture that was computed FROM that size, so it can
             # only ever restate the input. This re-scores the SAME point at each
@@ -557,16 +583,19 @@ def score_sites(candidates: List[Dict[str, Any]],
                     "recommended_sqft": None, "format": "—", "rungs": [],
                     "note": "Nothing in the catchment to size against."}
             else:
+                # Hands the sweep the WHOLE score, so a rung can be priced on
+                # captured people rather than share where a grid is loaded.
                 s["size_recommendation"] = SC.recommend_size(
                     (lambda lat, lon: (lambda sz: score_site(
-                        lat, lon, own, rivals,
-                        size_sqft=sz)["adjusted_capture_pct"]))(s["lat"], s["lon"]),
+                        lat, lon, own, rivals, size_sqft=sz,
+                        population=grid)))(s["lat"], s["lon"]),
                     cal, val)
 
         return {"sites": ranked, "own_stores": len(placed["located"]),
                 "missing": placed["missing"],
                 "competitors": len(comps.get("rows") or []),
                 "attribution": comps.get("attribution"),
+                "population": {k: v for k, v in pop.items() if k != "grid"},
                 "calibration": cal, "validation": val,
                 "calibrated_on": len(calib.get("observations") or []),
                 "competitor_error": comps.get("error"), "error": None}

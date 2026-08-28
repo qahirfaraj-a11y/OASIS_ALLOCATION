@@ -116,6 +116,14 @@ def build_location_tab(page: ft.Page, project_root: str) -> ft.Column:
                                     color=T.TEXT_PRIMARY)),
                 ft.DataCell(ft.Text(f"{cap:.1f}%", size=11, color=colour,
                                     weight=ft.FontWeight.W_600)),
+                # The share turned into people. Sites are ranked on THIS when
+                # a grid is loaded, because a large share of an empty valley
+                # must not outrank a small share of a dense suburb.
+                ft.DataCell(ft.Text(
+                    "—" if s.get("captured_population") is None
+                    else f"{s['captured_population']:,.0f}",
+                    size=11, color=T.TEXT_PRIMARY
+                    if s.get("captured_population") else T.TEXT_MUTED)),
                 ft.DataCell(ft.Text(f"{s['cannibalisation_pct']:.0f}%", size=11,
                                     color=T.WARNING
                                     if s["cannibalisation_pct"] > 50
@@ -169,7 +177,15 @@ def build_location_tab(page: ft.Page, project_root: str) -> ft.Column:
                                     else T.TEXT_MUTED)),
             ]))
 
-        if val.get("validated"):
+        if val.get("basis") == "population":
+            gate_txt = (f"Validated on population: across your {val['n']} "
+                        f"located stores, people captured x your own spend per "
+                        f"person predicts revenue to {val['mape_population']:.0%} "
+                        f"median error, against {val['mape_sqft_only']:.0%} for "
+                        f"floor area alone. Capital below is a headcount, not "
+                        "a share.")
+            gate_col = T.SUCCESS
+        elif val.get("validated"):
             gate_txt = (f"Validated: on your {val['n']} located stores the "
                         f"geography predicts revenue better "
                         f"({val['mape_capture']:.0%} median error) than floor "
@@ -183,9 +199,30 @@ def build_location_tab(page: ft.Page, project_root: str) -> ft.Column:
                         "and the site does not enter it.")
             gate_col = T.WARNING
 
+        # Population status is shown next to the money, not buried: whether a
+        # number rests on a headcount or on a share is the first thing a buyer
+        # should be able to see.
+        pop = res.get("population") or {}
+        if pop.get("error"):
+            pop_line = ft.Text("No population data loaded — scores measure how "
+                               "CONTESTED a catchment is, not how many people "
+                               "live in it. Load a grid to price a site on "
+                               "people.", size=11, color=T.WARNING)
+        else:
+            pop_line = ft.Text(
+                f"Population: {pop.get('rows', 0):,} cells, "
+                f"{pop.get('people', 0):,.0f} people · {pop.get('source')}",
+                size=11, color=T.TEXT_SECONDARY)
+
         capital_card = T.card_container(content=ft.Column([
             T.section_header("Proposed Opening Capital", "💰"),
+            pop_line,
             ft.Text(gate_txt, size=11, color=gate_col),
+            (ft.Text(val["population_note"], size=10, color=T.TEXT_MUTED)
+             if val.get("population_note") else ft.Container()),
+            (ft.Text(pop["attribution"], size=10, color=T.TEXT_MUTED,
+                     font_family="JetBrains Mono")
+             if pop.get("attribution") else ft.Container()),
             ft.DataTable(
                 columns=[ft.DataColumn(ft.Text(h, size=11, color=T.TEXT_MUTED),
                                        numeric=n)
@@ -216,6 +253,7 @@ def build_location_tab(page: ft.Page, project_root: str) -> ft.Column:
                                                    color=T.TEXT_MUTED),
                                            numeric=n)
                              for h, n in (("Site", False), ("Capture", True),
+                                          ("People", True),
                                           ("From own", True),
                                           ("Nearest own km", True),
                                           ("Nearest rival km", True),

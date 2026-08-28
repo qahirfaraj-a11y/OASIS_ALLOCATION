@@ -120,20 +120,28 @@ def score_site(lat: float, lon: float,
                competitors: Sequence[Dict[str, Any]] = (),
                size_sqft: float = DEFAULT_SIZE_SQFT,
                catchment_km: float = CATCHMENT_KM,
-               travel_friction: float = 0.0) -> Dict[str, Any]:
+               travel_friction: float = 0.0,
+               population: Any = None) -> Dict[str, Any]:
     """Score one candidate location. Pure — no I/O, no model, no globals.
 
-    Capture is the Huff share the new store would take **averaged over demand
-    points around it**, not at it. Every component is returned alongside,
-    because the number alone is not an argument. ``cannibalisation`` is the part
-    of that capture taken from the client's OWN nearby stores: a site can score
-    well and still be a poor decision if the trade merely moves across town.
+    Capture is the Huff share the new store would take **over demand points
+    around it**, not at it. Every component is returned alongside, because the
+    number alone is not an argument. ``cannibalisation`` is the part of that
+    capture taken from the client's OWN nearby stores: a site can score well
+    and still be a poor decision if the trade merely moves across town.
 
-    NOTE ON WHAT THIS CANNOT DO. Demand is assumed uniform across the ring
-    because OASIS has no population or footfall data. So this ranks how
-    CONTESTED a catchment is, not how many people live in it — an underserved
-    suburb and an empty field look alike. Treat it as "who else is competing
-    here", and bring a demand estimate to the decision.
+    ``population`` is an optional ``population.PopulationGrid``. Supply one and
+    each demand point is weighted by the people nearest to it, so the result
+    also carries ``captured_population`` — an ABSOLUTE number rather than a
+    share, which is what lets ``site_capital`` calibrate on spend per person.
+    Duck-typed on purpose: this module stays free of I/O and of any dependency
+    on how the grid was loaded.
+
+    WITHOUT population, demand is assumed uniform across the ring, so this
+    ranks how CONTESTED a catchment is, not how many people live in it — an
+    underserved suburb and an empty field look alike. The unweighted path is
+    exactly the weighted one with every weight equal, so adding population
+    changes no previously-reported number for a client who has loaded none.
     """
     own_in_catchment = 0
     comp_within_direct = 0
@@ -166,8 +174,20 @@ def score_site(lat: float, lon: float,
             if d <= DIRECT_COMPETITION_KM:
                 comp_within_direct += 1
 
-    site_shares, own_shares = [], []
-    for plat, plon in _ring_points(lat, lon):
+    points = _ring_points(lat, lon)
+    # Population turns each sample point from "one vote" into "the people
+    # nearest to it". With no grid every weight is 1.0 and the arithmetic below
+    # reduces exactly to the unweighted mean this scorer has always used.
+    if population is not None:
+        from .population import weights_for_points
+        weights = weights_for_points(population, lat, lon, points, catchment_km)
+    else:
+        weights = [1.0] * len(points)
+
+    num_site = num_own = denom = 0.0
+    for (plat, plon), w in zip(points, weights):
+        if w <= 0:
+            continue
         u_site = _utility(size_sqft, haversine_km(plat, plon, lat, lon))
         u_own = sum(_utility(sz, haversine_km(plat, plon, slat, slon))
                     for slat, slon, sz, _c in own_pts)
@@ -176,11 +196,17 @@ def score_site(lat: float, lon: float,
         total = u_site + u_own + u_comp
         if total <= 0:
             continue
-        site_shares.append(u_site / total)
-        own_shares.append(u_own / total)
+        num_site += (u_site / total) * w
+        num_own += (u_own / total) * w
+        denom += w
 
-    capture = (sum(site_shares) / len(site_shares)) if site_shares else 0.0
-    own_share = (sum(own_shares) / len(own_shares)) if own_shares else 0.0
+    capture = (num_site / denom) if denom > 0 else 0.0
+    own_share = (num_own / denom) if denom > 0 else 0.0
+    # The absolute term: people, not proportion. None when no grid was given,
+    # so a caller can never mistake an unweighted score for a headcount.
+    catchment_population = (float(sum(weights)) if population is not None
+                            else None)
+    captured_population = (num_site if population is not None else None)
     # Of the trade this site wins, how much is taken from our own network?
     cannibalisation = (own_share / (own_share + capture)
                        if (own_share + capture) > 0 else 0.0)
@@ -189,6 +215,14 @@ def score_site(lat: float, lon: float,
     # capture down because a hard-to-reach site captures less of its catchment.
     friction = max(0.0, min(1.0, float(travel_friction or 0.0)))
     adjusted = capture * (1.0 - 0.5 * friction)
+
+    # A site with nobody living around it is worthless however uncontested it
+    # is. Before population that could only be inferred from an empty
+    # competitive field, which is why an empty field and an underserved suburb
+    # scored alike; with a grid it is simply measured.
+    empty_catchment = (catchment_population is not None
+                       and catchment_population <= 0)
+    isolated = (not own_pts and not comp_pts) or empty_catchment
 
     return {
         "lat": lat, "lon": lon, "size_sqft": float(size_sqft),
@@ -201,33 +235,57 @@ def score_site(lat: float, lon: float,
         "nearest_competitor_km": (None if nearest_comp is None
                                   else round(nearest_comp, 2)),
         "travel_friction": round(friction, 3),
-        "isolated": not own_pts and not comp_pts,
+        "catchment_population": (None if catchment_population is None
+                                 else round(catchment_population, 1)),
+        # The share applied to the people, then to the friction — the number
+        # that finally has a unit.
+        "captured_population": (
+            None if captured_population is None
+            else round(captured_population * (1.0 - 0.5 * friction), 1)),
+        "has_population": population is not None,
+        "isolated": isolated,
         "verdict": verdict(adjusted, cannibalisation, nearest_own,
-                           isolated=not own_pts and not comp_pts,
-                           catchment_km=catchment_km),
+                           isolated=isolated, catchment_km=catchment_km,
+                           captured_population=(
+                               None if captured_population is None
+                               else captured_population * (1.0 - 0.5 * friction))),
     }
 
 
 def verdict(capture: float, cannibalisation: float,
             nearest_own_km: Optional[float], isolated: bool = False,
-            catchment_km: float = CATCHMENT_KM) -> str:
-    """A sentence a buyer can argue with — not a score to defer to."""
+            catchment_km: float = CATCHMENT_KM,
+            captured_population: Optional[float] = None) -> str:
+    """A sentence a buyer can argue with — not a score to defer to.
+
+    With ``captured_population`` the sentence gains the thing that was always
+    missing from it: how many people the share actually represents.
+    """
     if isolated:
+        if captured_population is not None:
+            # Now measured rather than inferred from an empty competitive field.
+            return (f"Almost nobody lives within {catchment_km:.0f} km. An "
+                    "uncontested catchment with no people in it is not an "
+                    "opportunity.")
         # 100% of an empty catchment is still 100%, and it means nothing. Say
-        # so rather than let the arithmetic imply an opportunity: OASIS has no
-        # population data and cannot tell an underserved suburb from a field.
+        # so rather than let the arithmetic imply an opportunity: with no
+        # population grid this cannot tell an underserved suburb from a field.
         return (f"Nothing within {catchment_km:.0f} km — no competition, but no "
                 "evidence of demand either. Needs a catchment estimate.")
+
+    people = ("" if captured_population is None
+              else f" (~{captured_population:,.0f} people)")
     if nearest_own_km is not None and nearest_own_km < CANNIBALISATION_KM:
         return ("Too close to your own store — most of this trade would move, "
                 "not grow")
     if capture < 0.10:
-        return "Crowded catchment; a store here would struggle for share"
+        return f"Crowded catchment; a store here would struggle for share{people}"
     if cannibalisation > 0.5:
-        return "Decent share, but over half of it comes from your own network"
+        return ("Decent share, but over half of it comes from your own "
+                f"network{people}")
     if capture >= 0.30:
-        return "Strong share against the competition already here"
-    return "Workable: moderate share against existing competition"
+        return f"Strong share against the competition already here{people}"
+    return f"Workable: moderate share against existing competition{people}"
 
 
 #: Store formats, smallest first. Chosen by the share a site can win — a small
@@ -266,8 +324,14 @@ def recommend_format(capture_pct: float) -> str:
 def rank_sites(candidates: Sequence[Dict[str, Any]],
                own_stores: Sequence[Dict[str, Any]],
                competitors: Sequence[Dict[str, Any]] = (),
-               size_sqft: float = DEFAULT_SIZE_SQFT) -> List[Dict[str, Any]]:
-    """Score and rank candidate sites, best adjusted capture first."""
+               size_sqft: float = DEFAULT_SIZE_SQFT,
+               population: Any = None) -> List[Dict[str, Any]]:
+    """Score and rank candidate sites.
+
+    Ranked by captured POPULATION where a grid is available — ranking on share
+    alone puts a big fraction of an empty catchment above a smaller fraction of
+    a dense one, which is the whole failure population data exists to fix.
+    """
     out: List[Dict[str, Any]] = []
     for c in candidates or []:
         coords = _coords(c)
@@ -275,7 +339,8 @@ def rank_sites(candidates: Sequence[Dict[str, Any]],
             continue
         s = score_site(coords[0], coords[1], own_stores, competitors,
                        size_sqft=float(c.get("size_sqft", size_sqft)),
-                       travel_friction=float(c.get("travel_friction", 0.0) or 0))
+                       travel_friction=float(c.get("travel_friction", 0.0) or 0),
+                       population=population)
         s["name"] = c.get("name") or f"{coords[0]:.4f}, {coords[1]:.4f}"
         # An isolated site's share is 100% of nothing — recommending a format
         # off it would dress an empty field as a flagship.
@@ -283,5 +348,11 @@ def rank_sites(candidates: Sequence[Dict[str, Any]],
                        if s["isolated"]
                        else recommend_format(s["adjusted_capture_pct"]))
         out.append(s)
-    out.sort(key=lambda s: -s["adjusted_capture_pct"])
+    # People first where they are known, share otherwise. A 40% share of a
+    # deserted valley outranking a 12% share of a dense suburb is precisely the
+    # ordering error a share-only ranking makes.
+    if any(s.get("captured_population") is not None for s in out):
+        out.sort(key=lambda s: -(s.get("captured_population") or 0.0))
+    else:
+        out.sort(key=lambda s: -s["adjusted_capture_pct"])
     return out

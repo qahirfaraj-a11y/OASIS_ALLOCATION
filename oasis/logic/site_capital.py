@@ -134,7 +134,8 @@ def estate_observations(stores: Sequence[Dict[str, Any]],
                         competitors: Sequence[Dict[str, Any]] = (),
                         revenue_by_org: Optional[Dict[str, float]] = None,
                         stock_value_by_org: Optional[Dict[str, float]] = None,
-                        catchment_km: float = CATCHMENT_KM) -> List[Dict[str, Any]]:
+                        catchment_km: float = CATCHMENT_KM,
+                        population: Any = None) -> List[Dict[str, Any]]:
     """One observation per located, trading store — the labelled dataset.
 
     Each store is scored **leave-one-out**: as if it were a candidate site,
@@ -162,11 +163,18 @@ def estate_observations(stores: Sequence[Dict[str, Any]],
 
         others = [o for j, o in enumerate(stores) if j != i]
         sc = score_site(float(lat), float(lon), others, competitors,
-                        size_sqft=size, catchment_km=catchment_km)
+                        size_sqft=size, catchment_km=catchment_km,
+                        population=population)
         capture = sc["capture_pct"] / 100.0
         if capture < MIN_USABLE_CAPTURE:
             continue                      # demand estimate would explode
 
+        # With a population grid the store's trade area is a headcount, so the
+        # constant we calibrate becomes SPEND PER PERSON — an economic quantity
+        # that transfers between locations. Without one we can only calibrate
+        # revenue per unit of share, which does not: it silently carries the
+        # density of whichever catchment it was measured in.
+        people = sc.get("captured_population")
         out.append({
             "org_cd": org,
             "name": s.get("name") or org,
@@ -174,6 +182,10 @@ def estate_observations(stores: Sequence[Dict[str, Any]],
             "capture": capture,
             "revenue": rev,
             "stock_value": float(stock_value_by_org.get(org, 0) or 0),
+            "captured_population": people,
+            "catchment_population": sc.get("catchment_population"),
+            "spend_per_person": (rev / people
+                                 if people and people > 0 else None),
             # The measurement this module exists for: how big is the prize
             # around a store that we KNOW trades this well?
             "implied_demand": rev / capture,
@@ -194,10 +206,14 @@ def calibrate(observations: Sequence[Dict[str, Any]]) -> Dict[str, Any]:
     rps = [o["revenue_per_sqft"] for o in obs]
     covers = [o["stock_value"] / o["revenue"]
               for o in obs if o["revenue"] > 0 and o["stock_value"] > 0]
+    spends = [o["spend_per_person"] for o in obs
+              if o.get("spend_per_person") and o["spend_per_person"] > 0]
 
     med_demand = _median(demands)
     spread = (_quantile(demands, 0.75) / _quantile(demands, 0.25)
               if _quantile(demands, 0.25) > 0 else 0.0)
+    spend_spread = (_quantile(spends, 0.75) / _quantile(spends, 0.25)
+                    if spends and _quantile(spends, 0.25) > 0 else 0.0)
 
     return {
         "n": n,
@@ -214,6 +230,15 @@ def calibrate(observations: Sequence[Dict[str, Any]]) -> Dict[str, Any]:
         # the chain's own stock-to-sales ratio over the same period.
         "cover_ratio": _median(covers) if covers else 0.0,
         "cover_measured": bool(covers),
+        # Population basis. Annual spend captured per person in catchment —
+        # the one constant here that transfers between locations, because it
+        # no longer carries the density of where it was measured.
+        "has_population": bool(spends),
+        "population_stores": len(spends),
+        "median_spend_per_person": _median(spends) if spends else 0.0,
+        "spend_p25": _quantile(spends, 0.25) if spends else 0.0,
+        "spend_p75": _quantile(spends, 0.75) if spends else 0.0,
+        "spend_spread_ratio": round(spend_spread, 2),
     }
 
 
@@ -224,22 +249,28 @@ def loo_validate(observations: Sequence[Dict[str, Any]]) -> Dict[str, Any]:
     Predictors, each refitted on the n-1 remaining stores so no fold sees its
     own answer:
 
-      capture   revenue = capture_i * median(implied_demand of the others)
-      sqft      revenue = size_i    * median(revenue_per_sqft of the others)
-      mean      revenue = median(revenue of the others)
+      population  revenue = captured_population_i * median(spend_per_person)
+      capture     revenue = capture_i * median(implied_demand of the others)
+      sqft        revenue = size_i    * median(revenue_per_sqft of the others)
+      mean        revenue = median(revenue of the others)
 
-    The capture model earns the right to set a budget only by beating BOTH. A
-    tie is a loss: the simpler predictor wins by default, because it needs no
-    map, no competitor file and no assumption about catchments.
+    A geographic model earns the right to set a budget only by beating BOTH
+    dumb predictors. A tie is a loss: the simpler one wins by default, because
+    it needs no map, no competitor file and no assumption about catchments.
+
+    Population is tested SEPARATELY rather than assumed better. Buying a
+    population grid does not automatically make a forecast good — if spend per
+    person varies more across this estate than floor area does, the headcount
+    is adding noise, and the operator should be told that rather than sold it.
     """
     obs = list(observations or [])
     n = len(obs)
     if n < MIN_CALIBRATION_STORES:
-        return {"n": n, "validated": False,
+        return {"n": n, "validated": False, "basis": None,
                 "reason": (f"{n} usable store(s); leave-one-out needs at least "
                            f"{MIN_CALIBRATION_STORES} to mean anything")}
 
-    cap_pairs, sqft_pairs, mean_pairs = [], [], []
+    cap_pairs, sqft_pairs, mean_pairs, pop_pairs = [], [], [], []
     for i, o in enumerate(obs):
         rest = [x for j, x in enumerate(obs) if j != i]
         d_hat = _median([r["implied_demand"] for r in rest])
@@ -249,37 +280,75 @@ def loo_validate(observations: Sequence[Dict[str, Any]]) -> Dict[str, Any]:
         sqft_pairs.append((o["revenue"], o["size_sqft"] * rps_hat))
         mean_pairs.append((o["revenue"], mean_hat))
 
-    e_cap, e_sqft, e_mean = _mape(cap_pairs), _mape(sqft_pairs), _mape(mean_pairs)
-    validated = e_cap < e_sqft and e_cap < e_mean
+        spends = [r["spend_per_person"] for r in rest
+                  if r.get("spend_per_person") and r["spend_per_person"] > 0]
+        people = o.get("captured_population")
+        if spends and people and people > 0:
+            pop_pairs.append((o["revenue"], people * _median(spends)))
 
-    return {
+    e_cap = _mape(cap_pairs)
+    e_sqft = _mape(sqft_pairs)
+    e_mean = _mape(mean_pairs)
+    # Only meaningful if every fold could be predicted this way.
+    e_pop = _mape(pop_pairs) if len(pop_pairs) == n else None
+
+    baseline = min(e_sqft, e_mean)
+    pop_wins = e_pop is not None and e_pop < baseline and e_pop <= e_cap
+    cap_wins = e_cap < baseline
+
+    if pop_wins:
+        basis, validated = "population", True
+    elif cap_wins:
+        basis, validated = "capture", True
+    else:
+        basis, validated = None, False
+
+    out = {
         "n": n,
         "validated": validated,
+        "basis": basis,
         "mape_capture": e_cap,
+        "mape_population": e_pop,
         "mape_sqft_only": e_sqft,
         "mape_estate_median": e_mean,
         "beaten_by": (None if validated
-                      else ("floor area alone" if e_sqft <= e_cap
+                      else ("floor area alone" if e_sqft <= e_mean
                             else "the estate median")),
         "reason": (None if validated else
                    "the location adds nothing over the simpler predictor on "
                    "this estate - capital is proposed from productivity "
                    "instead, and the site score stays a ranking tool"),
     }
+    if e_pop is not None and not pop_wins:
+        # Say it plainly: they may have paid for this data.
+        out["population_note"] = (
+            f"population is loaded but did not improve the forecast "
+            f"({e_pop:.0%} median error against {min(e_cap, baseline):.0%} for "
+            f"the best alternative) - spend per person varies too much across "
+            f"this estate to carry a budget")
+    elif pop_wins:
+        out["population_note"] = (
+            f"population improved the forecast to {e_pop:.0%} median error, "
+            f"from {min(e_cap, baseline):.0%} without it")
+    return out
 
 
 # ── step 3: the proposal ────────────────────────────────────────────────────
 def propose_capital(capture_pct: float, size_sqft: float,
                     calibration: Dict[str, Any],
                     validation: Optional[Dict[str, Any]] = None,
-                    isolated: bool = False) -> Dict[str, Any]:
+                    isolated: bool = False,
+                    captured_population: Optional[float] = None) -> Dict[str, Any]:
     """Opening stock capital for a candidate, with the basis it rests on.
 
-    Returns a ``basis`` the caller must show, because the three bases carry
-    very different weight:
+    Returns a ``basis`` the caller must show, because the four bases carry very
+    different weight:
 
-      ``estate-calibrated``   geography beat the baselines; capture x measured
-                              catchment demand, banded by the estate's spread.
+      ``population-calibrated`` strongest: people captured x this chain's own
+                              measured spend per person. Transfers between
+                              locations because it carries no density.
+      ``estate-calibrated``   geography beat the baselines but without a
+                              headcount; capture x measured catchment demand.
       ``estate-productivity`` geography did NOT beat floor area; the number is
                               this chain's own revenue per square foot and the
                               site does not enter it.
@@ -319,7 +388,23 @@ def propose_capital(capture_pct: float, size_sqft: float,
         # exercise exists to remove. Revenue is still reportable.
         cover = 0.0
 
-    if val.get("validated"):
+    if val.get("basis") == "population" and captured_population:
+        # The strongest basis available: an absolute headcount times a spend
+        # per person measured on this chain's own trading. Nothing here carries
+        # the density of the catchment it was calibrated in.
+        people = max(0.0, float(captured_population))
+        s_med = float(cal.get("median_spend_per_person") or 0.0)
+        s_lo = float(cal.get("spend_p25") or s_med)
+        s_hi = float(cal.get("spend_p75") or s_med)
+        rev = people * s_med
+        rev_lo, rev_hi = people * s_lo, people * s_hi
+        basis = "population-calibrated"
+        note = (f"~{people:,.0f} people captured x "
+                f"{s_med:,.0f} spend per person, measured on "
+                f"{cal.get('population_stores', 0)} of your own stores "
+                f"(spend varies {cal.get('spend_spread_ratio', 0):.1f}x "
+                f"across them, which is this band).")
+    elif val.get("validated"):
         d_med = float(cal.get("median_demand") or 0.0)
         d_lo = float(cal.get("demand_p25") or d_med)
         d_hi = min(float(cal.get("demand_p75") or d_med),
@@ -351,6 +436,8 @@ def propose_capital(capture_pct: float, size_sqft: float,
         "capital_high": round(rev_hi * cover, 0) if cover > 0 else None,
         "cover_ratio": round(cover, 4),
         "cover_measured": cover_measured,
+        "captured_population": (None if captured_population is None
+                                else round(float(captured_population), 0)),
         "note": note if cover > 0 else
                 note + " Stock values are missing, so no capital figure can be "
                        "derived - only expected revenue.",
@@ -364,8 +451,13 @@ def recommend_size(score_fn: Callable[[float], float],
                    ladder: Sequence[float] = SIZE_LADDER) -> Dict[str, Any]:
     """Largest floor area that still clears the estate's own productivity.
 
-    ``score_fn(size_sqft) -> capture_pct`` re-scores the SAME location at each
-    rung, so the saturation of the Huff share does the work: a bigger store
+    ``score_fn(size_sqft)`` re-scores the SAME location at each rung. It may
+    return a capture percentage, or the whole ``score_site`` result — the
+    latter lets the sweep price each rung on captured PEOPLE where a population
+    grid is loaded, which is the more honest curve because a bigger store pulls
+    people from further out rather than simply taking more of a fixed share.
+
+    Either way the saturation of the Huff model does the work: a bigger store
     takes a larger share of a fixed catchment, but less than proportionally, so
     predicted revenue per square foot falls monotonically. The recommendation
     is the last rung at or above the productivity the client's own stores
@@ -379,13 +471,23 @@ def recommend_size(score_fn: Callable[[float], float],
 
     anchor = float(cal.get("median_revenue_per_sqft") or 0.0)
     d_med = float(cal.get("median_demand") or 0.0)
+    spend = float(cal.get("median_spend_per_person") or 0.0)
+    use_people = bool((validation or {}).get("basis") == "population" and spend)
     calibrated = bool((validation or {}).get("validated"))
 
     rungs = []
     best = None
     for size in ladder:
-        cap = max(0.0, float(score_fn(size))) / 100.0
-        rev = cap * d_med
+        scored = score_fn(size)
+        if isinstance(scored, dict):
+            cap = max(0.0, float(scored.get("adjusted_capture_pct") or 0)) / 100.0
+            people = scored.get("captured_population")
+        else:
+            cap, people = max(0.0, float(scored)) / 100.0, None
+        if use_people and people:
+            rev = float(people) * spend
+        else:
+            rev = cap * d_med
         rps = rev / size if size > 0 else 0.0
         clears = rps >= anchor and anchor > 0
         rungs.append({"size_sqft": size,
@@ -431,16 +533,28 @@ def format_report(cal: Dict[str, Any], val: Dict[str, Any],
     w.append(f"  median revenue/sq ft   {cal.get('median_revenue_per_sqft', 0):>12,.2f}")
     w.append(f"  stock-to-sales ratio   {cal.get('cover_ratio', 0):>12.4f}"
              + ("" if cal.get("cover_measured") else "   (not measured)"))
+    if cal.get("has_population"):
+        w.append(f"  spend per person       {cal.get('median_spend_per_person', 0):>12,.2f}"
+                 f"   over {cal.get('population_stores', 0)} stores")
+        w.append(f"  spend spread           {cal.get('spend_spread_ratio', 0):>12.2f}x")
+    else:
+        w.append("  spend per person             (no population grid loaded)")
     w.append("")
     w.append("  leave-one-out validation")
     if not val.get("validated"):
         w.append(f"     NOT VALIDATED - {val.get('reason', '')}")
     if "mape_capture" in val:
-        w.append(f"     capture model      {val['mape_capture']:>8.1%}  median abs error")
+        if val.get("mape_population") is not None:
+            w.append(f"     population model   {val['mape_population']:>8.1%}  median abs error")
+        w.append(f"     capture model      {val['mape_capture']:>8.1%}"
+                 + ("" if val.get("mape_population") is not None
+                    else "  median abs error"))
         w.append(f"     floor area alone   {val['mape_sqft_only']:>8.1%}")
         w.append(f"     estate median      {val['mape_estate_median']:>8.1%}")
         w.append(f"     -> geography earns a budget: "
-                 f"{'YES' if val.get('validated') else 'NO'}")
+                 f"{'YES (' + str(val.get('basis')) + ')' if val.get('validated') else 'NO'}")
+    if val.get("population_note"):
+        w.append(f"     {val['population_note']}")
     if proposal:
         w.append("")
         w.append(f"  proposal basis         {proposal.get('basis')}")
