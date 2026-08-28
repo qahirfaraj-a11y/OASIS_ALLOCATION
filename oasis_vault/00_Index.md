@@ -18,6 +18,7 @@ Welcome to the operational headquarters for the **Optimized Acquisition & Stock 
 ## 📜 History & Decisions
 - [[Decisions/Log| Decision Log]] — Tracking the evolution of the engine.
 - [[Decisions/Odoo_Transfer_Module_2026-08| Transfers as an Odoo Module]] — σ = R, the three-way module split, and the traps paid for once.
+- [[Decisions/Ordering_Formula_And_Site_Selection_2026-08| The Ordering Formula, and What ST-GAT Is]] — the order quantity derived from first principles, and why cadence is a distribution.
 - [[Decisions/OASIS_ERP_Agnostic_2026-08| ERP-Agnostic (Odoo)]] — Ordering over XML-RPC, no schema bridge.
 
 ## 🏮 Store Insights
