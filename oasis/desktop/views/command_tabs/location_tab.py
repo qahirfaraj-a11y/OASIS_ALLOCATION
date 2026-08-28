@@ -177,7 +177,14 @@ def build_location_tab(page: ft.Page, project_root: str) -> ft.Column:
                                     else T.TEXT_MUTED)),
             ]))
 
-        if val.get("basis") == "population":
+        if val.get("basis") == "affluence":
+            gate_txt = (f"Validated on catchment spend: across your {val['n']} "
+                        f"located stores, modelling spend per person from the "
+                        f"catchment predicts revenue to "
+                        f"{val['mape_affluence']:.0%} median error, against "
+                        f"{val['mape_sqft_only']:.0%} for floor area alone.")
+            gate_col = T.SUCCESS
+        elif val.get("basis") == "population":
             gate_txt = (f"Validated on population: across your {val['n']} "
                         f"located stores, people captured x your own spend per "
                         f"person predicts revenue to {val['mape_population']:.0%} "

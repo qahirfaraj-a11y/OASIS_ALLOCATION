@@ -135,7 +135,8 @@ def estate_observations(stores: Sequence[Dict[str, Any]],
                         revenue_by_org: Optional[Dict[str, float]] = None,
                         stock_value_by_org: Optional[Dict[str, float]] = None,
                         catchment_km: float = CATCHMENT_KM,
-                        population: Any = None) -> List[Dict[str, Any]]:
+                        population: Any = None,
+                        affluence: Any = None) -> List[Dict[str, Any]]:
     """One observation per located, trading store — the labelled dataset.
 
     Each store is scored **leave-one-out**: as if it were a candidate site,
@@ -175,6 +176,12 @@ def estate_observations(stores: Sequence[Dict[str, Any]],
         # revenue per unit of share, which does not: it silently carries the
         # density of whichever catchment it was measured in.
         people = sc.get("captured_population")
+        # Catchment covariate for the spend model. None, never zero, when it
+        # cannot be read — nothing downstream may treat "unknown" as "poor".
+        catch = None
+        if affluence is not None and population is not None:
+            catch = affluence.index_at(float(lat), float(lon),
+                                       population).get("index")
         out.append({
             "org_cd": org,
             "name": s.get("name") or org,
@@ -184,6 +191,7 @@ def estate_observations(stores: Sequence[Dict[str, Any]],
             "stock_value": float(stock_value_by_org.get(org, 0) or 0),
             "captured_population": people,
             "catchment_population": sc.get("catchment_population"),
+            "affluence_index": catch,
             "spend_per_person": (rev / people
                                  if people and people > 0 else None),
             # The measurement this module exists for: how big is the prize
@@ -239,7 +247,20 @@ def calibrate(observations: Sequence[Dict[str, Any]]) -> Dict[str, Any]:
         "spend_p25": _quantile(spends, 0.25) if spends else 0.0,
         "spend_p75": _quantile(spends, 0.75) if spends else 0.0,
         "spend_spread_ratio": round(spend_spread, 2),
+        # Spend as a FUNCTION of the catchment. Fitted here, but it only sets
+        # a budget if loo_validate says it beat the dumb predictors.
+        "spend_model": _fit_spend(obs),
     }
+
+
+def _fit_spend(obs: Sequence[Dict[str, Any]]) -> Optional[Dict[str, float]]:
+    """Log-linear spend-vs-catchment fit, or None when unsupportable."""
+    try:
+        from .affluence import fit_spend_model
+    except ImportError:
+        return None
+    return fit_spend_model([(o.get("affluence_index"), o.get("spend_per_person"))
+                            for o in obs])
 
 
 # ── step 2: the gate ────────────────────────────────────────────────────────
@@ -270,7 +291,7 @@ def loo_validate(observations: Sequence[Dict[str, Any]]) -> Dict[str, Any]:
                 "reason": (f"{n} usable store(s); leave-one-out needs at least "
                            f"{MIN_CALIBRATION_STORES} to mean anything")}
 
-    cap_pairs, sqft_pairs, mean_pairs, pop_pairs = [], [], [], []
+    cap_pairs, sqft_pairs, mean_pairs, pop_pairs, aff_pairs = [], [], [], [], []
     for i, o in enumerate(obs):
         rest = [x for j, x in enumerate(obs) if j != i]
         d_hat = _median([r["implied_demand"] for r in rest])
@@ -286,17 +307,35 @@ def loo_validate(observations: Sequence[Dict[str, Any]]) -> Dict[str, Any]:
         if spends and people and people > 0:
             pop_pairs.append((o["revenue"], people * _median(spends)))
 
+            # Fifth predictor: spend per person as a FUNCTION of the
+            # catchment rather than one number for the chain. Refit on the
+            # n-1 remaining stores so the held-out fold never sees itself.
+            from .affluence import fit_spend_model, predict_spend
+            model = fit_spend_model(
+                [(r.get("affluence_index"), r.get("spend_per_person"))
+                 for r in rest])
+            if model is not None and o.get("affluence_index") is not None:
+                aff_pairs.append((o["revenue"], people * predict_spend(
+                    model, o["affluence_index"], _median(spends))))
+
     e_cap = _mape(cap_pairs)
     e_sqft = _mape(sqft_pairs)
     e_mean = _mape(mean_pairs)
     # Only meaningful if every fold could be predicted this way.
     e_pop = _mape(pop_pairs) if len(pop_pairs) == n else None
+    e_aff = _mape(aff_pairs) if len(aff_pairs) == n else None
 
     baseline = min(e_sqft, e_mean)
-    pop_wins = e_pop is not None and e_pop < baseline and e_pop <= e_cap
-    cap_wins = e_cap < baseline
+    aff_wins = (e_aff is not None and e_aff < baseline
+                and e_aff <= (e_pop if e_pop is not None else e_aff)
+                and e_aff <= e_cap)
+    pop_wins = (not aff_wins and e_pop is not None
+                and e_pop < baseline and e_pop <= e_cap)
+    cap_wins = not aff_wins and not pop_wins and e_cap < baseline
 
-    if pop_wins:
+    if aff_wins:
+        basis, validated = "affluence", True
+    elif pop_wins:
         basis, validated = "population", True
     elif cap_wins:
         basis, validated = "capture", True
@@ -309,6 +348,7 @@ def loo_validate(observations: Sequence[Dict[str, Any]]) -> Dict[str, Any]:
         "basis": basis,
         "mape_capture": e_cap,
         "mape_population": e_pop,
+        "mape_affluence": e_aff,
         "mape_sqft_only": e_sqft,
         "mape_estate_median": e_mean,
         "beaten_by": (None if validated
@@ -338,7 +378,8 @@ def propose_capital(capture_pct: float, size_sqft: float,
                     calibration: Dict[str, Any],
                     validation: Optional[Dict[str, Any]] = None,
                     isolated: bool = False,
-                    captured_population: Optional[float] = None) -> Dict[str, Any]:
+                    captured_population: Optional[float] = None,
+                    affluence_index: Optional[float] = None) -> Dict[str, Any]:
     """Opening stock capital for a candidate, with the basis it rests on.
 
     Returns a ``basis`` the caller must show, because the four bases carry very
@@ -388,7 +429,25 @@ def propose_capital(capture_pct: float, size_sqft: float,
         # exercise exists to remove. Revenue is still reportable.
         cover = 0.0
 
-    if val.get("basis") == "population" and captured_population:
+    if val.get("basis") == "affluence" and captured_population:
+        # The strongest basis: a headcount times a spend per person that
+        # varies with the catchment, both measured on this chain's own books.
+        from .affluence import predict_spend
+        people = max(0.0, float(captured_population))
+        model = cal.get("spend_model")
+        fallback = float(cal.get("median_spend_per_person") or 0.0)
+        s_mid = predict_spend(model, affluence_index, fallback)
+        # The band is the fit's own residual spread, not an invented margin.
+        r2 = float((model or {}).get("r2") or 0.0)
+        width = 1.0 + max(0.15, 1.0 - r2)
+        rev = people * s_mid
+        rev_lo, rev_hi = rev / width, rev * width
+        basis = "affluence-calibrated"
+        note = (f"~{people:,.0f} people x {s_mid:,.0f} spend per person for a "
+                f"catchment like this one (fitted on {cal.get('n', 0)} of your "
+                f"stores, R2 {r2:.2f}). Spend is modelled from the catchment, "
+                f"not averaged across the chain.")
+    elif val.get("basis") == "population" and captured_population:
         # The strongest basis available: an absolute headcount times a spend
         # per person measured on this chain's own trading. Nothing here carries
         # the density of the catchment it was calibrated in.

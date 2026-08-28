@@ -509,6 +509,21 @@ def population_set(root: Optional[str] = None) -> Dict[str, Any]:
                 "source": None, "attribution": None, "error": str(e)[:200]}
 
 
+def affluence_set(root: Optional[str] = None) -> Dict[str, Any]:
+    """This install's amenity extract. See oasis.logic.affluence.
+
+    Absent is not an error — spend per person is then one number for the whole
+    chain rather than a function of the catchment.
+    """
+    try:
+        from oasis.logic.affluence import load_affluence
+        return load_affluence(root=root)
+    except Exception as e:
+        from oasis.logic.affluence import AffluenceGrid
+        return {"grid": AffluenceGrid(), "rows": 0, "source": None,
+                "attribution": None, "error": str(e)[:200]}
+
+
 def site_calibration(days: int = 90,
                      root: Optional[str] = None) -> Dict[str, Any]:
     """Calibrate the estate, and run the gate that decides what may be claimed."""
@@ -518,19 +533,22 @@ def site_calibration(days: int = 90,
         econ = estate_economics(days, root)
         pop = population_set(root)
         grid = pop.get("grid")
+        aff = affluence_set(root)
+        agrid = aff.get("grid")
         obs = SC.estate_observations(
             placed.get("located") or [], competitor_set(root).get("rows") or [],
             econ.get("revenue"), econ.get("stock_value"),
-            population=(grid if grid else None))
+            population=(grid if grid else None),
+            affluence=(agrid if agrid else None))
         cal = SC.calibrate(obs)
         val = SC.loo_validate(obs)
         return {"calibration": cal, "validation": val, "observations": obs,
-                "population": pop, "days": int(days),
+                "population": pop, "affluence": aff, "days": int(days),
                 "error": econ.get("error")}
     except Exception as e:
         return {"calibration": {"usable": False, "reason": str(e)[:200]},
                 "validation": {}, "observations": [], "population": {},
-                "error": str(e)[:200]}
+                "affluence": {}, "error": str(e)[:200]}
 
 
 def score_sites(candidates: List[Dict[str, Any]],
@@ -568,11 +586,16 @@ def score_sites(candidates: List[Dict[str, Any]],
 
         cal, val = calib["calibration"], calib["validation"]
         own, rivals = placed["located"], (comps.get("rows") or [])
+        agrid = (calib.get("affluence") or {}).get("grid")
+        agrid = agrid if agrid else None
         for s in ranked:
+            s["affluence"] = (agrid.index_at(s["lat"], s["lon"], grid)
+                              if (agrid and grid) else None)
             s["capital"] = SC.propose_capital(
                 s["adjusted_capture_pct"], s["size_sqft"], cal, val,
                 isolated=s.get("isolated", False),
-                captured_population=s.get("captured_population"))
+                captured_population=s.get("captured_population"),
+                affluence_index=(s["affluence"] or {}).get("index"))
             # The non-circular size answer. site_scoring.recommend_format reads
             # the size off a capture that was computed FROM that size, so it can
             # only ever restate the input. This re-scores the SAME point at each
@@ -596,6 +619,9 @@ def score_sites(candidates: List[Dict[str, Any]],
                 "competitors": len(comps.get("rows") or []),
                 "attribution": comps.get("attribution"),
                 "population": {k: v for k, v in pop.items() if k != "grid"},
+                "affluence": {k: v for k, v in
+                              (calib.get("affluence") or {}).items()
+                              if k != "grid"},
                 "calibration": cal, "validation": val,
                 "calibrated_on": len(calib.get("observations") or []),
                 "competitor_error": comps.get("error"), "error": None}
