@@ -1360,6 +1360,70 @@ def test_the_location_tab_builds_and_is_greenfield_gated(store, monkeypatch):
     assert "place store" in body
 
 
+def test_scoring_a_site_proposes_capital_and_names_its_basis(store, monkeypatch):
+    """A share is not a budget.
+
+    Builds the real control tree and CLICKS the button, because a Flet view
+    that imports cleanly proves nothing about whether its handler reaches a
+    backend function that exists. The capital panel must also name the basis
+    it used — a number whose provenance is invisible is worse than none.
+    """
+    monkeypatch.setattr(D, "allowed_modules", lambda: set(LM.KNOWN_MODULES))
+    D.set_store_location(D.default_org(store), -1.2680, 36.7930, 14000,
+                         root=store)
+    from oasis.desktop.views.command_tabs.location_tab import build_location_tab
+
+    tab = build_location_tab(None, store)
+    controls = _walk(tab)
+    for c in controls:
+        label = getattr(c, "label", None)
+        if label == "Latitude":
+            c.value = "-1.2860"
+        elif label == "Longitude":
+            c.value = "36.7780"
+
+    buttons = [c for c in controls if getattr(c, "text", None) == "Score site"]
+    assert buttons, "the Score site button vanished from the tree"
+    buttons[0].on_click(None)
+
+    body = _text(tab)
+    assert "proposed opening capital" in body
+    # Whichever basis was used, the panel must NAME it: a number whose
+    # provenance is invisible cannot be argued with. (_text does not walk
+    # DataColumn headers, so this reads the rendered cell, which is the
+    # stronger check anyway.)
+    assert any(b in body for b in ("estate-calibrated", "estate-productivity",
+                                  "insufficient-data"))
+    # And the gate's own verdict must be on screen next to the money.
+    assert "validated" in body
+
+
+def test_score_sites_attaches_a_capital_proposal_to_every_site(store):
+    """The data layer contract the tab depends on."""
+    D.set_store_location(D.default_org(store), -1.2680, 36.7930, 14000,
+                         root=store)
+    res = D.score_sites([{"name": "Candidate", "lat": -1.2860,
+                          "lon": 36.7780, "size_sqft": 10000}], root=store)
+    assert res["error"] is None and res["sites"]
+    for s in res["sites"]:
+        assert "capital" in s and s["capital"].get("basis")
+        assert s["capital"].get("note")
+    assert "calibration" in res and "validation" in res
+
+
+def test_an_isolated_candidate_is_refused_a_budget(store):
+    """100% of an empty catchment is still 100%. The old recommend_format
+    called that a flagship; nothing may now spend against it."""
+    D.set_store_location(D.default_org(store), -1.2680, 36.7930, 14000,
+                         root=store)
+    res = D.score_sites([{"name": "Empty land", "lat": -12.0, "lon": 40.0,
+                          "size_sqft": 60000}], root=store)
+    site = res["sites"][0]
+    assert site["isolated"] is True
+    assert site["capital"]["basis"] == "insufficient-data"
+    assert site["capital"]["opening_capital"] is None
+
+
 # ── the alert floors are one definition, not two ─────────────────────────
 def test_both_front_doors_share_the_velocity_floors(console_src):
     """The fix landed natively first; the console kept emitting the noise.

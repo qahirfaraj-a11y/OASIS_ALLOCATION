@@ -442,17 +442,92 @@ def competitor_set(root: Optional[str] = None) -> Dict[str, Any]:
         return {"rows": [], "attribution": None, "error": str(e)[:200]}
 
 
+#: Estate economics are the same for every candidate scored in a sitting and
+#: cost one sales + stock pass per store, so they are memoised per (root, days).
+_ESTATE_ECON_CACHE: Dict[Any, Dict[str, Any]] = {}
+
+
+def estate_economics(days: int = 90, root: Optional[str] = None,
+                     refresh: bool = False) -> Dict[str, Any]:
+    """Real revenue and stock value per store — the labels site capital needs.
+
+    This is the only labelled dataset OASIS has for the location question:
+    stores that actually trade, with outcomes their POS recorded. Everything
+    ``site_capital`` claims about a candidate is anchored here.
+    """
+    key = (root or project_root(), int(days))
+    if not refresh and key in _ESTATE_ECON_CACHE:
+        return _ESTATE_ECON_CACHE[key]
+
+    out: Dict[str, Any] = {"revenue": {}, "stock_value": {}, "days": int(days),
+                           "error": None}
+    try:
+        adapter = get_adapter(root)
+        for s in list_stores(root):
+            org = s["org_cd"]
+            raw = adapter.fetch_sales_history(org, days=days)
+            recs = (raw.to_dict("records") if hasattr(raw, "to_dict")
+                    else list(raw or []))
+            rev = 0.0
+            for r in recs:
+                low = {str(k).lower(): v for k, v in r.items()}
+                try:
+                    rev += float(low.get("net_amt", 0) or 0)
+                except (TypeError, ValueError):
+                    pass
+            out["revenue"][org] = rev
+
+            # Stock at retail, so it is on the same footing as revenue and the
+            # ratio between them is this chain's own working-capital intensity.
+            val = 0.0
+            for p in (adapter.fetch_enriched_products(org) or []):
+                try:
+                    val += (float(p.get("current_stocks", 0) or 0)
+                            * float(p.get("selling_price", 0) or 0))
+                except (TypeError, ValueError):
+                    pass
+            out["stock_value"][org] = val
+    except Exception as e:
+        out["error"] = str(e)[:200]
+
+    _ESTATE_ECON_CACHE[key] = out
+    return out
+
+
+def site_calibration(days: int = 90,
+                     root: Optional[str] = None) -> Dict[str, Any]:
+    """Calibrate the estate, and run the gate that decides what may be claimed."""
+    try:
+        from oasis.logic import site_capital as SC
+        placed = store_map(root)
+        econ = estate_economics(days, root)
+        obs = SC.estate_observations(
+            placed.get("located") or [], competitor_set(root).get("rows") or [],
+            econ.get("revenue"), econ.get("stock_value"))
+        cal = SC.calibrate(obs)
+        val = SC.loo_validate(obs)
+        return {"calibration": cal, "validation": val, "observations": obs,
+                "days": int(days), "error": econ.get("error")}
+    except Exception as e:
+        return {"calibration": {"usable": False, "reason": str(e)[:200]},
+                "validation": {}, "observations": [], "error": str(e)[:200]}
+
+
 def score_sites(candidates: List[Dict[str, Any]],
                 size_sqft: float = 10_000.0,
                 root: Optional[str] = None) -> Dict[str, Any]:
-    """Rank candidate sites against this client's estate and competitors.
+    """Rank candidate sites against this client's estate and competitors, and
+    propose an opening capital for each.
 
     Interpretable geography only — no model. See ``oasis.logic.site_scoring``
     for what this deliberately cannot tell you (it has no population data, so
-    it ranks how contested a catchment is, not how big it is).
+    it ranks how contested a catchment is, not how big it is), and
+    ``oasis.logic.site_capital`` for the gate that decides whether the
+    geography has earned the right to set a budget on THIS estate.
     """
     try:
-        from oasis.logic.site_scoring import rank_sites
+        from oasis.logic import site_capital as SC
+        from oasis.logic.site_scoring import rank_sites, score_site
         placed = store_map(root)
         if placed.get("error"):
             return {"sites": [], "error": placed["error"]}
@@ -464,10 +539,36 @@ def score_sites(candidates: List[Dict[str, Any]],
         comps = competitor_set(root)
         ranked = rank_sites(candidates, placed["located"],
                             comps.get("rows") or [], size_sqft=size_sqft)
+
+        calib = site_calibration(root=root)
+        cal, val = calib["calibration"], calib["validation"]
+        own, rivals = placed["located"], (comps.get("rows") or [])
+        for s in ranked:
+            s["capital"] = SC.propose_capital(
+                s["adjusted_capture_pct"], s["size_sqft"], cal, val,
+                isolated=s.get("isolated", False))
+            # The non-circular size answer. site_scoring.recommend_format reads
+            # the size off a capture that was computed FROM that size, so it can
+            # only ever restate the input. This re-scores the SAME point at each
+            # rung and compares against the estate's own revenue per sq ft — an
+            # anchor outside the candidate.
+            if s.get("isolated"):
+                s["size_recommendation"] = {
+                    "recommended_sqft": None, "format": "—", "rungs": [],
+                    "note": "Nothing in the catchment to size against."}
+            else:
+                s["size_recommendation"] = SC.recommend_size(
+                    (lambda lat, lon: (lambda sz: score_site(
+                        lat, lon, own, rivals,
+                        size_sqft=sz)["adjusted_capture_pct"]))(s["lat"], s["lon"]),
+                    cal, val)
+
         return {"sites": ranked, "own_stores": len(placed["located"]),
                 "missing": placed["missing"],
                 "competitors": len(comps.get("rows") or []),
                 "attribution": comps.get("attribution"),
+                "calibration": cal, "validation": val,
+                "calibrated_on": len(calib.get("observations") or []),
                 "competitor_error": comps.get("error"), "error": None}
     except Exception as e:
         return {"sites": [], "error": str(e)[:200]}

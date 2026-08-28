@@ -28,7 +28,7 @@ logger = logging.getLogger("OASIS.LicenseManager")
 
 #: the sellable module SKUs. "core" is the mandatory base every install needs;
 #: the rest gate feature groups (pages/tabs/CLI modes) via CAPABILITIES below.
-KNOWN_MODULES = ("core", "ordering", "network", "revenue", "greenfield", "api")
+KNOWN_MODULES = ("core", "ordering", "network", "revenue", "greenfield", "api", "store_allocation")
 
 MODULE_LABELS = {
     "core": "OASIS Core",
@@ -63,6 +63,11 @@ PAGE_MODULES = {
     "transfer_intelligence": "network",
     "allocation": "greenfield", "allocation_engine": "greenfield",
     "greenfield": "greenfield", "simulation_validation": "greenfield",
+    # Site selection is metered to the SKU it is sold under. Access is gated
+    # elsewhere (command_view.TAB_MODULES) and was always correct; without
+    # this line the value report simply filed the work under "core", so a
+    # chain evaluating the greenfield module could not see what it had used.
+    "location": "greenfield", "site_selection": "greenfield",
     "baskets": "revenue",
 }
 

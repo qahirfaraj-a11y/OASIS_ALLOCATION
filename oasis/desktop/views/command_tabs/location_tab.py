@@ -128,11 +128,85 @@ def build_location_tab(page: ft.Page, project_root: str) -> ft.Column:
                                     size=11, color=T.TEXT_SECONDARY)),
                 ft.DataCell(ft.Text(str(s["competitors_within_2km"]), size=11,
                                     color=T.TEXT_SECONDARY)),
-                ft.DataCell(ft.Text(s["format"][:24], size=11, color=T.INFO)),
+                # The size the ESTATE's productivity supports, not the size the
+                # operator typed in. site_scoring.recommend_format reads the
+                # format off a capture computed from that very size, so it can
+                # only restate the question; s["format"] is kept in the payload
+                # for compatibility but is not what a buyer is shown.
+                ft.DataCell(ft.Text(
+                    str((s.get("size_recommendation") or {}).get("format")
+                        or "—")[:24], size=11, color=T.INFO)),
             ]))
 
         verdicts = [ft.Text(f"· {s['name']}: {s['verdict']}", size=11,
                             color=T.TEXT_SECONDARY) for s in res["sites"]]
+
+        # ── proposed capital, and the basis it rests on ──────────────────
+        # A share is not a budget. The capital panel is deliberately separate
+        # from the ranking table so the operator can see WHICH of the three
+        # bases produced the number before spending against it.
+        cal = res.get("calibration") or {}
+        val = res.get("validation") or {}
+        cap_rows = []
+        for s in res["sites"]:
+            c = s.get("capital") or {}
+            money = ("—" if c.get("opening_capital") is None
+                     else f"{c['opening_capital']:,.0f}")
+            band = ("—" if c.get("capital_low") is None
+                    else f"{c['capital_low']:,.0f} – {c['capital_high']:,.0f}")
+            basis = c.get("basis", "—")
+            cap_rows.append(ft.DataRow(cells=[
+                ft.DataCell(ft.Text(s["name"][:24], size=11,
+                                    color=T.TEXT_PRIMARY)),
+                ft.DataCell(ft.Text(money, size=11,
+                                    color=T.TEXT_PRIMARY if
+                                    c.get("opening_capital") else T.TEXT_MUTED,
+                                    weight=ft.FontWeight.W_600)),
+                ft.DataCell(ft.Text(band, size=11, color=T.TEXT_SECONDARY)),
+                ft.DataCell(ft.Text(basis, size=11,
+                                    color=T.SUCCESS if basis == "estate-calibrated"
+                                    else T.WARNING if basis == "estate-productivity"
+                                    else T.TEXT_MUTED)),
+            ]))
+
+        if val.get("validated"):
+            gate_txt = (f"Validated: on your {val['n']} located stores the "
+                        f"geography predicts revenue better "
+                        f"({val['mape_capture']:.0%} median error) than floor "
+                        f"area alone ({val['mape_sqft_only']:.0%}) or your "
+                        f"estate median ({val['mape_estate_median']:.0%}). "
+                        "Capital below is calibrated on your own trading.")
+            gate_col = T.SUCCESS
+        else:
+            gate_txt = ("Not validated — " + (val.get("reason") or "") +
+                        " Capital below is your own revenue per square foot, "
+                        "and the site does not enter it.")
+            gate_col = T.WARNING
+
+        capital_card = T.card_container(content=ft.Column([
+            T.section_header("Proposed Opening Capital", "💰"),
+            ft.Text(gate_txt, size=11, color=gate_col),
+            ft.DataTable(
+                columns=[ft.DataColumn(ft.Text(h, size=11, color=T.TEXT_MUTED),
+                                       numeric=n)
+                         for h, n in (("Site", False), ("Capital", True),
+                                      ("Range", True), ("Basis", False))],
+                rows=cap_rows, heading_row_color=T.OBSIDIAN_RAISE,
+                data_row_color=T.DEEP_OBSIDIAN, column_spacing=16, expand=True),
+            ft.Container(height=4),
+            *[ft.Text(f"· {s['name']}: {(s.get('capital') or {}).get('note', '')}",
+                      size=10, color=T.TEXT_MUTED) for s in res["sites"]],
+            ft.Container(height=4),
+            ft.Text(
+                (f"Calibrated on {res.get('calibrated_on', 0)} of your stores · "
+                 f"catchments differ {cal.get('demand_spread_ratio', 0):.1f}x · "
+                 f"stock-to-sales {cal.get('cover_ratio', 0):.2f}"
+                 + ("" if cal.get("cover_measured")
+                    else " (stock values missing — revenue only)"))
+                if cal.get("usable") else
+                (cal.get("reason") or "No estate calibration available."),
+                size=10, color=T.TEXT_MUTED),
+        ], spacing=8))
 
         return ft.Column([
             T.card_container(content=ft.Column([
@@ -146,7 +220,7 @@ def build_location_tab(page: ft.Page, project_root: str) -> ft.Column:
                                           ("Nearest own km", True),
                                           ("Nearest rival km", True),
                                           ("Rivals <2km", True),
-                                          ("Format", False))],
+                                          ("Supported size", False))],
                     rows=rows, heading_row_color=T.OBSIDIAN_RAISE,
                     data_row_color=T.DEEP_OBSIDIAN, column_spacing=14,
                     expand=True),
@@ -164,6 +238,8 @@ def build_location_tab(page: ft.Page, project_root: str) -> ft.Column:
                 (ft.Text(res["competitor_error"], size=11, color=T.WARNING)
                  if res.get("competitor_error") else ft.Container()),
             ], spacing=8)),
+            ft.Container(height=12),
+            capital_card,
         ], spacing=8)
 
     def _on_add(e):

@@ -240,7 +240,21 @@ STORE_FORMATS = (
 
 
 def recommend_format(capture_pct: float) -> str:
-    """Largest format the captured share can plausibly support."""
+    """Largest format the captured share can plausibly support.
+
+    SUPERSEDED — do not put this in front of a buyer. It is circular: capture
+    is computed FROM the floor area the operator entered, so this restates the
+    input as its own answer. Measured on one fixed location with a fixed
+    competitor set, it returned "Unsuitable" at 3,000 sqft and
+    "Hyper / Flagship" at 80,000 sqft — a perfect echo.
+
+    ``site_capital.recommend_size`` replaces it: it re-scores the same point at
+    each rung and compares predicted revenue per square foot against the
+    productivity the client's own stores actually achieve, which is an anchor
+    outside the candidate. Kept here because ``rank_sites`` still reports it in
+    the payload for compatibility, and because naming a defect precisely is
+    what stops it being reintroduced.
+    """
     share = float(capture_pct or 0) / 100.0
     fmt = "Unsuitable — too little share to justify a site"
     for threshold, name in STORE_FORMATS:
