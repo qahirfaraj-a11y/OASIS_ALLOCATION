@@ -509,6 +509,161 @@ def population_set(root: Optional[str] = None) -> Dict[str, Any]:
                 "source": None, "attribution": None, "error": str(e)[:200]}
 
 
+#: Chains a grocery retailer in this market is most often scored against. Only
+#: a starting point for the operator's own list — the search is by name, so a
+#: chain absent here is simply typed in.
+#:
+#: The operator's OWN chain must never appear here. Their stores arrive from
+#: the POS and are already the "own stores" term in the Huff denominator;
+#: listing them again as competitors would have every branch competing with
+#: itself. It would also ship one client's identity to every other one.
+DEFAULT_COMPETITOR_BRANDS = ("Naivas", "Quickmart", "Carrefour", "Cleanshelf",
+                             "Eastmatt", "Magunas", "Tuskys")
+
+
+def region_data_status(root: Optional[str] = None) -> Dict[str, Any]:
+    """What the three open-data layers hold on this install, and what is missing.
+
+    Site selection reads four things. One is the client's own estate; the other
+    three are public data fetched for their region. Until this reports all
+    three present, the methodology is running on partial inputs — and the
+    biggest failure mode is silent: no competitor file scores every site as
+    uncontested rather than as unknown.
+    """
+    comps = competitor_set(root)
+    pop = population_set(root)
+    aff = affluence_set(root)
+    placed = store_map(root)
+    return {
+        "stores_placed": len(placed.get("located") or []),
+        "stores_missing": len(placed.get("missing") or []),
+        # Coordinates on file that match no store the POS reports. A high
+        # count with nothing placed means the POS is unreachable or the codes
+        # differ — not that the operator has failed to place anything.
+        "stores_orphaned": len(placed.get("orphaned") or []),
+        "competitors": len(comps.get("rows") or []),
+        "competitor_chains": comps.get("chains") or [],
+        "competitors_sized": comps.get("sized", 0),
+        "competitors_unsized": comps.get("unsized", 0),
+        "competitor_legacy_path": bool(comps.get("legacy_path")),
+        "competitor_error": comps.get("error"),
+        "population_cells": pop.get("rows", 0),
+        "population_people": pop.get("people", 0.0),
+        "population_error": pop.get("error"),
+        "amenities": aff.get("rows", 0),
+        "amenity_error": aff.get("error"),
+        "ready": bool((placed.get("located") or []) and
+                      (comps.get("rows") or []) and pop.get("rows")),
+    }
+
+
+def fetch_region_data(bbox: Any, brands: Optional[List[str]] = None,
+                      iso3: str = "KEN", year: int = 2020,
+                      root: Optional[str] = None,
+                      layers: Optional[List[str]] = None) -> Dict[str, Any]:
+    """Fetch competitors, population and amenities for one region.
+
+    ``bbox`` is ``(south, west, north, east)`` — the order Overpass uses, kept
+    for every layer so an operator supplies one region once.
+
+    This is the step that was missing entirely: all three fetchers existed and
+    nothing called them, so the data the methodology depends on could not be
+    acquired through the product at all. Each layer reports separately, because
+    a rate-limited Overpass should not cost the operator their population grid.
+    """
+    # `layers=[]` means fetch nothing. `layers=None` means fetch everything.
+    # Collapsing the two with `or` made an explicit empty selection hit the
+    # network — the opposite of what the caller asked for.
+    want = set(("competitors", "population", "amenities") if layers is None
+               else layers)
+    out: Dict[str, Any] = {"bbox": tuple(bbox), "results": {}, "error": None}
+
+    try:
+        south, west, north, east = (float(b) for b in bbox)
+    except (TypeError, ValueError):
+        out["error"] = "Bounding box needs four numbers: south, west, north, east."
+        return out
+    if south >= north or west >= east:
+        out["error"] = ("Bounding box looks inverted — expected "
+                        "south < north and west < east.")
+        return out
+
+    if "competitors" in want:
+        try:
+            from oasis.logic.geo_sources import fetch_competitors
+            names = [b for b in (brands or DEFAULT_COMPETITOR_BRANDS)
+                     if str(b).strip()]
+            out["results"]["competitors"] = fetch_competitors(
+                names, f"{south},{west},{north},{east}", root=root)
+        except Exception as e:
+            out["results"]["competitors"] = {"written": 0, "error": str(e)[:200]}
+
+    if "population" in want:
+        try:
+            from oasis.logic.population import fetch_worldpop
+            out["results"]["population"] = fetch_worldpop(
+                iso3, (south, west, north, east), year=year, root=root)
+        except Exception as e:
+            out["results"]["population"] = {"written": 0, "error": str(e)[:200]}
+
+    if "amenities" in want:
+        try:
+            from oasis.logic.affluence import fetch_amenities
+            out["results"]["amenities"] = fetch_amenities(
+                (south, west, north, east), root=root)
+        except Exception as e:
+            out["results"]["amenities"] = {"written": 0, "error": str(e)[:200]}
+
+    # A fetch changes what every later score is computed against.
+    _ESTATE_ECON_CACHE.clear()
+    out["status"] = region_data_status(root)
+    return out
+
+
+def import_store_locations(text: str,
+                           root: Optional[str] = None) -> Dict[str, Any]:
+    """Place many stores from pasted or exported CSV.
+
+    Codes the POS does not recognise are rejected, not written: a location
+    saved against a typo leaves the real store reading "needs a location"
+    while a phantom point joins every catchment calculation.
+    """
+    try:
+        from oasis.logic.store_locations import import_locations
+        known = [s["org_cd"] for s in list_stores(root)]
+        return import_locations(text, known_orgs=known, root=root)
+    except Exception as e:
+        return {"saved": 0, "rows": [], "errors": [], "error": str(e)[:200]}
+
+
+def store_location_template(root: Optional[str] = None) -> str:
+    """A CSV of every store, pre-filled with the placements already recorded."""
+    try:
+        from oasis.logic.store_locations import export_template
+        return export_template(list_stores(root), root=root)
+    except Exception:
+        return "org_cd,lat,lon,size_sqft"
+
+
+def competitor_sizes(root: Optional[str] = None) -> Dict[str, float]:
+    """Per-chain floor areas the operator has recorded."""
+    try:
+        from oasis.logic.geo_sources import load_sizes
+        return load_sizes(root)
+    except Exception:
+        return {}
+
+
+def set_competitor_sizes(sizes: Dict[str, float],
+                         root: Optional[str] = None) -> Dict[str, Any]:
+    """Record per-chain floor areas — Huff pull is proportional to them."""
+    try:
+        from oasis.logic.geo_sources import save_sizes
+        return save_sizes(sizes, root=root)
+    except Exception as e:
+        return {"saved": False, "error": str(e)[:200]}
+
+
 def affluence_set(root: Optional[str] = None) -> Dict[str, Any]:
     """This install's amenity extract. See oasis.logic.affluence.
 
@@ -570,10 +725,18 @@ def score_sites(candidates: List[Dict[str, Any]],
         if placed.get("error"):
             return {"sites": [], "error": placed["error"]}
         if not placed["located"]:
-            return {"sites": [], "missing": placed["missing"],
-                    "error": "No store locations recorded yet — place your "
-                             "existing stores first, so a candidate can be "
-                             "scored against them."}
+            # Distinguish "you have not placed your stores" from "your POS
+            # returned none" — the second used to be reported as the first,
+            # sending the operator to redo work they had already done.
+            if placed.get("saved_total"):
+                why = (f"{placed['saved_total']} location(s) are on file but "
+                       "none match a store in your POS. Check the connection, "
+                       "or that the store codes match.")
+            else:
+                why = ("No store locations recorded yet — place your existing "
+                       "stores first, so a candidate can be scored against "
+                       "them.")
+            return {"sites": [], "missing": placed["missing"], "error": why}
         comps = competitor_set(root)
         calib = site_calibration(root=root)
         pop = calib.get("population") or {}

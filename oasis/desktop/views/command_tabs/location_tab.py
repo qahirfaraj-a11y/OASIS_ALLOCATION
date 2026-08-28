@@ -13,6 +13,7 @@ import flet as ft
 
 from ... import theme as T
 from ... import data as D
+from ....logic.geo_sources import DEFAULT_COMPETITOR_SQFT as GS_DEFAULT_SQFT
 
 
 def _num(field, default=0.0) -> float:
@@ -287,6 +288,171 @@ def build_location_tab(page: ft.Page, project_root: str) -> ft.Column:
             capital_card,
         ], spacing=8)
 
+    # ── region data: fetch what the scoring runs on ──────────────────────
+    # All three fetchers existed and NOTHING called them, so a retailer could
+    # not acquire competitor, population or amenity data through the product
+    # at all. The worst of the three is silent: with no competitor file every
+    # site scores as uncontested rather than as unknown.
+    r_south = ft.TextField(label="South", width=110, dense=True)
+    r_west = ft.TextField(label="West", width=110, dense=True)
+    r_north = ft.TextField(label="North", width=110, dense=True)
+    r_east = ft.TextField(label="East", width=110, dense=True)
+    r_brands = ft.TextField(label="Competitor chains (comma separated)",
+                            width=420, dense=True,
+                            value=", ".join(D.DEFAULT_COMPETITOR_BRANDS))
+    r_iso = ft.TextField(label="Country (ISO3)", width=130, dense=True,
+                         value="KEN")
+    r_msg = ft.Text("", size=12, color=T.TEXT_SECONDARY)
+    status_panel = ft.Container()
+
+    def _refresh_status():
+        s = D.region_data_status(project_root)
+        def _row(label, n, err, unit):
+            ok = n and not err
+            return ft.Row([
+                ft.Icon(ft.Icons.CHECK_CIRCLE if ok else ft.Icons.ERROR_OUTLINE,
+                        size=15, color=T.SUCCESS if ok else T.WARNING),
+                ft.Text(f"{label}: {n:,} {unit}" if ok else f"{label}: none yet",
+                        size=11,
+                        color=T.TEXT_SECONDARY if ok else T.WARNING, expand=True),
+            ], spacing=6)
+
+        controls = [
+            _row("Stores placed", s["stores_placed"], None, "of your estate"),
+            _row("Competitors", s["competitors"], s["competitor_error"], "sites"),
+            _row("Population", s["population_cells"], s["population_error"],
+                 f"cells ({s['population_people']:,.0f} people)"),
+            _row("Amenities", s["amenities"], s["amenity_error"], "POIs"),
+        ]
+        if s["stores_missing"]:
+            controls.append(ft.Text(
+                f"{s['stores_missing']} store(s) still need a location — they "
+                "cannot be scored against.", size=11, color=T.WARNING))
+        if s.get("stores_orphaned") and not s["stores_placed"]:
+            controls.append(ft.Text(
+                f"{s['stores_orphaned']} location(s) are on file but match no "
+                "store in your POS. Check the connection, or that the store "
+                "codes match — this is not a placement problem.",
+                size=11, color=T.DANGER))
+        if s["competitor_legacy_path"]:
+            controls.append(ft.Text(
+                "Competitors are being read from the old console's location. "
+                "Re-fetch to move them into oasis/data.",
+                size=11, color=T.WARNING))
+        if s["competitors"] and s["competitors_unsized"]:
+            controls.append(ft.Text(
+                f"{s['competitors_unsized']:,} competitor sites have no floor "
+                f"area and are assumed {int(GS_DEFAULT_SQFT):,} sq ft. Huff pull "
+                "is proportional to floor area, so a kiosk currently competes "
+                "as hard as a hypermarket.", size=11, color=T.WARNING))
+        status_panel.content = ft.Column(controls, spacing=4)
+        if page:
+            page.update()
+
+    def _on_fetch(e):
+        bbox = (_num(r_south, 999), _num(r_west, 999),
+                _num(r_north, 999), _num(r_east, 999))
+        if any(abs(v) > 180 for v in bbox):
+            r_msg.value = "Enter all four edges of the region."
+            r_msg.color = T.WARNING
+            if page:
+                page.update()
+            return
+        r_msg.value = "Fetching — this can take a minute."
+        r_msg.color = T.TEXT_SECONDARY
+        if page:
+            page.update()
+        brands = [b.strip() for b in (r_brands.value or "").split(",")
+                  if b.strip()]
+        res = D.fetch_region_data(bbox, brands=brands,
+                                  iso3=(r_iso.value or "KEN").strip().upper(),
+                                  root=project_root)
+        if res.get("error"):
+            r_msg.value = res["error"]
+            r_msg.color = T.DANGER
+        else:
+            parts, failed = [], []
+            for name, r in (res.get("results") or {}).items():
+                if r.get("error"):
+                    failed.append(f"{name}: {r['error'][:70]}")
+                else:
+                    parts.append(f"{name} {r.get('written', 0):,}")
+            r_msg.value = ("Fetched " + ", ".join(parts) if parts else "") + \
+                          (("  |  FAILED — " + "; ".join(failed)) if failed else "")
+            r_msg.color = T.WARNING if failed else T.SUCCESS
+        _refresh_status()
+        _refresh_estate()
+
+    # ── bulk placement ───────────────────────────────────────────────────
+    bulk = ft.TextField(label="Paste org_cd,lat,lon,size_sqft — one store per line",
+                        multiline=True, min_lines=3, max_lines=8, width=560,
+                        dense=True)
+    bulk_msg = ft.Text("", size=12, color=T.TEXT_SECONDARY)
+
+    def _on_template(e):
+        bulk.value = D.store_location_template(project_root)
+        bulk_msg.value = ("Filled with your stores. Add coordinates and press "
+                          "Import.")
+        bulk_msg.color = T.TEXT_SECONDARY
+        if page:
+            page.update()
+
+    def _on_import(e):
+        res = D.import_store_locations(bulk.value or "", root=project_root)
+        if res.get("error"):
+            bulk_msg.value = res["error"]
+            bulk_msg.color = T.DANGER
+        else:
+            note = f"Placed {res['saved']} store(s)."
+            if res.get("errors"):
+                shown = "; ".join(
+                    f"{x.get('org_cd') or 'line ' + str(x.get('line'))}: "
+                    f"{x['reason']}" for x in res["errors"][:4])
+                note += f"  Rejected {len(res['errors'])}: {shown}"
+            bulk_msg.value = note
+            bulk_msg.color = T.WARNING if res.get("errors") else T.SUCCESS
+        _refresh_estate()
+        _refresh_status()
+
+    # ── competitor floor areas ───────────────────────────────────────────
+    size_fields: dict = {}
+    sizes_panel = ft.Container()
+    sizes_msg = ft.Text("", size=12, color=T.TEXT_SECONDARY)
+
+    def _refresh_sizes():
+        known = D.competitor_sizes(project_root)
+        chains = (D.competitor_set(project_root).get("chains") or [])
+        size_fields.clear()
+        rows_ = []
+        for chain in chains[:12]:
+            f = ft.TextField(label=chain[:18], width=150, dense=True,
+                             value=(f"{known[chain.lower()]:.0f}"
+                                    if chain.lower() in known else ""),
+                             hint_text=f"{int(GS_DEFAULT_SQFT):,}")
+            size_fields[chain] = f
+            rows_.append(f)
+        sizes_panel.content = (
+            ft.Row(rows_, spacing=8, wrap=True) if rows_
+            else ft.Text("No competitor chains loaded yet.", size=11,
+                         color=T.TEXT_MUTED))
+        if page:
+            page.update()
+
+    def _on_save_sizes(e):
+        vals = {c: _num(f) for c, f in size_fields.items() if (f.value or "").strip()}
+        if not vals:
+            sizes_msg.value = "Enter a floor area for at least one chain."
+            sizes_msg.color = T.WARNING
+            if page:
+                page.update()
+            return
+        res = D.set_competitor_sizes(vals, root=project_root)
+        sizes_msg.value = (f"Saved {res.get('chains', 0)} chain size(s). "
+                           "Re-score to see the effect."
+                           if res.get("saved") else res.get("error", ""))
+        sizes_msg.color = T.SUCCESS if res.get("saved") else T.DANGER
+        _refresh_status()
+
     def _on_add(e):
         lat, lon = _num(c_lat, 999), _num(c_lon, 999)
         if abs(lat) > 90 or abs(lon) > 180:
@@ -310,12 +476,43 @@ def build_location_tab(page: ft.Page, project_root: str) -> ft.Column:
             page.update()
 
     _refresh_estate()
+    _refresh_status()
+    _refresh_sizes()
 
     return ft.Column(
         controls=[
             ft.Text("Site Selection", size=20, weight=ft.FontWeight.W_600,
                     color=T.TEXT_PRIMARY),
             ft.Container(height=8),
+            T.card_container(content=ft.Column([
+                T.section_header("Region Data", "🌍"),
+                ft.Text("Site scoring reads four things: your estate, the "
+                        "competition, the people, and the local amenity mix. "
+                        "The last three are public data fetched once for your "
+                        "region.", size=12, color=T.TEXT_SECONDARY),
+                ft.Container(height=4),
+                status_panel,
+                ft.Container(height=8),
+                ft.Row([r_south, r_west, r_north, r_east, r_iso], spacing=10,
+                       wrap=True),
+                ft.Row([r_brands,
+                        ft.ElevatedButton("Fetch region data",
+                                          icon=ft.Icons.CLOUD_DOWNLOAD,
+                                          on_click=_on_fetch)],
+                       spacing=10, wrap=True,
+                       vertical_alignment=ft.CrossAxisAlignment.CENTER),
+                r_msg,
+                ft.Container(height=8),
+                ft.Text("Competitor floor areas — Huff pull is proportional to "
+                        "them, so leaving these blank makes every rival the "
+                        "same size.", size=11, color=T.TEXT_SECONDARY),
+                sizes_panel,
+                ft.Row([ft.ElevatedButton("Save chain sizes",
+                                          icon=ft.Icons.STRAIGHTEN,
+                                          on_click=_on_save_sizes)], spacing=10),
+                sizes_msg,
+            ], spacing=8)),
+            ft.Container(height=14),
             T.card_container(content=ft.Column([
                 T.section_header("Your Estate", "🏬"),
                 ft.Text("Your POS knows your stores but not where they are. "
@@ -328,6 +525,21 @@ def build_location_tab(page: ft.Page, project_root: str) -> ft.Column:
                        spacing=10, wrap=True,
                        vertical_alignment=ft.CrossAxisAlignment.CENTER),
                 p_msg,
+                ft.Container(height=8),
+                # Typing one store at a time is fine for five and unusable for
+                # thirty — and thirty is roughly where the estate becomes big
+                # enough to validate anything.
+                ft.Text("Or place them all at once:", size=12,
+                        color=T.TEXT_SECONDARY),
+                bulk,
+                ft.Row([
+                    ft.TextButton("Fill from my stores", icon=ft.Icons.DOWNLOAD,
+                                  on_click=_on_template),
+                    ft.ElevatedButton("Import placements",
+                                      icon=ft.Icons.UPLOAD_FILE,
+                                      on_click=_on_import),
+                ], spacing=10, wrap=True),
+                bulk_msg,
                 ft.Container(height=8),
                 placed_panel,
             ], spacing=8)),

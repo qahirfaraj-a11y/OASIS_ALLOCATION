@@ -27,6 +27,7 @@ advice; confirm before a commercial release.
 from __future__ import annotations
 
 import csv
+import json
 import os
 from typing import Dict, List, Optional
 
@@ -48,31 +49,160 @@ USER_AGENT = "OASIS-Retail-Intelligence/1.0 (site selection; open data client)"
 CACHE_FILE = "competitor_network.csv"
 
 
+#: Per-chain floor areas, in square feet. Huff attractiveness is PROPORTIONAL
+#: to floor area, so without this every rival pulls identically — a kiosk
+#: competes exactly as hard as a hypermarket. OSM carries no floor areas, so
+#: the operator supplies what they know.
+SIZES_FILE = "competitor_sizes.json"
+
+#: Used only where a chain has no entry. Deliberately a mid-size supermarket:
+#: it is wrong for both ends of the range and should be replaced by anyone who
+#: cares about the ranking.
+DEFAULT_COMPETITOR_SQFT = 15_000.0
+
+
 def cache_path(root: Optional[str] = None) -> str:
     base = root or os.path.dirname(os.path.dirname(
         os.path.dirname(os.path.abspath(__file__))))
     return os.path.join(base, "oasis", "data", CACHE_FILE)
 
 
+def legacy_cache_path(root: Optional[str] = None) -> str:
+    """Where the pre-``oasis/data`` console kept the same extract.
+
+    The Streamlit expansion engine read ``competitor_network.csv`` from the
+    working directory. An install carried over from that console has the file
+    there, and reading only the canonical path made it look as though the
+    client had no competitors at all — which scores every site as uncontested.
+    """
+    base = root or os.path.dirname(os.path.dirname(
+        os.path.dirname(os.path.abspath(__file__))))
+    return os.path.join(base, CACHE_FILE)
+
+
+def sizes_path(root: Optional[str] = None) -> str:
+    base = root or os.path.dirname(os.path.dirname(
+        os.path.dirname(os.path.abspath(__file__))))
+    return os.path.join(base, "oasis", "data", SIZES_FILE)
+
+
+def load_sizes(root: Optional[str] = None) -> Dict[str, float]:
+    """``{chain_lowercase: sqft}`` — empty when the operator has set none."""
+    path = sizes_path(root)
+    if not os.path.exists(path):
+        return {}
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            data = json.load(f) or {}
+    except (OSError, ValueError):
+        return {}
+    out: Dict[str, float] = {}
+    for chain, sqft in (data.get("chains") or data).items():
+        try:
+            v = float(sqft)
+        except (TypeError, ValueError):
+            continue
+        if v > 0:
+            out[str(chain).strip().lower()] = v
+    return out
+
+
+def save_sizes(sizes: Dict[str, float],
+               root: Optional[str] = None) -> Dict[str, object]:
+    """Record per-chain floor areas. Validates before writing."""
+    clean: Dict[str, float] = {}
+    for chain, sqft in (sizes or {}).items():
+        name = str(chain).strip()
+        if not name:
+            continue
+        try:
+            v = float(sqft)
+        except (TypeError, ValueError):
+            return {"saved": False,
+                    "error": f"{name}: floor area must be a number."}
+        if v <= 0:
+            return {"saved": False,
+                    "error": f"{name}: floor area must be greater than zero."}
+        clean[name.lower()] = v
+
+    path = sizes_path(root)
+    try:
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        with open(path, "w", encoding="utf-8") as f:
+            json.dump({"chains": clean}, f, indent=2)
+    except OSError as e:
+        return {"saved": False, "error": str(e)[:200]}
+    return {"saved": True, "chains": len(clean), "error": None}
+
+
+def apply_sizes(rows: List[dict], sizes: Dict[str, float]) -> List[dict]:
+    """Attach a floor area to each competitor row (pure).
+
+    Matched on the chain name, case-insensitively, falling back to a substring
+    match so "Naivas Supermarket" picks up an entry for "naivas".
+    """
+    out = []
+    for r in rows or []:
+        rec = dict(r)
+        chain = str(rec.get("Chain") or rec.get("chain") or "").strip().lower()
+        sqft = sizes.get(chain)
+        if sqft is None and chain:
+            for known, v in sizes.items():
+                if known and (known in chain or chain in known):
+                    sqft = v
+                    break
+        rec["size_sqft"] = float(sqft if sqft is not None
+                                 else DEFAULT_COMPETITOR_SQFT)
+        rec["size_is_default"] = sqft is None
+        out.append(rec)
+    return out
+
+
+def chains_in(rows: List[dict]) -> List[str]:
+    """Distinct chain names present, so the UI can offer them for sizing."""
+    seen = []
+    for r in rows or []:
+        chain = str(r.get("Chain") or r.get("chain") or "").strip()
+        if chain and chain not in seen:
+            seen.append(chain)
+    return sorted(seen)
+
+
 def load_competitors(root: Optional[str] = None) -> Dict[str, object]:
-    """The cached competitor set for this install.
+    """The cached competitor set for this install, with floor areas applied.
 
     ``{rows, source, attribution, error}``. Absent cache is not an error — it
     is a client who has not fetched yet, and the caller should say so rather
     than pretend there is no competition.
     """
     path = cache_path(root)
+    legacy = False
     if not os.path.exists(path):
-        return {"rows": [], "source": None, "attribution": OSM_ATTRIBUTION,
-                "error": "No competitor data on this install yet. Fetch it for "
-                         "your region first."}
+        alt = legacy_cache_path(root)
+        if os.path.exists(alt):
+            path, legacy = alt, True
+        else:
+            return {"rows": [], "source": None,
+                    "attribution": OSM_ATTRIBUTION, "chains": [],
+                    "sized": 0, "unsized": 0,
+                    "error": "No competitor data on this install yet. Fetch it "
+                             "for your region first."}
     try:
         with open(path, "r", encoding="utf-8", errors="replace") as f:
             rows = [r for r in csv.DictReader(f)]
     except OSError as e:
         return {"rows": [], "source": None, "attribution": OSM_ATTRIBUTION,
-                "error": str(e)[:200]}
-    return {"rows": rows, "source": "OpenStreetMap (Overpass)",
+                "chains": [], "sized": 0, "unsized": 0, "error": str(e)[:200]}
+
+    sizes = load_sizes(root)
+    rows = apply_sizes(rows, sizes)
+    return {"rows": rows,
+            "source": ("OpenStreetMap (Overpass, legacy console location)"
+                       if legacy else "OpenStreetMap (Overpass)"),
+            "legacy_path": legacy,
+            "chains": chains_in(rows),
+            "sized": sum(1 for r in rows if not r["size_is_default"]),
+            "unsized": sum(1 for r in rows if r["size_is_default"]),
             "attribution": OSM_ATTRIBUTION, "error": None}
 
 

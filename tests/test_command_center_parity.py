@@ -1446,6 +1446,109 @@ def test_score_sites_reports_population_status(store):
     assert res["sites"][0]["has_population"] is False
 
 
+def _button(tab, label):
+    hits = [c for c in _walk(tab) if getattr(c, "text", None) == label]
+    assert hits, f"the {label!r} control vanished from the tree"
+    return hits[0]
+
+
+def _field(tab, label):
+    hits = [c for c in _walk(tab) if getattr(c, "label", None) == label]
+    assert hits, f"the {label!r} field vanished from the tree"
+    return hits[0]
+
+
+def test_the_tab_offers_a_way_to_acquire_the_data_it_needs(store, monkeypatch):
+    """PILOT BLOCKER 1. All three fetchers existed and nothing called them, so
+    a retailer could not acquire competitor, population or amenity data
+    through the product at all."""
+    monkeypatch.setattr(D, "allowed_modules", lambda: set(LM.KNOWN_MODULES))
+    from oasis.desktop.views.command_tabs.location_tab import build_location_tab
+
+    tab = build_location_tab(None, store)
+    body = _text(tab)
+    assert "region data" in body
+    # every layer's state is on screen, not just the ones that are present
+    for layer in ("stores placed", "competitors", "population", "amenities"):
+        assert layer in body
+    _button(tab, "Fetch region data")           # exists and is wired
+    for edge in ("South", "West", "North", "East"):
+        _field(tab, edge)
+
+
+def test_the_fetch_button_refuses_an_incomplete_region_without_calling_out(
+        store, monkeypatch):
+    monkeypatch.setattr(D, "allowed_modules", lambda: set(LM.KNOWN_MODULES))
+
+    def _boom(*a, **k):
+        raise AssertionError("must not reach the network on a bad bbox")
+    monkeypatch.setattr(D, "fetch_region_data", _boom)
+
+    from oasis.desktop.views.command_tabs.location_tab import build_location_tab
+    tab = build_location_tab(None, store)
+    _button(tab, "Fetch region data").on_click(None)
+    assert "enter all four edges" in _text(tab)
+
+
+def test_stores_can_be_placed_in_bulk_from_the_tab(store, monkeypatch):
+    """PILOT BLOCKER 4. One store at a time is fine for five and unusable for
+    thirty — and thirty is where the estate can start to validate anything."""
+    monkeypatch.setattr(D, "allowed_modules", lambda: set(LM.KNOWN_MODULES))
+    from oasis.desktop.views.command_tabs.location_tab import build_location_tab
+
+    tab = build_location_tab(None, store)
+    org = D.default_org(store)
+
+    _button(tab, "Fill from my stores").on_click(None)
+    box = [c for c in _walk(tab)
+           if getattr(c, "multiline", False) and c.value][0]
+    assert org in box.value and box.value.startswith("org_cd")
+
+    box.value = f"org_cd,lat,lon,size_sqft\n{org},-1.2680,36.7930,14000\n"
+    _button(tab, "Import placements").on_click(None)
+
+    assert "placed 1 store" in _text(tab)
+    assert D.store_map(store)["located"], "nothing actually reached the file"
+
+
+def test_a_bulk_import_reports_what_it_refused(store, monkeypatch):
+    monkeypatch.setattr(D, "allowed_modules", lambda: set(LM.KNOWN_MODULES))
+    from oasis.desktop.views.command_tabs.location_tab import build_location_tab
+
+    tab = build_location_tab(None, store)
+    box = [c for c in _walk(tab) if getattr(c, "multiline", False)][0]
+    box.value = ("org_cd,lat,lon\n"
+                 f"{D.default_org(store)},-1.2680,36.7930\n"
+                 "NOTASTORE,-1.27,36.80\n")
+    _button(tab, "Import placements").on_click(None)
+    body = _text(tab)
+    assert "placed 1 store" in body
+    assert "notastore" in body and "not a store code" in body
+
+
+def test_competitor_floor_areas_can_be_set_from_the_tab(store, monkeypatch):
+    """PILOT BLOCKER 3. Huff pull is proportional to floor area, so with every
+    rival the same size a kiosk competes as hard as a hypermarket."""
+    monkeypatch.setattr(D, "allowed_modules", lambda: set(LM.KNOWN_MODULES))
+    import io as _io
+    from oasis.logic import geo_sources as GS
+    path = GS.cache_path(store)
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    with _io.open(path, "w", encoding="utf-8", newline="") as f:
+        f.write("Store_Name,Latitude,Longitude,Chain,Source\n")
+        f.write("A,-1.30,36.80,Naivas,OSM_Overpass\n")
+
+    from oasis.desktop.views.command_tabs.location_tab import build_location_tab
+    tab = build_location_tab(None, store)
+    # the unsized warning must be visible before anything is set
+    assert "no floor area" in _text(tab)
+
+    _field(tab, "Naivas").value = "30000"
+    _button(tab, "Save chain sizes").on_click(None)
+    assert D.competitor_sizes(store) == {"naivas": 30000.0}
+    assert "saved 1 chain size" in _text(tab)
+
+
 def test_an_isolated_candidate_is_refused_a_budget(store):
     """100% of an empty catchment is still 100%. The old recommend_format
     called that a flagship; nothing may now spend against it."""
