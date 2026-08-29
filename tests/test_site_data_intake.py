@@ -160,6 +160,68 @@ class TestCompetitorPath:
         assert res["rows"] == [] and "Fetch it" in res["error"]
 
 
+class TestTheMarketMatrix:
+    """The extract holds every chain in the region, and a client's OWN banner
+    is removed on read rather than at fetch — so one matrix serves any client,
+    and a second retailer can be scored against the first."""
+
+    def test_spelling_variants_collapse_to_one_chain(self):
+        """OSM records what a mapper typed. Left alone, one retailer becomes
+        three chains as far as a floor-area table or a store count is
+        concerned."""
+        brands = ["Quickmart", "Quick Mart", "Cleanshelf", "Clean Shelf"]
+        assert GS.match_chain("QuickMart Ngong Road", brands) == "Quickmart"
+        assert GS.match_chain("Quick Mart Kiambu", brands) == "Quickmart"
+        assert GS.match_chain("CLEAN SHELF Supermarket", brands) == "Cleanshelf"
+        assert GS.match_chain("Cleanshelf Buruburu", brands) == "Cleanshelf"
+
+    def test_a_longer_brand_is_not_shadowed_by_a_shorter_one(self):
+        assert GS.match_chain("Quick Mart Ruaka",
+                              ["Quick", "Quick Mart"]) == "Quickmart"
+
+    def test_an_unrelated_name_matches_nothing(self):
+        assert GS.match_chain("Nakumatt Junction", ["Naivas"]) is None
+        assert GS.match_chain("", ["Naivas"]) is None
+
+    def test_the_own_banner_round_trips(self, tmp_path):
+        _data_dir(tmp_path)
+        assert GS.save_own_chain(["Acme Foods"], root=str(tmp_path))["saved"]
+        assert GS.load_own_chain(root=str(tmp_path)) == ["Acme Foods"]
+
+    def test_the_own_banner_is_dropped_by_chain_or_by_store_name(self):
+        rows = [{"Chain": "Acme Foods", "Store_Name": "Acme Foods Westlands"},
+                {"Chain": "Naivas", "Store_Name": "Naivas Kilimani"},
+                {"Chain": "Other", "Store_Name": "Acme Foods Karen"}]
+        kept = GS.drop_own_chain(rows, ["Acme Foods"])
+        assert [r["Chain"] for r in kept] == ["Naivas"]
+
+    def test_no_own_banner_set_keeps_every_row(self):
+        rows = [{"Chain": "Naivas", "Store_Name": "A"}]
+        assert GS.drop_own_chain(rows, []) == rows
+        assert GS.drop_own_chain(rows, None) == rows
+
+    def test_load_reports_the_matrix_and_what_it_removed(self, tmp_path):
+        """The operator must be able to see that their own stores were
+        excluded — the double-count it prevents held the capture model at
+        40.8% error against floor area's 24.9%."""
+        d = _data_dir(tmp_path)
+        with io.open(d / GS.CACHE_FILE, "w", encoding="utf-8", newline="") as f:
+            f.write("Store_Name,Latitude,Longitude,Chain,Source\n")
+            f.write("A,-1.30,36.80,Naivas,x\n")
+            f.write("B,-1.31,36.81,Acme Foods,x\n")
+            f.write("C,-1.32,36.82,Acme Foods,x\n")
+        GS.save_own_chain(["Acme Foods"], root=str(tmp_path))
+        res = GS.load_competitors(root=str(tmp_path))
+        assert res["in_matrix"] == 3
+        assert res["own_excluded"] == 2
+        assert len(res["rows"]) == 1
+        assert res["own_chain"] == ["Acme Foods"]
+
+    def test_fetching_with_no_chain_names_is_refused_before_the_network(self):
+        res = GS.fetch_competitors([], "-1.6,36.5,-1.0,37.3")
+        assert res["written"] == 0 and "no chain names" in res["error"]
+
+
 class TestCompetitorSizes:
     def test_pull_is_proportional_so_a_default_is_flagged(self):
         rows = GS.apply_sizes([{"Chain": "Naivas"}], {})

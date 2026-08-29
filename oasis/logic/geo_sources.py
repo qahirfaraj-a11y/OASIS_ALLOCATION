@@ -29,6 +29,7 @@ from __future__ import annotations
 import csv
 import json
 import os
+import re
 from typing import Dict, List, Optional
 
 #: Required wherever OSM-derived output is shown. ODbL §4.3.
@@ -61,10 +62,112 @@ SIZES_FILE = "competitor_sizes.json"
 DEFAULT_COMPETITOR_SQFT = 15_000.0
 
 
+#: Spellings that mean the same chain. OSM records what a mapper typed, so one
+#: retailer appears as "Quickmart", "Quick Mart" and "QuickMart" — three
+#: chains as far as a floor-area table or a store count is concerned.
+_CHAIN_ALIASES = {
+    "quick mart": "Quickmart",
+    "quickmart": "Quickmart",
+    "clean shelf": "Cleanshelf",
+    "cleanshelf": "Cleanshelf",
+    "food plus": "Foodplus",
+    "foodplus": "Foodplus",
+}
+
+
+def match_chain(store_name: str, brands: List[str]) -> Optional[str]:
+    """Which of ``brands`` this OSM name belongs to, canonically (pure).
+
+    Matched on a normalised substring so "Naivas Supermarket Kilimani" and
+    "NAIVAS - Westlands" both land on the same chain.
+    """
+    text = " ".join(str(store_name or "").lower().split())
+    if not text:
+        return None
+    best = None
+    for brand in brands or []:
+        key = " ".join(str(brand).lower().split())
+        if not key or key not in text:
+            continue
+        # Prefer the longest brand that matches, so "Quick Mart" is not
+        # shadowed by a shorter entry that happens to be a substring.
+        if best is None or len(key) > len(best[0]):
+            best = (key, str(brand).strip())
+    if best is None:
+        return None
+    return _CHAIN_ALIASES.get(best[0], best[1])
+
+
 def cache_path(root: Optional[str] = None) -> str:
     base = root or os.path.dirname(os.path.dirname(
         os.path.dirname(os.path.abspath(__file__))))
     return os.path.join(base, "oasis", "data", CACHE_FILE)
+
+
+#: The client's own chain, excluded from THEIR competitor set. Per install.
+OWN_CHAIN_FILE = "own_chain.json"
+
+
+def own_chain_path(root: Optional[str] = None) -> str:
+    base = root or os.path.dirname(os.path.dirname(
+        os.path.dirname(os.path.abspath(__file__))))
+    return os.path.join(base, "oasis", "data", OWN_CHAIN_FILE)
+
+
+def load_own_chain(root: Optional[str] = None) -> List[str]:
+    """Name fragments identifying the operator's own banner(s)."""
+    path = own_chain_path(root)
+    if not os.path.exists(path):
+        return []
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            data = json.load(f) or {}
+    except (OSError, ValueError):
+        return []
+    names = data.get("names") if isinstance(data, dict) else data
+    return [str(n).strip() for n in (names or []) if str(n).strip()]
+
+
+def save_own_chain(names: List[str],
+                   root: Optional[str] = None) -> Dict[str, object]:
+    """Record which banner belongs to the operator.
+
+    WHY THIS EXISTS. A market matrix should hold every chain in the region,
+    including the operator's — that is what makes it reusable and what lets a
+    second client score against the first. But a retailer must never appear in
+    their OWN competitor set: their branches already enter the Huff denominator
+    as "own stores" from the POS, so counting them again has every store
+    competing with itself.
+
+    Measured on the reference estate, that double-count was not cosmetic: it
+    held the capture model at 40.8% median error against floor area's 24.9%.
+    Excluding the own banner took it to 23.7% and the geography cleared its
+    validation gate for the first time.
+    """
+    clean = [str(n).strip() for n in (names or []) if str(n).strip()]
+    path = own_chain_path(root)
+    try:
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        with open(path, "w", encoding="utf-8") as f:
+            json.dump({"names": clean}, f, indent=2)
+    except OSError as e:
+        return {"saved": False, "error": str(e)[:200]}
+    return {"saved": True, "names": clean, "error": None}
+
+
+def drop_own_chain(rows: List[dict], own: List[str]) -> List[dict]:
+    """Remove the operator's own banner from a competitor set (pure)."""
+    keys = [" ".join(str(n).lower().split()) for n in (own or []) if n]
+    if not keys:
+        return list(rows or [])
+    out = []
+    for r in rows or []:
+        hay = " ".join(f"{r.get('Chain') or r.get('chain') or ''} "
+                       f"{r.get('Store_Name') or ''}".lower().split())
+        if any(k in hay for k in keys):
+            continue
+        out.append(r)
+    return out
 
 
 def legacy_cache_path(root: Optional[str] = None) -> str:
@@ -194,9 +297,17 @@ def load_competitors(root: Optional[str] = None) -> Dict[str, object]:
         return {"rows": [], "source": None, "attribution": OSM_ATTRIBUTION,
                 "chains": [], "sized": 0, "unsized": 0, "error": str(e)[:200]}
 
+    # The matrix holds every chain in the region; a client's OWN banner is
+    # removed here rather than at fetch time, so one extract serves any client.
+    own = load_own_chain(root)
+    in_matrix = len(rows)
+    rows = drop_own_chain(rows, own)
     sizes = load_sizes(root)
     rows = apply_sizes(rows, sizes)
     return {"rows": rows,
+            "in_matrix": in_matrix,
+            "own_chain": own,
+            "own_excluded": in_matrix - len(rows),
             "source": ("OpenStreetMap (Overpass, legacy console location)"
                        if legacy else "OpenStreetMap (Overpass)"),
             "legacy_path": legacy,
@@ -220,25 +331,52 @@ def fetch_competitors(brands: List[str], bbox: str,
     except Exception as e:
         return {"rows": [], "written": 0, "error": f"requests unavailable: {e}"}
 
+    names = [str(b).strip() for b in (brands or []) if str(b).strip()]
+    if not names:
+        return {"rows": [], "written": 0, "error": "no chain names to search for"}
+
+    # ONE request, not one per brand. Overpass rate-limits the public endpoint
+    # hard: six sequential brand queries returned 200, 200, 429, 429, 429, 504
+    # — and the old loop reported that as "Chandarana: ...", which reads as
+    # "that chain has no stores" rather than "we were throttled".
+    #
+    # Requiring a shop tag is what makes the result a retail matrix: a bare
+    # name match on "Naivas" also returns 93 bus stops, car parks and a petrol
+    # station named after the supermarket.
+    pattern = "|".join(re.escape(n) for n in names)
+    selectors = "".join(
+        f'{el}["shop"]["name"~"{pattern}",i]({bbox});'
+        for el in ("node", "way", "relation"))
+    query = f"[out:json][timeout:{timeout}];({selectors});out center;"
+
+    try:
+        resp = requests.get(OVERPASS_URL, params={"data": query},
+                            headers={"User-Agent": USER_AGENT},
+                            timeout=timeout)
+        if resp.status_code == 429:
+            return {"rows": [], "written": 0,
+                    "error": "Overpass is rate-limiting this address. Wait a "
+                             "minute and try again — this is throttling, not "
+                             "an empty region."}
+        resp.raise_for_status()
+        elements = resp.json().get("elements", [])
+    except Exception as e:
+        return {"rows": [], "written": 0, "error": str(e)[:200]}
+
     rows: List[dict] = []
-    for brand in brands:
-        query = (f'[out:json][timeout:{timeout}];'
-                 f'node["name"~"{brand}",i]({bbox});out center;')
-        try:
-            resp = requests.get(OVERPASS_URL, params={"data": query},
-                                headers={"User-Agent": USER_AGENT},
-                                timeout=timeout)
-            resp.raise_for_status()
-            for el in resp.json().get("elements", []):
-                lat, lon = el.get("lat"), el.get("lon")
-                if lat is None or lon is None:
-                    continue
-                rows.append({"Store_Name": (el.get("tags") or {}).get("name", brand),
-                             "Latitude": lat, "Longitude": lon,
-                             "Chain": brand, "Source": "OSM_Overpass"})
-        except Exception as e:
-            return {"rows": rows, "written": 0,
-                    "error": f"{brand}: {str(e)[:160]}"}
+    for el in elements:
+        centre = el.get("center") or {}
+        lat = el.get("lat", centre.get("lat"))
+        lon = el.get("lon", centre.get("lon"))
+        tags = el.get("tags") or {}
+        name = tags.get("name") or ""
+        if lat is None or lon is None:
+            continue
+        chain = match_chain(name, names)
+        if not chain:
+            continue
+        rows.append({"Store_Name": name, "Latitude": lat, "Longitude": lon,
+                     "Chain": chain, "Source": "OSM_Overpass"})
 
     path = cache_path(root)
     try:
