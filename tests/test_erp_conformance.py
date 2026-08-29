@@ -132,9 +132,17 @@ def _live(name):
     return C.build(name)
 
 
+@pytest.mark.network
 @pytest.mark.parametrize("name", sorted(LIVE_ENV), ids=lambda n: f"live-{n}")
 class TestLiveConformance:
-    """Runs against a REAL instance. This is the layer that makes a backend done."""
+    """Runs against a REAL instance. This is the layer that makes a backend done.
+
+    Marked ``network``: the suite is offline by default so it cannot depend on
+    a third party being up, and this is the one layer that must. Without the
+    marker these fail rather than skip when credentials are present but the
+    service is unreachable — the offline guard raises before the adapter can
+    report a connection error the skip logic would recognise.
+    """
 
     def test_connects(self, name):
         h = _live(name).health_check()

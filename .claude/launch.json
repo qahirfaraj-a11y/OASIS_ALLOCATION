@@ -6,6 +6,12 @@
       "runtimeExecutable": ".oasis_venv/Scripts/python.exe",
       "runtimeArgs": ["-m", "uvicorn", "oasis.web.app:app", "--host", "127.0.0.1", "--port", "8610"],
       "port": 8610
+    },
+    {
+      "name": "site-selection-trial",
+      "runtimeExecutable": ".oasis_venv/Scripts/python.exe",
+      "runtimeArgs": ["devkit/site_selection_trial.py", "--port", "8551"],
+      "port": 8551
     }
   ]
 }

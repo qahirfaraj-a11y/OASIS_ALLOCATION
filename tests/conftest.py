@@ -30,6 +30,10 @@ def pytest_configure(config):
         "markers",
         "real_trial_clock: test IS about the trial clock — _trial_is_not_a_clock "
         "must stand aside or it reads straight past the test's own first-run date")
+    config.addinivalue_line(
+        "markers",
+        "network: test genuinely needs an outbound connection — the suite is "
+        "offline by default so it cannot depend on a third party being up")
 
 # nodeid substring -> reason. The impl diverged from the encoded formula/spec.
 #
@@ -190,6 +194,77 @@ def _trial_is_not_a_clock(monkeypatch, request):
     monkeypatch.setenv("OASIS_TRIAL_DAYS", "14")
     monkeypatch.setattr(LM.OfflineLicenseManager, "_first_run",
                         lambda self: date.today(), raising=False)
+    yield
+
+
+# ── the suite does not go online ─────────────────────────────────────────
+# A test called data.fetch_region_data(layers=[]) meaning "fetch nothing".
+# `layers or (...)` collapsed the empty list into "fetch everything", so the
+# test really did hit Overpass and WorldPop, wrote 100 competitor rows, 6,912
+# population cells and 5,209 POIs into the developer's oasis/data, and took 62
+# seconds. It PASSED the whole time. The same class of escape would, on a
+# customer's machine or in CI, make the suite depend on a third party being up.
+#
+# So the default is offline. Loopback stays open — a test may bind a local
+# server — and anything that genuinely needs the internet marks itself.
+_LOCAL_HOSTS = {"127.0.0.1", "::1", "localhost", "0.0.0.0", ""}
+
+
+class NetworkUseInTests(RuntimeError):
+    """Raised when a test reaches for a host it did not declare."""
+
+
+def _is_local(address) -> bool:
+    host = address[0] if isinstance(address, (tuple, list)) and address else address
+    return str(host) in _LOCAL_HOSTS
+
+
+@pytest.fixture(autouse=True)
+def _no_network(monkeypatch, request):
+    """Block outbound connections unless a test opts in.
+
+    Patched at the socket layer on purpose: requests, urllib and httpx all sit
+    on top of it, so one guard covers every client a test might reach for.
+    DNS is left alone — resolving a name costs nothing and some libraries do it
+    at import time.
+
+    Opt out with @pytest.mark.network for a test that genuinely must go out.
+    """
+    if request.node.get_closest_marker("network"):
+        yield
+        return
+
+    import socket
+
+    real_connect = socket.socket.connect
+    real_connect_ex = socket.socket.connect_ex
+    real_create = socket.create_connection
+
+    def _blocked(address):
+        return NetworkUseInTests(
+            f"test tried to reach {address!r}. The suite runs offline so it "
+            f"cannot depend on a third party being up, and so a fetch cannot "
+            f"quietly write into the developer's oasis/data. Stub the client, "
+            f"or mark the test @pytest.mark.network.")
+
+    def _guarded_connect(self, address, *a, **kw):
+        if not _is_local(address):
+            raise _blocked(address)
+        return real_connect(self, address, *a, **kw)
+
+    def _guarded_connect_ex(self, address, *a, **kw):
+        if not _is_local(address):
+            raise _blocked(address)
+        return real_connect_ex(self, address, *a, **kw)
+
+    def _guarded_create(address, *a, **kw):
+        if not _is_local(address):
+            raise _blocked(address)
+        return real_create(address, *a, **kw)
+
+    monkeypatch.setattr(socket.socket, "connect", _guarded_connect)
+    monkeypatch.setattr(socket.socket, "connect_ex", _guarded_connect_ex)
+    monkeypatch.setattr(socket, "create_connection", _guarded_create)
     yield
 
 

@@ -257,6 +257,56 @@ class TestFetchOrchestration:
         assert res["error"] is None and res["results"] == {}
 
 
+class TestTheSuiteStaysOffline:
+    """A test called fetch_region_data(layers=[]) meaning "fetch nothing".
+    `layers or (...)` collapsed the empty list into "fetch everything", so it
+    really did hit Overpass and WorldPop, wrote 100 competitor rows, 6,912
+    population cells and 5,209 POIs into the developer's oasis/data, and took
+    62 seconds. It PASSED the whole time.
+    """
+
+    def test_an_unmarked_test_cannot_reach_a_third_party(self):
+        import pytest
+        import requests
+        with pytest.raises(Exception) as excinfo:
+            requests.get("https://overpass-api.de/api/interpreter", timeout=5)
+        # The address is already resolved by the time connect() is reached, so
+        # the message names the IP rather than the host. What matters is that
+        # the guard, not the network, is what stopped it — and that it says how
+        # to opt in.
+        msg = str(excinfo.value)
+        assert "suite runs offline" in msg
+        assert "@pytest.mark.network" in msg
+
+    def test_the_fetchers_fail_closed_rather_than_writing(self, tmp_path):
+        """The exact escape, now caught: an error back, and nothing on disk."""
+        from oasis.desktop import data as D
+        _data_dir(tmp_path)
+        res = D.fetch_region_data((-1.6, 36.5, -1.0, 37.3),
+                                  layers=["population", "amenities"],
+                                  root=str(tmp_path))
+        for layer in ("population", "amenities"):
+            assert res["results"][layer]["written"] == 0
+            assert res["results"][layer]["error"]
+        from oasis.logic.affluence import cache_path as a_path
+        from oasis.logic.population import cache_path as p_path
+        assert not os.path.exists(p_path(str(tmp_path)))
+        assert not os.path.exists(a_path(str(tmp_path)))
+
+    def test_loopback_is_still_allowed(self):
+        """A test may still bind and talk to a local server."""
+        import socket
+        srv = socket.socket()
+        srv.bind(("127.0.0.1", 0))
+        srv.listen(1)
+        try:
+            conn = socket.create_connection(("127.0.0.1", srv.getsockname()[1]),
+                                            timeout=2)
+            conn.close()
+        finally:
+            srv.close()
+
+
 class TestTemplateAndSizesThroughTheDataLayer:
     def test_the_template_survives_an_unreachable_pos(self, tmp_path):
         from oasis.desktop import data as D
