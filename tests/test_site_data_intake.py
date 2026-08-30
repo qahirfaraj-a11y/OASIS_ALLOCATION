@@ -11,6 +11,7 @@
 
 import io
 import json
+import math
 import os
 import sys
 
@@ -272,6 +273,129 @@ class TestCompetitorSizes:
         by_chain = {r["Chain"]: r["size_sqft"] for r in res["rows"]}
         assert by_chain["Naivas"] == 30000.0
         assert by_chain["Tiny Shop"] == GS.DEFAULT_COMPETITOR_SQFT
+
+
+class TestMeasuredFootprints:
+    """Pull is PROPORTIONAL to floor area, so a guessed size is the weakest
+    term in the model. Where a branch is mapped as a polygon rather than a
+    point, its ground area is a real measurement and costs nothing to take."""
+
+    def _square(self, lat, lon, metres):
+        dlat = metres / 110_540.0
+        dlon = metres / (111_320.0 * math.cos(math.radians(lat)))
+        return [{"lat": lat, "lon": lon},
+                {"lat": lat, "lon": lon + dlon},
+                {"lat": lat + dlat, "lon": lon + dlon},
+                {"lat": lat + dlat, "lon": lon}]
+
+    def test_a_known_square_measures_correctly(self):
+        area = GS._polygon_area_sqm(self._square(-1.28, 36.80, 100.0))
+        assert abs(area - 10_000.0) / 10_000.0 < 0.01, area
+
+    def test_a_degenerate_outline_measures_nothing(self):
+        assert GS._polygon_area_sqm([]) == 0.0
+        assert GS._polygon_area_sqm([{"lat": -1.0, "lon": 36.0}]) == 0.0
+
+    def test_footprints_are_grouped_by_chain_and_converted_to_sqft(self):
+        els = [{"tags": {"name": "Naivas Kilimani"},
+                "geometry": self._square(-1.28, 36.80, 100.0)},
+               {"tags": {"name": "Quick Mart Ruaka"},
+                "geometry": self._square(-1.20, 36.79, 50.0)}]
+        got = GS.footprints_from_elements(els, ["Naivas", "Quick Mart"])
+        assert set(got) == {"Naivas", "Quickmart"}
+        assert abs(got["Naivas"][0] - 10_000 * 10.7639) < 500
+
+    def test_a_kiosk_sized_outline_is_not_a_supermarket(self):
+        els = [{"tags": {"name": "Naivas"},
+                "geometry": self._square(-1.28, 36.80, 3.0)}]
+        assert GS.footprints_from_elements(els, ["Naivas"]) == {}
+
+    def test_an_unnamed_or_unmatched_polygon_is_ignored(self):
+        els = [{"tags": {}, "geometry": self._square(-1.28, 36.80, 100.0)},
+               {"tags": {"name": "Nakumatt"},
+                "geometry": self._square(-1.28, 36.80, 100.0)}]
+        assert GS.footprints_from_elements(els, ["Naivas"]) == {}
+
+    def test_measuring_with_no_chain_names_is_refused(self):
+        assert "no chain names" in GS.measure_footprints([], "-1,36,-0.9,36.1")["error"]
+
+
+class TestChainProfiles:
+    def test_a_profile_round_trips_with_its_provenance(self, tmp_path):
+        _data_dir(tmp_path)
+        GS.save_chain_profiles(
+            {"Naivas": {"size_sqft": 11743, "pull": 1.0,
+                        "source": "osm-footprint", "n_measured": 5}},
+            root=str(tmp_path))
+        got = GS.load_chain_profiles(root=str(tmp_path))
+        assert got["naivas"]["size_sqft"] == 11743.0
+        assert got["naivas"]["source"] == "osm-footprint"
+        assert got["naivas"]["n_measured"] == 5
+
+    def test_what_the_operator_typed_outranks_a_building_outline(self, tmp_path):
+        """They know their market; an outline is a roof."""
+        _data_dir(tmp_path)
+        GS.save_chain_profiles({"Naivas": {"size_sqft": 11743,
+                                           "source": "osm-footprint",
+                                           "n_measured": 5}},
+                               root=str(tmp_path))
+        GS.save_sizes({"Naivas": 26000}, root=str(tmp_path))
+        got = GS.load_chain_profiles(root=str(tmp_path))
+        assert got["naivas"]["size_sqft"] == 26000.0
+        assert got["naivas"]["source"] == "operator"
+
+    def test_a_nonsense_profile_is_refused(self, tmp_path):
+        _data_dir(tmp_path)
+        assert not GS.save_chain_profiles(
+            {"A": {"size_sqft": 0}}, root=str(tmp_path))["saved"]
+        assert not GS.save_chain_profiles(
+            {"A": {"size_sqft": 100, "pull": "big"}}, root=str(tmp_path))["saved"]
+
+    def test_rows_carry_the_size_its_source_and_the_pull(self):
+        rows = GS.apply_sizes(
+            [{"Chain": "Naivas"}, {"Chain": "Unlisted"}],
+            {"naivas": {"size_sqft": 11743, "pull": 1.0,
+                        "source": "osm-footprint", "n_measured": 5}})
+        assert rows[0]["size_sqft"] == 11743.0
+        assert rows[0]["size_source"] == "osm-footprint"
+        assert rows[0]["n_measured"] == 5
+        assert rows[0]["pull"] == 1.0
+        assert rows[1]["size_is_default"] is True
+        assert rows[1]["pull"] is None, "unprofiled must fall back to the heuristic"
+
+    def test_a_flat_sizes_map_still_works(self):
+        """A caller that has not migrated keeps working."""
+        rows = GS.apply_sizes([{"Chain": "Naivas"}], {"naivas": 30000.0})
+        assert rows[0]["size_sqft"] == 30000.0 and rows[0]["pull"] == 1.0
+
+
+class TestPullIsDataNotAHardcodedList:
+    def test_an_explicit_pull_overrides_the_name_heuristic(self):
+        from oasis.logic.site_scoring import attractiveness
+        # "naivas" is in BIG_BOX_CHAINS, so the fallback would apply 1.5x
+        assert attractiveness(10_000, "Naivas") == 15.0
+        assert attractiveness(10_000, "Naivas", pull=1.0) == 10.0
+
+    def test_the_heuristic_still_applies_without_a_profile(self):
+        from oasis.logic.site_scoring import attractiveness
+        assert attractiveness(10_000, "Corner Shop") == 10.0
+        assert attractiveness(10_000, "Carrefour") == 15.0
+
+    def test_a_profiled_rival_no_longer_gets_the_big_box_bonus_twice(self):
+        """The 1.5x stood in for 'bigger than the 15,000 default suggests'.
+        Once the size is measured, applying it as well double-counts."""
+        from oasis.logic.site_scoring import score_site
+        own = [{"lat": -1.2650, "lon": 36.8020, "size_sqft": 12000}]
+        heuristic = score_site(-1.2750, 36.8050, own,
+                               [{"lat": -1.2700, "lon": 36.8100,
+                                 "size_sqft": 30000, "chain": "Naivas"}],
+                               size_sqft=15000)
+        profiled = score_site(-1.2750, 36.8050, own,
+                              [{"lat": -1.2700, "lon": 36.8100,
+                                "size_sqft": 30000, "chain": "Naivas",
+                                "pull": 1.0}],
+                              size_sqft=15000)
+        assert profiled["adjusted_capture_pct"] > heuristic["adjusted_capture_pct"]
 
 
 class TestSizeChangesTheAnswer:

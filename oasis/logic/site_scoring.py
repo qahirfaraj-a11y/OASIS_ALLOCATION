@@ -65,17 +65,32 @@ def haversine_km(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
     return 2 * r * math.asin(min(1.0, math.sqrt(a)))
 
 
-def attractiveness(size_sqft: float, chain: str = "") -> float:
-    """Huff's A term: pull, in thousands of square feet (pure)."""
-    weight = (BIG_BOX_WEIGHT
-              if any(c in (chain or "").lower() for c in BIG_BOX_CHAINS)
-              else 1.0)
-    return (max(float(size_sqft or 0), 0.0) / 1000.0) * weight
+def attractiveness(size_sqft: float, chain: str = "",
+                   pull: Optional[float] = None) -> float:
+    """Huff's A term: pull, in thousands of square feet (pure).
+
+    ``pull`` is a per-chain multiplier from the competitor profile. When it is
+    supplied it is used as given; the ``BIG_BOX_CHAINS`` name list below is the
+    FALLBACK for a chain with no profile, and exists because floor areas were
+    unknown — a hard-coded 1.5x standing in for "this banner is bigger than the
+    default 15,000 sqft suggests".
+
+    That proxy double-counts once real sizes are known: a hypermarket's pull is
+    already carried by its measured floor area. So a profiled chain defaults to
+    pull 1.0 and the operator raises it only for something size does not
+    explain — a destination store, a mall anchor, a brand people cross town for.
+    """
+    if pull is None:
+        pull = (BIG_BOX_WEIGHT
+                if any(c in (chain or "").lower() for c in BIG_BOX_CHAINS)
+                else 1.0)
+    return (max(float(size_sqft or 0), 0.0) / 1000.0) * max(0.0, float(pull))
 
 
-def _utility(size_sqft: float, distance_km: float, chain: str = "") -> float:
+def _utility(size_sqft: float, distance_km: float, chain: str = "",
+             pull: Optional[float] = None) -> float:
     d = max(float(distance_km), MIN_DISTANCE_KM)
-    return attractiveness(size_sqft, chain) / (d * d)
+    return attractiveness(size_sqft, chain, pull) / (d * d)
 
 
 def _coords(rec: Dict[str, Any]) -> Optional[tuple]:
@@ -169,8 +184,12 @@ def score_site(lat: float, lon: float,
         if nearest_comp is None or d < nearest_comp:
             nearest_comp = d
         if d <= catchment_km:
+            # `pull` comes from the chain profile when one exists; None means
+            # fall back to the name-based big-box heuristic.
+            _pull = k.get("pull")
             comp_pts.append((c[0], c[1], float(k.get("size_sqft", 15_000.0)),
-                             str(k.get("Chain") or k.get("chain") or "")))
+                             str(k.get("Chain") or k.get("chain") or ""),
+                             None if _pull is None else float(_pull)))
             if d <= DIRECT_COMPETITION_KM:
                 comp_within_direct += 1
 
@@ -191,8 +210,8 @@ def score_site(lat: float, lon: float,
         u_site = _utility(size_sqft, haversine_km(plat, plon, lat, lon))
         u_own = sum(_utility(sz, haversine_km(plat, plon, slat, slon))
                     for slat, slon, sz, _c in own_pts)
-        u_comp = sum(_utility(sz, haversine_km(plat, plon, klat, klon), ch)
-                     for klat, klon, sz, ch in comp_pts)
+        u_comp = sum(_utility(sz, haversine_km(plat, plon, klat, klon), ch, pl)
+                     for klat, klon, sz, ch, pl in comp_pts)
         total = u_site + u_own + u_comp
         if total <= 0:
             continue

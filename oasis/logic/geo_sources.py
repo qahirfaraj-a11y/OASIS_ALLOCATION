@@ -28,9 +28,10 @@ from __future__ import annotations
 
 import csv
 import json
+import math
 import os
 import re
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
 
 #: Required wherever OSM-derived output is shown. ODbL §4.3.
 OSM_ATTRIBUTION = "Competitor locations © OpenStreetMap contributors (ODbL)"
@@ -78,8 +79,8 @@ _CHAIN_ALIASES = {
 def match_chain(store_name: str, brands: List[str]) -> Optional[str]:
     """Which of ``brands`` this OSM name belongs to, canonically (pure).
 
-    Matched on a normalised substring so "Naivas Supermarket Kilimani" and
-    "NAIVAS - Westlands" both land on the same chain.
+    Matched on a normalised substring so "Naivas Supermarket Ngong Road" and
+    "NAIVAS - Ruaka" both land on the same chain.
     """
     text = " ".join(str(store_name or "").lower().split())
     if not text:
@@ -238,6 +239,197 @@ def save_sizes(sizes: Dict[str, float],
     return {"saved": True, "chains": len(clean), "error": None}
 
 
+#: Per-chain profile: everything the Huff term needs about a rival that is not
+#: its coordinates. Richer than the flat sizes file, which it supersedes and
+#: still reads for back-compatibility.
+CHAINS_FILE = "competitor_chains.json"
+
+#: Square feet per square metre.
+_SQFT_PER_SQM = 10.7639
+
+#: A polygon smaller than this is a kiosk outline or a mapping error, not a
+#: supermarket footprint.
+MIN_FOOTPRINT_SQM = 20.0
+
+
+def chains_path(root: Optional[str] = None) -> str:
+    base = root or os.path.dirname(os.path.dirname(
+        os.path.dirname(os.path.abspath(__file__))))
+    return os.path.join(base, "oasis", "data", CHAINS_FILE)
+
+
+def _polygon_area_sqm(geometry: List[dict]) -> float:
+    """Ground area of an OSM way, by shoelace on a local projection (pure).
+
+    Equirectangular about the ring's own latitude: at the scale of one building
+    the distortion is far below the precision of the outline itself.
+    """
+    pts = [p for p in (geometry or [])
+           if p.get("lat") is not None and p.get("lon") is not None]
+    if len(pts) < 3:
+        return 0.0
+    k = math.cos(math.radians(float(pts[0]["lat"])))
+    xy = [(float(p["lon"]) * 111_320.0 * k, float(p["lat"]) * 110_540.0)
+          for p in pts]
+    total = 0.0
+    for i in range(len(xy)):
+        x1, y1 = xy[i]
+        x2, y2 = xy[(i + 1) % len(xy)]
+        total += x1 * y2 - x2 * y1
+    return abs(total) / 2.0
+
+
+def footprints_from_elements(elements: List[dict],
+                             brands: List[str]) -> Dict[str, List[float]]:
+    """Measured footprints in square feet, per chain (pure).
+
+    Only ways and relations carry an outline; a store mapped as a single point
+    contributes nothing, which is why coverage is partial and reported.
+    """
+    out: Dict[str, List[float]] = {}
+    for el in elements or []:
+        name = (el.get("tags") or {}).get("name")
+        chain = match_chain(name, brands)
+        if not chain:
+            continue
+        sqm = _polygon_area_sqm(el.get("geometry") or [])
+        if sqm < MIN_FOOTPRINT_SQM:
+            continue
+        out.setdefault(chain, []).append(sqm * _SQFT_PER_SQM)
+    return out
+
+
+def _median(xs: List[float]) -> float:
+    v = sorted(xs)
+    n = len(v)
+    if not n:
+        return 0.0
+    m = n // 2
+    return v[m] if n % 2 else (v[m - 1] + v[m]) / 2.0
+
+
+def measure_footprints(brands: List[str], bbox: str,
+                       root: Optional[str] = None,
+                       timeout: int = 180) -> Dict[str, object]:
+    """Measure real store footprints from OSM building outlines.
+
+    A floor area entered by guesswork is the weakest term in the Huff model,
+    because pull is PROPORTIONAL to it. Where a branch is mapped as a polygon
+    rather than a point, its ground area is a real measurement and costs
+    nothing to take.
+
+    Coverage is partial and stays partial: on the reference region 14 of 111
+    branches carried an outline. So this reports ``n_measured`` per chain and
+    the caller must decide whether one or two outlines is enough to speak for a
+    banner — it is a starting point for the operator, not a substitute for
+    what they know.
+    """
+    try:
+        import requests
+    except Exception as e:
+        return {"chains": {}, "error": f"requests unavailable: {e}"}
+
+    names = [str(b).strip() for b in (brands or []) if str(b).strip()]
+    if not names:
+        return {"chains": {}, "error": "no chain names to search for"}
+
+    pattern = "|".join(re.escape(n) for n in names)
+    selectors = "".join(f'{el}["shop"]["name"~"{pattern}",i]({bbox});'
+                        for el in ("way", "relation"))
+    query = f"[out:json][timeout:{timeout}];({selectors});out geom;"
+    try:
+        resp = requests.get(OVERPASS_URL, params={"data": query},
+                            headers={"User-Agent": USER_AGENT}, timeout=timeout)
+        if resp.status_code == 429:
+            return {"chains": {}, "error": "Overpass is rate-limiting this "
+                                           "address. Wait a minute."}
+        resp.raise_for_status()
+        elements = resp.json().get("elements", [])
+    except Exception as e:
+        return {"chains": {}, "error": str(e)[:200]}
+
+    measured = footprints_from_elements(elements, names)
+    chains = {
+        chain: {"size_sqft": round(_median(v), 0), "n_measured": len(v),
+                "min_sqft": round(min(v), 0), "max_sqft": round(max(v), 0),
+                "source": "osm-footprint"}
+        for chain, v in measured.items()
+    }
+    return {"chains": chains, "polygons_seen": len(elements), "error": None}
+
+
+def load_chain_profiles(root: Optional[str] = None) -> Dict[str, dict]:
+    """``{chain_lowercase: {size_sqft, pull, source, n_measured}}``.
+
+    The flat sizes file is folded in and WINS, because it is what the operator
+    typed and they know their market better than a building outline does.
+    """
+    profiles: Dict[str, dict] = {}
+    path = chains_path(root)
+    if os.path.exists(path):
+        try:
+            with open(path, "r", encoding="utf-8") as f:
+                data = json.load(f) or {}
+            for chain, rec in (data.get("chains") or {}).items():
+                if not isinstance(rec, dict):
+                    continue
+                try:
+                    size = float(rec.get("size_sqft") or 0)
+                except (TypeError, ValueError):
+                    continue
+                if size <= 0:
+                    continue
+                try:
+                    pull = float(rec.get("pull", 1.0) or 1.0)
+                except (TypeError, ValueError):
+                    pull = 1.0
+                profiles[str(chain).strip().lower()] = {
+                    "size_sqft": size, "pull": max(0.0, pull),
+                    "source": str(rec.get("source") or "unknown"),
+                    "n_measured": int(rec.get("n_measured") or 0)}
+        except (OSError, ValueError):
+            pass
+
+    for chain, size in load_sizes(root).items():
+        profiles[chain] = {"size_sqft": size, "pull": 1.0,
+                           "source": "operator", "n_measured": 0}
+    return profiles
+
+
+def save_chain_profiles(profiles: Dict[str, dict],
+                        root: Optional[str] = None) -> Dict[str, object]:
+    """Record per-chain size, pull and provenance."""
+    clean: Dict[str, dict] = {}
+    for chain, rec in (profiles or {}).items():
+        name = str(chain).strip()
+        if not name or not isinstance(rec, dict):
+            continue
+        try:
+            size = float(rec.get("size_sqft") or 0)
+        except (TypeError, ValueError):
+            return {"saved": False, "error": f"{name}: size must be a number."}
+        if size <= 0:
+            return {"saved": False,
+                    "error": f"{name}: size must be greater than zero."}
+        try:
+            pull = float(rec.get("pull", 1.0) or 1.0)
+        except (TypeError, ValueError):
+            return {"saved": False, "error": f"{name}: pull must be a number."}
+        clean[name.lower()] = {
+            "size_sqft": size, "pull": max(0.0, pull),
+            "source": str(rec.get("source") or "operator"),
+            "n_measured": int(rec.get("n_measured") or 0)}
+
+    path = chains_path(root)
+    try:
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        with open(path, "w", encoding="utf-8") as f:
+            json.dump({"chains": clean}, f, indent=2)
+    except OSError as e:
+        return {"saved": False, "error": str(e)[:200]}
+    return {"saved": True, "chains": len(clean), "error": None}
+
+
 def apply_sizes(rows: List[dict], sizes: Dict[str, float]) -> List[dict]:
     """Attach a floor area to each competitor row (pure).
 
@@ -248,17 +440,46 @@ def apply_sizes(rows: List[dict], sizes: Dict[str, float]) -> List[dict]:
     for r in rows or []:
         rec = dict(r)
         chain = str(rec.get("Chain") or rec.get("chain") or "").strip().lower()
-        sqft = sizes.get(chain)
-        if sqft is None and chain:
-            for known, v in sizes.items():
-                if known and (known in chain or chain in known):
-                    sqft = v
-                    break
-        rec["size_sqft"] = float(sqft if sqft is not None
-                                 else DEFAULT_COMPETITOR_SQFT)
-        rec["size_is_default"] = sqft is None
+        profile = _lookup(chain, sizes)
+        if profile is None:
+            rec["size_sqft"] = DEFAULT_COMPETITOR_SQFT
+            rec["size_is_default"] = True
+            rec["size_source"] = "default"
+            rec["n_measured"] = 0
+            rec["pull"] = None            # fall back to the name heuristic
+        else:
+            rec["size_sqft"] = float(profile["size_sqft"])
+            rec["size_is_default"] = False
+            rec["size_source"] = profile.get("source", "operator")
+            rec["n_measured"] = int(profile.get("n_measured") or 0)
+            rec["pull"] = float(profile.get("pull", 1.0))
         out.append(rec)
     return out
+
+
+def _lookup(chain: str, profiles: Dict[str, Any]) -> Optional[dict]:
+    """Profile for a chain, matched exactly then by substring (pure).
+
+    Accepts either the rich profile map or the flat ``{chain: sqft}`` one, so a
+    caller that still passes plain sizes keeps working.
+    """
+    def _norm(v):
+        if isinstance(v, dict):
+            return v
+        try:
+            return {"size_sqft": float(v), "pull": 1.0, "source": "operator",
+                    "n_measured": 0}
+        except (TypeError, ValueError):
+            return None
+
+    if not chain or not profiles:
+        return None
+    if chain in profiles:
+        return _norm(profiles[chain])
+    for known, v in profiles.items():
+        if known and (known in chain or chain in known):
+            return _norm(v)
+    return None
 
 
 def chains_in(rows: List[dict]) -> List[str]:
@@ -302,8 +523,8 @@ def load_competitors(root: Optional[str] = None) -> Dict[str, object]:
     own = load_own_chain(root)
     in_matrix = len(rows)
     rows = drop_own_chain(rows, own)
-    sizes = load_sizes(root)
-    rows = apply_sizes(rows, sizes)
+    profiles = load_chain_profiles(root)
+    rows = apply_sizes(rows, profiles)
     return {"rows": rows,
             "in_matrix": in_matrix,
             "own_chain": own,
@@ -337,7 +558,7 @@ def fetch_competitors(brands: List[str], bbox: str,
 
     # ONE request, not one per brand. Overpass rate-limits the public endpoint
     # hard: six sequential brand queries returned 200, 200, 429, 429, 429, 504
-    # — and the old loop reported that as "Chandarana: ...", which reads as
+    # — and the old loop reported that as "<chain>: <error>", which reads as
     # "that chain has no stores" rather than "we were throttled".
     #
     # Requiring a shop tag is what makes the result a retail matrix: a bare
