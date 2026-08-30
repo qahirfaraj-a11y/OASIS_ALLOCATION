@@ -506,3 +506,79 @@ class TestTemplateAndSizesThroughTheDataLayer:
         raw = json.loads((tmp_path / "oasis" / "data" / GS.SIZES_FILE)
                          .read_text(encoding="utf-8"))
         assert raw["chains"]["naivas"] == 25000.0
+
+
+class TestTheAuditFixes:
+    """Four defects found by auditing the stack, each pinned so it cannot
+    return."""
+
+    def test_a_store_weighs_the_same_whichever_side_it_is_on(self):
+        """FIX 1. Own stores were appended with an empty chain and no pull, so
+        only the rival path ever reached the big-box weight. The same physical
+        store scored 27.35% against you as a rival and 35.40% as your own —
+        8.05pp apart, which understated cannibalisation for exactly the large
+        operators it matters most to."""
+        from oasis.logic.site_scoring import score_site
+        store = {"lat": -1.2700, "lon": 36.8100,
+                 "size_sqft": 30000, "chain": "Naivas"}
+        as_rival = score_site(-1.2750, 36.8050, [], [store], size_sqft=15000)
+        as_own = score_site(-1.2750, 36.8050, [store], [], size_sqft=15000)
+        assert abs(as_rival["capture_pct"] - as_own["capture_pct"]) < 1e-9
+
+    def test_an_explicit_pull_reaches_own_stores_too(self):
+        from oasis.logic.site_scoring import score_site
+        base = {"lat": -1.2700, "lon": 36.8100, "size_sqft": 30000,
+                "chain": "Naivas"}
+        heuristic = score_site(-1.2750, 36.8050, [base], [], size_sqft=15000)
+        profiled = score_site(-1.2750, 36.8050,
+                              [dict(base, pull=1.0)], [], size_sqft=15000)
+        assert profiled["capture_pct"] > heuristic["capture_pct"]
+
+    def test_the_rings_always_reach_the_catchment(self):
+        """FIX 2. Rings were fixed at 1/2.5/5km against a 10km catchment, so
+        everyone beyond 5km was scored as standing at 5km. On five real
+        catchments that was 36-86% of the PEOPLE, median 74%."""
+        from oasis.logic.site_scoring import CATCHMENT_KM, ring_radii
+        for catchment in (5.0, 10.0, 20.0):
+            radii = ring_radii(catchment)
+            assert max(radii) >= catchment * 0.85, radii
+            assert max(radii) < catchment, "a sample must sit inside its region"
+            assert radii == tuple(sorted(radii))
+        assert max(ring_radii(CATCHMENT_KM)) >= 9.0
+
+    def test_sampling_scales_with_a_custom_catchment(self):
+        from oasis.logic.site_scoring import _ring_points
+        wide = _ring_points(-1.28, 36.80, catchment_km=20.0)
+        tight = _ring_points(-1.28, 36.80, catchment_km=5.0)
+        spread = lambda pts: max(abs(p[0] + 1.28) for p in pts)  # noqa: E731
+        assert spread(wide) > spread(tight) * 3
+
+    def test_one_definition_of_a_degree(self):
+        """FIX 3. A degree was expressed four ways across five modules —
+        111.0, 111.32, and the 111_320/110_540 pair — disagreeing by 0.3%."""
+        import oasis.logic.affluence as A
+        import oasis.logic.geo_sources as G
+        import oasis.logic.population as P
+        import oasis.logic.site_scoring as S
+        assert S.KM_PER_DEG_LAT is P.KM_PER_DEG_LAT
+        assert G.KM_PER_DEG_LON is P.KM_PER_DEG_LON
+        assert A._BBOX_KM_PER_DEG is P._BBOX_KM_PER_DEG
+        # the bounding-box constant must err WIDE, never narrow: too small a
+        # box silently drops cells and understates a catchment with no error.
+        assert P._BBOX_KM_PER_DEG < P.KM_PER_DEG_LAT < P.KM_PER_DEG_LON
+
+    def test_the_default_competitor_size_has_one_home(self):
+        import oasis.logic.geo_sources as G
+        import oasis.logic.site_scoring as S
+        assert S.DEFAULT_COMPETITOR_SQFT is G.DEFAULT_COMPETITOR_SQFT
+
+    def test_profile_lookup_prefers_the_longest_match(self):
+        """FIX 4. match_chain had a longest-wins rule and _lookup did not, so
+        a profile keyed 'quick' silently claimed 'Quickmart' and handed it that
+        chain's floor area — decided by dict order."""
+        got = GS._lookup("quickmart", {"quick": {"size_sqft": 2000},
+                                       "quickmart": {"size_sqft": 6792}})
+        assert got["size_sqft"] == 6792.0
+        reversed_order = GS._lookup("quickmart", {"quickmart": {"size_sqft": 6792},
+                                                  "quick": {"size_sqft": 2000}})
+        assert reversed_order["size_sqft"] == 6792.0

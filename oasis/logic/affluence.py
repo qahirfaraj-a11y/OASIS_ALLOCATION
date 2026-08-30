@@ -83,7 +83,7 @@ import math
 import os
 from typing import Any, Dict, List, Optional, Sequence, Tuple
 
-from .population import USER_AGENT, PopulationGrid, haversine_km
+from .population import USER_AGENT, _BBOX_KM_PER_DEG, PopulationGrid, haversine_km
 
 #: The client's own extract, for the client's region. Never shipped.
 CACHE_FILE = "amenity_poi.csv"
@@ -174,9 +174,9 @@ class AffluenceGrid:
     def near(self, lat: float, lon: float, radius_km: float) -> List[tuple]:
         if not self.pois:
             return []
-        dlat = radius_km / 111.0
+        dlat = radius_km / _BBOX_KM_PER_DEG
         cos_lat = max(math.cos(math.radians(lat)), 1e-6)
-        dlon = radius_km / (111.0 * cos_lat)
+        dlon = radius_km / (_BBOX_KM_PER_DEG * cos_lat)
         b0 = self._bucket(lat - dlat, lon - dlon)
         b1 = self._bucket(lat + dlat, lon + dlon)
         out = []

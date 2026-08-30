@@ -33,6 +33,8 @@ import os
 import re
 from typing import Any, Dict, List, Optional
 
+from .population import KM_PER_DEG_LAT, KM_PER_DEG_LON
+
 #: Required wherever OSM-derived output is shown. ODbL §4.3.
 OSM_ATTRIBUTION = "Competitor locations © OpenStreetMap contributors (ODbL)"
 
@@ -269,7 +271,8 @@ def _polygon_area_sqm(geometry: List[dict]) -> float:
     if len(pts) < 3:
         return 0.0
     k = math.cos(math.radians(float(pts[0]["lat"])))
-    xy = [(float(p["lon"]) * 111_320.0 * k, float(p["lat"]) * 110_540.0)
+    xy = [(float(p["lon"]) * KM_PER_DEG_LON * 1000.0 * k,
+           float(p["lat"]) * KM_PER_DEG_LAT * 1000.0)
           for p in pts]
     total = 0.0
     for i in range(len(xy)):
@@ -476,10 +479,16 @@ def _lookup(chain: str, profiles: Dict[str, Any]) -> Optional[dict]:
         return None
     if chain in profiles:
         return _norm(profiles[chain])
+    # LONGEST WINS, matching match_chain. Taking the first substring hit meant
+    # dict order decided: a profile keyed "quick" silently claimed "Quickmart"
+    # and handed it that chain's floor area. Two functions doing the same job
+    # must not disagree about which match is the right one.
+    best = None
     for known, v in profiles.items():
         if known and (known in chain or chain in known):
-            return _norm(v)
-    return None
+            if best is None or len(known) > len(best[0]):
+                best = (known, v)
+    return _norm(best[1]) if best else None
 
 
 def chains_in(rows: List[dict]) -> List[str]:

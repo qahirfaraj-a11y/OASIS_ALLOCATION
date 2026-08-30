@@ -95,8 +95,28 @@ _SRC_KEYS = ("source", "dataset", "provider")
 _BUCKET_DEG = 0.1
 
 _EARTH_KM = 6371.0
-#: Length of one degree of latitude. Longitude shrinks by cos(lat).
-KM_PER_DEGREE = 111.32
+
+# ── the canonical geographic constants ──────────────────────────────────────
+# This module is the leaf of the site-selection stack: it imports nothing from
+# it, so everything else can take its geometry from here. Before that, one
+# degree was expressed four different ways across five modules — 111.0 in the
+# ring sampler and in two bounding-box lookups, 111.32 here, and the accurate
+# 111_320/110_540 pair in the footprint measurer. They disagreed by up to 0.3%,
+# which is small until two modules quietly compute different catchments.
+
+#: One degree of latitude, in kilometres. Very nearly constant.
+KM_PER_DEG_LAT = 110.574
+#: One degree of longitude at the equator; multiply by cos(lat) elsewhere.
+KM_PER_DEG_LON = 111.320
+
+#: Bounding-box lookups divide a radius by a degree length to decide which
+#: buckets to visit. They use a deliberately SMALL value so the box errs WIDE:
+#: too wide costs a few extra distance checks, too narrow silently drops cells
+#: from a catchment and understates its population with no error anywhere.
+_BBOX_KM_PER_DEG = 110.0
+
+#: Retained name for callers that predate the lat/lon split.
+KM_PER_DEGREE = KM_PER_DEG_LON
 
 #: WorldPop publishes UN-adjusted 1 km density per country as an ASCII XYZ zip.
 #: One file per country per year, so a client fetches only their own country.
@@ -202,9 +222,9 @@ class PopulationGrid:
             return []
         # Degrees of longitude shrink with latitude; a fixed bucket span would
         # miss cells near the poles and waste work near the equator.
-        dlat = radius_km / 111.0
+        dlat = radius_km / _BBOX_KM_PER_DEG
         cos_lat = max(math.cos(math.radians(lat)), 1e-6)
-        dlon = radius_km / (111.0 * cos_lat)
+        dlon = radius_km / (_BBOX_KM_PER_DEG * cos_lat)
         blat0, blon0 = self._bucket(lat - dlat, lon - dlon)
         blat1, blon1 = self._bucket(lat + dlat, lon + dlon)
 
