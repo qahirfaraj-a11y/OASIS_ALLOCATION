@@ -518,8 +518,14 @@ def population_set(root: Optional[str] = None) -> Dict[str, Any]:
 #: the POS and are already the "own stores" term in the Huff denominator;
 #: listing them again as competitors would have every branch competing with
 #: itself. It would also ship one client's identity to every other one.
+#: A chain that has stopped trading must not be here either. OSM still maps
+#: shops long after they shut — the first national pack carried 24 branches of
+#: a collapsed chain — and a phantom rival SUPPRESSES a real site, which is the
+#: costlier direction: a site you never open cannot correct itself later.
+#: Dropping it from the pack while leaving it in the default fetch list would
+#: simply re-import it the next time the operator pressed Update.
 DEFAULT_COMPETITOR_BRANDS = ("Naivas", "Quickmart", "Carrefour", "Cleanshelf",
-                             "Eastmatt", "Magunas", "Tuskys")
+                             "Eastmatt", "Magunas")
 
 
 def region_data_status(root: Optional[str] = None) -> Dict[str, Any]:

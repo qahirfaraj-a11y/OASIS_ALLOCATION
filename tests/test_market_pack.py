@@ -301,6 +301,19 @@ class TestTheRealPack:
             r = subprocess.run(["git", "check-ignore", "-q", rel], cwd=repo)
             assert r.returncode == 0, rel + " would be committed"
 
+    def test_chains_that_have_stopped_trading_are_not_in_the_field(self):
+        """OSM keeps a shop long after it shuts — nobody deletes it the day it
+        closes. The first pack carried 24 branches of a collapsed chain, 12%
+        of the national matrix, all phantom.
+
+        This error runs the OPPOSITE way to the one the pack fixes: missing
+        rivals overstate a site, phantom rivals SUPPRESS one. Suppression is
+        the costlier mistake, because a site you never open cannot correct
+        itself later.
+        """
+        chains = {r["Chain"].lower() for r in self._rows()}
+        assert "tuskys" not in chains
+
     def test_place_names_did_not_become_chains(self):
         """A junk brand does not merely add rows — because match_chain
         resolves longest-name-wins, 'Greenspan' (a mall) outbid 'Naivas' and

@@ -72,6 +72,25 @@ _CHAINS = {
             "Magunas", "Society Stores", "Zucchini", "Choppies"],
 }
 
+#: Chains that have STOPPED TRADING but which OpenStreetMap still maps.
+#:
+#: A volunteer map records what was surveyed, and nobody deletes a shop the day
+#: it shuts. The first build of this pack carried 24 branches of a chain that
+#: had collapsed — 12% of the national matrix, all of it phantom.
+#:
+#: This error runs the OPPOSITE way to the one the pack exists to fix. Missing
+#: rivals overstate a site; phantom rivals suppress a real one, and suppression
+#: is the more expensive mistake: a site you never open cannot correct itself
+#: later, whereas one you open into more competition than expected at least
+#: tells you so. Operators can also delete these one at a time through the
+#: correction channel, but they should not have to for a chain we know is gone.
+#:
+#: Excluded AFTER matching, not by omission from _CHAINS above, so the sweep
+#: still reports what it found and a chain that reopens is one line away.
+_DEFUNCT = {
+    "KEN": {"tuskys"},
+}
+
 #: Two OSM elements for one shop — a node the shopfront and a way the building
 #: — survive an exact-coordinate dedupe and land as two competitors. Same
 #: chain within this distance is the same store.
@@ -111,7 +130,7 @@ def sweep(country: str) -> list:
                 time.sleep(BACKOFF_S)
                 continue
 
-            kept = 0
+            kept = gone = 0
             for el in els:
                 centre = el.get("center") or {}
                 lat = el.get("lat", centre.get("lat"))
@@ -119,6 +138,9 @@ def sweep(country: str) -> list:
                 name = (el.get("tags") or {}).get("name") or ""
                 chain = match_chain(name, names)
                 if lat is None or lon is None or not chain:
+                    continue
+                if chain.lower() in _DEFUNCT.get(country, ()):
+                    gone += 1
                     continue
                 key = (round(float(lat), 5), round(float(lon), 5))
                 if key in seen:
@@ -128,7 +150,8 @@ def sweep(country: str) -> list:
                              "Longitude": round(float(lon), 6), "Chain": chain,
                              "Source": "OSM_Overpass"})
                 kept += 1
-            print(f"  band {i} ({south} to {north}): {len(els)} elements, {kept} kept")
+            print(f"  band {i} ({south} to {north}): {len(els)} elements, "
+                  f"{kept} kept" + (f", {gone} defunct dropped" if gone else ""))
             break
         else:
             print(f"  band {i}: FAILED after {RETRIES} attempts — pack is short")
