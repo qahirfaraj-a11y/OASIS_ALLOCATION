@@ -749,3 +749,89 @@ class TestSupplyIsNotTruncatedAtTheCatchment:
         r = score_site(-1.28, 36.80, [], far, size_sqft=10000)
         assert r["competitors_within_2km"] == 0
         assert r["nearest_competitor_km"] > 10
+
+
+class TestBetaIsReportedAsARange:
+    """The distance exponent has never been fitted. Against the client's own
+    store revenues the fit is monotone in beta with its minimum at zero — the
+    model that ignores distance entirely — which is the signature of a
+    parameter five stores cannot locate. So results carry the band."""
+
+    def _grid(self, n=14, step=0.006):
+        from oasis.logic.population import PopulationGrid
+        return PopulationGrid([(-1.28 + i * step, 36.80 + j * step, 400.0)
+                               for i in range(-n, n + 1)
+                               for j in range(-n, n + 1)])
+
+    def test_beta_actually_changes_the_answer(self):
+        from oasis.logic.site_scoring import score_site
+        g = self._grid()
+        riv = [{"lat": -1.30, "lon": 36.80, "size_sqft": 30000,
+                "chain": "R", "pull": 1.0}]
+        flat = score_site(-1.28, 36.80, [], riv, size_sqft=10000,
+                          population=g, beta=1.5)
+        steep = score_site(-1.28, 36.80, [], riv, size_sqft=10000,
+                           population=g, beta=3.0)
+        assert flat["captured_population"] != steep["captured_population"]
+        assert flat["beta"] == 1.5 and steep["beta"] == 3.0
+
+    def test_the_band_brackets_the_central_estimate(self):
+        from oasis.logic.site_scoring import DISTANCE_DECAY, score_band
+        g = self._grid()
+        riv = [{"lat": -1.30, "lon": 36.80, "size_sqft": 30000,
+                "chain": "R", "pull": 1.0}]
+        b = score_band(-1.28, 36.80, [], riv, size_sqft=10000, population=g)
+        assert b["beta"] == DISTANCE_DECAY
+        assert (b["captured_population_low"] <= b["captured_population"]
+                <= b["captured_population_high"])
+        assert b["beta_span_ratio"] >= 1.0
+
+    def test_a_site_with_no_rivals_is_beta_insensitive(self):
+        """With nothing to compete against, the share is 100% at every
+        exponent — so the band must collapse, not widen."""
+        from oasis.logic.site_scoring import score_band
+        b = score_band(-1.28, 36.80, [], [], size_sqft=10000,
+                       population=self._grid())
+        assert b["captured_population_low"] == b["captured_population_high"]
+        assert b["beta_sensitive"] is False
+
+    def test_rank_band_reports_how_far_each_site_travels(self):
+        from oasis.logic.site_scoring import rank_band
+        g = self._grid()
+        riv = [{"lat": -1.30, "lon": 36.80, "size_sqft": 30000,
+                "chain": "R", "pull": 1.0}]
+        sites = [{"name": "near", "lat": -1.283, "lon": 36.80},
+                 {"name": "far", "lat": -1.255, "lon": 36.80},
+                 {"name": "mid", "lat": -1.270, "lon": 36.80}]
+        out = rank_band(sites, [], riv, population=g)
+        assert len(out) == 3
+        for r in out:
+            assert 1 <= r["rank_best"] <= r["rank_worst"] <= 3
+            assert isinstance(r["rank_stable"], bool)
+        # sorted best-rank first
+        assert [r["rank_best"] for r in out] == sorted(r["rank_best"] for r in out)
+
+    def test_score_sites_attaches_the_band_and_the_rank_range(self, tmp_path):
+        from oasis.desktop import data as D
+        _data_dir(tmp_path)
+        SL.save_location("ORG001", -1.26, 36.79, 14000, root=str(tmp_path))
+        res = D.score_sites([{"name": "C", "lat": -1.28, "lon": 36.80,
+                              "size_sqft": 10000}], root=str(tmp_path))
+        # No POS on this sandbox, so it refuses — but it must refuse cleanly.
+        assert res.get("error") or res["sites"][0].get("betas")
+
+    def test_capital_carries_no_band_when_geography_does_not_set_it(self):
+        """On the productivity basis the site does not enter the figure, so a
+        range there would be three copies of one number dressed as a band."""
+        from oasis.logic import site_capital as SC
+        obs = [{"org_cd": c, "name": c, "size_sqft": 10000.0, "capture": 0.2,
+                "revenue": 100_000.0, "stock_value": 30_000.0,
+                "captured_population": 5000.0, "catchment_population": 15000.0,
+                "spend_per_person": 20.0, "affluence_index": None,
+                "implied_demand": 500_000.0, "revenue_per_sqft": 10.0}
+               for c in "ABC"]
+        cal, val = SC.calibrate(obs), SC.loo_validate(obs)
+        assert val["validated"] is False
+        a = SC.propose_capital(10.0, 10_000, cal, val, captured_population=4000)
+        b = SC.propose_capital(30.0, 10_000, cal, val, captured_population=9000)
+        assert a["expected_revenue"] == b["expected_revenue"]

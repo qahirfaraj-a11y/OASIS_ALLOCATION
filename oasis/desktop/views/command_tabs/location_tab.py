@@ -120,11 +120,27 @@ def build_location_tab(page: ft.Page, project_root: str) -> ft.Column:
                 # The share turned into people. Sites are ranked on THIS when
                 # a grid is loaded, because a large share of an empty valley
                 # must not outrank a small share of a dense suburb.
+                ft.DataCell(ft.Column([
+                    ft.Text("—" if s.get("captured_population") is None
+                            else f"{s['captured_population']:,.0f}",
+                            size=11, color=T.TEXT_PRIMARY
+                            if s.get("captured_population") else T.TEXT_MUTED),
+                    # The band, not a point. The distance exponent is not
+                    # identified on any estate this size, so the width is part
+                    # of the answer rather than a footnote to it.
+                    (ft.Text(f"{s['captured_population_low']:,.0f}"
+                             f"–{s['captured_population_high']:,.0f}",
+                             size=9, color=T.TEXT_MUTED)
+                     if s.get("captured_population_low") is not None
+                     else ft.Container()),
+                ], spacing=0, tight=True)),
                 ft.DataCell(ft.Text(
-                    "—" if s.get("captured_population") is None
-                    else f"{s['captured_population']:,.0f}",
-                    size=11, color=T.TEXT_PRIMARY
-                    if s.get("captured_population") else T.TEXT_MUTED)),
+                    "—" if s.get("rank_best") is None
+                    else (str(s["rank_best"]) if s["rank_best"] == s["rank_worst"]
+                          else f"{s['rank_best']}–{s['rank_worst']}"),
+                    size=11,
+                    color=T.TEXT_SECONDARY if s.get("rank_stable")
+                    else T.WARNING)),
                 ft.DataCell(ft.Text(f"{s['cannibalisation_pct']:.0f}%", size=11,
                                     color=T.WARNING
                                     if s["cannibalisation_pct"] > 50
@@ -262,6 +278,7 @@ def build_location_tab(page: ft.Page, project_root: str) -> ft.Column:
                                            numeric=n)
                              for h, n in (("Site", False), ("Capture", True),
                                           ("People", True),
+                                          ("Rank", True),
                                           ("From own", True),
                                           ("Nearest own km", True),
                                           ("Nearest rival km", True),
@@ -275,9 +292,20 @@ def build_location_tab(page: ft.Page, project_root: str) -> ft.Column:
                 ft.Container(height=6),
                 ft.Text(f"Scored against {res['own_stores']} of your stores and "
                         f"{res['competitors']} competitor sites. Capture is a "
-                        "Huff share of the surrounding catchment — it measures "
-                        "how CONTESTED an area is, not how many people live "
-                        "there.", size=11, color=T.TEXT_MUTED),
+                        "Huff share of the surrounding catchment.",
+                        size=11, color=T.TEXT_MUTED),
+                # The band is not a caveat in small print: it is the honest
+                # width of every figure above it.
+                ft.Text(
+                    "Ranges span distance-decay exponents "
+                    + ", ".join(f"{b:g}" for b in
+                                (res["sites"][0].get("betas") or []))
+                    + ". That exponent has never been fitted — against your own "
+                      "store revenues the fit runs to the degenerate case where "
+                      "distance is ignored, so five stores cannot locate it. "
+                      "Ranks that hold across the range are findings; ranks that "
+                      "move are statements about the exponent.",
+                    size=11, color=T.WARNING),
                 (ft.Text(res["attribution"], size=10, color=T.TEXT_MUTED,
                          font_family="JetBrains Mono")
                  if res.get("attribution") else ft.Container()),

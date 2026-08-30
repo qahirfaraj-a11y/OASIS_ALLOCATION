@@ -1317,13 +1317,32 @@ def test_an_isolated_site_says_it_cannot_know():
 
 def test_cannibalisation_is_reported_separately_from_capture():
     """A site can score well and still be a bad decision if the trade merely
-    moves from your own store across the road."""
+    moves from your own store across the road.
+
+    Cannibalisation now measures DISPLACEMENT — of the trade a new store wins,
+    how much its own network held before it opened — rather than the own
+    network's share of the own-plus-site bloc. The two disagreed by up to 4x
+    on the client's estate.
+
+    A rival has to exist for the question to have a non-trivial answer: with
+    only your own store in the market, every shilling a new branch takes must
+    come from you whatever the distance, and 100% is the right answer rather
+    than a bug. This test therefore places a competitor and checks that the
+    site NEXT DOOR to your own store cannibalises more than the one across
+    town, which is the thing an operator needs told.
+    """
     from oasis.logic.site_scoring import score_site
     own = [{"lat": -1.2641, "lon": 36.7865, "size_sqft": 12000}]
-    next_door = score_site(-1.2645, 36.7870, own, [])
-    far = score_site(-1.1500, 36.9000, own, [])
+    rival = [{"lat": -1.1500, "lon": 36.9000, "size_sqft": 30000,
+              "chain": "Rival", "pull": 1.0}]
+    next_door = score_site(-1.2645, 36.7870, own, rival)
+    far = score_site(-1.1505, 36.9005, own, rival)
     assert next_door["cannibalisation_pct"] > far["cannibalisation_pct"]
     assert "your own store" in next_door["verdict"].lower()
+
+    # And with no rival anywhere, all of it is displacement by definition.
+    alone = score_site(-1.2645, 36.7870, own, [])
+    assert alone["cannibalisation_pct"] == 100.0
 
 
 def test_sites_cannot_be_scored_before_the_estate_is_placed(store):

@@ -120,10 +120,35 @@ def attractiveness(size_sqft: float, chain: str = "",
     return (max(float(size_sqft or 0), 0.0) / 1000.0) * max(0.0, float(pull))
 
 
+#: The distance-decay exponent. THE MODEL'S LEAST-SUPPORTED NUMBER.
+#:
+#: Huff's utility is A / d^beta, and in the literature beta is ESTIMATED from
+#: observed trade areas — that is what makes Huff empirical rather than an
+#: analogy to gravity. We inherited 2.0 from the inverse-square convention and
+#: never fitted it. Published grocery estimates run roughly 1.5 to 3.0.
+#:
+#: Fitting it against the client's own store revenues was tried and FAILED, in
+#: an instructive way: leave-one-out error is monotone in beta with its minimum
+#: at beta = 0, the model that ignores distance entirely. A likelihood that
+#: walks to the boundary is the signature of a parameter the data cannot
+#: locate — five stores in one city do not vary enough in competitive position
+#: to separate distance from size, format and affluence.
+#:
+#: Until it is identified, results are reported as a BAND over BETA_RANGE
+#: rather than as a point. See ``score_band``.
+DISTANCE_DECAY = 2.0
+
+#: The plausible empirical range for grocery. Every published figure should be
+#: quoted across it, and any conclusion that does not survive the whole range
+#: should be marked as resting on the exponent rather than on the city.
+BETA_RANGE = (1.5, 2.0, 2.5, 3.0)
+
+
 def _utility(size_sqft: float, distance_km: float, chain: str = "",
-             pull: Optional[float] = None) -> float:
+             pull: Optional[float] = None,
+             beta: float = DISTANCE_DECAY) -> float:
     d = max(float(distance_km), MIN_DISTANCE_KM)
-    return attractiveness(size_sqft, chain, pull) / (d * d)
+    return attractiveness(size_sqft, chain, pull) / (d ** beta)
 
 
 def _coords(rec: Dict[str, Any]) -> Optional[tuple]:
@@ -212,7 +237,8 @@ def score_site(lat: float, lon: float,
                catchment_km: float = CATCHMENT_KM,
                travel_friction: float = 0.0,
                population: Any = None,
-               supply_km: float = SUPPLY_KM) -> Dict[str, Any]:
+               supply_km: float = SUPPLY_KM,
+               beta: float = DISTANCE_DECAY) -> Dict[str, Any]:
     """Score one candidate location. Pure — no I/O, no model, no globals.
 
     Capture is the Huff share the new store would take **over demand points
@@ -305,10 +331,13 @@ def score_site(lat: float, lon: float,
     for (plat, plon), w in zip(points, weights):
         if w <= 0:
             continue
-        u_site = _utility(size_sqft, haversine_km(plat, plon, lat, lon))
-        u_own = sum(_utility(sz, haversine_km(plat, plon, slat, slon), ch, pl)
+        u_site = _utility(size_sqft, haversine_km(plat, plon, lat, lon),
+                          beta=beta)
+        u_own = sum(_utility(sz, haversine_km(plat, plon, slat, slon), ch, pl,
+                             beta)
                     for slat, slon, sz, ch, pl in own_pts)
-        u_comp = sum(_utility(sz, haversine_km(plat, plon, klat, klon), ch, pl)
+        u_comp = sum(_utility(sz, haversine_km(plat, plon, klat, klon), ch, pl,
+                              beta)
                      for klat, klon, sz, ch, pl in comp_pts)
         total = u_site + u_own + u_comp
         if total <= 0:
@@ -366,6 +395,7 @@ def score_site(lat: float, lon: float,
         "nearest_own_km": None if nearest_own is None else round(nearest_own, 2),
         "nearest_competitor_km": (None if nearest_comp is None
                                   else round(nearest_comp, 2)),
+        "beta": float(beta),
         "travel_friction": round(friction, 3),
         "catchment_population": (None if catchment_population is None
                                  else round(catchment_population, 1)),
@@ -382,6 +412,106 @@ def score_site(lat: float, lon: float,
                                None if captured_population is None
                                else captured_population * (1.0 - 0.5 * friction))),
     }
+
+
+def score_band(lat: float, lon: float,
+               own_stores: Sequence[Dict[str, Any]],
+               competitors: Sequence[Dict[str, Any]] = (),
+               betas: Sequence[float] = BETA_RANGE,
+               **kwargs) -> Dict[str, Any]:
+    """Score one site across the plausible range of the distance exponent.
+
+    A point estimate implies a precision the model does not have. beta is not
+    identified on this estate — the fit against real store revenues runs
+    monotone to zero — so every published figure should carry the width that
+    ignorance implies.
+
+    Returns the central score plus ``low``/``high`` for the quantities a buyer
+    acts on, and ``beta_sensitive``: True when the band spans more than half
+    the central value, i.e. when the answer is mostly the exponent.
+    """
+    runs = {}
+    for b in betas:
+        runs[float(b)] = score_site(lat, lon, own_stores, competitors,
+                                    beta=float(b), **kwargs)
+    central = runs.get(float(DISTANCE_DECAY)) or runs[sorted(runs)[len(runs) // 2]]
+
+    out = dict(central)
+    out["betas"] = sorted(runs)
+    for key in ("adjusted_capture_pct", "captured_population",
+                "cannibalisation_pct"):
+        vals = [r[key] for r in runs.values() if r.get(key) is not None]
+        if not vals:
+            out[key + "_low"] = out[key + "_high"] = None
+            continue
+        out[key + "_low"], out[key + "_high"] = min(vals), max(vals)
+
+    mid = central.get("captured_population")
+    if mid:
+        span = out["captured_population_high"] - out["captured_population_low"]
+        out["beta_sensitive"] = span > 0.5 * mid
+        out["beta_span_ratio"] = round(
+            out["captured_population_high"]
+            / max(out["captured_population_low"], 1e-9), 2)
+    else:
+        span = out["adjusted_capture_pct_high"] - out["adjusted_capture_pct_low"]
+        base = max(central.get("adjusted_capture_pct") or 0.0, 1e-9)
+        out["beta_sensitive"] = span > 0.5 * base
+        out["beta_span_ratio"] = round(
+            out["adjusted_capture_pct_high"]
+            / max(out["adjusted_capture_pct_low"], 1e-9), 2)
+    return out
+
+
+def rank_band(sites: Sequence[Dict[str, Any]],
+              own_stores: Sequence[Dict[str, Any]],
+              competitors: Sequence[Dict[str, Any]] = (),
+              betas: Sequence[float] = BETA_RANGE,
+              **kwargs) -> List[Dict[str, Any]]:
+    """Rank a shortlist at every beta and report how far each site moves.
+
+    This is the honest form of a ranking built on an unidentified parameter.
+    A site holding 2nd-3rd place across the range is a finding; one travelling
+    1st to 9th is a statement about the exponent, and the two must not be
+    printed in the same column.
+    """
+    by_beta: Dict[float, List[tuple]] = {}
+    scored: Dict[int, Dict[str, Any]] = {}
+    for b in betas:
+        vals = []
+        for i, s in enumerate(sites or []):
+            c = _coords(s)
+            if not c:
+                continue
+            r = score_site(c[0], c[1], own_stores, competitors,
+                           size_sqft=float(s.get("size_sqft",
+                                                 DEFAULT_SIZE_SQFT)),
+                           beta=float(b), **kwargs)
+            key = r.get("captured_population")
+            vals.append((i, key if key is not None
+                         else r["adjusted_capture_pct"]))
+            if float(b) == float(DISTANCE_DECAY):
+                scored[i] = r
+        order = sorted(vals, key=lambda t: -t[1])
+        by_beta[float(b)] = [(i, pos + 1) for pos, (i, _v) in enumerate(order)]
+
+    ranks: Dict[int, List[int]] = {}
+    for positions in by_beta.values():
+        for i, pos in positions:
+            ranks.setdefault(i, []).append(pos)
+
+    out = []
+    for i, s in enumerate(sites or []):
+        if i not in ranks:
+            continue
+        rec = dict(scored.get(i, {}))
+        rec["name"] = s.get("name") or f"{s.get('lat')}, {s.get('lon')}"
+        rec["rank_best"] = min(ranks[i])
+        rec["rank_worst"] = max(ranks[i])
+        rec["rank_stable"] = (rec["rank_worst"] - rec["rank_best"]) <= 1
+        out.append(rec)
+    out.sort(key=lambda r: (r["rank_best"], r["rank_worst"]))
+    return out
 
 
 def verdict(capture: float, cannibalisation: float,

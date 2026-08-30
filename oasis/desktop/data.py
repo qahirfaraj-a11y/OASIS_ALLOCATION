@@ -751,7 +751,29 @@ def score_sites(candidates: List[Dict[str, Any]],
         own, rivals = placed["located"], (comps.get("rows") or [])
         agrid = (calib.get("affluence") or {}).get("grid")
         agrid = agrid if agrid else None
+
+        # THE BAND. The distance exponent is not identified on any estate this
+        # size — fitted against real store revenues it runs monotone to zero —
+        # so every figure carries the width that ignorance implies, and the
+        # ranking carries how far each site travels across the range.
+        from oasis.logic.site_scoring import BETA_RANGE, rank_band, score_band
+        band_rows = rank_band(candidates, own, rivals, population=grid)
+        bands = {(round(r["lat"], 5), round(r["lon"], 5)): r for r in band_rows}
+
         for s in ranked:
+            b = bands.get((round(s["lat"], 5), round(s["lon"], 5)))
+            if b:
+                s["rank_best"], s["rank_worst"] = b["rank_best"], b["rank_worst"]
+                s["rank_stable"] = b["rank_stable"]
+            wide = score_band(s["lat"], s["lon"], own, rivals,
+                              size_sqft=s["size_sqft"], population=grid)
+            for k in ("adjusted_capture_pct", "captured_population",
+                      "cannibalisation_pct"):
+                s[k + "_low"] = wide.get(k + "_low")
+                s[k + "_high"] = wide.get(k + "_high")
+            s["beta_sensitive"] = wide.get("beta_sensitive")
+            s["beta_span_ratio"] = wide.get("beta_span_ratio")
+            s["betas"] = list(BETA_RANGE)
             s["affluence"] = (agrid.index_at(s["lat"], s["lon"], grid)
                               if (agrid and grid) else None)
             s["capital"] = SC.propose_capital(
@@ -759,6 +781,27 @@ def score_sites(candidates: List[Dict[str, Any]],
                 isolated=s.get("isolated", False),
                 captured_population=s.get("captured_population"),
                 affluence_index=(s["affluence"] or {}).get("index"))
+            # Capital inherits the band ONLY when the geography is what sets
+            # it. On the productivity basis the site does not enter the figure
+            # at all, so a band there would be three copies of one number
+            # dressed as a range — which reads as precision rather than as the
+            # refusal it actually is.
+            if not val.get("validated"):
+                s["capital"]["beta_low"] = s["capital"]["beta_high"] = None
+                s["capital"]["beta_varies"] = False
+                continue
+            s["capital"]["beta_varies"] = True
+            for edge in ("low", "high"):
+                people = s.get("captured_population_" + edge)
+                if people is None:
+                    continue
+                alt = SC.propose_capital(
+                    s.get("adjusted_capture_pct_" + edge)
+                    or s["adjusted_capture_pct"], s["size_sqft"], cal, val,
+                    isolated=s.get("isolated", False),
+                    captured_population=people,
+                    affluence_index=(s["affluence"] or {}).get("index"))
+                s["capital"]["beta_" + edge] = alt.get("opening_capital")
             # The non-circular size answer. site_scoring.recommend_format reads
             # the size off a capture that was computed FROM that size, so it can
             # only ever restate the input. This re-scores the SAME point at each
