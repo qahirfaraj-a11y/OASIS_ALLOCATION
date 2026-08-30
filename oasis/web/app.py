@@ -410,11 +410,19 @@ def site_map() -> Dict[str, Any]:
                     "lat": round(float(r["Latitude"]), 4),
                     "lon": round(float(r["Longitude"]), 4),
                     "chain": str(r.get("Chain") or ""),
+                    # Carried so a client can click a pin and correct THAT
+                    # branch. Without a name and a size on the map, the only
+                    # way to fix one wrong rival is to re-fetch the region.
+                    "name": str(r.get("Store_Name") or "")[:80],
+                    "corrected": bool(r.get("corrected")),
+                    "size_is_default": bool(r.get("size_is_default")),
                     "sqft": int(float(r.get("size_sqft") or 0))})
             except (KeyError, TypeError, ValueError):
                 continue
         out["attribution"] = comps.get("attribution")
         out["own_chain"] = own_names
+        out["source"] = comps.get("source")
+        out["corrections"] = comps.get("corrections") or 0
 
         placed = D.store_map(_root())
         out["own"] = [{"lat": round(s["lat"], 4), "lon": round(s["lon"], 4),
@@ -434,6 +442,67 @@ def site_map() -> Dict[str, Any]:
     except Exception as e:
         out["error"] = str(e)[:200]
     return out
+
+
+@app.post("/api/sites/competitor")
+def correct_competitor(payload: Dict[str, Any]) -> Dict[str, Any]:
+    """Add, edit or remove ONE rival. ``{action, lat, lon, chain, name, sqft}``
+
+    The competitive field ships as a national extract of OpenStreetMap, and OSM
+    is a volunteer map: it carries no floor areas at all, misses branches, and
+    keeps chains that have since closed. None of that is fixable by re-fetching
+    — a refresh returns the same wrong data.
+
+    So corrections live in their own file and are layered over whatever the
+    base extract is. A client can spend an afternoon fixing their market and
+    still press Update without losing the work.
+    """
+    from oasis.logic import geo_sources as G
+    try:
+        res = G.correct_competitor(
+            action=str(payload.get("action") or ""),
+            lat=payload.get("lat"), lon=payload.get("lon"),
+            chain=str(payload.get("chain") or "")[:60],
+            name=str(payload.get("name") or "")[:80],
+            size_sqft=payload.get("sqft"), root=_root())
+    except Exception as e:
+        return {"saved": False, "error": str(e)[:200]}
+    if res.get("saved"):
+        # The scorer caches the competitor set; a correction nobody can see
+        # until restart is a correction the client will make twice.
+        from oasis.desktop import data as D
+        for fn in ("competitor_set", "estate_economics", "site_calibration"):
+            cache = getattr(getattr(D, fn, None), "cache_clear", None)
+            if cache:
+                cache()
+    return res
+
+
+@app.get("/api/sites/competitors")
+def list_competitors(limit: int = 500) -> Dict[str, Any]:
+    """The competitive field as a list, so it can be reviewed and corrected."""
+    from oasis.desktop import data as D
+    try:
+        comps = D.competitor_set(_root())
+    except Exception as e:
+        return {"rivals": [], "error": str(e)[:200]}
+    rows = []
+    for r in (comps.get("rows") or [])[:max(1, min(int(limit or 500), 2000))]:
+        try:
+            rows.append({"lat": round(float(r["Latitude"]), 4),
+                         "lon": round(float(r["Longitude"]), 4),
+                         "chain": str(r.get("Chain") or ""),
+                         "name": str(r.get("Store_Name") or "")[:80],
+                         "sqft": int(float(r.get("size_sqft") or 0)),
+                         "size_is_default": bool(r.get("size_is_default")),
+                         "corrected": bool(r.get("corrected"))})
+        except (KeyError, TypeError, ValueError):
+            continue
+    return {"rivals": rows, "total": len(comps.get("rows") or []),
+            "source": comps.get("source"),
+            "corrections": comps.get("corrections") or 0,
+            "attribution": comps.get("attribution"),
+            "error": comps.get("error")}
 
 
 @app.post("/api/sites/score")

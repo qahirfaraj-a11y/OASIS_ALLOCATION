@@ -228,7 +228,12 @@ def run_web(port: int = 8610):
     logger.info("Starting O.A.S.I.S. Web Console on http://%s:%s", host, port)
     cmd = [sys.executable, "-m", "uvicorn", "oasis.web.app:app",
            "--host", host, "--port", str(port)]
-    proc = subprocess.Popen(cmd)
+    # uvicorn imports "oasis.web.app" by name, so the child needs the install
+    # on its path. It inherited the CALLER's directory, which meant
+    # `python <install>/entrypoint.py --mode web` from anywhere else died with
+    # ModuleNotFoundError: No module named 'oasis' — including from a shortcut
+    # or a scheduled task, neither of which chooses its own directory.
+    proc = subprocess.Popen(cmd, cwd=os.path.dirname(os.path.abspath(__file__)))
     _shutdown.wait()
     proc.terminate()
     proc.wait(timeout=10)

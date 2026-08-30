@@ -4,8 +4,14 @@
     {
       "name": "oasis-web",
       "runtimeExecutable": ".oasis_venv/Scripts/python.exe",
-      "runtimeArgs": ["-m", "uvicorn", "oasis.web.app:app", "--host", "127.0.0.1", "--port", "8610"],
+      "runtimeArgs": ["C:/Users/iLink/.gemini/antigravity/scratch/entrypoint.py", "--mode", "web", "--port", "8610"],
       "port": 8610
+    },
+    {
+      "name": "oasis-web-alt",
+      "runtimeExecutable": ".oasis_venv/Scripts/python.exe",
+      "runtimeArgs": ["-m", "uvicorn", "oasis.web.app:app", "--host", "127.0.0.1", "--port", "8611"],
+      "port": 8611
     },
     {
       "name": "site-selection-trial",

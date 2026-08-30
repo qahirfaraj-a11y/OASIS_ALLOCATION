@@ -1,0 +1,16 @@
+OASIS market matrix — KEN
+=====================================
+
+This file is a DERIVATIVE DATABASE extracted from OpenStreetMap.
+
+It is made available under the Open Database License (ODbL) v1.0:
+    https://opendatacommons.org/licenses/odbl/1-0/
+
+Competitor locations © OpenStreetMap contributors (ODbL)
+
+Any redistribution of this file, or of a database derived from it,
+must carry the same licence and attribution. Scores, rankings and
+reports COMPUTED from it are Produced Works and are not bound by
+these terms — only the data is.
+
+Rebuild with: python devkit/build_market_pack.py --country KEN

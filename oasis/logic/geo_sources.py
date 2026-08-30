@@ -12,16 +12,30 @@ matters to a commercial product is between:
   * a **Produced Work** — a map, a score, a ranked site list computed FROM the
     data. This may be licensed however we like, and needs only attribution.
 
-So OASIS does not ship the extract. A client fetches their own region at run
-time (``fetch_competitors``), which avoids redistributing an OSM database
-altogether AND is the better product answer: a retailer in Mombasa should be
-scored against Mombasa's competitors, not Nairobi's.
+OASIS ships ONE such derivative database: the national market matrix in
+``oasis/data/market_packs``, redistributed under ODbL with its licence notice
+written beside it. ``load_pack`` refuses to load a pack whose notice is
+missing, so the obligation cannot be lost in transit.
 
-What OASIS *does* ship is the scoring, and any surface that displays a result
-derived from OSM must carry ``OSM_ATTRIBUTION``.
+    Revised 2026-08-30. Earlier versions of this note said OASIS shipped no
+    extract at all, and first run fetched the region live. That was the
+    cleaner licence position and the worse product: the public Overpass
+    endpoint failed on roughly a third of first attempts during one working
+    session, and a retailer who knows only 30% of their rivals sees every
+    site overstated by 2.26x — with the bias running one way, toward
+    opportunity. A competitive field that unreliable cannot be the first
+    thing a client meets, and cannot be their job to assemble.
 
-Reviewed 2026-08-08. This is an engineering summary of a licence, not legal
-advice; confirm before a commercial release.
+The fetcher stays, for refresh and for regions the pack does not cover, and a
+client's own fetched extract takes precedence over the shipped one. Operator
+corrections (``correct_competitor``) layer over whichever base is in play and
+survive a refresh.
+
+What OASIS *does* ship beyond that is the scoring, and any surface that
+displays a result derived from OSM must carry ``OSM_ATTRIBUTION``.
+
+This is an engineering summary of a licence, not legal advice; confirm before
+a commercial release.
 """
 
 from __future__ import annotations
@@ -75,6 +89,12 @@ _CHAIN_ALIASES = {
     "cleanshelf": "Cleanshelf",
     "food plus": "Foodplus",
     "foodplus": "Foodplus",
+    # One retailer trades under both spellings and OSM records both. Left
+    # unaliased the national sweep returned "Chandarana" 13 and "Chandarana
+    # Foodplus" 6 — two chains, so two floor-area entries to fill in and two
+    # store counts wherever chains are compared.
+    "chandarana foodplus": "Chandarana",
+    "chandarana food plus": "Chandarana",
 }
 
 
@@ -171,6 +191,231 @@ def drop_own_chain(rows: List[dict], own: List[str]) -> List[dict]:
             continue
         out.append(r)
     return out
+
+
+#: The shipped national matrix, per country. This is the ONLY OSM-derived
+#: database OASIS redistributes, and it does so under ODbL — see the licence
+#: file written beside it, which ``load_pack`` refuses to load without.
+#:
+#: WHY IT SHIPS. The competitive field cannot be the retailer's job to
+#: assemble. Measured by dropping stores at random from the real matrix, a
+#: retailer who knows 30% of their rivals sees every site overstated by 2.26x
+#: — and the bias runs one way, toward opportunity. Entering rivals from
+#: memory lands about there.
+#:
+#: WHY THE FETCHER SURVIVES. A pack ages, and it covers one country. Fetching
+#: stops being setup and becomes refresh.
+PACK_DIR = "market_packs"
+
+
+def pack_path(country: str = "KEN", root: Optional[str] = None) -> str:
+    base = root or os.path.dirname(os.path.dirname(
+        os.path.dirname(os.path.abspath(__file__))))
+    return os.path.join(base, "oasis", "data", PACK_DIR,
+                        f"market_matrix_{str(country).upper()}.csv")
+
+
+def pack_licence_path(country: str = "KEN", root: Optional[str] = None) -> str:
+    return pack_path(country, root).replace(".csv", ".LICENCE.txt")
+
+
+def load_pack(country: str = "KEN",
+              root: Optional[str] = None) -> Dict[str, object]:
+    """The shipped national matrix, or empty when there is none.
+
+    REFUSES a pack whose licence notice is missing. A derivative database that
+    loses its notice in transit is precisely what ODbL section 4.3 exists to
+    prevent, and a silent load would make us the ones who dropped it.
+    """
+    path = pack_path(country, root)
+    if not os.path.exists(path):
+        return {"rows": [], "country": country, "error": None}
+    if not os.path.exists(pack_licence_path(country, root)):
+        return {"rows": [], "country": country,
+                "error": (f"the {country} market pack is present but its "
+                          "licence notice is missing; refusing to load a "
+                          "redistributed OSM extract without it.")}
+    try:
+        with open(path, "r", encoding="utf-8", errors="replace") as f:
+            rows = [r for r in csv.DictReader(f)]
+    except OSError as e:
+        return {"rows": [], "country": country, "error": str(e)[:200]}
+    return {"rows": rows, "country": country, "error": None,
+            "attribution": OSM_ATTRIBUTION}
+
+
+#: Operator corrections, layered over whatever base the matrix came from.
+#:
+#: Kept SEPARATE from the extract on purpose: a refresh replaces the extract
+#: wholesale, and a client who has spent an afternoon fixing floor areas and
+#: adding the rivals OSM missed must not lose that work by pressing Update.
+OVERRIDES_FILE = "competitor_overrides.json"
+
+#: Corrections are keyed on position rounded to this many decimals — about ten
+#: metres. An OSM id would be stabler, but ids change when a mapper redraws a
+#: node as a building, and position survives that.
+_KEY_DP = 4
+
+
+def overrides_path(root: Optional[str] = None) -> str:
+    base = root or os.path.dirname(os.path.dirname(
+        os.path.dirname(os.path.abspath(__file__))))
+    return os.path.join(base, "oasis", "data", OVERRIDES_FILE)
+
+
+def _store_key(lat: float, lon: float) -> str:
+    return f"{round(float(lat), _KEY_DP)},{round(float(lon), _KEY_DP)}"
+
+
+def load_overrides(root: Optional[str] = None) -> Dict[str, Any]:
+    """``{"added": [...], "edited": {key: {...}}, "removed": [key, ...]}``."""
+    path = overrides_path(root)
+    blank = {"added": [], "edited": {}, "removed": []}
+    if not os.path.exists(path):
+        return blank
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            data = json.load(f) or {}
+    except (OSError, ValueError):
+        return blank
+    return {"added": list(data.get("added") or []),
+            "edited": dict(data.get("edited") or {}),
+            "removed": list(data.get("removed") or [])}
+
+
+def save_overrides(data: Dict[str, Any],
+                   root: Optional[str] = None) -> Dict[str, object]:
+    path = overrides_path(root)
+    try:
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        with open(path, "w", encoding="utf-8") as f:
+            json.dump({"added": data.get("added") or [],
+                       "edited": data.get("edited") or {},
+                       "removed": data.get("removed") or []}, f, indent=2)
+    except OSError as e:
+        return {"saved": False, "error": str(e)[:200]}
+    return {"saved": True, "error": None}
+
+
+def correct_competitor(action: str, lat: float, lon: float,
+                       chain: str = "", name: str = "",
+                       size_sqft: Optional[float] = None,
+                       root: Optional[str] = None) -> Dict[str, object]:
+    """Add, edit or remove one rival. ``action`` in add | edit | remove.
+
+    This is the channel that makes a shipped pack usable. OpenStreetMap has no
+    floor areas at all and misses branches outright — one chain shows two shops
+    nationally where it trades many more — so the operator has to be able to
+    fix a single rival without replacing the whole file, and to keep that fix
+    across a refresh.
+    """
+    act = str(action or "").strip().lower()
+    if act not in ("add", "edit", "remove"):
+        return {"saved": False, "error": "action must be add, edit or remove."}
+    try:
+        flat, flon = float(lat), float(lon)
+    except (TypeError, ValueError):
+        return {"saved": False, "error": "Latitude and longitude must be numbers."}
+    if abs(flat) > 90 or abs(flon) > 180:
+        return {"saved": False, "error": "Coordinates out of range."}
+    if size_sqft is not None:
+        try:
+            size_sqft = float(size_sqft)
+        except (TypeError, ValueError):
+            return {"saved": False, "error": "Floor area must be a number."}
+        if size_sqft <= 0:
+            return {"saved": False, "error": "Floor area must be above zero."}
+
+    data = load_overrides(root)
+    key = _store_key(flat, flon)
+    data["removed"] = [k for k in data["removed"] if k != key]
+
+    if act == "remove":
+        data["removed"].append(key)
+        data["added"] = [a for a in data["added"]
+                         if _store_key(a["Latitude"], a["Longitude"]) != key]
+        data["edited"].pop(key, None)
+    elif act == "add":
+        if not str(chain).strip():
+            return {"saved": False, "error": "A rival needs a chain name."}
+        data["added"] = [a for a in data["added"]
+                         if _store_key(a["Latitude"], a["Longitude"]) != key]
+        data["added"].append({
+            "Store_Name": str(name or chain).strip()[:80],
+            "Latitude": flat, "Longitude": flon,
+            "Chain": str(chain).strip()[:60], "Source": "operator",
+            "size_sqft": size_sqft})
+    else:
+        rec = dict(data["edited"].get(key) or {})
+        if str(chain).strip():
+            rec["Chain"] = str(chain).strip()[:60]
+        if str(name).strip():
+            rec["Store_Name"] = str(name).strip()[:80]
+        if size_sqft is not None:
+            rec["size_sqft"] = size_sqft
+        if not rec:
+            return {"saved": False, "error": "Nothing to change."}
+        data["edited"][key] = rec
+
+    res = save_overrides(data, root)
+    res["action"] = act
+    res["key"] = key
+    return res
+
+
+def apply_overrides(rows: List[dict], data: Dict[str, Any]) -> List[dict]:
+    """Layer operator corrections over an extract (pure)."""
+    removed = set(data.get("removed") or [])
+    edited = data.get("edited") or {}
+    out: List[dict] = []
+    at: Dict[str, int] = {}
+    for r in rows or []:
+        try:
+            key = _store_key(r["Latitude"], r["Longitude"])
+        except (KeyError, TypeError, ValueError):
+            out.append(r)
+            continue
+        if key in removed:
+            continue
+        rec = dict(r)
+        patch = edited.get(key)
+        if patch:
+            rec.update(patch)
+            rec["corrected"] = True
+            _mark_size_override(rec)
+        at[key] = len(out)
+        out.append(rec)
+    for a in (data.get("added") or []):
+        rec = dict(a)
+        rec["corrected"] = True
+        _mark_size_override(rec)
+        try:
+            key = _store_key(rec["Latitude"], rec["Longitude"])
+        except (KeyError, TypeError, ValueError):
+            out.append(rec)
+            continue
+        # An "add" on a point the extract ALREADY holds is a correction, not a
+        # second shop. Appending blind duplicated a rival whenever a client
+        # removed one and put it back — and a duplicate rival is invisible on
+        # a map yet doubles that chain's pull in the scorer.
+        if key in at:
+            out[at[key]].update(rec)
+        else:
+            at[key] = len(out)
+            out.append(rec)
+    return out
+
+
+def _mark_size_override(rec: dict) -> None:
+    """Flag a per-branch floor area so ``apply_sizes`` does not overwrite it."""
+    try:
+        size = float(rec.get("size_sqft") or 0)
+    except (TypeError, ValueError):
+        size = 0.0
+    if size > 0:
+        rec["size_sqft_override"] = size
+    else:
+        rec.pop("size_sqft", None)
 
 
 def legacy_cache_path(root: Optional[str] = None) -> str:
@@ -444,7 +689,17 @@ def apply_sizes(rows: List[dict], sizes: Dict[str, float]) -> List[dict]:
         rec = dict(r)
         chain = str(rec.get("Chain") or rec.get("chain") or "").strip().lower()
         profile = _lookup(chain, sizes)
-        if profile is None:
+        # A floor area an operator supplied for THIS branch outranks the chain
+        # average — the whole point of correcting one store is that it differs.
+        override = rec.get("size_sqft_override")
+        if override:
+            rec["size_sqft"] = float(override)
+            rec["size_is_default"] = False
+            rec["size_source"] = "operator (this branch)"
+            rec["n_measured"] = 1
+            rec["pull"] = (float(profile.get("pull", 1.0))
+                           if profile is not None else None)
+        elif profile is None:
             rec["size_sqft"] = DEFAULT_COMPETITOR_SQFT
             rec["size_is_default"] = True
             rec["size_source"] = "default"
@@ -501,46 +756,72 @@ def chains_in(rows: List[dict]) -> List[str]:
     return sorted(seen)
 
 
-def load_competitors(root: Optional[str] = None) -> Dict[str, object]:
-    """The cached competitor set for this install, with floor areas applied.
+def load_competitors(root: Optional[str] = None,
+                     country: str = "KEN") -> Dict[str, object]:
+    """The competitor set for this install, with floor areas and corrections.
 
-    ``{rows, source, attribution, error}``. Absent cache is not an error — it
-    is a client who has not fetched yet, and the caller should say so rather
-    than pretend there is no competition.
+    Load order, most specific first:
+
+    1. the client's own fetched extract — they refreshed, so they meant it;
+    2. the legacy console location, for installs that predate the move;
+    3. the shipped national pack, so a fresh install is not empty.
+
+    Operator corrections are layered over whichever base wins, so a client who
+    fixes a floor area or adds a missed branch keeps that across a refresh.
     """
-    path = cache_path(root)
-    legacy = False
+    path, legacy, from_pack, rows = cache_path(root), False, False, None
     if not os.path.exists(path):
         alt = legacy_cache_path(root)
         if os.path.exists(alt):
             path, legacy = alt, True
         else:
-            return {"rows": [], "source": None,
-                    "attribution": OSM_ATTRIBUTION, "chains": [],
-                    "sized": 0, "unsized": 0,
-                    "error": "No competitor data on this install yet. Fetch it "
-                             "for your region first."}
-    try:
-        with open(path, "r", encoding="utf-8", errors="replace") as f:
-            rows = [r for r in csv.DictReader(f)]
-    except OSError as e:
-        return {"rows": [], "source": None, "attribution": OSM_ATTRIBUTION,
-                "chains": [], "sized": 0, "unsized": 0, "error": str(e)[:200]}
+            pack = load_pack(country, root)
+            if pack["error"]:
+                return {"rows": [], "source": None,
+                        "attribution": OSM_ATTRIBUTION, "chains": [],
+                        "sized": 0, "unsized": 0, "error": pack["error"]}
+            if not pack["rows"]:
+                return {"rows": [], "source": None,
+                        "attribution": OSM_ATTRIBUTION, "chains": [],
+                        "sized": 0, "unsized": 0,
+                        "error": "No competitor data on this install yet. "
+                                 "Fetch it for your region first."}
+            rows, from_pack = pack["rows"], True
+
+    if rows is None:
+        try:
+            with open(path, "r", encoding="utf-8", errors="replace") as f:
+                rows = [r for r in csv.DictReader(f)]
+        except OSError as e:
+            return {"rows": [], "source": None, "attribution": OSM_ATTRIBUTION,
+                    "chains": [], "sized": 0, "unsized": 0,
+                    "error": str(e)[:200]}
 
     # The matrix holds every chain in the region; a client's OWN banner is
     # removed here rather than at fetch time, so one extract serves any client.
     own = load_own_chain(root)
     in_matrix = len(rows)
     rows = drop_own_chain(rows, own)
+
+    # Corrections go on BEFORE sizing, so an operator-supplied floor area is
+    # treated as known rather than overwritten by the chain default.
+    overrides = load_overrides(root)
+    before = len(rows)
+    rows = drop_own_chain(apply_overrides(rows, overrides), own)
     profiles = load_chain_profiles(root)
     rows = apply_sizes(rows, profiles)
+    source = ("Shipped national market pack (OpenStreetMap)" if from_pack else
+              "OpenStreetMap (Overpass, legacy console location)" if legacy else
+              "OpenStreetMap (Overpass)")
     return {"rows": rows,
             "in_matrix": in_matrix,
             "own_chain": own,
-            "own_excluded": in_matrix - len(rows),
-            "source": ("OpenStreetMap (Overpass, legacy console location)"
-                       if legacy else "OpenStreetMap (Overpass)"),
+            "own_excluded": in_matrix - before,
+            "source": source,
+            "from_pack": from_pack,
             "legacy_path": legacy,
+            "corrections": (len(overrides["added"]) + len(overrides["edited"])
+                            + len(overrides["removed"])),
             "chains": chains_in(rows),
             "sized": sum(1 for r in rows if not r["size_is_default"]),
             "unsized": sum(1 for r in rows if r["size_is_default"]),

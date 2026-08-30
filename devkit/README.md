@@ -34,6 +34,8 @@ These scripts used to sit in the repo root next to `app.py` and
 | `generate_showcase_scenario.py` | Seeds the demo narrative. Backs `--mode showcase`. |
 | `production_diagnostic.py` | Pre-flight diagnostics. |
 | `modes.bat` | The dev menu. The client menu is `OASIS.bat`. |
+| `build_market_pack.py` | Rebuilds the shipped national competitor matrix from Overpass. The PACK ships (ODbL, with its notice); this script does not. Read its header before publishing a new one. |
+| `retail_sandbox/` | Browser sandbox + backtest harness for the replenishment and transfer engines, built on the real SKU/supplier data. Playable model of *The Algorithmic Retailer*. See its own README. |
 
 ## Running these
 

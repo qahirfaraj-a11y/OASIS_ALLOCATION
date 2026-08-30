@@ -211,6 +211,30 @@
 
     <div id="sites-map" class="hide" style="margin:18px 0 4px"></div>
 
+    <!-- OUTSIDE the setup block on purpose. Setup folds away once the inputs
+         are in place, and correcting the competitive field is not setup: it is
+         something an operator does whenever they notice the map is wrong. -->
+    <details id="sites-fix" class="hide" style="margin:6px 0 2px">
+      <summary style="cursor:pointer">Correct the competition</summary>
+      <p class="hint">OpenStreetMap is drawn by volunteers. It carries no floor areas at
+        all, it misses branches, and it keeps shops that have since closed &mdash; and
+        none of that is fixed by fetching again. You know your market better than the map
+        does. <b>Corrections are kept separately and survive a re-fetch.</b></p>
+      <div class="controls">
+        <input id="c-chain" type="search" placeholder="Chain" style="min-width:150px;flex:0">
+        <input id="c-name" type="search" placeholder="Branch (optional)" style="min-width:170px;flex:0">
+        <input id="c-lat" type="search" placeholder="Latitude" style="min-width:115px;flex:0">
+        <input id="c-lon" type="search" placeholder="Longitude" style="min-width:115px;flex:0">
+        <input id="c-size" type="search" placeholder="Sq ft" style="min-width:95px;flex:0">
+      </div>
+      <div class="controls">
+        <button class="btn" id="c-add">Add / update this rival</button>
+        <button class="btn ghost" id="c-remove">This one has closed</button>
+        <span class="muted" id="c-msg"></span>
+      </div>
+      <p class="hint">Click any grey dot on the map to load that rival into these boxes.</p>
+    </details>
+
     <div class="controls" style="margin-top:14px">
       <input id="s-name" type="search" placeholder="Name this location (optional)" style="min-width:190px;flex:0">
       <input id="s-lat" type="search" placeholder="Latitude" style="min-width:120px;flex:0">
@@ -325,7 +349,18 @@ async function loadReadiness(){
     ((r.competitors && r.competitors_unsized) ?
       '<p class="hint">'+esc(r.competitors_unsized)+' rival shops have no floor area on '+
       'record and are assumed mid-size. A shop\'s pull is proportional to its size, so '+
-      'telling us roughly how big each chain is will sharpen every figure below.</p>' : '');
+      'telling us roughly how big each chain is will sharpen every figure below.</p>' : '')+
+    // Where the competitive field came from is not a detail. A national extract
+    // of a volunteer map is a starting point, not a survey of their market, and
+    // a client who does not know that will read it as one.
+    (r.competitor_from_pack ?
+      '<p class="hint">Your rivals come from the shipped national extract of '+
+      'OpenStreetMap &mdash; a public map of unknown vintage, not a survey of your '+
+      'market. It is a starting point so nothing scores as uncontested on day one. '+
+      'Check it against what you know and correct it below'+
+      (r.competitor_corrections ? ' (you have made '+esc(r.competitor_corrections)+
+        ' correction'+(r.competitor_corrections===1?'':'s')+' so far)' : '')+
+      '.</p>' : '');
 
   // The setup panel stays open until every input is in place, then folds away
   // so a returning operator is not walked through it again.
@@ -414,13 +449,29 @@ async function scoreSites(){
    over — so what you see is literally what the model counted, not a picture
    drawn beside it. */
 let MAPDATA = null;
+//: Two callers can have a map request in flight at once — loadReadiness fires
+//: one without awaiting it, and a correction fires another straight after. The
+//: SLOWER response wins the innerHTML, so a correction could redraw and then be
+//: overwritten by the pre-correction map. Only the newest request may paint.
+let MAPSEQ = 0;
 
 async function loadMap(){
   const el = $('#sites-map');
-  try { MAPDATA = await j('/api/sites/map'); } catch(e){ return; }
-  const d = MAPDATA;
-  if(!d.rivals.length && !d.own.length){ el.classList.add('hide'); return; }
+  const seq = ++MAPSEQ;
+  let d;
+  try { d = await j('/api/sites/map'); } catch(e){ return; }
+  if(seq !== MAPSEQ) return;
+  MAPDATA = d;
+  const fix = $('#sites-fix');
+  if(!d.rivals.length && !d.own.length){
+    el.classList.add('hide'); fix.classList.add('hide'); return;
+  }
   el.classList.remove('hide');
+  fix.classList.toggle('hide', !d.rivals.length);
+  // Opened by default when the field is the shipped extract and untouched:
+  // that is the one case where it is almost certainly wrong somewhere and the
+  // operator has not yet been shown that they can say so.
+  if(d.source && d.source.indexOf('pack') >= 0 && !d.corrections) fix.open = true;
 
   const pts = d.rivals.concat(d.own).concat(
     d.population.map(p=>({lat:p[0], lon:p[1]})));
@@ -442,11 +493,17 @@ async function loadMap(){
     '" width="'+tile.toFixed(2)+'" height="'+tile.toFixed(2)+
     '" fill="#2ED3C6" opacity="'+(0.05+Math.pow(p[2]/maxP,0.45)*0.42).toFixed(3)+'"/>').join('');
 
-  const rivalDots = d.rivals.map(r=>
-    '<circle cx="'+x(r.lon).toFixed(1)+'" cy="'+y(r.lat).toFixed(1)+'" r="'+
+  // Rivals are clickable: a wrong shop on the map is the single most likely
+  // thing a retailer will want to change, and the only alternative to picking
+  // one is re-fetching the whole region — which returns the same wrong data.
+  const rivalDots = d.rivals.map((r,i)=>
+    '<circle class="rival" data-i="'+i+'" style="cursor:pointer" '+
+    'cx="'+x(r.lon).toFixed(1)+'" cy="'+y(r.lat).toFixed(1)+'" r="'+
     (2.2+Math.min(3.4, Math.sqrt(Math.max(r.sqft,1000)/12000))).toFixed(1)+
-    '" fill="#6B8086" opacity=".85"><title>'+esc(r.chain)+
-    (r.sqft?' · '+r.sqft.toLocaleString()+' sq ft':'')+'</title></circle>').join('');
+    '" fill="'+(r.corrected?'#E0A249':'#6B8086')+'" opacity=".85"><title>'+
+    esc(r.name||r.chain)+(r.sqft?' · '+r.sqft.toLocaleString()+' sq ft'+
+    (r.size_is_default?' (chain default)':''):'')+
+    '\nClick to correct</title></circle>').join('');
 
   const ownDots = d.own.map(o=>
     '<g><circle cx="'+x(o.lon).toFixed(1)+'" cy="'+y(o.lat).toFixed(1)+
@@ -479,9 +536,27 @@ async function loadMap(){
       '<span style="color:#6B8086">&#9679;</span> rival shops (size shown to scale) &nbsp; '+
       '<span style="color:#E0A249">&#9679;</span> candidates &nbsp; '+
       'the teal wash is where people live.'+
+      (d.corrections ? ' <span style="color:#E0A249">&#9679;</span> amber rivals are '+
+        'your corrections ('+d.corrections+').' : '')+
       '<br>Rivals on the map: '+legend+'</p>'+
     (d.attribution ? '<p class="hint" style="font-family:var(--mono);font-size:11px">'+
-      esc(d.attribution)+'</p>' : '');
+      esc(d.attribution)+(d.source?' &middot; '+esc(d.source):'')+'</p>' : '');
+
+  el.querySelectorAll('circle.rival').forEach(c=>{
+    c.onclick = ()=>{
+      const r = d.rivals[parseInt(c.dataset.i,10)];
+      if(!r) return;
+      $('#c-chain').value = r.chain || '';
+      $('#c-name').value  = r.name  || '';
+      $('#c-lat').value   = r.lat;
+      $('#c-lon').value   = r.lon;
+      // A chain-default area is a guess, not a measurement. Pre-filling it
+      // would invite the client to accept our guess as their answer.
+      $('#c-size').value  = r.size_is_default ? '' : (r.sqft || '');
+      $('#c-msg').textContent = (r.name||r.chain)+' loaded — edit and save, or mark it closed.';
+      $('#c-chain').scrollIntoView({behavior:'smooth', block:'center'});
+    };
+  });
 }
 
 /* ── setup: how a retailer gets from nothing to a first score ── */
@@ -527,6 +602,33 @@ $('#r-fetch').onclick = async ()=>{
     READY = null; await loadReadiness(); await loadMap();
   }catch(e){ msg.textContent = String(e); }
 };
+
+/* Correcting one rival, without replacing the whole competitive field. */
+async function correctRival(action){
+  const msg = $('#c-msg');
+  const lat = parseFloat($('#c-lat').value), lon = parseFloat($('#c-lon').value);
+  if(!isFinite(lat) || !isFinite(lon)){
+    msg.textContent = 'Click a rival on the map, or type its coordinates.'; return;
+  }
+  const size = parseFloat($('#c-size').value);
+  msg.textContent = 'Saving…';
+  try{
+    const r = await j('/api/sites/competitor', {method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({action, lat, lon,
+        chain: $('#c-chain').value.trim(), name: $('#c-name').value.trim(),
+        sqft: isFinite(size) && size>0 ? size : null})});
+    if(!r.saved){ msg.textContent = r.error || 'Not saved.'; return; }
+    msg.textContent = action==='remove' ? 'Removed from your competitive field.'
+                                        : 'Saved. It will survive a re-fetch.';
+    ['#c-chain','#c-name','#c-lat','#c-lon','#c-size'].forEach(s=>$(s).value='');
+    READY = null; await loadReadiness(); await loadMap();
+    // Scores were computed against the field as it was, so they are now stale.
+    if((CANDIDATES||[]).length) scoreSites();
+  }catch(e){ msg.textContent = String(e); }
+}
+$('#c-add').onclick = ()=>correctRival('add');
+$('#c-remove').onclick = ()=>correctRival('remove');
 
 $('#s-add').onclick = ()=>{
   const lat = parseFloat($('#s-lat').value), lon = parseFloat($('#s-lon').value);

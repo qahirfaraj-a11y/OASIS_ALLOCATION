@@ -434,7 +434,8 @@ def set_store_location(org_cd: str, lat: float, lon: float,
 
 
 def competitor_set(root: Optional[str] = None) -> Dict[str, Any]:
-    """The client's own OSM competitor extract. See oasis.logic.geo_sources."""
+    """The competitive field: client extract, else the shipped national pack,
+    with operator corrections layered on. See oasis.logic.geo_sources."""
     try:
         from oasis.logic.geo_sources import load_competitors
         return load_competitors(root=root)
@@ -546,6 +547,13 @@ def region_data_status(root: Optional[str] = None) -> Dict[str, Any]:
         "competitors_sized": comps.get("sized", 0),
         "competitors_unsized": comps.get("unsized", 0),
         "competitor_legacy_path": bool(comps.get("legacy_path")),
+        # Where the field came from, and how much of it the operator has
+        # corrected. A client scoring against the shipped national extract
+        # should know that is what they are doing — it is public data of
+        # unknown vintage, not a survey of their market.
+        "competitor_source": comps.get("source"),
+        "competitor_from_pack": bool(comps.get("from_pack")),
+        "competitor_corrections": comps.get("corrections") or 0,
         "competitor_error": comps.get("error"),
         "population_cells": pop.get("rows", 0),
         "population_people": pop.get("people", 0.0),

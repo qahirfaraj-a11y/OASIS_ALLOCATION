@@ -50,6 +50,24 @@ monitoring/inbound/
 # any manifest lists a file git does not have.
 !connectors/odoo/*/security/*.csv
 
+# ── The shipped market matrix is SOURCE, not bulk data ───────────────────
+# Same trap as the Odoo access rules above, one directory over: `*.csv` would
+# have swallowed the national competitor matrix, and the release packager
+# copies from the working tree — so it built fine here and every clean
+# checkout, CI run and client zip would have shipped site selection with no
+# competitive field at all. That failure is silent by construction: a site
+# with no rivals scores as opportunity, not as missing data.
+#
+# ~12 KB, and it travels with its ODbL notice (geo_sources.load_pack refuses
+# a pack without one). test_market_pack asserts both ship.
+!oasis/data/market_packs/*.csv
+
+# Client state, per install, never ours to commit: their own fetched extract,
+# their chain profiles, and the corrections they have made to the field.
+oasis/data/competitor_overrides.json
+oasis/data/competitor_network.csv
+competitor_network.csv
+
 # Generated intelligence vault (ObsidianMixin output, ~48k files)
 oasis_vault/Nodes/
 oasis_vault/Runs/

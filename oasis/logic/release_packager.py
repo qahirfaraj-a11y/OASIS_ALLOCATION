@@ -155,6 +155,21 @@ _OASIS_DATA_WHITELIST = {
     "oasis_engines_config.default.json",
 }
 
+#: The one OSM-derived DATABASE OASIS redistributes: the national market
+#: matrix, so site selection is not empty on a fresh install. Everything else
+#: under oasis/data stays payload and stays out.
+#:
+#: The pack ships WITH its ODbL notice — hence ".txt" alongside ".csv" — and
+#: geo_sources.load_pack refuses to load a pack whose notice is missing. A
+#: whitelist that admitted only the CSV would strip the notice at packaging
+#: time and break every client install, which is the correct failure but a
+#: stupid way to find out. test_release_zip asserts both travel together.
+_MARKET_PACK_DIR = "market_packs"
+
+#: A national matrix is ~13 KB. This cap is not about disk — it is a tripwire
+#: for someone dropping a raw OSM extract in here and shipping it.
+_MAX_PACK_MB = 2.0
+
 #: modules inside an otherwise-shipping sub-package that are DEV-ONLY.
 #: The sub-package whitelist above is all-or-nothing, so a module whose only
 #: importers are unshipped root scripts still rode along into every client zip.
@@ -214,11 +229,17 @@ def should_ship_clean(relpath: str, size_bytes: int = 0) -> Tuple[bool, str]:
         if "/" not in sub:  # oasis/<file>
             return (top in _OASIS_WHITELIST_SUBPKGS,
                     "oasis root file " + ("ok" if top in _OASIS_WHITELIST_SUBPKGS else "not on whitelist"))
-        # oasis/data — schema modules only
+        # oasis/data — schema modules only, plus the ODbL market packs
         if top == "data":
             leaf = sub[len("data/"):]
             if "/" not in leaf and leaf in _OASIS_DATA_WHITELIST:
                 return True, "oasis/data schema"
+            if leaf.startswith(_MARKET_PACK_DIR + "/"):
+                if os.path.splitext(name)[1].lower() not in (".csv", ".txt"):
+                    return False, "market pack: data and licence only"
+                if size_bytes > _MAX_PACK_MB * 1e6:
+                    return False, "market pack over size cap"
+                return True, "oasis/data market pack (ODbL)"
             return False, "oasis/data payload"
         # oasis/<pkg>/... — allowed if pkg is whitelisted
         if (top + "/") in _OASIS_WHITELIST_SUBPKGS:
