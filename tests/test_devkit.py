@@ -171,3 +171,64 @@ def test_dev_only_modules_have_a_devkit_importer():
             f"{rel} is kept out of the zip as 'dev-only' but nothing in "
             f"devkit/ imports it — it is dead code, delete it instead"
         )
+
+
+# ── the grid simulation's two real decisions ─────────────────────────────
+class TestGridSimulation:
+    """The yardstick is only as good as how the pins are drawn.
+
+    Uniform sampling over the bounding box was the first attempt and produced
+    a nonsense null: median capture 60-79%, everything above the third
+    quartile at 100%. The pins were landing in farmland, where a store faces
+    no competitor within 10 km and so takes a full share of almost nobody.
+    """
+
+    def _sim(self):
+        sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..',
+                                        'devkit'))
+        import grid_simulation
+        return grid_simulation
+
+    class _Grid:
+        def __init__(self, cells):
+            self.cells = cells
+
+    def test_pins_are_drawn_where_people_are(self):
+        sim = self._sim()
+        south, west, north, east = sim.BBOX
+        crowded = ((south + north) / 2, (west + east) / 2, 1_000_000.0)
+        empty = (south + 0.01, west + 0.01, 1.0)
+        pins = sim.sample_points(400, seed=1,
+                                 grid=self._Grid([crowded, empty]))
+        near_crowd = sum(1 for la, lo in pins
+                         if abs(la - crowded[0]) < 0.02
+                         and abs(lo - crowded[1]) < 0.02)
+        assert near_crowd > 380, "population weighting is not being applied"
+
+    def test_sampling_is_reproducible(self):
+        """An unseeded simulation cannot be re-run to check a surprising
+        result — the exact failure this repo's own GNN review records."""
+        sim = self._sim()
+        g = self._Grid([(-1.28, 36.80, 5000.0), (-1.30, 36.82, 5000.0)])
+        assert sim.sample_points(50, 7, g) == sim.sample_points(50, 7, g)
+        assert sim.sample_points(50, 7, g) != sim.sample_points(50, 8, g)
+
+    def test_pins_stay_inside_the_region(self):
+        sim = self._sim()
+        south, west, north, east = sim.BBOX
+        g = self._Grid([(-1.28, 36.80, 5000.0)])
+        for la, lo in sim.sample_points(200, 3, g):
+            assert south - 0.01 <= la <= north + 0.01
+            assert west - 0.01 <= lo <= east + 0.01
+
+    def test_an_empty_grid_falls_back_to_uniform(self):
+        sim = self._sim()
+        assert len(sim.sample_points(25, 1, grid=None)) == 25
+        assert len(sim.sample_points(25, 1, grid=self._Grid([]))) == 25
+
+    def test_percentiles_interpolate_and_bracket(self):
+        sim = self._sim()
+        p = sim.percentiles([0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100])
+        assert p[50] == 50.0
+        assert p[5] < p[25] < p[50] < p[75] < p[95]
+        assert sim.percentiles([]) == {}
