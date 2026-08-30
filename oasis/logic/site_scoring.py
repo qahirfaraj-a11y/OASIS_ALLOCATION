@@ -42,8 +42,38 @@ from typing import Any, Dict, List, Optional, Sequence
 from .geo_sources import DEFAULT_COMPETITOR_SQFT
 from .population import KM_PER_DEG_LAT, KM_PER_DEG_LON
 
-#: Beyond this a store is not competing for the same trip.
+#: The area whose people we claim: demand is integrated over this radius.
+#:
+#: It is a CLAIM BOUNDARY, not a physical cutoff. Huff gives everyone a nonzero
+#: probability of shopping anywhere; this says which people we are willing to
+#: count as reachable.
 CATCHMENT_KM = 10.0
+
+#: How far out a store still counts as competition. Deliberately much larger
+#: than the catchment, and separate from it.
+#:
+#: THE TWO USED TO BE THE SAME NUMBER, AND THAT WAS THE BUG. A person standing
+#: at the edge of our catchment may have a rival ten kilometres beyond it — 20
+#: km from us, but 10 km from THEM — and that rival competes for their trade
+#: whatever radius we happened to draw around ourselves. Truncating supply at
+#: the catchment simply deleted it from the denominator, which inflates the
+#: site's share.
+#:
+#: The damage was worst exactly where it mattered. Measured across the top
+#: whitespace sites, the share of competitive pull discarded ran:
+#:
+#:     rank 1 site      83.4% of the pull acting on it, ignored
+#:     "untapped" site  100%  — every competitor was just outside the ring
+#:     dense core site    8.9%
+#:
+#: So the sites the analysis called opportunities were the ones where it had
+#: thrown away the most competition. The cutoff was manufacturing whitespace.
+#:
+#: 40 km is not a physical claim either; with 1/d^2 a store at 40 km carries
+#: 1/1600 the weight of one at 1 km, so the tail beyond it is numerically
+#: irrelevant. It exists only to keep a national store matrix from being
+#: scanned in full for every candidate.
+SUPPLY_KM = 40.0
 #: Distance floor, so a site on top of an existing store cannot divide by zero.
 MIN_DISTANCE_KM = 0.1
 #: Assumed floor area when a store record does not carry one.
@@ -181,7 +211,8 @@ def score_site(lat: float, lon: float,
                size_sqft: float = DEFAULT_SIZE_SQFT,
                catchment_km: float = CATCHMENT_KM,
                travel_friction: float = 0.0,
-               population: Any = None) -> Dict[str, Any]:
+               population: Any = None,
+               supply_km: float = SUPPLY_KM) -> Dict[str, Any]:
     """Score one candidate location. Pure — no I/O, no model, no globals.
 
     Capture is the Huff share the new store would take **over demand points
@@ -218,6 +249,7 @@ def score_site(lat: float, lon: float,
             nearest_own = d
         if d <= catchment_km:
             own_in_catchment += 1
+        if d <= supply_km:
             # Own stores carry their chain and pull exactly as rivals do.
             # They used to be appended with an empty chain string and no pull,
             # so the SAME physical store attracted differently depending on who
@@ -240,7 +272,9 @@ def score_site(lat: float, lon: float,
         d = haversine_km(lat, lon, c[0], c[1])
         if nearest_comp is None or d < nearest_comp:
             nearest_comp = d
-        if d <= catchment_km:
+        if d <= DIRECT_COMPETITION_KM:
+            comp_within_direct += 1
+        if d <= supply_km:
             # `pull` comes from the chain profile when one exists; None means
             # fall back to the name-based big-box heuristic.
             _pull = k.get("pull")
@@ -249,8 +283,6 @@ def score_site(lat: float, lon: float,
                                          DEFAULT_COMPETITOR_SQFT)),
                              str(k.get("Chain") or k.get("chain") or ""),
                              None if _pull is None else float(_pull)))
-            if d <= DIRECT_COMPETITION_KM:
-                comp_within_direct += 1
 
     # QUADRATURE. Capture is an integral of the share field over the catchment,
     # weighted by population. With a grid loaded, the population CELLS are the

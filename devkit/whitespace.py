@@ -54,8 +54,14 @@ BBOX = (-1.60, 36.50, -1.00, 37.30)
 #: A cell thinner than this is not a retail catchment worth walking to.
 MIN_CELL_PEOPLE = 150.0
 
-#: Catchment radius, matching the site scorer.
+#: Catchment radius, matching the site scorer: the area whose people we claim.
 CATCHMENT_KM = 10.0
+
+#: How far out a store still counts as competition — deliberately larger than
+#: the catchment, and imported so the two definitions cannot drift. Truncating
+#: supply at the catchment was what made the periphery look empty: the top
+#: site's gap ignored 83% of the pull acting on it.
+from oasis.logic.site_scoring import SUPPLY_KM  # noqa: E402
 
 #: THE SWEEP IS INSET FROM THE FETCHED REGION BY ONE CATCHMENT.
 #:
@@ -117,6 +123,9 @@ def supply_at(lat: float, lon: float, stores: list) -> tuple:
             nearest, nearest_chain = d, chain
         if d <= CATCHMENT_KM:
             within += 1
+        # Supply counts well past the catchment: a rival just outside it still
+        # serves the people at its edge.
+        if d <= SUPPLY_KM:
             dd = max(d, MIN_DISTANCE_KM)
             total += (sqft / 1000.0) / (dd * dd)
     return total, nearest, nearest_chain, within

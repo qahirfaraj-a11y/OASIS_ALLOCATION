@@ -679,3 +679,73 @@ class TestQuadratureAndCannibalisation:
                 "chain": "Mine", "pull": 1.0}]
         r = score_site(-1.28, 36.80, own, [], size_sqft=10000, population=g)
         assert 0.0 <= r["cannibalisation_pct"] <= 100.0
+
+
+class TestSupplyIsNotTruncatedAtTheCatchment:
+    """A person at the catchment edge may have a rival ten kilometres beyond
+    it — far from us, near to them. Deleting that rival from the denominator
+    invents share, and it did so worst exactly where the analysis then claimed
+    opportunity: the top whitespace site ignored 83.4% of the pull acting on
+    it, and a site reported as a 100% untapped market had every competitor
+    just outside the ring."""
+
+    def _grid(self, n=14, step=0.006, people=400.0):
+        from oasis.logic.population import PopulationGrid
+        return PopulationGrid([(-1.28 + i * step, 36.80 + j * step, people)
+                               for i in range(-n, n + 1)
+                               for j in range(-n, n + 1)])
+
+    def test_the_two_radii_are_separate_and_supply_is_larger(self):
+        from oasis.logic.site_scoring import CATCHMENT_KM, SUPPLY_KM
+        assert SUPPLY_KM > CATCHMENT_KM * 2, (
+            "supply must reach well past the area whose people we claim")
+
+    def test_a_rival_beyond_the_catchment_still_takes_share(self):
+        from oasis.logic.site_scoring import score_site
+        g = self._grid()
+        # 15 km away: outside a 10 km catchment, inside the supply radius.
+        far = [{"lat": -1.28 + 15 / 110.574, "lon": 36.80,
+                "size_sqft": 40000, "chain": "R", "pull": 1.0}]
+        alone = score_site(-1.28, 36.80, [], [], size_sqft=10000, population=g)
+        with_far = score_site(-1.28, 36.80, [], far, size_sqft=10000,
+                              population=g)
+        assert with_far["captured_population"] < alone["captured_population"]
+
+    def test_truncating_supply_at_the_catchment_inflates_capture(self):
+        """The old behaviour, reproduced by passing supply_km=catchment_km."""
+        from oasis.logic.site_scoring import score_site
+        g = self._grid()
+        far = [{"lat": -1.28 + 15 / 110.574, "lon": 36.80,
+                "size_sqft": 40000, "chain": "R", "pull": 1.0}]
+        truncated = score_site(-1.28, 36.80, [], far, size_sqft=10000,
+                               population=g, supply_km=10.0)
+        honest = score_site(-1.28, 36.80, [], far, size_sqft=10000,
+                            population=g)
+        assert truncated["captured_population"] > honest["captured_population"]
+
+    def test_the_supply_radius_is_converged(self):
+        """40 km is not another arbitrary cutoff: with 1/d^2 the tail beyond it
+        is numerically irrelevant. Measured on the real matrix, 40 km lands
+        within 3% of including every store, and 80 km and 200 km are
+        identical."""
+        from oasis.logic.site_scoring import score_site
+        g = self._grid()
+        rivals = [{"lat": -1.28 + km / 110.574, "lon": 36.80,
+                   "size_sqft": 30000, "chain": f"R{km}", "pull": 1.0}
+                  for km in (5, 15, 30, 60, 120)]
+        at40 = score_site(-1.28, 36.80, [], rivals, size_sqft=10000,
+                          population=g, supply_km=40.0)
+        at200 = score_site(-1.28, 36.80, [], rivals, size_sqft=10000,
+                           population=g, supply_km=200.0)
+        rel = abs(at40["captured_population"] - at200["captured_population"])
+        assert rel / at200["captured_population"] < 0.05
+
+    def test_the_descriptive_counts_still_use_the_catchment(self):
+        """`own_stores_in_catchment` and `competitors_within_2km` describe the
+        site's immediate context and must not silently widen with supply."""
+        from oasis.logic.site_scoring import score_site
+        far = [{"lat": -1.28 + 15 / 110.574, "lon": 36.80,
+                "size_sqft": 40000, "chain": "R"}]
+        r = score_site(-1.28, 36.80, [], far, size_sqft=10000)
+        assert r["competitors_within_2km"] == 0
+        assert r["nearest_competitor_km"] > 10

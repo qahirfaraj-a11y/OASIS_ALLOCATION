@@ -106,8 +106,12 @@ def displacement(lat: float, lon: float, entrant_sqft: float,
     # cannibalisation as 45.79% and 45.41%.
     points, weights = quadrature(lat, lon, catchment_km, pop)
 
+    # Every store that competes for this catchment's people, not just those
+    # inside it: a rival beyond the boundary still serves the people at the
+    # edge, and deleting it from the denominator invents share.
+    from oasis.logic.site_scoring import SUPPLY_KM
     near = [s for s in stores
-            if haversine_km(lat, lon, s["lat"], s["lon"]) <= catchment_km]
+            if haversine_km(lat, lon, s["lat"], s["lon"]) <= SUPPLY_KM]
 
     captured = 0.0
     untapped = 0.0
