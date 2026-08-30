@@ -157,6 +157,24 @@ def _ring_points(lat: float, lon: float,
     return pts
 
 
+def quadrature(lat: float, lon: float, catchment_km: float = CATCHMENT_KM,
+               population: Any = None) -> tuple:
+    """The points and weights capture is integrated over. ``(points, weights)``.
+
+    ONE definition, because two integrations of the same quantity will drift.
+    They already did: the displacement matrix kept its own ring sampling after
+    the scorer moved to cells, and the two reported cannibalisations for one
+    site as 45.79% and 45.41%. Same model, same site, different quadrature.
+    """
+    if population is not None:
+        cells = population.near(lat, lon, catchment_km)
+        return [(c[0], c[1]) for c in cells], [c[2] for c in cells]
+    # No grid: fall back to the ring, which measures how CONTESTED a catchment
+    # is rather than how populated. Unchanged for a client with no population.
+    pts = _ring_points(lat, lon, catchment_km)
+    return pts, [1.0] * len(pts)
+
+
 def score_site(lat: float, lon: float,
                own_stores: Sequence[Dict[str, Any]],
                competitors: Sequence[Dict[str, Any]] = (),
@@ -234,17 +252,24 @@ def score_site(lat: float, lon: float,
             if d <= DIRECT_COMPETITION_KM:
                 comp_within_direct += 1
 
-    points = _ring_points(lat, lon)
-    # Population turns each sample point from "one vote" into "the people
-    # nearest to it". With no grid every weight is 1.0 and the arithmetic below
-    # reduces exactly to the unweighted mean this scorer has always used.
-    if population is not None:
-        from .population import weights_for_points
-        weights = weights_for_points(population, lat, lon, points, catchment_km)
-    else:
-        weights = [1.0] * len(points)
+    # QUADRATURE. Capture is an integral of the share field over the catchment,
+    # weighted by population. With a grid loaded, the population CELLS are the
+    # natural quadrature points: each carries its own people and sits where
+    # those people actually are, so there is no approximation left to converge.
+    #
+    # The rings were always a stand-in for that, and measurement showed a poor
+    # one. Assigning cells to their nearest ring point makes the weighting a
+    # discrete Voronoi partition, and refining the ring ALIASES against the
+    # population lattice rather than converging: on six real sites the maximum
+    # deviation from a 2,400-point reference ran 78.2% at 40 points, 2.2% at
+    # 504, then back UP to 5.3% at 864 and 7.0% at 1,440. Error that does not
+    # fall monotonically with resolution is not an approximation converging,
+    # it is one arrangement of samples happening to land better than another.
+    #
+    # Integrating on the cells removes the layer and its parameters together.
+    points, weights = quadrature(lat, lon, catchment_km, population)
 
-    num_site = num_own = denom = 0.0
+    num_site = num_own = denom = own_displaced = 0.0
     for (plat, plon), w in zip(points, weights):
         if w <= 0:
             continue
@@ -259,6 +284,14 @@ def score_site(lat: float, lon: float,
         num_site += (u_site / total) * w
         num_own += (u_own / total) * w
         denom += w
+        # DISPLACEMENT, the quantity "cannibalisation" actually names: of the
+        # trade the new store wins here, how much did the own network hold
+        # before it opened? Adding the site dilutes every existing share by the
+        # same denominator, so the own network's loss is the difference between
+        # its share with and without the entrant.
+        incumbent = u_own + u_comp
+        if incumbent > 0:
+            own_displaced += (u_own / incumbent - u_own / total) * w
 
     capture = (num_site / denom) if denom > 0 else 0.0
     own_share = (num_own / denom) if denom > 0 else 0.0
@@ -268,8 +301,15 @@ def score_site(lat: float, lon: float,
                             else None)
     captured_population = (num_site if population is not None else None)
     # Of the trade this site wins, how much is taken from our own network?
-    cannibalisation = (own_share / (own_share + capture)
-                       if (own_share + capture) > 0 else 0.0)
+    #
+    # THIS USED TO BE own_share / (own_share + capture), which is a different
+    # quantity wearing this name: the own network's share of the own-plus-site
+    # bloc, i.e. a statement about how present you already are, not about what
+    # the new store takes from you. The two disagree by up to a factor of four
+    # on the client's own estate — 66.2% against 15.5% for one banner — and the
+    # displacement figure is the one the word means.
+    cannibalisation = (own_displaced / num_site) if num_site > 0 else 0.0
+    cannibalisation = max(0.0, min(1.0, cannibalisation))
 
     # Friction is a correction a caller supplies (0 = free-flowing). It scales
     # capture down because a hard-to-reach site captures less of its catchment.

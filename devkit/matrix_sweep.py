@@ -98,11 +98,13 @@ def displacement(lat: float, lon: float, entrant_sqft: float,
     Pure given its inputs. Returns ``(captured, untapped, {chain: lost})``,
     where ``captured == untapped + sum(lost.values())``.
     """
-    from oasis.logic.population import weights_for_points
-    from oasis.logic.site_scoring import _ring_points, _utility, haversine_km
+    from oasis.logic.site_scoring import _utility, haversine_km, quadrature
 
-    points = _ring_points(lat, lon, catchment_km)
-    weights = weights_for_points(pop, lat, lon, points, catchment_km)
+    # The SAME quadrature the scorer uses. Keeping a private copy here is how
+    # the two drifted: after score_site moved to integrating on population
+    # cells this still sampled rings, and the two reported one site's
+    # cannibalisation as 45.79% and 45.41%.
+    points, weights = quadrature(lat, lon, catchment_km, pop)
 
     near = [s for s in stores
             if haversine_km(lat, lon, s["lat"], s["lon"]) <= catchment_km]

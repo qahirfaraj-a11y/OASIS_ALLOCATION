@@ -582,3 +582,100 @@ class TestTheAuditFixes:
         reversed_order = GS._lookup("quickmart", {"quickmart": {"size_sqft": 6792},
                                                   "quick": {"size_sqft": 2000}})
         assert reversed_order["size_sqft"] == 6792.0
+
+
+class TestQuadratureAndCannibalisation:
+    """Two defects the mathematical audit found, both now closed."""
+
+    def _grid(self, n=14, step=0.006, people=400.0, lat=-1.28, lon=36.80):
+        from oasis.logic.population import PopulationGrid
+        return PopulationGrid([(lat + i * step, lon + j * step, people)
+                               for i in range(-n, n + 1)
+                               for j in range(-n, n + 1)])
+
+    def test_capture_integrates_on_the_population_cells(self):
+        """The rings were a stand-in for where demand is. With a grid loaded
+        the cells ARE the quadrature points, so nothing is left to converge —
+        refining the ring used to ALIAS against the population lattice rather
+        than converge (78.2% error at 40 points, 2.2% at 504, back up to 7.0%
+        at 1,440)."""
+        from oasis.logic.site_scoring import score_site
+        import oasis.logic.site_scoring as SS
+        g = self._grid()
+        rivals = [{"lat": -1.29, "lon": 36.81, "size_sqft": 20000,
+                   "chain": "R", "pull": 1.0}]
+        base = score_site(-1.28, 36.80, [], rivals, size_sqft=10000,
+                          population=g)
+        # The ring layout must not change a population-weighted answer at all.
+        old = SS.RING_FRACTIONS
+        try:
+            SS.RING_FRACTIONS = (0.05, 0.2, 0.4, 0.6, 0.8, 0.95)
+            other = score_site(-1.28, 36.80, [], rivals, size_sqft=10000,
+                               population=g)
+        finally:
+            SS.RING_FRACTIONS = old
+        assert abs(base["captured_population"]
+                   - other["captured_population"]) < 1e-6
+
+    def test_the_ring_still_serves_a_client_with_no_population(self):
+        from oasis.logic.site_scoring import score_site
+        r = score_site(-1.28, 36.80, [],
+                       [{"lat": -1.29, "lon": 36.81, "size_sqft": 20000}],
+                       size_sqft=10000)
+        assert r["captured_population"] is None
+        assert 0 < r["capture_pct"] < 100
+
+    def test_cannibalisation_is_displacement_not_presence(self):
+        """It used to be own_share/(own_share+capture) — the own network's
+        share of the own-plus-site bloc, which is a statement about how present
+        you already are. On the client's estate the two disagreed by up to 4x."""
+        from oasis.logic.site_scoring import score_site
+        g = self._grid()
+        # One own store, far enough that it is in the catchment but not on top.
+        own = [{"lat": -1.30, "lon": 36.80, "size_sqft": 20000,
+                "chain": "Mine", "pull": 1.0}]
+        rivals = [{"lat": -1.285, "lon": 36.805, "size_sqft": 20000,
+                   "chain": "R", "pull": 1.0}]
+        r = score_site(-1.28, 36.80, own, rivals, size_sqft=10000,
+                       population=g)
+        # The old formula would report own_share/(own_share+capture); the
+        # displacement figure must be strictly smaller here, because the rival
+        # funds most of the entrant's trade.
+        assert 0 < r["cannibalisation_pct"] < 50
+
+    def test_no_own_stores_means_no_cannibalisation(self):
+        from oasis.logic.site_scoring import score_site
+        r = score_site(-1.28, 36.80, [],
+                       [{"lat": -1.29, "lon": 36.81, "size_sqft": 20000,
+                         "chain": "R", "pull": 1.0}],
+                       size_sqft=10000, population=self._grid())
+        assert r["cannibalisation_pct"] == 0.0
+
+    def test_cannibalisation_matches_the_displacement_matrix(self):
+        """One definition, two implementations, and they must agree."""
+        import sys as _sys
+        _sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..',
+                                         'devkit'))
+        import matrix_sweep as MS
+        from oasis.logic.site_scoring import score_site
+        g = self._grid()
+        stores = [{"lat": -1.30, "lon": 36.80, "size_sqft": 20000,
+                   "chain": "Mine", "pull": 1.0},
+                  {"lat": -1.285, "lon": 36.805, "size_sqft": 20000,
+                   "chain": "R", "pull": 1.0}]
+        own = [s for s in stores if s["chain"] == "Mine"]
+        riv = [s for s in stores if s["chain"] != "Mine"]
+        scored = score_site(-1.28, 36.80, own, riv, size_sqft=10000,
+                            population=g)
+        cap, _unt, lost = MS.displacement(-1.28, 36.80, 10000.0, "Mine",
+                                          stores, g, 10.0)
+        matrix_pct = 100.0 * lost.get("Mine", 0.0) / cap
+        assert abs(scored["cannibalisation_pct"] - matrix_pct) < 0.01
+
+    def test_a_bounded_fraction(self):
+        from oasis.logic.site_scoring import score_site
+        g = self._grid()
+        own = [{"lat": -1.281, "lon": 36.801, "size_sqft": 60000,
+                "chain": "Mine", "pull": 1.0}]
+        r = score_site(-1.28, 36.80, own, [], size_sqft=10000, population=g)
+        assert 0.0 <= r["cannibalisation_pct"] <= 100.0
