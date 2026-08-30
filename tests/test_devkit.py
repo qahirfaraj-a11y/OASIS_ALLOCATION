@@ -292,3 +292,77 @@ class TestWhitespace:
         rows = [{"lat": -1.28 + i * 0.1, "lon": 36.80, "winnable": 100 - i}
                 for i in range(10)]
         assert len(ws.dedupe(rows, 3.0, top=4)) == 4
+
+
+class TestMatrixSweep:
+    """The half of the Huff model the other tools never asked for: when
+    somebody opens here, whose trade do they take?"""
+
+    def _ms(self):
+        sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..',
+                                        'devkit'))
+        import matrix_sweep
+        return matrix_sweep
+
+    class _Pop:
+        """A single populated cell, so weights are trivial to reason about."""
+        def __init__(self, cells):
+            self.cells = cells
+
+    def _pop(self):
+        from oasis.logic.population import PopulationGrid
+        return PopulationGrid([(-1.28 + i * 0.004, 36.80 + j * 0.004, 400.0)
+                               for i in range(-12, 13) for j in range(-12, 13)])
+
+    def test_what_the_entrant_wins_is_fully_accounted_for(self):
+        """captured == displaced + untapped, always. A matrix whose rows do
+        not add up is not describing this model."""
+        ms = self._ms()
+        stores = [{"lat": -1.29, "lon": 36.80, "size_sqft": 20000,
+                   "chain": "A", "pull": 1.0},
+                  {"lat": -1.27, "lon": 36.81, "size_sqft": 8000,
+                   "chain": "B", "pull": 1.0}]
+        cap, unt, lost = ms.displacement(-1.28, 36.80, 10000.0, "C",
+                                         stores, self._pop(), 10.0)
+        assert cap > 0
+        assert abs((sum(lost.values()) + unt) - cap) < max(1.0, cap * 1e-9)
+
+    def test_trade_nobody_was_serving_is_untapped_not_stolen(self):
+        """A site with no incumbent in reach has no victim. Charging its
+        demand to one would invent a loser."""
+        ms = self._ms()
+        cap, unt, lost = ms.displacement(-1.28, 36.80, 10000.0, "C",
+                                         [], self._pop(), 10.0)
+        assert cap > 0
+        assert abs(unt - cap) < 1e-6, "all of it is new to the market"
+        assert lost == {}
+
+    def test_a_bigger_incumbent_loses_more_than_a_small_one(self):
+        ms = self._ms()
+        stores = [{"lat": -1.285, "lon": 36.80, "size_sqft": 40000,
+                   "chain": "Big", "pull": 1.0},
+                  {"lat": -1.285, "lon": 36.80, "size_sqft": 5000,
+                   "chain": "Small", "pull": 1.0}]
+        _, _, lost = ms.displacement(-1.28, 36.80, 10000.0, "C",
+                                     stores, self._pop(), 10.0)
+        assert lost["Big"] > lost["Small"] * 3
+
+    def test_an_entrant_cannibalises_its_own_branch(self):
+        """The self-loss term: opening next to yourself moves trade rather
+        than winning it, and the matrix must show that as a cost."""
+        ms = self._ms()
+        stores = [{"lat": -1.285, "lon": 36.80, "size_sqft": 20000,
+                   "chain": "Mine", "pull": 1.0}]
+        _, _, lost = ms.displacement(-1.28, 36.80, 10000.0, "Mine",
+                                     stores, self._pop(), 10.0)
+        assert lost["Mine"] > 0
+
+    def test_a_distant_incumbent_loses_less_than_a_near_one(self):
+        ms = self._ms()
+        stores = [{"lat": -1.281, "lon": 36.80, "size_sqft": 10000,
+                   "chain": "Near", "pull": 1.0},
+                  {"lat": -1.330, "lon": 36.80, "size_sqft": 10000,
+                   "chain": "Far", "pull": 1.0}]
+        _, _, lost = ms.displacement(-1.28, 36.80, 10000.0, "C",
+                                     stores, self._pop(), 10.0)
+        assert lost["Near"] > lost["Far"]
