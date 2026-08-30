@@ -89,13 +89,15 @@ _CHAIN_ALIASES = {
     "cleanshelf": "Cleanshelf",
     "food plus": "Foodplus",
     "foodplus": "Foodplus",
-    # One retailer trades under both spellings and OSM records both. Left
-    # unaliased the national sweep returned "Chandarana" 13 and "Chandarana
-    # Foodplus" 6 — two chains, so two floor-area entries to fill in and two
-    # store counts wherever chains are compared.
-    "chandarana foodplus": "Chandarana",
-    "chandarana food plus": "Chandarana",
 }
+
+#: A retailer's FORMAT SUB-BRAND is not a separate retailer. OSM records the
+#: full fascia, so one chain arrives as both "<Chain>" and "<Chain> Foodplus"
+#: — and left alone the national sweep counted those as two chains, meaning two
+#: floor-area entries to fill in and two store counts wherever chains are
+#: compared. Stripped from the END of a matched brand, which also keeps this
+#: rule from naming any particular retailer.
+_SUB_BANNERS = ("foodplus", "food plus")
 
 
 def match_chain(store_name: str, brands: List[str]) -> Optional[str]:
@@ -118,7 +120,12 @@ def match_chain(store_name: str, brands: List[str]) -> Optional[str]:
             best = (key, str(brand).strip())
     if best is None:
         return None
-    return _CHAIN_ALIASES.get(best[0], best[1])
+    name = _CHAIN_ALIASES.get(best[0], best[1])
+    low = name.lower()
+    for suffix in _SUB_BANNERS:
+        if low.endswith(" " + suffix):
+            return name[:-(len(suffix) + 1)].strip() or name
+    return name
 
 
 def cache_path(root: Optional[str] = None) -> str:

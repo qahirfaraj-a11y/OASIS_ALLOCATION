@@ -192,6 +192,21 @@ class TestCorrections:
         assert len(GS.load_competitors(root=root)["rows"]) == 2
 
 
+class TestChainNaming:
+    def test_a_format_sub_brand_is_not_a_second_chain(self):
+        """A retailer's own sub-fascia counted as a separate competitor: two
+        floor-area entries to fill in, two store counts, and the chain's real
+        pull split across both."""
+        brands = ["Vega", "Vega Foodplus"]
+        assert GS.match_chain("Vega Foodplus Supermarket Riverside",
+                              brands) == "Vega"
+        assert GS.match_chain("Vega Ngong Road", brands) == "Vega"
+
+    def test_a_chain_actually_called_foodplus_survives(self):
+        """The rule strips a SUFFIX, so it must not eat the whole name."""
+        assert GS.match_chain("Foodplus Ruaka", ["Foodplus"]) == "Foodplus"
+
+
 class TestThePackShips:
     def test_the_matrix_and_its_licence_travel_together(self):
         """Whitelist is default-deny. Shipping the CSV without the notice
