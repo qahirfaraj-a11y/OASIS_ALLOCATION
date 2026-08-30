@@ -172,6 +172,45 @@
 
   <section id="panel-sites" class="hide">
     <div id="sites-ready"></div>
+
+    <div id="sites-setup" class="hide">
+      <div class="sub-h">Step 1 &middot; Where your stores are</div>
+      <p class="hint">Your POS knows your branches but not where they stand. Place them
+        once; every candidate is then scored by distance from these points.</p>
+      <div class="controls">
+        <button class="btn ghost sm" id="s-template">Fill from my stores</button>
+        <span class="muted">then add coordinates and import</span>
+      </div>
+      <textarea id="s-csv" rows="5" spellcheck="false"
+        style="width:100%;background:var(--panel);border:1px solid var(--line);
+               border-radius:3px;color:var(--ink);font-family:var(--mono);
+               font-size:12.5px;padding:10px"
+        placeholder="org_cd,lat,lon,size_sqft"></textarea>
+      <div class="controls" style="margin-top:8px">
+        <button class="btn" id="s-import">Import placements</button>
+        <span class="muted" id="s-import-msg"></span>
+      </div>
+
+      <div class="sub-h">Step 2 &middot; Your region</div>
+      <p class="hint">Competitors and local amenities come from OpenStreetMap, population
+        from WorldPop. All public, all fetched once for your region and stored on this
+        machine &mdash; nothing about your customers leaves the building.</p>
+      <div class="controls">
+        <input id="r-south" type="search" placeholder="South" style="min-width:110px;flex:0">
+        <input id="r-west" type="search" placeholder="West" style="min-width:110px;flex:0">
+        <input id="r-north" type="search" placeholder="North" style="min-width:110px;flex:0">
+        <input id="r-east" type="search" placeholder="East" style="min-width:110px;flex:0">
+        <input id="r-iso" type="search" placeholder="Country" value="KEN" style="min-width:90px;flex:0">
+      </div>
+      <div class="controls">
+        <input id="r-brands" type="search" placeholder="Competitor chains, comma separated">
+        <button class="btn" id="r-fetch">Fetch region data</button>
+      </div>
+      <p class="hint" id="r-msg"></p>
+    </div>
+
+    <div id="sites-map" class="hide" style="margin:18px 0 4px"></div>
+
     <div class="controls" style="margin-top:14px">
       <input id="s-name" type="search" placeholder="Name this location (optional)" style="min-width:190px;flex:0">
       <input id="s-lat" type="search" placeholder="Latitude" style="min-width:120px;flex:0">
@@ -283,10 +322,15 @@ async function loadReadiness(){
       '<div class="state err" style="padding:16px;text-align:left"><b>Check the connection</b>'+
       esc(r.stores_orphaned)+' location(s) are saved but match no store in your POS. '+
       'This is not a placement problem.</div>' : '')+
-    (r.competitors && r.competitors_unsized ?
+    ((r.competitors && r.competitors_unsized) ?
       '<p class="hint">'+esc(r.competitors_unsized)+' rival shops have no floor area on '+
       'record and are assumed mid-size. A shop\'s pull is proportional to its size, so '+
       'telling us roughly how big each chain is will sharpen every figure below.</p>' : '');
+
+  // The setup panel stays open until every input is in place, then folds away
+  // so a returning operator is not walked through it again.
+  $('#sites-setup').classList.toggle('hide', !!r.ready);
+  loadMap();
 }
 
 function siteRow(s){
@@ -364,6 +408,126 @@ async function scoreSites(){
       esc(res.attribution)+'</p>' : '');
 }
 
+/* ── the market, drawn ────────────────────────────────────────────────────
+   A ranked table cannot show a retailer WHY a site scores as it does. The map
+   can, and it is built from the same population surface the scoring integrates
+   over — so what you see is literally what the model counted, not a picture
+   drawn beside it. */
+let MAPDATA = null;
+
+async function loadMap(){
+  const el = $('#sites-map');
+  try { MAPDATA = await j('/api/sites/map'); } catch(e){ return; }
+  const d = MAPDATA;
+  if(!d.rivals.length && !d.own.length){ el.classList.add('hide'); return; }
+  el.classList.remove('hide');
+
+  const pts = d.rivals.concat(d.own).concat(
+    d.population.map(p=>({lat:p[0], lon:p[1]})));
+  const lats = pts.map(p=>p.lat), lons = pts.map(p=>p.lon);
+  const pad = 0.01;
+  const S = Math.min(...lats)-pad, N = Math.max(...lats)+pad;
+  const W = Math.min(...lons)-pad, E = Math.max(...lons)+pad;
+  const w = 900, h = Math.round(w * (N-S) / Math.max(E-W, 1e-9) * 0.92);
+  const x = lo => ((lo-W)/(E-W))*w, y = la => ((N-la)/(N-S))*h;
+
+  const maxP = Math.max(1, ...d.population.map(p=>p[2]));
+  const cell = ((d.cell_deg||0.02)/(E-W))*w;
+  // Tiles are drawn a shade larger than their spacing. At fractional pixel
+  // positions adjacent rects leave hairline gaps, and a grid of them reads as
+  // deliberate striping across the city rather than as continuous density.
+  const tile = Math.max(cell, 1) + 0.75;
+  const heat = d.population.slice().sort((a,b)=>a[2]-b[2]).map(p=>
+    '<rect x="'+(x(p[1])-tile/2).toFixed(2)+'" y="'+(y(p[0])-tile/2).toFixed(2)+
+    '" width="'+tile.toFixed(2)+'" height="'+tile.toFixed(2)+
+    '" fill="#2ED3C6" opacity="'+(0.05+Math.pow(p[2]/maxP,0.45)*0.42).toFixed(3)+'"/>').join('');
+
+  const rivalDots = d.rivals.map(r=>
+    '<circle cx="'+x(r.lon).toFixed(1)+'" cy="'+y(r.lat).toFixed(1)+'" r="'+
+    (2.2+Math.min(3.4, Math.sqrt(Math.max(r.sqft,1000)/12000))).toFixed(1)+
+    '" fill="#6B8086" opacity=".85"><title>'+esc(r.chain)+
+    (r.sqft?' · '+r.sqft.toLocaleString()+' sq ft':'')+'</title></circle>').join('');
+
+  const ownDots = d.own.map(o=>
+    '<g><circle cx="'+x(o.lon).toFixed(1)+'" cy="'+y(o.lat).toFixed(1)+
+    '" r="6" fill="none" stroke="#2ED3C6" stroke-width="1.6" opacity=".9"/>'+
+    '<circle cx="'+x(o.lon).toFixed(1)+'" cy="'+y(o.lat).toFixed(1)+
+    '" r="3" fill="#2ED3C6"><title>'+esc(o.name)+'</title></circle></g>').join('');
+
+  const cands = (CANDIDATES||[]).map((c,i)=>
+    '<g><circle cx="'+x(c.lon).toFixed(1)+'" cy="'+y(c.lat).toFixed(1)+
+    '" r="10" fill="none" stroke="#E0A249" stroke-width="1.8"/>'+
+    '<circle cx="'+x(c.lon).toFixed(1)+'" cy="'+y(c.lat).toFixed(1)+
+    '" r="7" fill="#E0A249"/><text x="'+x(c.lon).toFixed(1)+'" y="'+
+    (y(c.lat)+3.2).toFixed(1)+'" text-anchor="middle" font-size="9" font-weight="700"'+
+    ' fill="#0B1012" font-family="var(--mono)">'+(i+1)+'</text>'+
+    '<title>'+esc(c.name)+'</title></g>').join('');
+
+  const chains = {};
+  d.rivals.forEach(r=>{ chains[r.chain] = (chains[r.chain]||0)+1; });
+  const legend = Object.entries(chains).sort((a,b)=>b[1]-a[1])
+    .map(([c,n])=>esc(c)+' '+n).join(' &middot; ');
+
+  el.innerHTML =
+    '<div class="wrap" style="padding:0;overflow:hidden">'+
+      '<svg viewBox="0 0 '+w+' '+h+'" style="display:block;width:100%;height:auto;'+
+      'background:#0B1012" role="img" aria-label="Map of your region: population '+
+      'density, rival shops, your branches and any candidate locations.">'+
+      heat + rivalDots + ownDots + cands + '</svg></div>'+
+    '<p class="hint" style="margin-top:10px">'+
+      '<span style="color:#2ED3C6">&#9679;</span> your branches &nbsp; '+
+      '<span style="color:#6B8086">&#9679;</span> rival shops (size shown to scale) &nbsp; '+
+      '<span style="color:#E0A249">&#9679;</span> candidates &nbsp; '+
+      'the teal wash is where people live.'+
+      '<br>Rivals on the map: '+legend+'</p>'+
+    (d.attribution ? '<p class="hint" style="font-family:var(--mono);font-size:11px">'+
+      esc(d.attribution)+'</p>' : '');
+}
+
+/* ── setup: how a retailer gets from nothing to a first score ── */
+$('#s-template').onclick = async ()=>{
+  try{
+    const t = await j('/api/sites/template');
+    $('#s-csv').value = t.csv;
+    $('#s-import-msg').textContent = 'Add a latitude and longitude to each line, then import.';
+  }catch(e){ $('#s-import-msg').textContent = String(e); }
+};
+
+$('#s-import').onclick = async ()=>{
+  const msg = $('#s-import-msg');
+  msg.textContent = 'Importing…';
+  try{
+    const r = await j('/api/sites/place', {method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({csv: $('#s-csv').value})});
+    if(r.error){ msg.textContent = r.error; return; }
+    let t = 'Placed ' + r.saved + ' store' + (r.saved===1?'':'s') + '.';
+    if(r.errors && r.errors.length){
+      t += '  Rejected ' + r.errors.length + ': ' +
+           r.errors.slice(0,3).map(e=>(e.org_cd||('line '+e.line))+' — '+e.reason).join('; ');
+    }
+    msg.textContent = t;
+    READY = null; await loadReadiness(); await loadMap();
+  }catch(e){ msg.textContent = String(e); }
+};
+
+$('#r-fetch').onclick = async ()=>{
+  const msg = $('#r-msg');
+  const box = ['#r-south','#r-west','#r-north','#r-east'].map(s=>parseFloat($(s).value));
+  if(box.some(v=>!isFinite(v))){ msg.textContent = 'Enter all four edges of your region.'; return; }
+  msg.textContent = 'Fetching — this takes a minute or two the first time.';
+  try{
+    const r = await j('/api/sites/region', {method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({bbox: box, iso3: $('#r-iso').value,
+        brands: $('#r-brands').value.split(',').map(s=>s.trim()).filter(Boolean)})});
+    if(r.error){ msg.textContent = r.error; return; }
+    msg.textContent = Object.entries(r.results||{}).map(([k,v])=>
+      v.error ? (k+': '+v.error) : (k+' '+(v.written||0).toLocaleString())).join('  ·  ');
+    READY = null; await loadReadiness(); await loadMap();
+  }catch(e){ msg.textContent = String(e); }
+};
+
 $('#s-add').onclick = ()=>{
   const lat = parseFloat($('#s-lat').value), lon = parseFloat($('#s-lon').value);
   if(!isFinite(lat) || !isFinite(lon) || Math.abs(lat)>90 || Math.abs(lon)>180){
@@ -375,9 +539,9 @@ $('#s-add').onclick = ()=>{
   CANDIDATES.push({name: $('#s-name').value.trim() || (lat.toFixed(4)+', '+lon.toFixed(4)),
                    lat, lon, size_sqft: parseFloat($('#s-size').value) || 10000});
   $('#s-name').value = ''; $('#s-lat').value = ''; $('#s-lon').value = '';
-  scoreSites();
+  scoreSites(); loadMap();
 };
-$('#s-clear').onclick = ()=>{ CANDIDATES = []; scoreSites(); };
+$('#s-clear').onclick = ()=>{ CANDIDATES = []; scoreSites(); loadMap(); };
 
 function working(el, msg, sub){
   el.innerHTML = '<div class="state"><div class="spin"></div><b>'+esc(msg)+'</b>'+

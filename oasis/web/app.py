@@ -321,6 +321,121 @@ def site_readiness() -> Dict[str, Any]:
         return {"ready": False, "error": str(e)[:200]}
 
 
+@app.get("/api/sites/template")
+def site_placement_template() -> Dict[str, Any]:
+    """A CSV of every store the POS reports, pre-filled with what is placed.
+
+    The retailer fills in the blanks and pastes it back. Typing coordinates one
+    store at a time is fine for five and unusable for thirty — and thirty is
+    roughly where the estate becomes large enough to validate anything.
+    """
+    from oasis.desktop import data as D
+    try:
+        return {"csv": D.store_location_template(_root()), "error": None}
+    except Exception as e:
+        return {"csv": "org_cd,lat,lon,size_sqft", "error": str(e)[:200]}
+
+
+@app.post("/api/sites/place")
+def place_stores(payload: Dict[str, Any]) -> Dict[str, Any]:
+    """Record where the retailer's own stores are. ``{"csv": "..."}``
+
+    Every rejected row comes back with its reason. A silent partial import is
+    how half an estate ends up in the wrong place, and a location saved against
+    a mistyped code leaves the real store reading "needs a location" while a
+    phantom point joins every catchment calculation.
+    """
+    from oasis.desktop import data as D
+    text = str(payload.get("csv") or "")
+    if not text.strip():
+        return {"saved": 0, "errors": [], "error": "Nothing to import."}
+    try:
+        return D.import_store_locations(text, root=_root())
+    except Exception as e:
+        return {"saved": 0, "errors": [], "error": str(e)[:200]}
+
+
+@app.post("/api/sites/region")
+def fetch_region(payload: Dict[str, Any]) -> Dict[str, Any]:
+    """Fetch the public data site selection runs on, for one region.
+
+    ``{"bbox": [south, west, north, east], "brands": [...], "iso3": "KEN"}``
+
+    Competitors and amenities come from OpenStreetMap, population from
+    WorldPop. Nothing is bundled with OASIS: this writes the CLIENT's own copy
+    of public data on the CLIENT's machine, for the CLIENT's region. Each layer
+    reports separately so a rate-limited Overpass does not cost them the
+    population grid.
+    """
+    from oasis.desktop import data as D
+    bbox = payload.get("bbox") or []
+    if len(bbox) != 4:
+        return {"error": "Need four numbers: south, west, north, east."}
+    brands = [str(b).strip() for b in (payload.get("brands") or [])
+              if str(b).strip()]
+    try:
+        return D.fetch_region_data(
+            bbox, brands=brands or None,
+            iso3=str(payload.get("iso3") or "KEN").strip().upper()[:3],
+            root=_root())
+    except Exception as e:
+        return {"error": str(e)[:200]}
+
+
+#: Population is aggregated to this cell size for the map. The scoring grid is
+#: 1 km and 6,900 cells; sending that to a browser to draw is a waste of both.
+_MAP_CELL_DEG = 0.02
+
+
+@app.get("/api/sites/map")
+def site_map() -> Dict[str, Any]:
+    """Everything needed to draw the market: people, rivals, own stores.
+
+    A retailer looking at a ranked table cannot see WHY a site scores as it
+    does. They can see it instantly on a map — which is the point of building
+    the catchment from a population surface rather than from a store count.
+    """
+    from collections import Counter
+
+    from oasis.desktop import data as D
+    out: Dict[str, Any] = {"population": [], "rivals": [], "own": [],
+                           "attribution": None, "error": None}
+    try:
+        comps = D.competitor_set(_root())
+        own_names = [n.lower() for n in
+                     (comps.get("own_chain") or [])]
+        for r in comps.get("rows") or []:
+            try:
+                out["rivals"].append({
+                    "lat": round(float(r["Latitude"]), 4),
+                    "lon": round(float(r["Longitude"]), 4),
+                    "chain": str(r.get("Chain") or ""),
+                    "sqft": int(float(r.get("size_sqft") or 0))})
+            except (KeyError, TypeError, ValueError):
+                continue
+        out["attribution"] = comps.get("attribution")
+        out["own_chain"] = own_names
+
+        placed = D.store_map(_root())
+        out["own"] = [{"lat": round(s["lat"], 4), "lon": round(s["lon"], 4),
+                       "name": s.get("name") or s["org_cd"],
+                       "sqft": int(s.get("size_sqft") or 0)}
+                      for s in (placed.get("located") or [])]
+
+        grid = (D.population_set(_root()) or {}).get("grid")
+        if grid:
+            agg = Counter()
+            for la, lo, p in grid.cells:
+                agg[(round(la / _MAP_CELL_DEG) * _MAP_CELL_DEG,
+                     round(lo / _MAP_CELL_DEG) * _MAP_CELL_DEG)] += p
+            out["population"] = [[round(k[0], 3), round(k[1], 3), int(v)]
+                                 for k, v in agg.items() if v > 250]
+            out["cell_deg"] = _MAP_CELL_DEG
+    except Exception as e:
+        out["error"] = str(e)[:200]
+    return out
+
+
 @app.post("/api/sites/score")
 def score_candidate_sites(payload: Dict[str, Any]) -> Dict[str, Any]:
     """Score candidate locations against the estate and the competition.

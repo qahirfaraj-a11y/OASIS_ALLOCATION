@@ -908,3 +908,44 @@ class TestTheClientFacingWebSurface:
                ).read_text(encoding="utf-8", errors="replace")
         assert '"web"' in src, "no argparse choice for the web console"
         assert 'mode == "web"' in src, "no dispatch branch for the web console"
+
+    def test_a_retailer_can_get_from_nothing_to_ready_in_the_browser(self):
+        """The zero-to-value path must exist on the surface the client uses.
+        Placing stores and fetching the region were desktop-only, so a client
+        on the web console saw 'not ready' with no way to become ready."""
+        c = self._client()
+        assert c.get("/api/sites/template").status_code == 200
+        for route in ("/api/sites/place", "/api/sites/region"):
+            r = c.post(route, json={})
+            assert r.status_code == 200, route
+            assert r.json().get("error"), route + " should refuse an empty body"
+
+    def test_placing_stores_reports_what_it_refused(self):
+        c = self._client()
+        r = c.post("/api/sites/place", json={"csv": "org_cd,lat,lon\nX,abc,36.8\n"})
+        body = r.json()
+        assert body["saved"] == 0
+        assert body["errors"], "a rejected row must come back with its reason"
+
+    def test_the_region_fetch_validates_before_reaching_the_network(self):
+        c = self._client()
+        assert "four numbers" in c.post("/api/sites/region",
+                                        json={"bbox": [1, 2]}).json()["error"]
+
+    def test_the_map_carries_people_rivals_and_own_stores(self):
+        r = self._client().get("/api/sites/map")
+        assert r.status_code == 200
+        body = r.json()
+        for key in ("population", "rivals", "own", "attribution"):
+            assert key in body
+        # Whatever is drawn must be attributable: the map is a Produced Work
+        # from OSM data and carries the licence obligation with it.
+        if body["rivals"]:
+            assert body["attribution"]
+
+    def test_the_map_is_small_enough_to_draw(self):
+        """The scoring grid is 1 km and ~6,900 cells. Sending that to a browser
+        to paint is a waste of both ends, so the map aggregates."""
+        import json as _json
+        body = self._client().get("/api/sites/map").json()
+        assert len(_json.dumps(body)) < 400_000
