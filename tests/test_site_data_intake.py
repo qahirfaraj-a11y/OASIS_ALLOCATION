@@ -835,3 +835,76 @@ class TestBetaIsReportedAsARange:
         a = SC.propose_capital(10.0, 10_000, cal, val, captured_population=4000)
         b = SC.propose_capital(30.0, 10_000, cal, val, captured_population=9000)
         assert a["expected_revenue"] == b["expected_revenue"]
+
+
+class TestTheClientFacingWebSurface:
+    """Site selection reaches a retailer through the same web console that
+    already carries orders and transfers — one implementation of the
+    intelligence, three front doors, not three implementations."""
+
+    def _client(self):
+        from fastapi.testclient import TestClient
+        from oasis.web.app import app
+        return TestClient(app)
+
+    def test_readiness_reports_every_input_separately(self):
+        r = self._client().get("/api/sites/readiness")
+        assert r.status_code == 200
+        body = r.json()
+        for key in ("stores_placed", "competitors", "population_cells",
+                    "amenities", "ready"):
+            assert key in body
+
+    def test_scoring_refuses_an_empty_request(self):
+        r = self._client().post("/api/sites/score", json={"candidates": []})
+        assert r.status_code == 200
+        assert r.json()["sites"] == []
+        assert "No candidate" in r.json()["error"]
+
+    def test_nonsense_coordinates_are_dropped_not_scored(self):
+        r = self._client().post("/api/sites/score", json={"candidates": [
+            {"name": "off the planet", "lat": 999, "lon": 36.8},
+            {"name": "not a number", "lat": "abc", "lon": 36.8},
+        ]})
+        assert r.json()["sites"] == []
+        assert "usable coordinates" in r.json()["error"]
+
+    def test_a_request_cannot_ask_for_unbounded_work(self):
+        """25 is the cap: this endpoint runs the full catchment integral per
+        candidate per exponent, and an unbounded list is a way to hang the
+        console from a browser tab."""
+        many = [{"lat": -1.28, "lon": 36.8 + i * 0.001} for i in range(200)]
+        r = self._client().post("/api/sites/score", json={"candidates": many})
+        sites = r.json().get("sites") or []
+        assert len(sites) <= 25
+
+    def test_the_page_offers_site_selection_alongside_the_other_two(self):
+        import pathlib
+        html = (pathlib.Path(__file__).parent.parent / "oasis" / "web" /
+                "static" / "index.html").read_text(encoding="utf-8")
+        assert 'id="t-sites"' in html and 'id="panel-sites"' in html
+        # The band is not an optional footnote: a client-facing figure that
+        # quotes a point estimate for an unfitted model is the whole problem.
+        assert "captured_population_low" in html
+        assert "rank_best" in html
+
+    def test_the_web_console_actually_ships(self):
+        """A client-facing surface that is not in the client zip is not
+        client-facing. entrypoint.py ships and carries a "web" mode that
+        dispatches into oasis.web.app — with the package absent, a client
+        running the documented command got ModuleNotFoundError. This is the
+        same default-deny hole that silently dropped the whole desktop app."""
+        from oasis.logic.release_packager import should_ship_clean
+        for f in ("oasis/web/app.py", "oasis/web/jobs.py",
+                  "oasis/web/static/index.html"):
+            ok, why = should_ship_clean(f)
+            assert ok, f"{f} does not reach a client: {why}"
+
+    def test_the_mode_that_serves_it_is_reachable(self):
+        """A mode needs BOTH a dispatch branch and an argparse choices entry;
+        this repo has lost modes to each of those separately."""
+        import pathlib
+        src = (pathlib.Path(__file__).parent.parent / "entrypoint.py"
+               ).read_text(encoding="utf-8", errors="replace")
+        assert '"web"' in src, "no argparse choice for the web console"
+        assert 'mode == "web"' in src, "no dispatch branch for the web console"

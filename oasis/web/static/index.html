@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>OASIS — Orders &amp; Transfers</title>
+<title>OASIS — Orders, Transfers &amp; Sites</title>
 <style>
   :root{
     --bg:#0B1012; --panel:#121A1D; --panel2:#182226; --line:#222F34;
@@ -157,6 +157,7 @@
   <div class="tabs" role="tablist">
     <button class="tab" id="t-orders" role="tab" aria-selected="true">ORDERS</button>
     <button class="tab" id="t-transfers" role="tab" aria-selected="false">TRANSFERS</button>
+    <button class="tab" id="t-sites" role="tab" aria-selected="false">SITE SELECTION</button>
   </div>
 
   <section id="panel-orders">
@@ -167,6 +168,20 @@
   <section id="panel-transfers" class="hide">
     <div id="tr-stats"></div>
     <div id="tr-body"><div class="state"><b>Not scanned yet</b>Open this tab to scan the network.</div></div>
+  </section>
+
+  <section id="panel-sites" class="hide">
+    <div id="sites-ready"></div>
+    <div class="controls" style="margin-top:14px">
+      <input id="s-name" type="search" placeholder="Name this location (optional)" style="min-width:190px;flex:0">
+      <input id="s-lat" type="search" placeholder="Latitude" style="min-width:120px;flex:0">
+      <input id="s-lon" type="search" placeholder="Longitude" style="min-width:120px;flex:0">
+      <input id="s-size" type="search" placeholder="Sq ft" value="10000" style="min-width:95px;flex:0">
+      <button class="btn" id="s-add">Score this location</button>
+      <button class="btn ghost" id="s-clear">Clear</button>
+    </div>
+    <p class="hint" id="s-hint">Coordinates come from any map &mdash; right-click a spot in Google Maps and copy the pair.</p>
+    <div id="sites-body"><div class="state"><b>Nothing scored yet</b>Add a location above.</div></div>
   </section>
 </main>
 
@@ -222,15 +237,147 @@ function pick(site, btn){
 
 function show(tab){
   TAB = tab;
-  $('#t-orders').setAttribute('aria-selected', tab==='orders');
-  $('#t-transfers').setAttribute('aria-selected', tab==='transfers');
-  $('#panel-orders').classList.toggle('hide', tab!=='orders');
-  $('#panel-transfers').classList.toggle('hide', tab!=='transfers');
+  ['orders','transfers','sites'].forEach(t=>{
+    $('#t-'+t).setAttribute('aria-selected', tab===t);
+    $('#panel-'+t).classList.toggle('hide', tab!==t);
+  });
   if(tab==='orders' && SITE && !ORDERS) loadOrders();
   if(tab==='transfers' && !TRANSFERS) loadTransfers();
+  if(tab==='sites' && !READY) loadReadiness();
 }
 $('#t-orders').onclick = ()=>show('orders');
 $('#t-transfers').onclick = ()=>show('transfers');
+$('#t-sites').onclick = ()=>show('sites');
+
+/* ── SITE SELECTION ──────────────────────────────────────────────────────
+   Every figure here is a RANGE. The catchment maths turns on how far people
+   will travel past one shop to reach another, and that has never been
+   measured for this chain — so the ordering is reported as a finding and the
+   magnitude is reported as a span. The page says which is which rather than
+   printing one number and hoping. */
+let READY = null, CANDIDATES = [];
+
+async function loadReadiness(){
+  const el = $('#sites-ready');
+  el.innerHTML = '<div class="state"><div class="spin"></div><b>Checking your data</b></div>';
+  try { READY = await j('/api/sites/readiness'); }
+  catch(e){ el.innerHTML = '<div class="state err"><b>Could not check</b>'+esc(String(e))+'</div>'; return; }
+  const r = READY;
+  const row = (label, n, ok, unit) =>
+    '<div class="stat"><div class="k">'+label+'</div><div class="v sm">'+
+    (ok ? Number(n).toLocaleString()+' <span style="font-size:11.5px;color:var(--ink3)">'+unit+'</span>'
+        : '<span style="color:var(--warn)">none yet</span>')+'</div></div>';
+  el.innerHTML =
+    '<div class="stats">'+
+      row('Your stores placed', r.stores_placed, r.stores_placed>0, 'of your estate')+
+      row('Competitors', r.competitors, r.competitors>0, 'rival shops')+
+      row('People', Math.round(r.population_people||0), r.population_cells>0, 'in the region')+
+      row('Local amenities', r.amenities, r.amenities>0, 'points')+
+    '</div>'+
+    (r.ready ? '' :
+      '<div class="state err" style="padding:16px;text-align:left"><b>Not ready to score</b>'+
+      'Site selection needs your stores placed on the map and the competitor set '+
+      'loaded for your region. Without competitors every location scores as '+
+      'uncontested, which reads like an opportunity and is really a gap in the data.</div>')+
+    (r.stores_orphaned && !r.stores_placed ?
+      '<div class="state err" style="padding:16px;text-align:left"><b>Check the connection</b>'+
+      esc(r.stores_orphaned)+' location(s) are saved but match no store in your POS. '+
+      'This is not a placement problem.</div>' : '')+
+    (r.competitors && r.competitors_unsized ?
+      '<p class="hint">'+esc(r.competitors_unsized)+' rival shops have no floor area on '+
+      'record and are assumed mid-size. A shop\'s pull is proportional to its size, so '+
+      'telling us roughly how big each chain is will sharpen every figure below.</p>' : '');
+}
+
+function siteRow(s){
+  const c = s.capital || {};
+  const band = (lo, hi, fmt) => (lo==null||hi==null) ? '' :
+    '<span class="sub">'+fmt(lo)+' &ndash; '+fmt(hi)+'</span>';
+  const num = n => Number(n||0).toLocaleString(undefined,{maximumFractionDigits:0});
+  const rank = (s.rank_best==null) ? '&mdash;'
+    : (s.rank_best===s.rank_worst ? s.rank_best : s.rank_best+'&ndash;'+s.rank_worst);
+  const capital = c.opening_capital==null ? '&mdash;' : 'KES '+num(c.opening_capital);
+  return '<tr>'+
+    '<td class="prod">'+esc(s.name)+
+      // Only show the coordinates under the name when the name is not itself
+      // the coordinates, which it is whenever the operator did not type one.
+      (s.name.indexOf(s.lat.toFixed(4)) === 0 ? '' :
+        '<span class="sub">'+s.lat.toFixed(4)+', '+s.lon.toFixed(4)+'</span>')+'</td>'+
+    '<td class="num">'+num(s.captured_population)+
+      band(s.captured_population_low, s.captured_population_high, num)+'</td>'+
+    '<td class="num">'+rank+'<span class="sub">'+
+      (s.rank_stable ? 'holds' : 'moves')+'</span></td>'+
+    '<td class="num">'+(s.adjusted_capture_pct||0).toFixed(1)+'%</td>'+
+    '<td class="num">'+(s.cannibalisation_pct||0).toFixed(0)+'%</td>'+
+    '<td class="num">'+(s.competitors_within_2km||0)+'</td>'+
+    '<td>'+capital+'<span class="sub">'+esc(
+        c.basis==='insufficient-data' ? 'not enough data' :
+        c.basis==='estate-productivity' ? 'from your sales per sq ft' :
+        c.basis==='population-calibrated' ? 'from people and your spend per head' :
+        c.basis==='affluence-calibrated' ? 'from this catchment\'s spend' :
+        'from your own trading')+'</span></td>'+
+    '<td><span class="why">'+esc(s.verdict||'')+'</span></td>'+
+  '</tr>';
+}
+
+async function scoreSites(){
+  const body = $('#sites-body');
+  if(!CANDIDATES.length){
+    body.innerHTML = '<div class="state"><b>Nothing scored yet</b>Add a location above.</div>';
+    return;
+  }
+  working(body, 'Scoring '+CANDIDATES.length+' location'+(CANDIDATES.length>1?'s':''),
+          'against your estate and every rival in reach');
+  let res;
+  try { res = await j('/api/sites/score', {method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({candidates: CANDIDATES})}); }
+  catch(e){ body.innerHTML = '<div class="state err"><b>Could not score</b>'+esc(String(e))+'</div>'; return; }
+  if(res.error || !res.sites || !res.sites.length){
+    body.innerHTML = '<div class="state err"><b>Could not score</b>'+
+      esc(res.error || 'No result came back.')+'</div>';
+    return;
+  }
+  const v = res.validation || {};
+  const earned = v.validated;
+  body.innerHTML =
+    '<div class="wrap"><table><thead><tr>'+
+      '<th>Location</th><th class="num">People won</th><th class="num">Rank</th>'+
+      '<th class="num">Share</th><th class="num">From your own</th>'+
+      '<th class="num">Rivals &lt;2km</th><th>Opening stock</th><th>Read</th>'+
+    '</tr></thead><tbody>'+res.sites.map(siteRow).join('')+'</tbody></table></div>'+
+    '<p class="hint" style="margin-top:14px">'+
+      'Scored against '+esc(res.own_stores)+' of your stores and '+esc(res.competitors)+
+      ' rival shops. <b style="color:var(--ink2)">The smaller figures are ranges.</b> '+
+      'How far shoppers will travel past one shop to reach another has never been '+
+      'measured for your chain, and it moves the size of the prize by about half again. '+
+      'It barely moves the ORDER, so which locations are better is a finding; what each '+
+      'one is worth is a span.'+
+    '</p>'+
+    (earned ? '' :
+      '<p class="hint" style="color:var(--warn)">Opening stock above comes from your own '+
+      'sales per square foot rather than from the location, because on your current '+
+      'estate the geography does not yet predict your branch revenues better than floor '+
+      'area alone does. More branches, or the dates when rivals opened near you, would '+
+      'settle that.</p>')+
+    ((res.attribution) ? '<p class="hint" style="font-family:var(--mono);font-size:11px">'+
+      esc(res.attribution)+'</p>' : '');
+}
+
+$('#s-add').onclick = ()=>{
+  const lat = parseFloat($('#s-lat').value), lon = parseFloat($('#s-lon').value);
+  if(!isFinite(lat) || !isFinite(lon) || Math.abs(lat)>90 || Math.abs(lon)>180){
+    $('#s-hint').textContent = 'Enter a valid latitude and longitude.';
+    $('#s-hint').style.color = 'var(--bad)'; return;
+  }
+  $('#s-hint').style.color = '';
+  $('#s-hint').innerHTML = 'Coordinates come from any map &mdash; right-click a spot in Google Maps and copy the pair.';
+  CANDIDATES.push({name: $('#s-name').value.trim() || (lat.toFixed(4)+', '+lon.toFixed(4)),
+                   lat, lon, size_sqft: parseFloat($('#s-size').value) || 10000});
+  $('#s-name').value = ''; $('#s-lat').value = ''; $('#s-lon').value = '';
+  scoreSites();
+};
+$('#s-clear').onclick = ()=>{ CANDIDATES = []; scoreSites(); };
 
 function working(el, msg, sub){
   el.innerHTML = '<div class="state"><div class="spin"></div><b>'+esc(msg)+'</b>'+

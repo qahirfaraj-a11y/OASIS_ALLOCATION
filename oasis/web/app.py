@@ -304,6 +304,62 @@ def _build_transfers() -> Dict[str, Any]:
 
 
 # ── jobs ─────────────────────────────────────────────────────────────────
+@app.get("/api/sites/readiness")
+def site_readiness() -> Dict[str, Any]:
+    """What site selection has to work with, and what it is missing.
+
+    Four inputs: the client's own placed stores, the competitor matrix, the
+    population grid, the amenity extract. Reported before any score, because
+    every one of them fails QUIETLY — with no competitor file every candidate
+    scores as uncontested rather than as unknown, which reads like an
+    opportunity instead of a gap in the data.
+    """
+    from oasis.desktop import data as D
+    try:
+        return D.region_data_status(_root())
+    except Exception as e:
+        return {"ready": False, "error": str(e)[:200]}
+
+
+@app.post("/api/sites/score")
+def score_candidate_sites(payload: Dict[str, Any]) -> Dict[str, Any]:
+    """Score candidate locations against the estate and the competition.
+
+    ``{"candidates": [{"name", "lat", "lon", "size_sqft"}, ...]}``
+
+    Returns each site with its RANGE, not a point estimate. The distance-decay
+    exponent behind the catchment maths has never been fitted — fitting it
+    against this client's own store revenues runs to the degenerate case where
+    distance is ignored — so a single number would imply a precision the model
+    does not have. What survives the range is the ordering; what does not is
+    the magnitude, and both are returned so a caller cannot quote one without
+    the other.
+    """
+    from oasis.desktop import data as D
+    cands = payload.get("candidates") or []
+    if not cands:
+        return {"sites": [], "error": "No candidate locations supplied."}
+    clean = []
+    for c in cands[:25]:
+        try:
+            lat, lon = float(c.get("lat")), float(c.get("lon"))
+        except (TypeError, ValueError):
+            continue
+        if abs(lat) > 90 or abs(lon) > 180:
+            continue
+        clean.append({"name": str(c.get("name") or "")[:60]
+                      or f"{lat:.4f}, {lon:.4f}",
+                      "lat": lat, "lon": lon,
+                      "size_sqft": max(100.0, float(c.get("size_sqft")
+                                                    or 10_000.0))})
+    if not clean:
+        return {"sites": [], "error": "No usable coordinates in that request."}
+    try:
+        return D.score_sites(clean, root=_root())
+    except Exception as e:
+        return {"sites": [], "error": str(e)[:200]}
+
+
 @app.post("/api/jobs/orders/{org_cd}")
 def start_orders(org_cd: str) -> Dict[str, Any]:
     """Kick off an engine run and hand back a job id to poll.

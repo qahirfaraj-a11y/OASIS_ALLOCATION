@@ -129,6 +129,14 @@ _OASIS_WHITELIST_SUBPKGS = {
     # BLACKLIST-mode function, not the one build_release actually calls in
     # clean mode — still answered "ok". Verify packaging with should_ship_clean.
     "desktop/",
+    # The browser console — orders, transfers and site selection behind a URL
+    # with nothing to install. EXACTLY the hole oasis/desktop had, and found
+    # the same way: entrypoint.py ships, it carries a "web" mode, --mode web
+    # dispatches into run_web -> oasis.web.app, and oasis/web was absent from
+    # every client zip. A client running the documented command got
+    # ModuleNotFoundError. Default-deny means a package that is not named here
+    # does not ship however plainly it is meant to.
+    "web/",
 }
 
 #: exact files from oasis/data that ship (schema code + shipped defaults, never data)
