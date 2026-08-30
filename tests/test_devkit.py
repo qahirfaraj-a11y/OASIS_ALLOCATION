@@ -232,3 +232,63 @@ class TestGridSimulation:
         assert p[50] == 50.0
         assert p[5] < p[25] < p[50] < p[75] < p[95]
         assert sim.percentiles([]) == {}
+
+
+class TestWhitespace:
+    """Two corrections are encoded here, both found by running the tool.
+
+    The first ranking was by demand/supply, which is unbounded: as supply
+    tends to zero the ratio tends to infinity, so the top twenty filled with
+    places that had one distant store. The second was that the sweep ran to
+    the edge of the region the competitor matrix was fetched for, so a site
+    near the boundary had half its catchment un-surveyed and read as
+    whitespace — the edge of the download, not the edge of the market.
+    """
+
+    def _ws(self):
+        sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..',
+                                        'devkit'))
+        import whitespace
+        return whitespace
+
+    def test_the_sweep_is_inset_by_a_full_catchment(self):
+        ws = self._ws()
+        assert abs(ws._EDGE_DEG - ws.CATCHMENT_KM / 111.0) < 1e-9
+        # a full catchment of latitude, so nothing scored can see past the edge
+        assert ws._EDGE_DEG * 111.0 >= ws.CATCHMENT_KM
+
+    def test_supply_decays_with_distance(self):
+        ws = self._ws()
+        near, _, _, _ = ws.supply_at(-1.28, 36.80,
+                                     [(-1.29, 36.80, 10_000.0, "A")])
+        far, _, _, _ = ws.supply_at(-1.28, 36.80,
+                                    [(-1.35, 36.80, 10_000.0, "A")])
+        assert near > far * 4, "1/d^2 decay is not being applied"
+
+    def test_a_store_beyond_the_catchment_adds_no_supply(self):
+        ws = self._ws()
+        supply, nearest, chain, within = ws.supply_at(
+            -1.28, 36.80, [(-1.60, 37.20, 10_000.0, "Far")])
+        assert supply == 0.0 and within == 0
+        assert nearest > ws.CATCHMENT_KM and chain == "Far"
+
+    def test_a_candidate_on_top_of_a_store_does_not_divide_by_zero(self):
+        ws = self._ws()
+        supply, _, _, _ = ws.supply_at(-1.28, 36.80,
+                                       [(-1.28, 36.80, 10_000.0, "A")])
+        assert supply > 0 and supply < float("inf")
+
+    def test_dedupe_keeps_the_best_and_drops_its_neighbours(self):
+        ws = self._ws()
+        rows = [{"lat": -1.280, "lon": 36.800, "winnable": 100},
+                {"lat": -1.281, "lon": 36.801, "winnable": 99},   # ~0.15 km
+                {"lat": -1.350, "lon": 36.800, "winnable": 50}]   # ~7.8 km
+        kept = ws.dedupe(rows, separation_km=3.0, top=10)
+        assert [r["winnable"] for r in kept] == [100, 50], \
+            "adjacent cells are one opportunity, not two findings"
+
+    def test_dedupe_respects_the_requested_count(self):
+        ws = self._ws()
+        rows = [{"lat": -1.28 + i * 0.1, "lon": 36.80, "winnable": 100 - i}
+                for i in range(10)]
+        assert len(ws.dedupe(rows, 3.0, top=4)) == 4
