@@ -528,6 +528,12 @@ DEFAULT_COMPETITOR_BRANDS = ("Naivas", "Quickmart", "Carrefour", "Cleanshelf",
                              "Eastmatt", "Magunas")
 
 
+#: Mirrored rather than imported at module level so this module stays free of
+#: an import-time dependency on the logic layer. Checked against the real
+#: constant by test_site_capital, so the two cannot drift apart silently.
+_MIN_CALIBRATION_STORES = 4
+
+
 def region_data_status(root: Optional[str] = None) -> Dict[str, Any]:
     """What the three open-data layers hold on this install, and what is missing.
 
@@ -566,8 +572,22 @@ def region_data_status(root: Optional[str] = None) -> Dict[str, Any]:
         "population_error": pop.get("error"),
         "amenities": aff.get("rows", 0),
         "amenity_error": aff.get("error"),
+        # Ready to SCORE: a ranking of candidates against the estate and the
+        # competition. This has always been what `ready` meant.
         "ready": bool((placed.get("located") or []) and
                       (comps.get("rows") or []) and pop.get("rows")),
+        # Ready for a BUDGET, which is a higher bar and was never reported.
+        #
+        # The capital chain cross-validates on the estate and needs
+        # MIN_CALIBRATION_STORES to do it. Readiness did not know that, and the
+        # console folds its setup panel away on `ready` — so a retailer with one
+        # or two stores completed every step, was told they were ready, scored a
+        # site, and only then found out no budget was coming. Tell them at the
+        # top of the funnel what they are going to get.
+        "stores_for_capital": _MIN_CALIBRATION_STORES,
+        "ready_for_capital": len(placed.get("located") or []) >= _MIN_CALIBRATION_STORES,
+        "capital_shortfall": max(0, _MIN_CALIBRATION_STORES
+                                 - len(placed.get("located") or [])),
     }
 
 
@@ -734,7 +754,7 @@ def score_sites(candidates: List[Dict[str, Any]],
     """
     try:
         from oasis.logic import site_capital as SC
-        from oasis.logic.site_scoring import rank_sites, score_site
+        from oasis.logic.site_scoring import build_field, score_site
         placed = store_map(root)
         if placed.get("error"):
             return {"sites": [], "error": placed["error"]}
@@ -757,10 +777,6 @@ def score_sites(candidates: List[Dict[str, Any]],
         grid = pop.get("grid")
         grid = grid if grid else None
 
-        ranked = rank_sites(candidates, placed["located"],
-                            comps.get("rows") or [], size_sqft=size_sqft,
-                            population=grid)
-
         cal, val = calib["calibration"], calib["validation"]
         own, rivals = placed["located"], (comps.get("rows") or [])
         agrid = (calib.get("affluence") or {}).get("grid")
@@ -770,24 +786,32 @@ def score_sites(candidates: List[Dict[str, Any]],
         # size — fitted against real store revenues it runs monotone to zero —
         # so every figure carries the width that ignorance implies, and the
         # ranking carries how far each site travels across the range.
-        from oasis.logic.site_scoring import BETA_RANGE, rank_band, score_band
-        band_rows = rank_band(candidates, own, rivals, population=grid)
-        bands = {(round(r["lat"], 5), round(r["lon"], 5)): r for r in band_rows}
+        # ONE beta sweep, used for both the rank and the band. It used to be
+        # two: rank_band scored every candidate at every exponent and kept only
+        # the ranking, then score_band scored the same points at the same
+        # exponents again to get the width. Same numbers, twice the work, and
+        # two copies of the summarising arithmetic that could drift apart.
+        from oasis.logic.site_scoring import (BETA_RANGE, rank_band,
+                                              recommend_format)
+        # rank_band's central run IS the score rank_sites used to produce
+        # separately: same location, same floor area, same friction, beta 2.0.
+        # Calling both scored every candidate a third time for nothing.
+        ranked = rank_band(candidates, own, rivals, size_sqft=size_sqft,
+                           population=grid)
+        # Ordering unchanged: people first where they are known, share
+        # otherwise. rank_band sorts by rank, which is nearly but not exactly
+        # the same, and the displayed order should not move under a refactor.
+        if any(s.get("captured_population") is not None for s in ranked):
+            ranked.sort(key=lambda s: -(s.get("captured_population") or 0.0))
+        else:
+            ranked.sort(key=lambda s: -s["adjusted_capture_pct"])
 
         for s in ranked:
-            b = bands.get((round(s["lat"], 5), round(s["lon"], 5)))
-            if b:
-                s["rank_best"], s["rank_worst"] = b["rank_best"], b["rank_worst"]
-                s["rank_stable"] = b["rank_stable"]
-            wide = score_band(s["lat"], s["lon"], own, rivals,
-                              size_sqft=s["size_sqft"], population=grid)
-            for k in ("adjusted_capture_pct", "captured_population",
-                      "cannibalisation_pct"):
-                s[k + "_low"] = wide.get(k + "_low")
-                s[k + "_high"] = wide.get(k + "_high")
-            s["beta_sensitive"] = wide.get("beta_sensitive")
-            s["beta_span_ratio"] = wide.get("beta_span_ratio")
             s["betas"] = list(BETA_RANGE)
+            # Superseded and never shown — see site_scoring.recommend_format —
+            # but kept in the payload so the API shape does not change.
+            s["format"] = ("Unknown — no catchment context" if s["isolated"]
+                           else recommend_format(s["adjusted_capture_pct"]))
             s["affluence"] = (agrid.index_at(s["lat"], s["lon"], grid)
                               if (agrid and grid) else None)
             s["capital"] = SC.propose_capital(
@@ -828,10 +852,18 @@ def score_sites(candidates: List[Dict[str, Any]],
             else:
                 # Hands the sweep the WHOLE score, so a rung can be priced on
                 # captured people rather than share where a grid is loaded.
+                #
+                # ONE field for the whole ladder. Only the candidate's own pull
+                # changes between rungs; the competitive denominator at every
+                # population cell is identical, and it is essentially the entire
+                # cost of a score. Measured: 366 ms for the six rungs, 61 ms
+                # sharing the field.
+                fld = build_field(s["lat"], s["lon"], own, rivals,
+                                  population=grid)
                 s["size_recommendation"] = SC.recommend_size(
-                    (lambda lat, lon: (lambda sz: score_site(
+                    (lambda lat, lon, f: (lambda sz: score_site(
                         lat, lon, own, rivals, size_sqft=sz,
-                        population=grid)))(s["lat"], s["lon"]),
+                        population=grid, field=f)))(s["lat"], s["lon"], fld),
                     cal, val)
 
         return {"sites": ranked, "own_stores": len(placed["located"]),

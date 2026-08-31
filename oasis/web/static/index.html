@@ -360,7 +360,21 @@ async function loadReadiness(){
       'Check it against what you know and correct it below'+
       (r.competitor_corrections ? ' (you have made '+esc(r.competitor_corrections)+
         ' correction'+(r.competitor_corrections===1?'':'s')+' so far)' : '')+
-      '.</p>' : '');
+      '.</p>' : '')+
+    // Say it BEFORE they do the work, not after. Scoring needs one placed
+    // store; a budget needs enough of an estate to cross-validate on. A
+    // retailer with two shops used to complete every step, be told they were
+    // ready, score a site, and only then meet the footnote explaining that no
+    // capital figure was coming.
+    ((r.ready && !r.ready_for_capital) ?
+      '<div class="state" style="padding:16px;text-align:left;border-color:var(--warn)">'+
+      '<b>You will get a ranking, not a budget</b>'+
+      'Proposing opening capital means checking the model against stores that '+
+      'already trade, and that needs at least '+esc(r.stores_for_capital)+
+      ' placed stores with recorded sales &mdash; you have '+esc(r.stores_placed)+
+      '. Place '+esc(r.capital_shortfall)+' more and the capital figures turn on '+
+      'by themselves. Until then every site below is still ranked and compared '+
+      'properly; only the money column is withheld.</div>' : '');
 
   // The setup panel stays open until every input is in place, then folds away
   // so a returning operator is not walked through it again.
@@ -418,6 +432,7 @@ async function scoreSites(){
     return;
   }
   const v = res.validation || {};
+  const cal = res.calibration || {};
   const earned = v.validated;
   body.innerHTML =
     '<div class="wrap"><table><thead><tr>'+
@@ -436,9 +451,23 @@ async function scoreSites(){
     (earned ? '' :
       '<p class="hint" style="color:var(--warn)">Opening stock above comes from your own '+
       'sales per square foot rather than from the location, because on your current '+
-      'estate the geography does not yet predict your branch revenues better than floor '+
-      'area alone does. More branches, or the dates when rivals opened near you, would '+
-      'settle that.</p>')+
+      'estate '+esc(v.reason || 'the geography does not yet predict your branch revenues '+
+      'better than floor area alone does')+'. More branches, or the dates when rivals '+
+      'opened near you, would settle that.</p>')+
+    // A win the sign test cannot separate from a coin flip is still a win, but
+    // the operator is spending money on it and must see how thin it is.
+    ((earned && v.provisional) ?
+      '<p class="hint" style="color:var(--warn)">The location did beat the simpler '+
+      'predictors here, but only just: '+esc(v.confidence_note || '')+'. Treat the opening '+
+      'stock figures as indicative until you have more branches trading.</p>' : '')+
+    // Never show a calibration count without the stores it left out. A store
+    // that dropped below the capture floor is usually a mis-typed coordinate,
+    // and only the operator can tell.
+    (((cal.stores_skipped||[]).length) ?
+      '<p class="hint" style="color:var(--warn)">Calibrated on '+esc(cal.n)+' of your '+
+      esc(cal.considered)+' stores. Left out: '+
+      cal.stores_skipped.map(s=>esc(s.org_cd)+' &mdash; '+esc(s.detail)).join('; ')+
+      '</p>' : '')+
     ((res.attribution) ? '<p class="hint" style="font-family:var(--mono);font-size:11px">'+
       esc(res.attribution)+'</p>' : '');
 }

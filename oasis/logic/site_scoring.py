@@ -230,6 +230,180 @@ def quadrature(lat: float, lon: float, catchment_km: float = CATCHMENT_KM,
     return pts, [1.0] * len(pts)
 
 
+class CatchmentField:
+    """Everything about a location that does NOT depend on the store you put
+    there: the demand cells, and the incumbent utility acting on each one.
+
+    Huff's numerator changes with the candidate's floor area; the denominator's
+    existing terms do not. Measured, that denominator is essentially the entire
+    cost of a score — 373 population cells against 99 stores is ~37,000
+    haversines, and with rivals removed the same call rounds to zero.
+    ``score_sites`` was recomputing it fifteen times per candidate: once to
+    rank, four times for each of two beta sweeps, and six more for the size
+    ladder, where the incumbent term is bit-identical at every rung.
+
+    So it is computed once per (location, beta) and handed to every score that
+    shares it. Nothing about the arithmetic changes — the per-cell utilities are
+    the same values in the same summation order — only how often it happens.
+    """
+
+    __slots__ = ("lat", "lon", "beta", "catchment_km", "cells",
+                 "catchment_population", "own_in_catchment",
+                 "competitors_within_direct", "nearest_own_km",
+                 "nearest_competitor_km", "has_population", "any_stores")
+
+    def __init__(self, lat, lon, beta, catchment_km):
+        self.lat, self.lon = lat, lon
+        self.beta, self.catchment_km = beta, catchment_km
+        #: (inv_distance_to_site**-beta, people, u_own, u_competitor) per cell.
+        self.cells: List[tuple] = []
+        self.catchment_population = None
+        self.own_in_catchment = 0
+        self.competitors_within_direct = 0
+        self.nearest_own_km = None
+        self.nearest_competitor_km = None
+        self.has_population = False
+        self.any_stores = False
+
+
+class CatchmentGeometry:
+    """Distances from a location to its demand cells and to every store in
+    reach — the part that does not depend on beta EITHER.
+
+    Huff's exponent changes how a distance is weighted, never what it is. The
+    beta sweep was rebuilding the whole distance matrix four times per
+    candidate, and the haversine is the expensive operation in this module:
+    two sines, two cosines, a square root and an arcsine, ~37,000 times per
+    score. Raising an already-computed distance to a different power is not
+    remotely comparable work.
+    """
+
+    __slots__ = ("lat", "lon", "catchment_km", "cells", "own_a", "comp_a",
+                 "catchment_population", "own_in_catchment",
+                 "competitors_within_direct", "nearest_own_km",
+                 "nearest_competitor_km", "has_population", "any_stores")
+
+    def __init__(self, lat, lon, catchment_km):
+        self.lat, self.lon, self.catchment_km = lat, lon, catchment_km
+        #: (distance_to_site_km, people, [own distances], [rival distances])
+        self.cells: List[tuple] = []
+        #: Attractiveness of each own store / rival, in the same order.
+        self.own_a: List[float] = []
+        self.comp_a: List[float] = []
+        self.catchment_population = None
+        self.own_in_catchment = 0
+        self.competitors_within_direct = 0
+        self.nearest_own_km = None
+        self.nearest_competitor_km = None
+        self.has_population = False
+        self.any_stores = False
+
+
+def build_geometry(lat: float, lon: float,
+                   own_stores: Sequence[Dict[str, Any]],
+                   competitors: Sequence[Dict[str, Any]] = (),
+                   catchment_km: float = CATCHMENT_KM,
+                   population: Any = None,
+                   supply_km: float = SUPPLY_KM) -> CatchmentGeometry:
+    """Every distance a location needs, computed once for all betas. Pure."""
+    g = CatchmentGeometry(lat, lon, float(catchment_km))
+
+    own_pts, comp_pts = [], []
+    for s in own_stores or []:
+        c = _coords(s)
+        if not c:
+            continue
+        d = haversine_km(lat, lon, c[0], c[1])
+        if g.nearest_own_km is None or d < g.nearest_own_km:
+            g.nearest_own_km = d
+        if d <= catchment_km:
+            g.own_in_catchment += 1
+        if d <= supply_km:
+            # Own stores carry their chain and pull exactly as rivals do.
+            # They used to be appended with an empty chain string and no pull,
+            # so the SAME physical store attracted differently depending on who
+            # was asking: measured at one location, 27.35% capture against it
+            # as a rival and 35.40% against it as your own — 8.05pp apart,
+            # because only the rival path ever reached the big-box weight.
+            _own_pull = s.get("pull")
+            own_pts.append((c[0], c[1],
+                            float(s.get("size_sqft", DEFAULT_SIZE_SQFT)),
+                            str(s.get("Chain") or s.get("chain") or ""),
+                            None if _own_pull is None else float(_own_pull)))
+
+    for k in competitors or []:
+        c = _coords(k)
+        if not c:
+            continue
+        d = haversine_km(lat, lon, c[0], c[1])
+        if g.nearest_competitor_km is None or d < g.nearest_competitor_km:
+            g.nearest_competitor_km = d
+        if d <= DIRECT_COMPETITION_KM:
+            g.competitors_within_direct += 1
+        if d <= supply_km:
+            # `pull` comes from the chain profile when one exists; None means
+            # fall back to the name-based big-box heuristic.
+            _pull = k.get("pull")
+            comp_pts.append((c[0], c[1],
+                             float(k.get("size_sqft", DEFAULT_COMPETITOR_SQFT)),
+                             str(k.get("Chain") or k.get("chain") or ""),
+                             None if _pull is None else float(_pull)))
+
+    g.any_stores = bool(own_pts or comp_pts)
+    g.own_a = [attractiveness(sz, ch, pl) for _la, _lo, sz, ch, pl in own_pts]
+    g.comp_a = [attractiveness(sz, ch, pl) for _la, _lo, sz, ch, pl in comp_pts]
+
+    points, weights = quadrature(lat, lon, catchment_km, population)
+    g.has_population = population is not None
+    g.catchment_population = (float(sum(weights)) if population is not None
+                              else None)
+
+    for (plat, plon), w in zip(points, weights):
+        if w <= 0:
+            continue
+        g.cells.append((
+            max(haversine_km(plat, plon, lat, lon), MIN_DISTANCE_KM),
+            w,
+            [max(haversine_km(plat, plon, sla, slo), MIN_DISTANCE_KM)
+             for sla, slo, _sz, _ch, _pl in own_pts],
+            [max(haversine_km(plat, plon, kla, klo), MIN_DISTANCE_KM)
+             for kla, klo, _sz, _ch, _pl in comp_pts]))
+    return g
+
+
+def build_field(lat: float, lon: float,
+                own_stores: Sequence[Dict[str, Any]],
+                competitors: Sequence[Dict[str, Any]] = (),
+                catchment_km: float = CATCHMENT_KM,
+                population: Any = None,
+                supply_km: float = SUPPLY_KM,
+                beta: float = DISTANCE_DECAY,
+                geometry: Optional[CatchmentGeometry] = None) -> CatchmentField:
+    """The size-independent half of a score at ONE beta. Pure.
+
+    Pass ``geometry`` to reuse the distances across a beta sweep; without one
+    it builds its own, so a lone call behaves exactly as before.
+    """
+    g = geometry or build_geometry(lat, lon, own_stores, competitors,
+                                   catchment_km, population, supply_km)
+    b = float(beta)
+    f = CatchmentField(g.lat, g.lon, b, g.catchment_km)
+    f.catchment_population = g.catchment_population
+    f.own_in_catchment = g.own_in_catchment
+    f.competitors_within_direct = g.competitors_within_direct
+    f.nearest_own_km = g.nearest_own_km
+    f.nearest_competitor_km = g.nearest_competitor_km
+    f.has_population = g.has_population
+    f.any_stores = g.any_stores
+
+    own_a, comp_a = g.own_a, g.comp_a
+    for d_site, w, own_ds, comp_ds in g.cells:
+        u_own = sum(a / (d ** b) for a, d in zip(own_a, own_ds))
+        u_comp = sum(a / (d ** b) for a, d in zip(comp_a, comp_ds))
+        f.cells.append((1.0 / (d_site ** b), w, u_own, u_comp))
+    return f
+
+
 def score_site(lat: float, lon: float,
                own_stores: Sequence[Dict[str, Any]],
                competitors: Sequence[Dict[str, Any]] = (),
@@ -238,8 +412,14 @@ def score_site(lat: float, lon: float,
                travel_friction: float = 0.0,
                population: Any = None,
                supply_km: float = SUPPLY_KM,
-               beta: float = DISTANCE_DECAY) -> Dict[str, Any]:
+               beta: float = DISTANCE_DECAY,
+               field: Optional[CatchmentField] = None) -> Dict[str, Any]:
     """Score one candidate location. Pure — no I/O, no model, no globals.
+
+    ``field`` is an optional precomputed ``CatchmentField`` for this exact
+    location and beta; supply one to score several floor areas at the same spot
+    without recomputing the competitive denominator. Its beta wins, because a
+    field built at one exponent cannot answer for another.
 
     Capture is the Huff share the new store would take **over demand points
     around it**, not at it. Every component is returned alongside, because the
@@ -260,56 +440,6 @@ def score_site(lat: float, lon: float,
     exactly the weighted one with every weight equal, so adding population
     changes no previously-reported number for a client who has loaded none.
     """
-    own_in_catchment = 0
-    comp_within_direct = 0
-    nearest_own = None
-    nearest_comp = None
-
-    own_pts, comp_pts = [], []
-    for s in own_stores or []:
-        c = _coords(s)
-        if not c:
-            continue
-        d = haversine_km(lat, lon, c[0], c[1])
-        if nearest_own is None or d < nearest_own:
-            nearest_own = d
-        if d <= catchment_km:
-            own_in_catchment += 1
-        if d <= supply_km:
-            # Own stores carry their chain and pull exactly as rivals do.
-            # They used to be appended with an empty chain string and no pull,
-            # so the SAME physical store attracted differently depending on who
-            # was asking: measured at one location, 27.35% capture against it
-            # as a rival and 35.40% against it as your own — 8.05pp apart,
-            # because only the rival path ever reached the big-box weight.
-            # That understated cannibalisation for exactly the large operators
-            # it matters most to, and made the per-chain grid simulation score
-            # each banner's own branches smaller than everyone else's.
-            _own_pull = s.get("pull")
-            own_pts.append((c[0], c[1],
-                            float(s.get("size_sqft", DEFAULT_SIZE_SQFT)),
-                            str(s.get("Chain") or s.get("chain") or ""),
-                            None if _own_pull is None else float(_own_pull)))
-
-    for k in competitors or []:
-        c = _coords(k)
-        if not c:
-            continue
-        d = haversine_km(lat, lon, c[0], c[1])
-        if nearest_comp is None or d < nearest_comp:
-            nearest_comp = d
-        if d <= DIRECT_COMPETITION_KM:
-            comp_within_direct += 1
-        if d <= supply_km:
-            # `pull` comes from the chain profile when one exists; None means
-            # fall back to the name-based big-box heuristic.
-            _pull = k.get("pull")
-            comp_pts.append((c[0], c[1],
-                             float(k.get("size_sqft",
-                                         DEFAULT_COMPETITOR_SQFT)),
-                             str(k.get("Chain") or k.get("chain") or ""),
-                             None if _pull is None else float(_pull)))
-
     # QUADRATURE. Capture is an integral of the share field over the catchment,
     # weighted by population. With a grid loaded, the population CELLS are the
     # natural quadrature points: each carries its own people and sits where
@@ -325,20 +455,21 @@ def score_site(lat: float, lon: float,
     # it is one arrangement of samples happening to land better than another.
     #
     # Integrating on the cells removes the layer and its parameters together.
-    points, weights = quadrature(lat, lon, catchment_km, population)
+    if field is None:
+        field = build_field(lat, lon, own_stores, competitors, catchment_km,
+                            population, supply_km, beta)
+    else:
+        # A field is built at ONE exponent. Silently scoring it at another would
+        # report a beta the numbers do not come from.
+        beta = field.beta
+
+    # The candidate's own pull is one multiplication now: attractiveness does
+    # not vary across cells, and the reciprocal distance is already in the field.
+    a_site = attractiveness(size_sqft)
 
     num_site = num_own = denom = own_displaced = 0.0
-    for (plat, plon), w in zip(points, weights):
-        if w <= 0:
-            continue
-        u_site = _utility(size_sqft, haversine_km(plat, plon, lat, lon),
-                          beta=beta)
-        u_own = sum(_utility(sz, haversine_km(plat, plon, slat, slon), ch, pl,
-                             beta)
-                    for slat, slon, sz, ch, pl in own_pts)
-        u_comp = sum(_utility(sz, haversine_km(plat, plon, klat, klon), ch, pl,
-                              beta)
-                     for klat, klon, sz, ch, pl in comp_pts)
+    for inv_d, w, u_own, u_comp in field.cells:
+        u_site = a_site * inv_d
         total = u_site + u_own + u_comp
         if total <= 0:
             continue
@@ -358,9 +489,8 @@ def score_site(lat: float, lon: float,
     own_share = (num_own / denom) if denom > 0 else 0.0
     # The absolute term: people, not proportion. None when no grid was given,
     # so a caller can never mistake an unweighted score for a headcount.
-    catchment_population = (float(sum(weights)) if population is not None
-                            else None)
-    captured_population = (num_site if population is not None else None)
+    catchment_population = field.catchment_population
+    captured_population = (num_site if field.has_population else None)
     # Of the trade this site wins, how much is taken from our own network?
     #
     # THIS USED TO BE own_share / (own_share + capture), which is a different
@@ -383,18 +513,19 @@ def score_site(lat: float, lon: float,
     # scored alike; with a grid it is simply measured.
     empty_catchment = (catchment_population is not None
                        and catchment_population <= 0)
-    isolated = (not own_pts and not comp_pts) or empty_catchment
+    isolated = (not field.any_stores) or empty_catchment
+    nearest_own = field.nearest_own_km
 
     return {
         "lat": lat, "lon": lon, "size_sqft": float(size_sqft),
         "capture_pct": round(capture * 100, 2),
         "adjusted_capture_pct": round(adjusted * 100, 2),
         "cannibalisation_pct": round(cannibalisation * 100, 2),
-        "own_stores_in_catchment": own_in_catchment,
-        "competitors_within_2km": comp_within_direct,
+        "own_stores_in_catchment": field.own_in_catchment,
+        "competitors_within_2km": field.competitors_within_direct,
         "nearest_own_km": None if nearest_own is None else round(nearest_own, 2),
-        "nearest_competitor_km": (None if nearest_comp is None
-                                  else round(nearest_comp, 2)),
+        "nearest_competitor_km": (None if field.nearest_competitor_km is None
+                                  else round(field.nearest_competitor_km, 2)),
         "beta": float(beta),
         "travel_friction": round(friction, 3),
         "catchment_population": (None if catchment_population is None
@@ -404,10 +535,10 @@ def score_site(lat: float, lon: float,
         "captured_population": (
             None if captured_population is None
             else round(captured_population * (1.0 - 0.5 * friction), 1)),
-        "has_population": population is not None,
+        "has_population": field.has_population,
         "isolated": isolated,
         "verdict": verdict(adjusted, cannibalisation, nearest_own,
-                           isolated=isolated, catchment_km=catchment_km,
+                           isolated=isolated, catchment_km=field.catchment_km,
                            captured_population=(
                                None if captured_population is None
                                else captured_population * (1.0 - 0.5 * friction))),
@@ -430,12 +561,29 @@ def score_band(lat: float, lon: float,
     acts on, and ``beta_sensitive``: True when the band spans more than half
     the central value, i.e. when the answer is mostly the exponent.
     """
+    geo = build_geometry(lat, lon, own_stores, competitors,
+                         kwargs.get("catchment_km", CATCHMENT_KM),
+                         kwargs.get("population"),
+                         kwargs.get("supply_km", SUPPLY_KM))
     runs = {}
     for b in betas:
-        runs[float(b)] = score_site(lat, lon, own_stores, competitors,
-                                    beta=float(b), **kwargs)
-    central = runs.get(float(DISTANCE_DECAY)) or runs[sorted(runs)[len(runs) // 2]]
+        kw = dict(kwargs)
+        kw["field"] = build_field(lat, lon, own_stores, competitors,
+                                  beta=float(b), geometry=geo)
+        runs[float(b)] = score_site(lat, lon, own_stores, competitors, **kw)
+    return summarise_band(runs)
 
+
+def summarise_band(runs: Dict[float, Dict[str, Any]]) -> Dict[str, Any]:
+    """Collapse per-beta scores of ONE site into a central value plus a band.
+
+    Extracted so ``score_band`` and ``rank_band`` cannot drift: they were
+    scoring the same site at the same four exponents and summarising the result
+    with two copies of this arithmetic, which is both twice the work and one
+    edit away from disagreeing about a published number.
+    """
+    central = (runs.get(float(DISTANCE_DECAY))
+               or runs[sorted(runs)[len(runs) // 2]])
     out = dict(central)
     out["betas"] = sorted(runs)
     for key in ("adjusted_capture_pct", "captured_population",
@@ -475,23 +623,43 @@ def rank_band(sites: Sequence[Dict[str, Any]],
     1st to 9th is a statement about the exponent, and the two must not be
     printed in the same column.
     """
+    # Every per-beta score is KEPT, not discarded once its rank is read. The
+    # caller needs the same four numbers to publish a band, and used to get
+    # them by scoring all four exponents a second time through score_band —
+    # a clean doubling of the most expensive thing this module does.
     by_beta: Dict[float, List[tuple]] = {}
-    scored: Dict[int, Dict[str, Any]] = {}
+    runs: Dict[int, Dict[float, Dict[str, Any]]] = {}
+    default_sqft = float(kwargs.pop("size_sqft", DEFAULT_SIZE_SQFT))
+
+    # One distance matrix per candidate, reused across the whole sweep. The
+    # exponent reweights distances; it does not move anything.
+    geos: Dict[int, CatchmentGeometry] = {}
+    for i, s in enumerate(sites or []):
+        c = _coords(s)
+        if c:
+            geos[i] = build_geometry(c[0], c[1], own_stores, competitors,
+                                     kwargs.get("catchment_km", CATCHMENT_KM),
+                                     kwargs.get("population"),
+                                     kwargs.get("supply_km", SUPPLY_KM))
+
     for b in betas:
         vals = []
         for i, s in enumerate(sites or []):
             c = _coords(s)
             if not c:
                 continue
+            kw = dict(kwargs)
+            kw["field"] = build_field(c[0], c[1], own_stores, competitors,
+                                      beta=float(b), geometry=geos[i])
             r = score_site(c[0], c[1], own_stores, competitors,
-                           size_sqft=float(s.get("size_sqft",
-                                                 DEFAULT_SIZE_SQFT)),
-                           beta=float(b), **kwargs)
+                           size_sqft=float(s.get("size_sqft", default_sqft)),
+                           travel_friction=float(s.get("travel_friction", 0.0)
+                                                 or 0.0),
+                           **kw)
             key = r.get("captured_population")
             vals.append((i, key if key is not None
                          else r["adjusted_capture_pct"]))
-            if float(b) == float(DISTANCE_DECAY):
-                scored[i] = r
+            runs.setdefault(i, {})[float(b)] = r
         order = sorted(vals, key=lambda t: -t[1])
         by_beta[float(b)] = [(i, pos + 1) for pos, (i, _v) in enumerate(order)]
 
@@ -504,7 +672,7 @@ def rank_band(sites: Sequence[Dict[str, Any]],
     for i, s in enumerate(sites or []):
         if i not in ranks:
             continue
-        rec = dict(scored.get(i, {}))
+        rec = summarise_band(runs[i])
         rec["name"] = s.get("name") or f"{s.get('lat')}, {s.get('lon')}"
         rec["rank_best"] = min(ranks[i])
         rec["rank_worst"] = max(ranks[i])

@@ -81,6 +81,50 @@ MIN_CALIBRATION_STORES = 4
 #: sitting inside a competitor's shadow; either way it cannot calibrate demand.
 MIN_USABLE_CAPTURE = 0.005
 
+#: How much better than the best dumb predictor a geographic model must be
+#: before it may set a budget, as a RELATIVE reduction in median error.
+#:
+#: The gate used to be a strict inequality: any margin at all counted as a win.
+#: Measured, that is not a gate. ``loo_validate`` compares MEDIANS of five or
+#: six absolute percentage errors, and with n=5 the median IS the third value —
+#: one store moving flips it. On one estate the population model "beat" floor
+#: area by 4% against 5%, and on another capture and floor area tied at 5% and a
+#: winner was still declared. Those are ties being read as wins.
+#:
+#: 10% relative is a modest bar deliberately: it is not a significance test and
+#: does not pretend to be. The significance question is answered separately by
+#: the paired sign test below, which on an estate this small will usually say
+#: "not conclusive" — and saying so is the point.
+MIN_GATE_MARGIN = 0.10
+
+#: Above this sign-test p-value the win is reported as PROVISIONAL. A geographic
+#: model that beats the baseline on 4 of 6 stores has a 34% chance of doing that
+#: by coin flip, and the operator should be told so rather than shown a verdict.
+PROVISIONAL_P = 0.10
+
+
+class Observations(list):
+    """The estate observations, carrying what was LEFT OUT and why.
+
+    A plain list was the defect. ``estate_observations`` skips a store on three
+    separate conditions — no recorded sales, no location, capture below the
+    floor — and returned no account of any of them. Measured on an eight-store
+    estate, widening the catchment to 20 km silently dropped two stores below
+    the capture floor and took n from 8 to 6, with nothing in the return value,
+    the report or the console saying so. The operator reads "stores used: 6" as
+    their estate.
+
+    Subclasses ``list`` so every existing caller keeps working unchanged; the
+    accounting rides along with the number instead of being separated from it,
+    which is the whole failure being fixed.
+    """
+
+    __slots__ = ("skipped",)
+
+    def __init__(self, rows=(), skipped=None):
+        super().__init__(rows)
+        self.skipped = list(skipped or [])
+
 #: Floor areas considered when recommending a size, smallest first (sq ft).
 SIZE_LADDER = (2_500.0, 5_000.0, 10_000.0, 20_000.0, 35_000.0, 60_000.0)
 
@@ -123,10 +167,41 @@ def _quantile(xs: Sequence[float], q: float) -> float:
     return vals[lo] + (vals[hi] - vals[lo]) * (pos - lo)
 
 
+def _errors(pairs: Sequence[tuple]) -> List[float]:
+    """Per-fold absolute percentage errors over (actual, predicted) pairs."""
+    return [abs(p - a) / a for a, p in pairs if a and a > 0]
+
+
 def _mape(pairs: Sequence[tuple]) -> float:
     """Median absolute percentage error over (actual, predicted) pairs."""
-    errs = [abs(p - a) / a for a, p in pairs if a and a > 0]
+    errs = _errors(pairs)
     return round(_median(errs), 4) if errs else 1.0
+
+
+def _sign_test(a: Sequence[float], b: Sequence[float]) -> Dict[str, Any]:
+    """Paired sign test: does ``a`` beat ``b`` more often than a coin would?
+
+    The folds are PAIRED — the same held-out store, predicted two ways — so the
+    question "did the geography win?" has a per-store answer, and counting those
+    answers asks something a median cannot: is the margin bigger than the noise?
+
+    Reported, never hidden. On five or six stores this will usually say the win
+    could be chance, and that is the honest reading of five stores.
+    """
+    wins = sum(1 for x, y in zip(a, b) if x < y)
+    ties = sum(1 for x, y in zip(a, b) if x == y)
+    n = len(a) - ties            # ties carry no evidence either way
+    if n <= 0:
+        return {"folds": 0, "wins": wins, "p": 1.0}
+    # Two-sided binomial tail at p=0.5, computed exactly — no scipy on a
+    # client console.
+    def _c(n_, k_):
+        r = 1
+        for i in range(k_):
+            r = r * (n_ - i) // (i + 1)
+        return r
+    tail = sum(_c(n, k) for k in range(wins, n + 1)) / (2.0 ** n)
+    return {"folds": n, "wins": wins, "p": round(min(1.0, 2.0 * tail), 4)}
 
 
 # ── step 1: measure the estate ──────────────────────────────────────────────
@@ -136,7 +211,7 @@ def estate_observations(stores: Sequence[Dict[str, Any]],
                         stock_value_by_org: Optional[Dict[str, float]] = None,
                         catchment_km: float = CATCHMENT_KM,
                         population: Any = None,
-                        affluence: Any = None) -> List[Dict[str, Any]]:
+                        affluence: Any = None) -> "Observations":
     """One observation per located, trading store — the labelled dataset.
 
     Each store is scored **leave-one-out**: as if it were a candidate site,
@@ -151,15 +226,26 @@ def estate_observations(stores: Sequence[Dict[str, Any]],
     revenue_by_org = revenue_by_org or {}
     stock_value_by_org = stock_value_by_org or {}
     out: List[Dict[str, Any]] = []
+    skipped: List[Dict[str, Any]] = []
+
+    def _skip(org, name, reason, detail=""):
+        skipped.append({"org_cd": org, "name": name, "reason": reason,
+                        "detail": detail})
 
     for i, s in enumerate(stores or []):
         org = str(s.get("org_cd") or s.get("ORG_CD") or f"#{i}")
+        name = str(s.get("name") or org)
         rev = float(revenue_by_org.get(org, 0) or 0)
         if rev <= 0:
-            continue                      # no outcome -> not an observation
+            _skip(org, name, "no-sales",
+                  "no recorded sales in the period, so there is no outcome to "
+                  "calibrate against")
+            continue
         lat, lon = s.get("lat"), s.get("lon")
         if lat is None or lon is None:
-            continue                      # not placed -> cannot be scored
+            _skip(org, name, "not-placed",
+                  "no location on file, so it cannot be scored")
+            continue
         size = float(s.get("size_sqft") or DEFAULT_SIZE_SQFT)
 
         others = [o for j, o in enumerate(stores) if j != i]
@@ -168,7 +254,16 @@ def estate_observations(stores: Sequence[Dict[str, Any]],
                         population=population)
         capture = sc["capture_pct"] / 100.0
         if capture < MIN_USABLE_CAPTURE:
-            continue                      # demand estimate would explode
+            # revenue / capture would explode. Worth naming loudly: it usually
+            # means a mis-typed coordinate or a store sitting inside a rival's
+            # shadow, and both are things the operator can act on.
+            # ASCII only: these strings reach format_report, which prints to a
+            # customer's Windows console.
+            _skip(org, name, "capture-too-low",
+                  f"takes only {capture:.2%} of its catchment, under the "
+                  f"{MIN_USABLE_CAPTURE:.1%} floor, so the demand it implies "
+                  "would be unusable. Check its coordinates.")
+            continue
 
         # With a population grid the store's trade area is a headcount, so the
         # constant we calibrate becomes SPEND PER PERSON — an economic quantity
@@ -199,16 +294,26 @@ def estate_observations(stores: Sequence[Dict[str, Any]],
             "implied_demand": rev / capture,
             "revenue_per_sqft": rev / size if size > 0 else 0.0,
         })
-    return out
+    return Observations(out, skipped)
 
 
 def calibrate(observations: Sequence[Dict[str, Any]]) -> Dict[str, Any]:
     """Reduce the estate observations to the constants a candidate needs."""
     obs = list(observations or [])
     n = len(obs)
+    # The accounting travels with the observations. Read it here so it reaches
+    # every surface that shows "stores used", because a count without the
+    # stores it left out is the thing that misleads.
+    skipped = list(getattr(observations, "skipped", ()) or ())
+    excluded = {"stores_skipped": skipped,
+                "skipped_count": len(skipped),
+                "considered": n + len(skipped)}
     if n == 0:
-        return {"n": 0, "usable": False,
-                "reason": "no store has both a location and recorded sales"}
+        return dict(excluded, n=0, usable=False,
+                    reason=("no store has both a location and recorded sales"
+                            if not skipped else
+                            f"none of the {len(skipped)} store(s) could be "
+                            "used — see stores_skipped for why"))
 
     demands = [o["implied_demand"] for o in obs]
     rps = [o["revenue_per_sqft"] for o in obs]
@@ -223,9 +328,11 @@ def calibrate(observations: Sequence[Dict[str, Any]]) -> Dict[str, Any]:
     spend_spread = (_quantile(spends, 0.75) / _quantile(spends, 0.25)
                     if spends and _quantile(spends, 0.25) > 0 else 0.0)
 
-    return {
-        "n": n,
-        "usable": True,
+    return dict(
+        excluded,
+        n=n,
+        usable=True,
+        **{
         "median_demand": med_demand,
         "demand_p25": _quantile(demands, 0.25),
         "demand_p75": _quantile(demands, 0.75),
@@ -250,7 +357,7 @@ def calibrate(observations: Sequence[Dict[str, Any]]) -> Dict[str, Any]:
         # Spend as a FUNCTION of the catchment. Fitted here, but it only sets
         # a budget if loo_validate says it beat the dumb predictors.
         "spend_model": _fit_spend(obs),
-    }
+        })
 
 
 def _fit_spend(obs: Sequence[Dict[str, Any]]) -> Optional[Dict[str, float]]:
@@ -326,26 +433,76 @@ def loo_validate(observations: Sequence[Dict[str, Any]]) -> Dict[str, Any]:
     e_aff = _mape(aff_pairs) if len(aff_pairs) == n else None
 
     baseline = min(e_sqft, e_mean)
-    aff_wins = (e_aff is not None and e_aff < baseline
+    # Per-fold errors, kept so the win can be tested rather than merely
+    # observed. The baseline is whichever dumb predictor did better overall.
+    base_errs = (_errors(sqft_pairs) if e_sqft <= e_mean
+                 else _errors(mean_pairs))
+
+    def _beats(err: Optional[float], errs: Sequence[float]) -> bool:
+        """Better than the baseline on BOTH counts, or it does not pass.
+
+        A margin on the median is not enough on its own. Measured: a population
+        model once cleared the margin by 29.8% while beating the baseline on
+        only 2 of 5 held-out stores — the median was being carried by one or two
+        outliers, and the model was WORSE on the majority of the estate. A
+        predictor that loses on most of your stores must not set a budget.
+        """
+        if err is None or baseline <= 0:
+            return False
+        if (baseline - err) / baseline < MIN_GATE_MARGIN:
+            return False
+        s = _sign_test(errs, base_errs)
+        return s["folds"] > 0 and s["wins"] * 2 > s["folds"]
+
+    aff_wins = (_beats(e_aff, _errors(aff_pairs))
                 and e_aff <= (e_pop if e_pop is not None else e_aff)
                 and e_aff <= e_cap)
-    pop_wins = (not aff_wins and e_pop is not None
-                and e_pop < baseline and e_pop <= e_cap)
-    cap_wins = not aff_wins and not pop_wins and e_cap < baseline
+    pop_wins = (not aff_wins and _beats(e_pop, _errors(pop_pairs))
+                and e_pop <= e_cap)
+    cap_wins = (not aff_wins and not pop_wins
+                and _beats(e_cap, _errors(cap_pairs)))
 
     if aff_wins:
         basis, validated = "affluence", True
+        win_errs = _errors(aff_pairs)
+        best = e_aff
     elif pop_wins:
         basis, validated = "population", True
+        win_errs = _errors(pop_pairs)
+        best = e_pop
     elif cap_wins:
         basis, validated = "capture", True
+        win_errs = _errors(cap_pairs)
+        best = e_cap
     else:
         basis, validated = None, False
+        # Report the CLOSEST geographic predictor even in defeat, so the
+        # operator can see whether it lost narrowly or was never in the race.
+        best = min(x for x in (e_cap, e_pop, e_aff) if x is not None)
+        win_errs = (_errors(aff_pairs) if best == e_aff and e_aff is not None
+                    else _errors(pop_pairs) if best == e_pop and e_pop is not None
+                    else _errors(cap_pairs))
+
+    margin = (baseline - best) / baseline if baseline > 0 else 0.0
+    sign = (_sign_test(win_errs, base_errs)
+            if len(win_errs) == len(base_errs) and win_errs
+            else {"folds": 0, "wins": 0, "p": 1.0})
+    # A win the sign test cannot separate from a coin flip is still reported as
+    # a win — the margin cleared — but it is labelled, and the caller must show
+    # the label. Five stores rarely establish anything, and pretending
+    # otherwise is what the old bare inequality did.
+    provisional = validated and sign["p"] > PROVISIONAL_P
 
     out = {
         "n": n,
         "validated": validated,
+        "provisional": provisional,
         "basis": basis,
+        "margin": round(margin, 4),
+        "margin_required": MIN_GATE_MARGIN,
+        "folds_won": sign["wins"],
+        "folds_compared": sign["folds"],
+        "sign_p": sign["p"],
         "mape_capture": e_cap,
         "mape_population": e_pop,
         "mape_affluence": e_aff,
@@ -354,10 +511,27 @@ def loo_validate(observations: Sequence[Dict[str, Any]]) -> Dict[str, Any]:
         "beaten_by": (None if validated
                       else ("floor area alone" if e_sqft <= e_mean
                             else "the estate median")),
+        "confidence_note": (
+            None if not validated else
+            (f"won on {sign['wins']} of {sign['folds']} stores; a coin flip "
+             f"would do that {sign['p']:.0%} of the time, so treat this as "
+             "provisional until the estate is larger")
+            if provisional else
+            f"won on {sign['wins']} of {sign['folds']} stores (p={sign['p']:.2f})"),
         "reason": (None if validated else
-                   "the location adds nothing over the simpler predictor on "
-                   "this estate - capital is proposed from productivity "
-                   "instead, and the site score stays a ranking tool"),
+                   (f"the location beat the simpler predictor by {margin:.0%} "
+                    f"on the median but lost on {sign['folds'] - sign['wins']} "
+                    f"of {sign['folds']} of your stores, so the win rests on "
+                    "one or two outliers"
+                    if margin >= MIN_GATE_MARGIN else
+                    f"the location beat the simpler predictor by only "
+                    f"{margin:.0%}, under the {MIN_GATE_MARGIN:.0%} margin "
+                    "required - too close to call on this estate"
+                    if margin > 0 else
+                    "the location adds nothing over the simpler predictor on "
+                    "this estate") +
+                   " - capital is proposed from productivity instead, and the "
+                   "site score stays a ranking tool"),
     }
     if e_pop is not None and not pop_wins:
         # Say it plainly: they may have paid for this data.
@@ -583,7 +757,15 @@ def format_report(cal: Dict[str, Any], val: Dict[str, Any],
                   proposal: Optional[Dict[str, Any]] = None) -> str:
     """ASCII only — this prints to a customer's Windows console."""
     w = ["", "O.A.S.I.S. - site capital calibration", "=" * 62]
-    w.append(f"  stores used            {cal.get('n', 0):>12,}")
+    considered = cal.get("considered", cal.get("n", 0))
+    w.append(f"  stores used            {cal.get('n', 0):>12,}"
+             + (f"   of {considered:,} on file" if considered != cal.get("n", 0)
+                else ""))
+    # Never print a count without what it left out. A store that silently
+    # dropped below the capture floor is usually a mis-typed coordinate, and
+    # the operator is the only one who can tell.
+    for s in (cal.get("stores_skipped") or []):
+        w.append(f"     EXCLUDED {s.get('org_cd', ''):<10} {s.get('detail', '')}")
     if not cal.get("usable"):
         w.append(f"  UNUSABLE: {cal.get('reason', '')}")
         return "\n".join(w)
@@ -610,8 +792,14 @@ def format_report(cal: Dict[str, Any], val: Dict[str, Any],
                     else "  median abs error"))
         w.append(f"     floor area alone   {val['mape_sqft_only']:>8.1%}")
         w.append(f"     estate median      {val['mape_estate_median']:>8.1%}")
+        w.append(f"     margin over baseline  {val.get('margin', 0):>8.1%}"
+                 f"   (needs {val.get('margin_required', 0):.0%})")
         w.append(f"     -> geography earns a budget: "
-                 f"{'YES (' + str(val.get('basis')) + ')' if val.get('validated') else 'NO'}")
+                 + ("YES (" + str(val.get("basis")) + ")"
+                    + (" - PROVISIONAL" if val.get("provisional") else "")
+                    if val.get("validated") else "NO"))
+        if val.get("confidence_note"):
+            w.append(f"     {val['confidence_note']}")
     if val.get("population_note"):
         w.append(f"     {val['population_note']}")
     if proposal:
