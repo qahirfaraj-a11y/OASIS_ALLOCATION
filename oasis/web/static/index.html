@@ -456,6 +456,12 @@ async function scoreSites(){
       'opened near you, would settle that.</p>')+
     // A win the sign test cannot separate from a coin flip is still a win, but
     // the operator is spending money on it and must see how thin it is.
+    // If the gate would reach a different verdict at the ends of the
+    // distance-decay range, whether the location earns a budget AT ALL rests
+    // partly on an exponent nobody has fitted. Same reason the capture figures
+    // are a band: say it rather than publish one end of it.
+    ((v.basis_stable_across_beta === false) ?
+      '<p class="hint" style="color:var(--warn)">'+esc(v.note || '')+'.</p>' : '')+
     ((earned && v.provisional) ?
       '<p class="hint" style="color:var(--warn)">The location did beat the simpler '+
       'predictors here, but only just: '+esc(v.confidence_note || '')+'. Treat the opening '+

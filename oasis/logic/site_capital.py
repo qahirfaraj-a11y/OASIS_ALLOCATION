@@ -67,7 +67,9 @@ from __future__ import annotations
 import logging
 from typing import Any, Callable, Dict, List, Optional, Sequence
 
-from .site_scoring import CATCHMENT_KM, DEFAULT_SIZE_SQFT, score_site
+from .site_scoring import (BETA_RANGE, CATCHMENT_KM, DEFAULT_SIZE_SQFT,
+                           DISTANCE_DECAY, build_field, build_geometry,
+                           score_site)
 
 logger = logging.getLogger("OASIS.SiteCapital")
 
@@ -211,7 +213,10 @@ def estate_observations(stores: Sequence[Dict[str, Any]],
                         stock_value_by_org: Optional[Dict[str, float]] = None,
                         catchment_km: float = CATCHMENT_KM,
                         population: Any = None,
-                        affluence: Any = None) -> "Observations":
+                        affluence: Any = None,
+                        beta: float = DISTANCE_DECAY,
+                        geometries: Optional[Dict[int, Any]] = None
+                        ) -> "Observations":
     """One observation per located, trading store — the labelled dataset.
 
     Each store is scored **leave-one-out**: as if it were a candidate site,
@@ -222,6 +227,14 @@ def estate_observations(stores: Sequence[Dict[str, Any]],
 
     Its floor area is a measurement here, not an assumption, so using it
     introduces none of the circularity that broke ``recommend_format``.
+
+    ``beta`` must match the exponent a candidate will be priced at. Spend per
+    person is ``revenue / captured_population``, and captured_population is a
+    function of beta — so a constant measured at one exponent cannot price a
+    headcount computed at another. ``observations_by_beta`` is the usual way in.
+
+    ``geometries`` is an optional store-index -> CatchmentGeometry cache, so a
+    sweep over several betas pays for the distance matrix once.
     """
     revenue_by_org = revenue_by_org or {}
     stock_value_by_org = stock_value_by_org or {}
@@ -249,9 +262,17 @@ def estate_observations(stores: Sequence[Dict[str, Any]],
         size = float(s.get("size_sqft") or DEFAULT_SIZE_SQFT)
 
         others = [o for j, o in enumerate(stores) if j != i]
+        geo = None if geometries is None else geometries.get(i)
+        if geo is None:
+            geo = build_geometry(float(lat), float(lon), others, competitors,
+                                 catchment_km, population)
+            if geometries is not None:
+                geometries[i] = geo
         sc = score_site(float(lat), float(lon), others, competitors,
-                        size_sqft=size, catchment_km=catchment_km,
-                        population=population)
+                        size_sqft=size,
+                        field=build_field(float(lat), float(lon), others,
+                                          competitors, beta=float(beta),
+                                          geometry=geo))
         capture = sc["capture_pct"] / 100.0
         if capture < MIN_USABLE_CAPTURE:
             # revenue / capture would explode. Worth naming loudly: it usually
@@ -295,6 +316,84 @@ def estate_observations(stores: Sequence[Dict[str, Any]],
             "revenue_per_sqft": rev / size if size > 0 else 0.0,
         })
     return Observations(out, skipped)
+
+
+def calibrate_by_beta(stores: Sequence[Dict[str, Any]],
+                      competitors: Sequence[Dict[str, Any]] = (),
+                      revenue_by_org: Optional[Dict[str, float]] = None,
+                      stock_value_by_org: Optional[Dict[str, float]] = None,
+                      betas: Sequence[float] = BETA_RANGE,
+                      **kwargs) -> Dict[float, Dict[str, Any]]:
+    """Calibrate and validate the estate at EVERY exponent in the band.
+
+    WHY THIS EXISTS. A candidate's band edges are captured population at beta
+    1.5 and 3.0. Pricing them needed a spend per person, and there was only
+    one — measured at beta 2.0. But spend per person IS ``revenue /
+    captured_population``, and captured_population is a function of beta, so
+    multiplying people(beta=3) by spend(beta=2) counts the exponent twice.
+
+    Measured, the error was smaller than it sounds: on a validated seven-store
+    estate both band edges came out 1.9% to 7.5% low. That is because the same
+    cancellation that makes the catchment radius nearly a unit works here too —
+    the estate's headcount and the candidate's move together with beta, so most
+    of the ratio survives. The WIDTH moved both ways depending on the site
+    (1.98x to 1.90x on one candidate, 1.17x to 1.22x on another), so this was
+    never a uniform narrowing.
+
+    Small and mostly conservative is not a reason to publish a number built two
+    ways, and the fix costs one distance matrix per store: the whole four-
+    exponent sweep measured 0.42s on a six-store estate.
+
+    Returns ``{beta: {"observations", "calibration", "validation"}}``.
+    """
+    geometries: Dict[int, Any] = {}
+    out: Dict[float, Dict[str, Any]] = {}
+    for b in betas:
+        obs = estate_observations(stores, competitors, revenue_by_org,
+                                  stock_value_by_org, beta=float(b),
+                                  geometries=geometries, **kwargs)
+        out[float(b)] = {"observations": obs,
+                         "calibration": calibrate(obs),
+                         "validation": loo_validate(obs)}
+    return out
+
+
+def basis_holds_across(by_beta: Dict[float, Dict[str, Any]],
+                       central: float = DISTANCE_DECAY) -> Dict[str, Any]:
+    """Does the gate reach the same verdict at every exponent in the band?
+
+    The basis is a claim about the ESTATE, so it is decided once, at the
+    central exponent. But if it would flip at 1.5 or 3.0 then the verdict is
+    partly a statement about a parameter nobody has fitted, and the operator is
+    entitled to know that before spending against it — the same reason the
+    capture figures are published as a band rather than a point.
+    """
+    verdicts = {b: (v.get("validation") or {}).get("basis")
+                for b, v in by_beta.items()}
+    ref = verdicts.get(float(central))
+    stable = all(x == ref for x in verdicts.values())
+    # Two different sizes of instability, and conflating them overstates the
+    # milder one. A basis that moves between "population" and "affluence" still
+    # earns a budget at every exponent — the geography won each time, by a
+    # different route. A basis that becomes None somewhere does not.
+    earns_everywhere = all(x is not None for x in verdicts.values())
+    if stable:
+        note = None
+    elif earns_everywhere:
+        note = ("the geography earns a budget at every distance-decay exponent "
+                "in the range, but which measure wins changes across it, so the "
+                "figure is better read as its band than as its midpoint")
+    else:
+        note = ("the gate reaches a different verdict at the ends of the "
+                "distance-decay range, so whether the location earns a budget "
+                "at all rests partly on an exponent this estate cannot fit")
+    return {
+        "basis": ref,
+        "basis_stable_across_beta": stable,
+        "earns_budget_at_every_beta": earns_everywhere,
+        "basis_by_beta": {str(b): verdicts[b] for b in sorted(verdicts)},
+        "note": note,
+    }
 
 
 def calibrate(observations: Sequence[Dict[str, Any]]) -> Dict[str, Any]:

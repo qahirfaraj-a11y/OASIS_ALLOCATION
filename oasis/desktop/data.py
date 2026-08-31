@@ -724,19 +724,32 @@ def site_calibration(days: int = 90,
         grid = pop.get("grid")
         aff = affluence_set(root)
         agrid = aff.get("grid")
-        obs = SC.estate_observations(
+        # Calibrated at EVERY exponent in the band, not just the central one.
+        # A candidate's band edges are captured population at beta 1.5 and 3.0,
+        # and spend per person is revenue divided by captured population — so a
+        # constant measured at 2.0 cannot price a headcount computed at 3.0
+        # without counting the exponent twice. One distance matrix per store
+        # serves the whole sweep, so this costs little more than the single run.
+        by_beta = SC.calibrate_by_beta(
             placed.get("located") or [], competitor_set(root).get("rows") or [],
             econ.get("revenue"), econ.get("stock_value"),
             population=(grid if grid else None),
             affluence=(agrid if agrid else None))
-        cal = SC.calibrate(obs)
-        val = SC.loo_validate(obs)
+        central = by_beta[float(SC.DISTANCE_DECAY)]
+        obs, cal, val = (central["observations"], central["calibration"],
+                         central["validation"])
+        stability = SC.basis_holds_across(by_beta)
+        val = dict(val, **{k: v for k, v in stability.items() if k != "basis"})
         return {"calibration": cal, "validation": val, "observations": obs,
+                "by_beta": {b: {"calibration": d["calibration"],
+                                "validation": d["validation"]}
+                            for b, d in by_beta.items()},
                 "population": pop, "affluence": aff, "days": int(days),
                 "error": econ.get("error")}
     except Exception as e:
         return {"calibration": {"usable": False, "reason": str(e)[:200]},
-                "validation": {}, "observations": [], "population": {},
+                "validation": {}, "observations": [], "by_beta": {},
+                "population": {},
                 "affluence": {}, "error": str(e)[:200]}
 
 
@@ -778,6 +791,7 @@ def score_sites(candidates: List[Dict[str, Any]],
         grid = grid if grid else None
 
         cal, val = calib["calibration"], calib["validation"]
+        by_beta = calib.get("by_beta") or {}
         own, rivals = placed["located"], (comps.get("rows") or [])
         agrid = (calib.get("affluence") or {}).get("grid")
         agrid = agrid if agrid else None
@@ -824,22 +838,36 @@ def score_sites(candidates: List[Dict[str, Any]],
             # at all, so a band there would be three copies of one number
             # dressed as a range — which reads as precision rather than as the
             # refusal it actually is.
+            runs = s.pop("_beta_runs", None) or {}
             if not val.get("validated"):
                 s["capital"]["beta_low"] = s["capital"]["beta_high"] = None
                 s["capital"]["beta_varies"] = False
                 continue
             s["capital"]["beta_varies"] = True
-            for edge in ("low", "high"):
-                people = s.get("captured_population_" + edge)
-                if people is None:
-                    continue
+            # Price EACH exponent against the estate calibrated at THAT
+            # exponent, then take the extremes. The band used to be built from
+            # people at beta 1.5 and 3.0 multiplied by a spend per person
+            # measured only at 2.0 — and spend per person is revenue over
+            # captured population, so the exponent was counted twice.
+            #
+            # Measured on a validated seven-store estate, both edges came out
+            # 1.9% to 7.5% LOW. The width moved in both directions depending on
+            # the site (1.98x -> 1.90x on one candidate, 1.17x -> 1.22x on
+            # another), so this is not a uniform narrowing — it is a band that
+            # was built two ways now being built one.
+            priced = []
+            for b, run in sorted(runs.items()):
+                cal_b = ((by_beta.get(float(b)) or {}).get("calibration")
+                         or cal)
                 alt = SC.propose_capital(
-                    s.get("adjusted_capture_pct_" + edge)
-                    or s["adjusted_capture_pct"], s["size_sqft"], cal, val,
-                    isolated=s.get("isolated", False),
-                    captured_population=people,
+                    run.get("adjusted_capture_pct"), s["size_sqft"],
+                    cal_b, val, isolated=s.get("isolated", False),
+                    captured_population=run.get("captured_population"),
                     affluence_index=(s["affluence"] or {}).get("index"))
-                s["capital"]["beta_" + edge] = alt.get("opening_capital")
+                if alt.get("opening_capital") is not None:
+                    priced.append(alt["opening_capital"])
+            s["capital"]["beta_low"] = min(priced) if priced else None
+            s["capital"]["beta_high"] = max(priced) if priced else None
             # The non-circular size answer. site_scoring.recommend_format reads
             # the size off a capture that was computed FROM that size, so it can
             # only ever restate the input. This re-scores the SAME point at each

@@ -33,6 +33,24 @@ def _rivals():
              "size_sqft": 12000.0}]
 
 
+def _grid():
+    """A small synthetic population surface — no WorldPop file, no network.
+
+    Deliberately UNEVEN: a uniform sheet would make captured population a pure
+    function of the share, and the beta-dependence these tests exist to check
+    would partly cancel out.
+    """
+    from oasis.logic.population import PopulationGrid
+    cells = []
+    for i in range(14):
+        for j in range(14):
+            lat = -1.36 + i * 0.012
+            lon = 36.70 + j * 0.017
+            people = 400.0 + 900.0 * ((i * 7 + j * 3) % 11)
+            cells.append((lat, lon, people))
+    return PopulationGrid(cells, attribution="test", source="test")
+
+
 # ── gap 1 ───────────────────────────────────────────────────────────────────
 class TestDroppedStoresAreAccountedFor:
     """A count without the stores it left out is what misleads.
@@ -314,6 +332,108 @@ class TestSharedGeometryChangesNothingButTheCost:
                                   field=S.build_field(lat, lon, own, rivals))
             for k in self.KEYS:
                 assert plain[k] == shared[k], k
+
+
+class TestTheCapitalBandIsBuiltAtOneExponent:
+    """The band edges are captured population at beta 1.5 and 3.0. They used to
+    be priced with a spend per person measured only at beta 2.0 — and spend per
+    person IS revenue over captured population, so the exponent was counted
+    twice. Measured on a validated seven-store estate, both edges came out 1.9%
+    to 7.5% low.
+    """
+
+    def test_spend_per_person_actually_varies_with_the_exponent(self):
+        """If it did not, the whole defect would be cosmetic."""
+        own, rivals = _estate(), _rivals()
+        rev = {s["org_cd"]: 100e6 + 10e6 * i
+               for i, s in enumerate(own)}
+        bb = SC.calibrate_by_beta(own, rivals, rev,
+                                  {k: v * 0.2 for k, v in rev.items()},
+                                  population=_grid())
+        spends = {b: d["calibration"].get("median_spend_per_person")
+                  for b, d in bb.items()}
+        assert len(bb) == len(S.BETA_RANGE)
+        assert len(set(round(s or 0, 2) for s in spends.values())) > 1, spends
+
+    def test_every_exponent_gets_its_own_calibration_and_gate(self):
+        own, rivals = _estate(), _rivals()
+        rev = {s["org_cd"]: 100e6 + 10e6 * i for i, s in enumerate(own)}
+        bb = SC.calibrate_by_beta(own, rivals, rev,
+                                  {k: v * 0.2 for k, v in rev.items()},
+                                  population=_grid())
+        for b in S.BETA_RANGE:
+            assert float(b) in bb
+            assert "calibration" in bb[float(b)]
+            assert "validation" in bb[float(b)]
+            assert bb[float(b)]["calibration"]["considered"] == len(own)
+
+    def test_observations_at_different_betas_differ(self):
+        own, rivals = _estate(), _rivals()
+        rev = {s["org_cd"]: 100e6 for s in own}
+        lo = SC.estate_observations(own, rivals, rev, beta=1.5,
+                                    population=_grid())
+        hi = SC.estate_observations(own, rivals, rev, beta=3.0,
+                                    population=_grid())
+        assert [o["captured_population"] for o in lo] != \
+               [o["captured_population"] for o in hi]
+
+    def test_a_shared_geometry_cache_changes_no_number(self):
+        """calibrate_by_beta pays for the distance matrix once. If that cache
+        leaked between stores the leave-one-out would be wrong."""
+        own, rivals = _estate(), _rivals()
+        rev = {s["org_cd"]: 100e6 + 10e6 * i for i, s in enumerate(own)}
+        cache = {}
+        cached = SC.estate_observations(own, rivals, rev, beta=2.5,
+                                        population=_grid(), geometries=cache)
+        plain = SC.estate_observations(own, rivals, rev, beta=2.5,
+                                       population=_grid())
+        assert [o["capture"] for o in cached] == [o["capture"] for o in plain]
+        # and reusing the SAME cache at another beta must still be right
+        other = SC.estate_observations(own, rivals, rev, beta=1.5,
+                                       population=_grid(), geometries=cache)
+        fresh = SC.estate_observations(own, rivals, rev, beta=1.5,
+                                       population=_grid())
+        assert [o["capture"] for o in other] == [o["capture"] for o in fresh]
+
+    def test_rank_band_exposes_the_per_exponent_runs(self):
+        """Without them the caller cannot price each edge on its own estate."""
+        rows = S.rank_band([{"name": "a", "lat": -1.2841, "lon": 36.8155,
+                             "size_sqft": 12000.0}], _estate(), _rivals())
+        runs = rows[0]["_beta_runs"]
+        assert sorted(runs) == sorted(float(b) for b in S.BETA_RANGE)
+        for b, r in runs.items():
+            assert r["beta"] == b
+
+    def test_basis_stability_across_the_band_is_reported(self):
+        stable = {2.0: {"validation": {"basis": "population"}},
+                  1.5: {"validation": {"basis": "population"}}}
+        r = SC.basis_holds_across(stable)
+        assert r["basis"] == "population"
+        assert r["basis_stable_across_beta"] is True
+        assert r["note"] is None
+
+        wobbly = {2.0: {"validation": {"basis": "population"}},
+                  1.5: {"validation": {"basis": None}}}
+        r = SC.basis_holds_across(wobbly)
+        assert r["basis"] == "population"
+        assert r["basis_stable_across_beta"] is False
+        assert r["earns_budget_at_every_beta"] is False
+        assert "whether the location earns a budget at all" in r["note"]
+
+    def test_a_basis_that_changes_route_is_not_a_basis_that_fails(self):
+        """Conflating the two overstates the milder one. Population winning at
+        one exponent and affluence at another still means the geography won
+        every time — measured on a real seven-store estate, which is where this
+        distinction came from."""
+        r = SC.basis_holds_across({
+            1.5: {"validation": {"basis": "affluence"}},
+            2.0: {"validation": {"basis": "affluence"}},
+            2.5: {"validation": {"basis": "population"}},
+            3.0: {"validation": {"basis": "population"}}})
+        assert r["basis_stable_across_beta"] is False
+        assert r["earns_budget_at_every_beta"] is True
+        assert "earns a budget at every" in r["note"]
+        assert "whether the location earns a budget at all" not in r["note"]
 
 
 class TestTheBandIsBuiltOnce:

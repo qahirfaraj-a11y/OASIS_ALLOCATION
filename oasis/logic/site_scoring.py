@@ -673,6 +673,11 @@ def rank_band(sites: Sequence[Dict[str, Any]],
         if i not in ranks:
             continue
         rec = summarise_band(runs[i])
+        # The per-exponent scores, kept so a caller can price each one against
+        # the estate calibrated at THAT exponent. Pricing a beta=3 headcount
+        # with a beta=2 spend per person counts the exponent twice.
+        # Underscored: internal, and callers strip it before publishing.
+        rec["_beta_runs"] = runs[i]
         rec["name"] = s.get("name") or f"{s.get('lat')}, {s.get('lon')}"
         rec["rank_best"] = min(ranks[i])
         rec["rank_worst"] = max(ranks[i])
