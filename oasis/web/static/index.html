@@ -384,6 +384,7 @@ async function loadReadiness(){
 
 function siteRow(s){
   const c = s.capital || {};
+  const sz = s.size_recommendation || {};
   const band = (lo, hi, fmt) => (lo==null||hi==null) ? '' :
     '<span class="sub">'+fmt(lo)+' &ndash; '+fmt(hi)+'</span>';
   const num = n => Number(n||0).toLocaleString(undefined,{maximumFractionDigits:0});
@@ -403,6 +404,16 @@ function siteRow(s){
     '<td class="num">'+(s.adjusted_capture_pct||0).toFixed(1)+'%</td>'+
     '<td class="num">'+(s.cannibalisation_pct||0).toFixed(0)+'%</td>'+
     '<td class="num">'+(s.competitors_within_2km||0)+'</td>'+
+    // The largest format whose modelled revenue still clears the estate's own
+    // sales per square foot. Computed for every site now, including those the
+    // gate refused a budget for — it is a comparison against an anchor OUTSIDE
+    // the candidate, so it survives the geography failing to earn a budget,
+    // and it is exactly the question an operator asks next. Marked
+    // "indicative" when the gate failed, because it is.
+    '<td>'+(sz.recommended_sqft
+        ? esc(sz.format||'')+'<span class="sub">'+num(sz.recommended_sqft)+' sq ft'+
+          (sz.calibrated ? '' : ' &middot; indicative')+'</span>'
+        : '<span class="why">'+esc(sz.format || '&mdash;')+'</span>')+'</td>'+
     '<td>'+capital+'<span class="sub">'+esc(
         c.basis==='insufficient-data' ? 'not enough data' :
         c.basis==='estate-productivity' ? 'from your sales per sq ft' :
@@ -438,7 +449,8 @@ async function scoreSites(){
     '<div class="wrap"><table><thead><tr>'+
       '<th>Location</th><th class="num">People won</th><th class="num">Rank</th>'+
       '<th class="num">Share</th><th class="num">From your own</th>'+
-      '<th class="num">Rivals &lt;2km</th><th>Opening stock</th><th>Read</th>'+
+      '<th class="num">Rivals &lt;2km</th><th>Size that fits</th>'+
+      '<th>Opening stock</th><th>Read</th>'+
     '</tr></thead><tbody>'+res.sites.map(siteRow).join('')+'</tbody></table></div>'+
     '<p class="hint" style="margin-top:14px">'+
       'Scored against '+esc(res.own_stores)+' of your stores and '+esc(res.competitors)+
@@ -453,7 +465,11 @@ async function scoreSites(){
       'sales per square foot rather than from the location, because on your current '+
       'estate '+esc(v.reason || 'the geography does not yet predict your branch revenues '+
       'better than floor area alone does')+'. More branches, or the dates when rivals '+
-      'opened near you, would settle that.</p>')+
+      'opened near you, would settle that. <b style="color:var(--ink2)">The size column '+
+      'is marked indicative for the same reason</b> &mdash; it is still the largest format '+
+      'whose modelled revenue clears your own sales per square foot, which is a comparison '+
+      'against your trading rather than against the candidate, so it is worth reading; it '+
+      'is just not a size decision on its own.</p>')+
     // A win the sign test cannot separate from a coin flip is still a win, but
     // the operator is spending money on it and must see how thin it is.
     // If the gate would reach a different verdict at the ends of the

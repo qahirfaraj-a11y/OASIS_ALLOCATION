@@ -436,6 +436,119 @@ class TestTheCapitalBandIsBuiltAtOneExponent:
         assert "whether the location earns a budget at all" not in r["note"]
 
 
+class TestTheIndicativeSizeIsReachable:
+    """recommend_size has a branch written for an estate whose geography did
+    not clear the gate — "indicative only, treat this as a ranking". No caller
+    could reach it: score_sites skipped the whole call whenever the gate failed,
+    which is the COMMON case and the case on the live estate. So a retailer
+    whose geography had not earned a budget saw no size guidance at all, rather
+    than guidance with a caveat on it.
+    """
+
+    #: A calibration good enough to size against, standing in for a real estate.
+    CAL = {"usable": True, "n": 6, "median_revenue_per_sqft": 900.0,
+           "median_demand": 4.0e9, "median_spend_per_person": 0.0}
+
+    def _fn(self, share_at):
+        return lambda sz: {"adjusted_capture_pct": share_at(sz),
+                           "captured_population": None}
+
+    def test_an_unvalidated_estate_still_gets_rungs_and_a_caveat(self):
+        r = SC.recommend_size(self._fn(lambda sz: 0.5 + sz / 4000.0),
+                              self.CAL, {"validated": False,
+                                         "reason": "the location beat the "
+                                         "simpler predictor by only 3% - too "
+                                         "close to call - and capital is "
+                                         "proposed from productivity instead"})
+        assert len(r["rungs"]) == len(SC.SIZE_LADDER)
+        assert r["calibrated"] is False
+        assert r["note"].startswith("Indicative only")
+
+    def test_the_caveat_names_which_way_the_gate_failed(self):
+        """"Beat the median but lost on most of your stores" is a different
+        warning from "did not beat floor area at all", and the operator can act
+        on the difference."""
+        outlier = SC.recommend_size(
+            self._fn(lambda sz: 1.0), self.CAL,
+            {"validated": False,
+             "reason": "the location beat the simpler predictor by 26% on the "
+                       "median but lost on 3 of 5 of your stores, so the win "
+                       "rests on one or two outliers - capital is proposed "
+                       "from productivity instead"})
+        assert "lost on 3 of 5 of your stores" in outlier["note"]
+        assert "capital is proposed" not in outlier["note"], \
+            "the trailing clause is about capital, not about size"
+
+        nothing = SC.recommend_size(
+            self._fn(lambda sz: 1.0), self.CAL,
+            {"validated": False,
+             "reason": "the location adds nothing over the simpler predictor "
+                       "on this estate - capital is proposed from productivity "
+                       "instead"})
+        assert "adds nothing over the simpler predictor" in nothing["note"]
+
+    def test_it_still_names_the_largest_format_that_clears(self):
+        """The caveat is about confidence, not about refusing to answer. Huff
+        saturates, so revenue per square foot falls as the store grows and
+        there is a real crossing against the estate's own productivity."""
+        # capture rises sub-linearly with size, so rev/sqft falls across rungs
+        r = SC.recommend_size(self._fn(lambda sz: 3.0 * (sz / 10000.0) ** 0.5),
+                              self.CAL, {"validated": False})
+        clearing = [x["size_sqft"] for x in r["rungs"] if x["clears_estate"]]
+        assert clearing, "no rung cleared - the test cannot see the branch"
+        assert r["recommended_sqft"] == max(clearing)
+        assert r["format"] == SC.SIZE_FORMATS[r["recommended_sqft"]]
+
+    def test_revenue_per_sqft_falls_as_the_store_grows(self):
+        """The saturation that makes this non-circular. If it rose, the answer
+        would just be "build the biggest one" every time."""
+        r = SC.recommend_size(self._fn(lambda sz: 3.0 * (sz / 10000.0) ** 0.5),
+                              self.CAL, {"validated": False})
+        rps = [x["revenue_per_sqft"] for x in r["rungs"]]
+        assert rps == sorted(rps, reverse=True), rps
+
+    def test_no_estate_still_refuses(self):
+        r = SC.recommend_size(self._fn(lambda sz: 5.0),
+                              {"usable": False}, {"validated": False})
+        assert r["recommended_sqft"] is None
+        assert r["rungs"] == []
+
+    def test_score_sites_attaches_it_even_when_the_gate_fails(self,
+                                                              monkeypatch):
+        """The regression that mattered: the call was skipped entirely."""
+        estate = _estate()
+        # revenue proportional to floor area, so floor area wins and the
+        # geography cannot clear the gate
+        rev = {s["org_cd"]: s["size_sqft"] * 14000.0 for s in estate}
+        monkeypatch.setattr(D, "store_map", lambda root=None: {
+            "located": estate, "missing": [], "orphaned": [],
+            "saved_total": len(estate)})
+        monkeypatch.setattr(D, "estate_economics",
+                            lambda days=90, root=None, refresh=False: {
+                                "revenue": rev,
+                                "stock_value": {k: v * 0.22
+                                                for k, v in rev.items()},
+                                "days": 90, "error": None})
+        monkeypatch.setattr(D, "competitor_set", lambda root=None: {
+            "rows": _rivals(), "attribution": "test", "error": None})
+        monkeypatch.setattr(D, "population_set", lambda root=None: {
+            "grid": _grid(), "rows": 196, "people": 100000.0})
+        monkeypatch.setattr(D, "affluence_set", lambda root=None: {"grid": None})
+        res = D.score_sites([{"name": "n1", "lat": -1.2841, "lon": 36.8155,
+                              "size_sqft": 12000.0}])
+        assert res["error"] is None, res["error"]
+        assert res["validation"]["validated"] is False
+        site = res["sites"][0]
+        assert "size_recommendation" in site
+        sz = site["size_recommendation"]
+        assert sz["calibrated"] is False
+        assert len(sz["rungs"]) == len(SC.SIZE_LADDER)
+        assert sz["note"].startswith("Indicative only")
+        # and the capital band is still withheld, which is a separate refusal
+        assert site["capital"]["beta_varies"] is False
+        assert site["capital"]["beta_low"] is None
+
+
 class TestTheBandIsBuiltOnce:
     def test_rank_band_reports_the_band_it_already_computed(self):
         """rank_band scored every candidate at every exponent and kept only the

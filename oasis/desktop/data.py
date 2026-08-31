@@ -753,6 +753,30 @@ def site_calibration(days: int = 90,
                 "affluence": {}, "error": str(e)[:200]}
 
 
+def _price_each_beta(site, runs, by_beta, cal, val, SC):
+    """Opening capital at every exponent, each on its own calibration.
+
+    The band used to be built from people at beta 1.5 and 3.0 multiplied by a
+    spend per person measured only at 2.0 — and spend per person is revenue
+    over captured population, so the exponent was counted twice. Measured on a
+    validated seven-store estate, both edges came out 1.9% to 7.5% LOW, and the
+    width moved in both directions depending on the site (1.98x -> 1.90x on one
+    candidate, 1.17x -> 1.22x on another). Not a uniform narrowing — a band that
+    was built two ways now being built one.
+    """
+    out = []
+    for b, run in sorted((runs or {}).items()):
+        cal_b = ((by_beta.get(float(b)) or {}).get("calibration") or cal)
+        alt = SC.propose_capital(
+            run.get("adjusted_capture_pct"), site["size_sqft"], cal_b, val,
+            isolated=site.get("isolated", False),
+            captured_population=run.get("captured_population"),
+            affluence_index=(site["affluence"] or {}).get("index"))
+        if alt.get("opening_capital") is not None:
+            out.append(alt["opening_capital"])
+    return out
+
+
 def score_sites(candidates: List[Dict[str, Any]],
                 size_sqft: float = 10_000.0,
                 root: Optional[str] = None) -> Dict[str, Any]:
@@ -842,32 +866,13 @@ def score_sites(candidates: List[Dict[str, Any]],
             if not val.get("validated"):
                 s["capital"]["beta_low"] = s["capital"]["beta_high"] = None
                 s["capital"]["beta_varies"] = False
-                continue
-            s["capital"]["beta_varies"] = True
-            # Price EACH exponent against the estate calibrated at THAT
-            # exponent, then take the extremes. The band used to be built from
-            # people at beta 1.5 and 3.0 multiplied by a spend per person
-            # measured only at 2.0 — and spend per person is revenue over
-            # captured population, so the exponent was counted twice.
-            #
-            # Measured on a validated seven-store estate, both edges came out
-            # 1.9% to 7.5% LOW. The width moved in both directions depending on
-            # the site (1.98x -> 1.90x on one candidate, 1.17x -> 1.22x on
-            # another), so this is not a uniform narrowing — it is a band that
-            # was built two ways now being built one.
-            priced = []
-            for b, run in sorted(runs.items()):
-                cal_b = ((by_beta.get(float(b)) or {}).get("calibration")
-                         or cal)
-                alt = SC.propose_capital(
-                    run.get("adjusted_capture_pct"), s["size_sqft"],
-                    cal_b, val, isolated=s.get("isolated", False),
-                    captured_population=run.get("captured_population"),
-                    affluence_index=(s["affluence"] or {}).get("index"))
-                if alt.get("opening_capital") is not None:
-                    priced.append(alt["opening_capital"])
-            s["capital"]["beta_low"] = min(priced) if priced else None
-            s["capital"]["beta_high"] = max(priced) if priced else None
+                priced = []
+            else:
+                s["capital"]["beta_varies"] = True
+                priced = _price_each_beta(s, runs, by_beta, cal, val, SC)
+            if priced:
+                s["capital"]["beta_low"] = min(priced)
+                s["capital"]["beta_high"] = max(priced)
             # The non-circular size answer. site_scoring.recommend_format reads
             # the size off a capture that was computed FROM that size, so it can
             # only ever restate the input. This re-scores the SAME point at each

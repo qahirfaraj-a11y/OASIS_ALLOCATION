@@ -831,8 +831,20 @@ def recommend_size(score_fn: Callable[[float], float],
             best = size
 
     if not calibrated:
-        note = ("Indicative only - the geography did not beat floor area on "
-                "your estate, so treat this as a ranking, not a size decision.")
+        # Reachable at last. score_sites used to skip this call entirely
+        # whenever the gate failed - the common case - so the one branch
+        # written for an unvalidated estate could never run, and a retailer
+        # whose geography had not earned a budget saw no size guidance at all
+        # rather than guidance with a caveat on it.
+        #
+        # The caveat now names WHICH way the gate failed, because the reasons
+        # are not equivalent: "beat the median but lost on most of your stores"
+        # is a different warning from "did not beat floor area at all", and the
+        # operator can act on the difference.
+        why = ((validation or {}).get("reason") or
+               "the geography did not beat floor area on your estate")
+        note = ("Indicative only - " + why.split(" - ")[0].strip() +
+                ". Treat this as a ranking, not a size decision.")
     elif best is None:
         note = (f"No format clears your median {anchor:,.0f} per sq ft here. "
                 "The catchment is too contested to carry a store at your "
