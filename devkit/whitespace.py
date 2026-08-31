@@ -96,15 +96,12 @@ def _worker_init(root: str) -> None:
 
 
 def _read_matrix(root: str) -> list:
-    from oasis.logic.geo_sources import (apply_sizes, cache_path,
-                                         legacy_cache_path,
-                                         load_chain_profiles)
-    path = cache_path(root)
-    if not os.path.exists(path):
-        path = legacy_cache_path(root)
-    with open(path, "r", encoding="utf-8", errors="replace") as f:
-        rows = list(csv.DictReader(f))
-    sized = apply_sizes(rows, load_chain_profiles(root))
+    """Through ``load_competitors``, so this sweeps the SAME market the console
+    scores against — the shipped pack, the operator's corrections and the
+    exclusion of chains that have closed all reach it now. Reading the cache
+    file directly (in three separate devkit copies) meant none of that did."""
+    from oasis.logic.geo_sources import load_competitors
+    sized = load_competitors(root=root, include_own=True)["rows"]
     return [(float(r["Latitude"]), float(r["Longitude"]),
              float(r.get("size_sqft") or 15_000.0),
              (r.get("Chain") or "").strip()) for r in sized]

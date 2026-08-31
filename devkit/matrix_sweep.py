@@ -76,15 +76,12 @@ def _worker_init(root: str) -> None:
 
 
 def _read_matrix(root: str) -> list:
-    from oasis.logic.geo_sources import (apply_sizes, cache_path,
-                                         legacy_cache_path,
-                                         load_chain_profiles)
-    path = cache_path(root)
-    if not os.path.exists(path):
-        path = legacy_cache_path(root)
-    with open(path, "r", encoding="utf-8", errors="replace") as f:
-        rows = list(csv.DictReader(f))
-    sized = apply_sizes(rows, load_chain_profiles(root))
+    """Through ``load_competitors``, so the matrix here is the market the
+    console scores against. Three devkit tools each read the cache file
+    directly, so none saw the shipped pack, the corrections, or the chains
+    excluded for having closed."""
+    from oasis.logic.geo_sources import load_competitors
+    sized = load_competitors(root=root, include_own=True)["rows"]
     return [{"lat": float(r["Latitude"]), "lon": float(r["Longitude"]),
              "size_sqft": float(r.get("size_sqft") or 15_000.0),
              "chain": (r.get("Chain") or "").strip(),

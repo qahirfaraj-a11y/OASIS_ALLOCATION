@@ -77,16 +77,20 @@ def _worker_init(root: str) -> None:
 
 
 def _read_matrix(root: str) -> list:
-    """Every store in the matrix, chain-labelled, sizes applied."""
-    from oasis.logic.geo_sources import (apply_sizes, cache_path,
-                                         legacy_cache_path,
-                                         load_chain_profiles)
-    path = cache_path(root)
-    if not os.path.exists(path):
-        path = legacy_cache_path(root)
-    with open(path, "r", encoding="utf-8", errors="replace") as f:
-        rows = list(csv.DictReader(f))
-    return apply_sizes(rows, load_chain_profiles(root))
+    """Every store in the matrix, chain-labelled, sizes applied.
+
+    Reads through ``load_competitors`` so this sees exactly the field the
+    product sees. It used to open the cache file directly, and three devkit
+    tools each carried their own copy of that — which meant none of them saw
+    the shipped national pack, the operator's corrections, or the exclusion of
+    chains that have stopped trading. A sweep scored against a different market
+    from the console is not a sweep of anything.
+
+    ``include_own`` because every chain takes a turn as the operator here, so
+    the whole market has to be present for any of them to be scored.
+    """
+    from oasis.logic.geo_sources import load_competitors
+    return list(load_competitors(root=root, include_own=True)["rows"])
 
 
 def _as_point(row: dict) -> dict:

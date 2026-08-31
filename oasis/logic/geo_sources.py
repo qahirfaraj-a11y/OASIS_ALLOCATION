@@ -764,7 +764,8 @@ def chains_in(rows: List[dict]) -> List[str]:
 
 
 def load_competitors(root: Optional[str] = None,
-                     country: str = "KEN") -> Dict[str, object]:
+                     country: str = "KEN",
+                     include_own: bool = False) -> Dict[str, object]:
     """The competitor set for this install, with floor areas and corrections.
 
     Load order, most specific first:
@@ -775,6 +776,13 @@ def load_competitors(root: Optional[str] = None,
 
     Operator corrections are layered over whichever base wins, so a client who
     fixes a floor area or adds a missed branch keeps that across a refresh.
+
+    ``include_own`` keeps the operator's own banner in the result. Off by
+    default, because a client's own stores arrive from the POS and are already
+    the "own stores" term in the Huff denominator — counting them twice would
+    have every branch competing with itself. It is switched ON for a
+    point-of-view sweep, where each chain in turn plays the operator and the
+    whole market has to be present for any of them to be scored.
     """
     path, legacy, from_pack, rows = cache_path(root), False, False, None
     if not os.path.exists(path):
@@ -806,7 +814,7 @@ def load_competitors(root: Optional[str] = None,
 
     # The matrix holds every chain in the region; a client's OWN banner is
     # removed here rather than at fetch time, so one extract serves any client.
-    own = load_own_chain(root)
+    own = [] if include_own else load_own_chain(root)
     in_matrix = len(rows)
     rows = drop_own_chain(rows, own)
 

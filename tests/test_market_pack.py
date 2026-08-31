@@ -106,6 +106,20 @@ class TestTheShippedPack:
         assert [r["Chain"] for r in res["rows"]] == ["Beta"]
         assert res["own_excluded"] == 1
 
+    def test_a_point_of_view_sweep_can_ask_for_the_whole_market(self,
+                                                               tmp_path):
+        """Each chain takes a turn as the operator in a POV sweep, so the whole
+        market has to be present for any of them to be scored. Off by default,
+        because a client's own stores arrive from the POS and are already the
+        own-stores term — counting them twice has every branch competing with
+        itself."""
+        root = _root(tmp_path)
+        _write_pack(root, _TWO)
+        GS.save_own_chain(["Alpha"], root=root)
+        full = GS.load_competitors(root=root, include_own=True)
+        assert sorted(r["Chain"] for r in full["rows"]) == ["Alpha", "Beta"]
+        assert full["own_excluded"] == 0
+
 
 class TestCorrections:
     def test_a_missed_branch_can_be_added(self, tmp_path):
