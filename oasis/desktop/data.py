@@ -19,6 +19,8 @@ from __future__ import annotations
 
 import logging
 import os
+import threading
+import time
 from typing import Any, Dict, List, Optional
 
 logger = logging.getLogger("OasisDesktopData")
@@ -445,6 +447,15 @@ def competitor_set(root: Optional[str] = None) -> Dict[str, Any]:
 
 #: Estate economics are the same for every candidate scored in a sitting and
 #: cost one sales + stock pass per store, so they are memoised per (root, days).
+#: How many reads have COMPLETED for each key. A caller that queued behind an
+#: in-flight read compares this against what it saw on arrival to tell whether
+#: the answer it found is newer than its own request. A counter rather than a
+#: clock because monotonic() is ~15 ms granular on Windows and two back-to-back
+#: calls tie on it.
+_ECON_GEN: Dict[tuple, int] = {}
+#: One lock per cache key: identical reads must not run in parallel.
+_ECON_LOCKS: Dict[tuple, 'threading.Lock'] = {}
+_ECON_LOCK_GUARD = threading.Lock()
 _ESTATE_ECON_CACHE: Dict[Any, Dict[str, Any]] = {}
 
 
@@ -455,11 +466,47 @@ def estate_economics(days: int = 90, root: Optional[str] = None,
     This is the only labelled dataset OASIS has for the location question:
     stores that actually trade, with outcomes their POS recorded. Everything
     ``site_capital`` claims about a candidate is anchored here.
+
+    SINGLE-FLIGHT, because concurrent copies of this read do not merely take
+    longer, they take MUCH longer. Measured against the live POS:
+
+        1 concurrent read     14.5 s
+        2 concurrent reads    50.3 s   (3.5x)
+        4 concurrent reads   221.4 s   (15.3x)
+
+    That is what a web request "hanging" on the POS actually was — not a
+    deadlock, four identical reads contending. The console polls jobs while
+    pages load, so two surfaces asking at once is the normal case, not an edge
+    one. The reads are identical and idempotent, so a caller arriving while one
+    is in flight waits for that result instead of starting another.
     """
     key = (root or project_root(), int(days))
     if not refresh and key in _ESTATE_ECON_CACHE:
         return _ESTATE_ECON_CACHE[key]
 
+    with _ECON_LOCK_GUARD:
+        lock = _ECON_LOCKS.setdefault(key, threading.Lock())
+        # Note the completed-read count BEFORE queueing, under the guard.
+        seen = _ECON_GEN.get(key, 0)
+    with lock:
+        # Someone may have finished a read while we queued. Accept it only if
+        # the count ADVANCED past what we saw on arrival — that answer is no
+        # staler than the one we were about to fetch, even for a refresh.
+        #
+        # A counter, not a clock. The first version compared timestamps and a
+        # back-to-back plain-then-refresh pair got IDENTICAL ones: monotonic()
+        # is ~15 ms granular on Windows, far coarser than the gap between two
+        # calls, so the refresh silently returned the cached read it was asked
+        # to replace. A counter cannot tie.
+        if key in _ESTATE_ECON_CACHE and (
+                not refresh or _ECON_GEN.get(key, 0) > seen):
+            return _ESTATE_ECON_CACHE[key]
+        return _read_estate_economics(days, root, key)
+
+
+def _read_estate_economics(days: int, root: Optional[str],
+                           key: tuple) -> Dict[str, Any]:
+    """The actual POS read. Callers hold this key's lock."""
     out: Dict[str, Any] = {"revenue": {}, "stock_value": {}, "days": int(days),
                            "error": None}
     try:
@@ -492,6 +539,7 @@ def estate_economics(days: int = 90, root: Optional[str] = None,
         out["error"] = str(e)[:200]
 
     _ESTATE_ECON_CACHE[key] = out
+    _ECON_GEN[key] = _ECON_GEN.get(key, 0) + 1
     return out
 
 
@@ -924,13 +972,22 @@ def _catchment_mix(lat: float, lon: float, pts: List[Dict[str, Any]],
 
 #: How long a pin evaluation will wait for the POS before giving up on it.
 #:
-#: Reading sales takes about ten seconds from a plain Python process and has
-#: been observed not to return AT ALL from inside the web server — the same
-#: query, the same database, blocked past two minutes. Whatever the cause
-#: (connection reuse across the request threadpool is the likely suspect), a
-#: web request that can hang forever is not shippable, and a bounded wait is
-#: honest where an unbounded one is a lie about how long "loading" lasts.
-_POS_READ_TIMEOUT_S = 25.0
+#: The "hang" this was written for turned out to be CONTENTION, not a deadlock,
+#: and ``estate_economics`` now single-flights so it cannot recur: identical
+#: concurrent reads went from 221 s at four-way concurrency to 11 s. What
+#: remains is that one honest read of a large estate can simply be slow, and a
+#: web request must still return.
+#:
+#: Generous on purpose, and more generous than it first looks. Repeated reads
+#: of the SAME one-store estate measured 14.5, 23.1, 36.5 and 43.5 seconds —
+#: this database's own variance is nearly threefold, before a client with
+#: thirty stores is considered. A timeout tight enough to fire on that would
+#: make capital permanently unavailable to exactly the clients who have the
+#: data for it.
+#:
+#: When it does fire the background read is left running, so it fills the cache
+#: and the next evaluation is instant.
+_POS_READ_TIMEOUT_S = 90.0
 
 
 def _read_sales_bounded(days, root):

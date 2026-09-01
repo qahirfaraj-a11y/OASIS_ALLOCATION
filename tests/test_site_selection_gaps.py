@@ -642,6 +642,83 @@ class TestScoringWithoutRevenue:
                 assert "spend" not in k and "demand" not in k, k
 
 
+class TestConcurrentSalesReadsAreSingleFlighted:
+    """A web request that "hung on the POS" was four identical reads
+    contending, not a deadlock. Measured against the live database:
+
+        1 concurrent read     14.5 s
+        2 concurrent reads    50.3 s   (3.5x)
+        4 concurrent reads   221.4 s   (15.3x)
+
+    The console polls jobs while pages load, so two surfaces asking at once is
+    the normal case. The reads are identical and idempotent, so only one may
+    run at a time and the rest take its answer.
+    """
+
+    def _slow_reader(self, monkeypatch, calls):
+        import time as _t
+
+        def fake(days, root, key):
+            calls.append(1)
+            _t.sleep(0.35)
+            out = {"revenue": {"A": 1.0}, "stock_value": {"A": 0.2},
+                   "days": days, "error": None}
+            D._ESTATE_ECON_CACHE[key] = out
+            D._ECON_GEN[key] = D._ECON_GEN.get(key, 0) + 1
+            return out
+
+        monkeypatch.setattr(D, "_read_estate_economics", fake)
+        D._ESTATE_ECON_CACHE.clear()
+        D._ECON_GEN.clear()
+        D._ECON_LOCKS.clear()
+
+    def test_eight_callers_cause_one_read(self, monkeypatch):
+        import concurrent.futures as cf
+        calls = []
+        self._slow_reader(monkeypatch, calls)
+        with cf.ThreadPoolExecutor(max_workers=8) as ex:
+            out = [f.result() for f in
+                   [ex.submit(D.estate_economics, 90, None) for _ in range(8)]]
+        assert len(calls) == 1, f"{len(calls)} reads for 8 callers"
+        assert all(o["revenue"] == {"A": 1.0} for o in out)
+
+    def test_concurrent_refreshes_also_collapse(self, monkeypatch):
+        """A refresh that arrives while one is in flight wants fresh data, and
+        the answer landing a moment later is exactly that."""
+        import concurrent.futures as cf
+        calls = []
+        self._slow_reader(monkeypatch, calls)
+        with cf.ThreadPoolExecutor(max_workers=6) as ex:
+            [f.result() for f in
+             [ex.submit(D.estate_economics, 90, None, True) for _ in range(6)]]
+        assert len(calls) == 1, f"{len(calls)} reads for 6 refreshes"
+
+    def test_a_later_refresh_still_re_reads(self, monkeypatch):
+        """Single-flight must not turn into a permanent cache: a refresh asked
+        for after the previous one finished has to do the work."""
+        calls = []
+        self._slow_reader(monkeypatch, calls)
+        D.estate_economics(90, None)
+        D.estate_economics(90, None, True)
+        assert len(calls) == 2
+
+    def test_a_plain_call_after_a_read_uses_the_cache(self, monkeypatch):
+        calls = []
+        self._slow_reader(monkeypatch, calls)
+        D.estate_economics(90, None)
+        D.estate_economics(90, None)
+        assert len(calls) == 1
+
+    def test_different_windows_do_not_block_each_other(self, monkeypatch):
+        """The lock is per cache key, not global — 30 days and 90 days are
+        different questions."""
+        calls = []
+        self._slow_reader(monkeypatch, calls)
+        D.estate_economics(30, None)
+        D.estate_economics(90, None)
+        assert len(calls) == 2
+
+
 class TestTheDataBoundaryIsNotAnOpportunity:
     """A candidate near the edge of a fetched region has its catchment cut off
     by the DOWNLOAD, not by geography: its people are missing and so are its
