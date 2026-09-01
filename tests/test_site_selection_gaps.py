@@ -549,6 +549,136 @@ class TestTheIndicativeSizeIsReachable:
         assert site["capital"]["beta_low"] is None
 
 
+class TestScoringWithoutRevenue:
+    """Sales data exists only for the chain running OASIS. Every competitor —
+    and every prospect being shown what the system would say before connecting
+    anything — has none, and never will. The capital chain is defined on money,
+    so it correctly refuses; what survives is the geography.
+    """
+
+    def test_the_revenue_path_yields_nothing_without_sales(self):
+        """The premise. estate_observations skips any store with no revenue,
+        so for a competitor it returns an empty set — correctly."""
+        obs = SC.estate_observations(_estate(), _rivals(), {},
+                                     population=_grid())
+        assert list(obs) == []
+        assert len(obs.skipped) == len(_estate())
+        assert all(s["reason"] == "no-sales" for s in obs.skipped)
+
+    def test_the_catchment_path_calibrates_on_the_same_estate(self):
+        obs = SC.catchment_observations(_estate(), _rivals(),
+                                        population=_grid())
+        assert len(obs) == len(_estate())
+        cal = SC.calibrate_catchment(obs)
+        assert cal["usable"] is True
+        assert cal["basis"] == "catchment"
+        assert cal["median_people_per_sqft"] > 0
+        assert "median_revenue_per_sqft" not in cal
+        for o in obs:
+            assert "revenue" not in o
+            assert o["people_per_sqft"] == o["captured_population"] / o["size_sqft"]
+
+    def test_an_unplaced_store_is_still_accounted_for(self):
+        estate = _estate()
+        estate[0] = dict(estate[0], lat=None, lon=None)
+        obs = SC.catchment_observations(estate, _rivals(), population=_grid())
+        assert [s["reason"] for s in obs.skipped] == ["not-placed"]
+
+    def test_no_population_grid_means_no_catchment_to_measure(self):
+        """Without a grid there is no headcount, so there is no anchor. Say so
+        rather than fall back to something dimensionless."""
+        obs = SC.catchment_observations(_estate(), _rivals(), population=None)
+        assert list(obs) == []
+        assert all(s["reason"] == "no-catchment" for s in obs.skipped)
+        assert SC.calibrate_catchment(obs)["usable"] is False
+
+    def test_the_size_recommendation_is_bounded_by_what_the_chain_operates(self):
+        """Unbounded, the ratio test recommended a 60,000 sq ft flagship to a
+        chain whose largest branch is 4,246 — a fourteen-fold extrapolation
+        dressed as a finding."""
+        cal = {"usable": True, "median_people_per_sqft": 1.0,
+               "max_sqft": 4246.0, "sizes_are_uniform": True}
+        rec = SC.recommend_size_by_catchment(
+            lambda sz: {"captured_population": 200_000.0}, cal)
+        assert rec["ceiling_sqft"] == round(SC.FORMAT_STRETCH * 4246.0)
+        assert max(r["size_sqft"] for r in rec["rungs"]) <= rec["ceiling_sqft"]
+        assert rec["recommended_sqft"] <= rec["ceiling_sqft"]
+        assert "largest branch this chain operates" in rec["note"]
+
+    def test_a_uniform_footprint_is_flagged_as_a_default(self):
+        """All 14 branches on file at one area is a chain-level default, not a
+        set of measurements, and the operator can fix it."""
+        cal = SC.calibrate_catchment(
+            SC.catchment_observations(_estate(), _rivals(),
+                                      population=_grid()))
+        assert cal["sizes_are_uniform"] is False, "the fixture varies sizes"
+        uniform = SC.calibrate_catchment(SC.catchment_observations(
+            [dict(s, size_sqft=4246.0) for s in _estate()], _rivals(),
+            population=_grid()))
+        assert uniform["sizes_are_uniform"] is True
+        rec = SC.recommend_size_by_catchment(
+            lambda sz: {"captured_population": 50_000.0}, uniform)
+        assert "chain default rather than a measurement" in rec["note"]
+
+    def test_a_chain_smaller_than_the_ladder_still_gets_an_answer(self):
+        cal = {"usable": True, "median_people_per_sqft": 0.1,
+               "max_sqft": 400.0}
+        rec = SC.recommend_size_by_catchment(
+            lambda sz: {"captured_population": 90_000.0}, cal)
+        assert len(rec["rungs"]) == 1
+        assert rec["rungs"][0]["size_sqft"] == min(SC.SIZE_LADDER)
+
+    def test_it_never_produces_a_money_figure(self):
+        """The whole point. Anyone reading a budget out of this has been
+        misled, so there must be nothing budget-shaped to read."""
+        cal = SC.calibrate_catchment(
+            SC.catchment_observations(_estate(), _rivals(),
+                                      population=_grid()))
+        rec = SC.recommend_size_by_catchment(
+            lambda sz: {"captured_population": 50_000.0}, cal)
+        for blob in (cal, rec):
+            for k in blob:
+                assert "revenue" not in k and "capital" not in k, k
+                assert "spend" not in k and "demand" not in k, k
+
+
+class TestTheDataBoundaryIsNotAnOpportunity:
+    """A candidate near the edge of a fetched region has its catchment cut off
+    by the DOWNLOAD, not by geography: its people are missing and so are its
+    rivals, so it scores as gloriously uncontested.
+
+    Measured on a real shortlist: four sites 3.5 km from the grid edge reported
+    28-58% capture against 0-2 rivals within 10 km and went straight into a
+    client's top twelve. Every one was an artefact of where the download
+    stopped. This is the SUPPLY_KM truncation bug one layer out.
+    """
+
+    def test_a_point_in_the_middle_is_covered(self):
+        g = _grid()
+        mid_lat = (g.south + g.north) / 2
+        mid_lon = (g.west + g.east) / 2
+        assert g.covers(mid_lat, mid_lon, 1.0)
+
+    def test_a_point_at_the_edge_is_not(self):
+        g = _grid()
+        assert not g.covers(g.south, g.west, 5.0)
+        assert not g.covers(g.north, g.east, 5.0)
+
+    def test_the_edge_distance_is_reported(self):
+        g = _grid()
+        assert g.edge_distance_km(g.south, g.west) == pytest.approx(0.0,
+                                                                    abs=1e-6)
+        mid_lat = (g.south + g.north) / 2
+        mid_lon = (g.west + g.east) / 2
+        assert g.edge_distance_km(mid_lat, mid_lon) > 5.0
+
+    def test_an_empty_grid_covers_nothing(self):
+        from oasis.logic.population import PopulationGrid
+        empty = PopulationGrid()
+        assert empty.covers(0.0, 0.0, 1.0) is False
+        assert empty.edge_distance_km(0.0, 0.0) == 0.0
+
+
 class TestTheBandIsBuiltOnce:
     def test_rank_band_reports_the_band_it_already_computed(self):
         """rank_band scored every candidate at every exponent and kept only the

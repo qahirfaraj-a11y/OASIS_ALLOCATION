@@ -75,6 +75,13 @@ def _score_point(task: tuple) -> dict:
     pop = _STATE["population"]
     stores = _STATE["stores"]
 
+    # A catchment cut off by the DOWNLOAD boundary is not uncontested, it is
+    # unmeasured — its people are missing and so are its rivals, so it scores as
+    # gloriously empty. See PopulationGrid.covers for what that cost on a real
+    # shortlist.
+    if not pop.covers(lat, lon, CATCHMENT_KM):
+        return {}
+
     people_here = sum(c[2] for c in pop.near(lat, lon, CATCHMENT_KM))
     if people_here < MIN_CATCHMENT_PEOPLE:
         return {}

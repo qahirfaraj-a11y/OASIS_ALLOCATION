@@ -130,6 +130,13 @@ class Observations(list):
 #: Floor areas considered when recommending a size, smallest first (sq ft).
 SIZE_LADDER = (2_500.0, 5_000.0, 10_000.0, 20_000.0, 35_000.0, 60_000.0)
 
+#: How far beyond its largest existing branch a chain may be told to build.
+#: A retailer's own footprint is evidence of what it can build, staff and
+#: supply; twice its biggest shop is a stretch, fourteen times is a different
+#: company. Applies to the revenue-free path, where the anchor is a ratio and
+#: nothing else bounds the answer.
+FORMAT_STRETCH = 2.0
+
 #: Names for those rungs, so the operator sees a format and not just a number.
 SIZE_FORMATS = {
     2_500.0: "Kiosk / Duka",
@@ -316,6 +323,196 @@ def estate_observations(stores: Sequence[Dict[str, Any]],
             "revenue_per_sqft": rev / size if size > 0 else 0.0,
         })
     return Observations(out, skipped)
+
+
+# ── the revenue-free path ───────────────────────────────────────────────────
+#
+# EVERYTHING ABOVE NEEDS SALES. That is fine for the chain running OASIS and
+# useless for every other chain in the market, because a competitor's revenue is
+# not ours to have. It is also useless for a PROSPECT — the retailer being shown
+# what the system would tell them, before they have connected anything.
+#
+# So there is a second calibration that touches no money at all. What a chain's
+# own branches still reveal, without a single shilling of sales, is the
+# CATCHMENT IT CHOOSES TO SERVE PER SQUARE FOOT: a retailer that runs 4,000 sqft
+# shops in catchments of 200,000 people has made a repeated decision about
+# format against demand, and that decision is observable from the map.
+#
+#     people_per_sqft_i = captured_population_i / size_sqft_i
+#
+# Its median over the estate is a revealed-preference anchor. A candidate that
+# would put the chain far below its own habitual ratio is a site that does not
+# suit the way it trades — and that judgement needs no revenue, no gate on
+# revenue, and no assumption about spend.
+#
+# WHAT THIS CANNOT DO, AND MUST NOT PRETEND TO. It yields no capital figure and
+# no revenue forecast, because both require money to calibrate against. The
+# output is people and format. Anyone reading a budget into it has been misled.
+
+def catchment_observations(stores: Sequence[Dict[str, Any]],
+                           competitors: Sequence[Dict[str, Any]] = (),
+                           catchment_km: float = CATCHMENT_KM,
+                           population: Any = None,
+                           beta: float = DISTANCE_DECAY,
+                           geometries: Optional[Dict[int, Any]] = None
+                           ) -> "Observations":
+    """One observation per located store, using NO revenue.
+
+    Scored leave-one-out exactly as ``estate_observations`` does, for the same
+    reason: a store scored against itself sits on top of itself at the distance
+    floor and takes a near-total share.
+    """
+    out: List[Dict[str, Any]] = []
+    skipped: List[Dict[str, Any]] = []
+
+    for i, s in enumerate(stores or []):
+        org = str(s.get("org_cd") or s.get("ORG_CD") or f"#{i}")
+        name = str(s.get("name") or org)
+        lat, lon = s.get("lat"), s.get("lon")
+        if lat is None or lon is None:
+            skipped.append({"org_cd": org, "name": name, "reason": "not-placed",
+                            "detail": "no location on file, so it cannot be "
+                                      "scored"})
+            continue
+        size = float(s.get("size_sqft") or DEFAULT_SIZE_SQFT)
+        others = [o for j, o in enumerate(stores) if j != i]
+        geo = None if geometries is None else geometries.get(i)
+        if geo is None:
+            geo = build_geometry(float(lat), float(lon), others, competitors,
+                                 catchment_km, population)
+            if geometries is not None:
+                geometries[i] = geo
+        sc = score_site(float(lat), float(lon), others, competitors,
+                        size_sqft=size,
+                        field=build_field(float(lat), float(lon), others,
+                                          competitors, beta=float(beta),
+                                          geometry=geo))
+        people = sc.get("captured_population")
+        if not people or people <= 0:
+            skipped.append({"org_cd": org, "name": name,
+                            "reason": "no-catchment",
+                            "detail": "no population grid, or nobody lives "
+                                      "within its catchment, so there is "
+                                      "nothing to measure its format against"})
+            continue
+        out.append({
+            "org_cd": org, "name": name, "size_sqft": size,
+            "capture": sc["capture_pct"] / 100.0,
+            "captured_population": people,
+            "catchment_population": sc.get("catchment_population"),
+            "cannibalisation": sc["cannibalisation_pct"] / 100.0,
+            # The revealed-preference anchor: how many people this chain has
+            # chosen to put behind each square foot of shop.
+            "people_per_sqft": people / size if size > 0 else 0.0,
+        })
+    return Observations(out, skipped)
+
+
+def calibrate_catchment(observations: Sequence[Dict[str, Any]]
+                        ) -> Dict[str, Any]:
+    """The chain's own format-to-catchment habit. No revenue anywhere."""
+    obs = list(observations or [])
+    skipped = list(getattr(observations, "skipped", ()) or ())
+    base = {"stores_skipped": skipped, "skipped_count": len(skipped),
+            "considered": len(obs) + len(skipped), "basis": "catchment"}
+    if not obs:
+        return dict(base, n=0, usable=False,
+                    reason="no located store has anyone living in its catchment")
+    pps = [o["people_per_sqft"] for o in obs if o["people_per_sqft"] > 0]
+    ppl = [o["captured_population"] for o in obs]
+    return dict(
+        base, n=len(obs), usable=bool(pps),
+        median_people_per_sqft=_median(pps),
+        people_p25=_quantile(pps, 0.25), people_p75=_quantile(pps, 0.75),
+        # How consistently this chain sizes its shops against demand. A tight
+        # spread means the anchor is a real habit; a wide one means the chain
+        # does not have a format rule and the recommendation is weaker.
+        format_spread_ratio=round(
+            _quantile(pps, 0.75) / _quantile(pps, 0.25), 2)
+        if _quantile(pps, 0.25) > 0 else 0.0,
+        median_captured=_median(ppl),
+        median_sqft=_median([o["size_sqft"] for o in obs]),
+        min_sqft=min(o["size_sqft"] for o in obs),
+        max_sqft=max(o["size_sqft"] for o in obs),
+        # True when every branch carries the same area — i.e. the figure is a
+        # chain-level default, not a set of measurements. The ratio anchor still
+        # works, but "people per square foot" then describes catchment variation
+        # only, and the operator should be told to supply real footprints.
+        sizes_are_uniform=len({round(o["size_sqft"], 1) for o in obs}) == 1,
+        median_cannibalisation=_median([o["cannibalisation"] for o in obs]),
+    )
+
+
+def recommend_size_by_catchment(score_fn: Callable[[float], Any],
+                                calibration: Dict[str, Any],
+                                ladder: Sequence[float] = SIZE_LADDER
+                                ) -> Dict[str, Any]:
+    """Largest format whose catchment still clears the chain's own ratio.
+
+    The same saturation argument as ``recommend_size``, with people in place of
+    revenue: a bigger shop reaches further and captures more, but less than
+    proportionally, so people per square foot falls as the store grows and
+    crosses the chain's habitual ratio somewhere. That crossing is the
+    recommendation, and the anchor is external to the candidate — which is what
+    kept the revenue version non-circular and keeps this one honest too.
+    """
+    cal = calibration or {}
+    if not cal.get("usable"):
+        return {"recommended_sqft": None, "format": None, "rungs": [],
+                "note": cal.get("reason") or "no estate to size against."}
+    anchor = float(cal.get("median_people_per_sqft") or 0.0)
+
+    # BOUNDED BY WHAT THE CHAIN ACTUALLY OPERATES. The ratio test alone is
+    # satisfied by an enormous store in an enormous catchment, and unbounded it
+    # recommended a 60,000 sqft flagship to a chain whose largest branch is
+    # 4,246 — a fourteen-fold extrapolation dressed as a finding. A retailer's
+    # own footprint is evidence of the formats it can build, staff and supply;
+    # anything far outside it is a different business, not a bigger shop.
+    ceiling = FORMAT_STRETCH * float(cal.get("max_sqft") or 0.0)
+    allowed = [s for s in ladder if ceiling <= 0 or s <= ceiling]
+    if not allowed:
+        # Every rung is above the ceiling: the chain runs shops smaller than the
+        # smallest format on the ladder. Offer that one rather than nothing.
+        allowed = [min(ladder)]
+
+    rungs, best = [], None
+    for size in allowed:
+        scored = score_fn(size)
+        people = (scored.get("captured_population")
+                  if isinstance(scored, dict) else scored) or 0.0
+        pps = people / size if size > 0 else 0.0
+        clears = anchor > 0 and pps >= anchor
+        rungs.append({"size_sqft": size,
+                      "format": SIZE_FORMATS.get(size, f"{size:,.0f} sq ft"),
+                      "captured_population": round(people, 0),
+                      "people_per_sqft": round(pps, 3),
+                      "clears_estate": clears})
+        if clears:
+            best = size
+    note = (f"Largest format whose catchment still clears this chain's own "
+            f"median of {anchor:,.2f} people per sq ft."
+            if best else
+            f"No format reaches this chain's usual {anchor:,.2f} people "
+            "per sq ft here — the catchment is too small or too contested "
+            "for the way it trades.")
+    if ceiling > 0:
+        note += (f" Capped at {ceiling:,.0f} sq ft — {FORMAT_STRETCH:g}x the "
+                 f"largest branch this chain operates.")
+    if cal.get("sizes_are_uniform"):
+        note += (" Every branch is on file at the same floor area, so that cap "
+                 "is a chain default rather than a measurement — supplying real "
+                 "footprints would sharpen this.")
+    return {
+        "recommended_sqft": best,
+        "format": SIZE_FORMATS.get(best) if best else "None at this location",
+        "people_per_sqft_anchor": round(anchor, 3),
+        "format_spread_ratio": cal.get("format_spread_ratio", 0.0),
+        "ceiling_sqft": round(ceiling, 0) if ceiling > 0 else None,
+        "sizes_are_uniform": bool(cal.get("sizes_are_uniform")),
+        "rungs": rungs,
+        "basis": "catchment",
+        "note": note,
+    }
 
 
 def calibrate_by_beta(stores: Sequence[Dict[str, Any]],

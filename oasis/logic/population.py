@@ -204,12 +204,44 @@ class PopulationGrid:
         self._index: Dict[Tuple[int, int], List[tuple]] = {}
         for c in self.cells:
             self._index.setdefault(self._bucket(c[0], c[1]), []).append(c)
+        self.south = min((c[0] for c in self.cells), default=0.0)
+        self.north = max((c[0] for c in self.cells), default=0.0)
+        self.west = min((c[1] for c in self.cells), default=0.0)
+        self.east = max((c[1] for c in self.cells), default=0.0)
 
     def __bool__(self) -> bool:
         return bool(self.cells)
 
     def __len__(self) -> int:
         return len(self.cells)
+
+    def edge_distance_km(self, lat: float, lon: float) -> float:
+        """How far a point sits from the nearest edge of the loaded grid."""
+        if not self.cells:
+            return 0.0
+        cos_lat = max(math.cos(math.radians(lat)), 1e-6)
+        return min((lat - self.south) * KM_PER_DEG_LAT,
+                   (self.north - lat) * KM_PER_DEG_LAT,
+                   (lon - self.west) * KM_PER_DEG_LON * cos_lat,
+                   (self.east - lon) * KM_PER_DEG_LON * cos_lat)
+
+    def covers(self, lat: float, lon: float, radius_km: float) -> bool:
+        """Is this point's whole catchment inside the data we actually have?
+
+        A candidate near the edge of a fetched region is the most dangerous
+        thing this model can be asked to score. Its catchment is cut off by the
+        DATA boundary rather than by geography, so its population is understated
+        AND no competitor beyond the edge was ever fetched — which makes it look
+        gloriously uncontested. Measured on a real shortlist: four sites 3.5 km
+        from the grid edge reported 28-58% capture against 0-2 rivals within
+        10 km, and went straight into a client's top twelve. Every one was an
+        artefact of where the download stopped.
+
+        This is the SUPPLY_KM truncation bug again, one layer out: the earlier
+        version deleted competitors past an arbitrary radius, this one never
+        had them. Same symptom, same direction, same false opportunity.
+        """
+        return self.edge_distance_km(lat, lon) >= float(radius_km)
 
     @staticmethod
     def _bucket(lat: float, lon: float) -> Tuple[int, int]:
