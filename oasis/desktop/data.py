@@ -777,6 +777,286 @@ def _price_each_beta(site, runs, by_beta, cal, val, SC):
     return out
 
 
+def market_chains(root: Optional[str] = None) -> Dict[str, Any]:
+    """Every banner in the field, with its branch count. The brand picker.
+
+    Includes the operator's own chain, because the whole point of picking a
+    brand is to take that brand's point of view — its branches become the own
+    network and everything else becomes competition.
+    """
+    try:
+        from oasis.logic.geo_sources import load_competitors, load_own_chain
+        res = load_competitors(root=root, include_own=True)
+        counts: Dict[str, int] = {}
+        for r in res.get("rows") or []:
+            c = str(r.get("Chain") or "").strip()
+            if c:
+                counts[c] = counts.get(c, 0) + 1
+        own = [o.lower() for o in (load_own_chain(root) or [])]
+        return {"chains": [
+            {"chain": c, "stores": n,
+             "is_own": any(o in c.lower() or c.lower() in o for o in own)}
+            for c, n in sorted(counts.items(), key=lambda t: -t[1])],
+            "attribution": res.get("attribution"), "error": res.get("error")}
+    except Exception as e:
+        return {"chains": [], "error": str(e)[:200]}
+
+
+def evaluate_site(chain: str, lat: float, lon: float,
+                  size_sqft: Optional[float] = None,
+                  revenue_per_sqft: Optional[float] = None,
+                  load_sales: bool = False,
+                  days: int = 90,
+                  root: Optional[str] = None) -> Dict[str, Any]:
+    """One pin, from one brand's point of view.
+
+    Returns the size the catchment supports, what is around it, and a capital
+    figure ONLY where something real can calibrate one.
+
+    THE CAPITAL RULE, STATED ONCE. Opening capital is stock, and stock is a
+    ratio against sales. Sales exist for the chain running OASIS and for nobody
+    else, so:
+
+      * picking your OWN banner, with the POS connected and enough placed
+        stores, gets a calibrated figure;
+      * picking anyone else gets no figure, and is told why;
+      * supplying ``revenue_per_sqft`` yourself gets a figure computed from
+        YOUR number, labelled as yours, because an operator's own assumption is
+        a legitimate input and quietly inventing one on their behalf is not.
+    """
+    from oasis.logic import site_capital as SC
+    from oasis.logic.site_scoring import (CATCHMENT_KM, build_field,
+                                          haversine_km, score_band, score_site)
+
+    out: Dict[str, Any] = {"chain": chain, "lat": lat, "lon": lon,
+                           "error": None}
+    try:
+        # include_own: the picked brand's own branches must be present so
+        # they can become the own-network term rather than competition.
+        from oasis.logic.geo_sources import load_competitors
+        field = load_competitors(root=root, include_own=True)
+        rows = field.get("rows") or []
+        if not rows:
+            return {**out, "error": field.get("error")
+                    or "No competitor field on this install yet."}
+        pts = [{"lat": float(r["Latitude"]), "lon": float(r["Longitude"]),
+                "size_sqft": float(r.get("size_sqft") or 15_000.0),
+                "chain": str(r.get("Chain") or "").strip(),
+                "pull": r.get("pull"),
+                "name": str(r.get("Store_Name") or ""),
+                "size_is_default": bool(r.get("size_is_default"))}
+               for r in rows]
+        own = [p for p in pts if p["chain"].lower() == chain.strip().lower()]
+        rivals = [p for p in pts if p["chain"].lower() != chain.strip().lower()]
+        if not own:
+            return {**out, "error": f"No branches on file for '{chain}'."}
+
+        grid = (population_set(root) or {}).get("grid") or None
+        out["attribution"] = field.get("attribution")
+
+        # A catchment cut off by the download boundary is not uncontested, it
+        # is unmeasured. Say so instead of scoring it.
+        if grid is not None and not grid.covers(lat, lon, CATCHMENT_KM):
+            out["edge_warning"] = (
+                f"This pin is {grid.edge_distance_km(lat, lon):.1f} km from the "
+                f"edge of the data you have fetched, and its catchment reaches "
+                f"{CATCHMENT_KM:.0f} km. Part of its population and some of its "
+                "competition were never downloaded, so it will look emptier "
+                "than it is. Fetch a wider region before trusting this.")
+
+        entrant = float(size_sqft or 10_000.0)
+        band = score_band(lat, lon, own, rivals, size_sqft=entrant,
+                          population=grid)
+        out["score"] = {k: band.get(k) for k in (
+            "capture_pct", "adjusted_capture_pct", "cannibalisation_pct",
+            "captured_population", "catchment_population", "nearest_own_km",
+            "nearest_competitor_km", "competitors_within_2km", "isolated",
+            "verdict", "captured_population_low", "captured_population_high",
+            "cannibalisation_pct_low", "cannibalisation_pct_high",
+            "beta_sensitive", "beta_span_ratio")}
+        people = band.get("captured_population") or 0.0
+        out["score"]["net_new_people"] = round(
+            people * (1 - (band.get("cannibalisation_pct") or 0) / 100.0), 0)
+
+        # ── size, on the chain's own format habit. No revenue needed. ──
+        cal = SC.calibrate_catchment(
+            SC.catchment_observations(own, rivals, population=grid))
+        out["catchment_calibration"] = {
+            k: cal.get(k) for k in ("n", "considered", "usable", "reason",
+                                    "median_people_per_sqft", "median_sqft",
+                                    "max_sqft", "sizes_are_uniform",
+                                    "format_spread_ratio", "median_captured")}
+        fld = build_field(lat, lon, own, rivals, population=grid)
+        out["size_recommendation"] = SC.recommend_size_by_catchment(
+            lambda sz: score_site(lat, lon, own, rivals, size_sqft=sz,
+                                  population=grid, field=fld), cal)
+
+        # ── what is around it ──
+        near = sorted(
+            ((haversine_km(lat, lon, p["lat"], p["lon"]), p) for p in pts),
+            key=lambda t: t[0])[:14]
+        out["surrounding"] = [
+            {"km": round(d, 2), "chain": p["chain"], "name": p["name"][:70],
+             "size_sqft": int(p["size_sqft"]),
+             "size_is_default": p["size_is_default"],
+             "is_own": p["chain"].lower() == chain.strip().lower()}
+            for d, p in near]
+        out["catchment_mix"] = _catchment_mix(lat, lon, pts, CATCHMENT_KM)
+
+        out["capital"] = _capital_for_pin(chain, band, entrant, days, root,
+                                          revenue_per_sqft, load_sales)
+        return out
+    except Exception as e:
+        return {**out, "error": str(e)[:200]}
+
+
+def _catchment_mix(lat: float, lon: float, pts: List[Dict[str, Any]],
+                   radius_km: float) -> List[Dict[str, Any]]:
+    """Who else is inside the catchment, by banner."""
+    from oasis.logic.site_scoring import haversine_km
+    mix: Dict[str, int] = {}
+    for p in pts:
+        if haversine_km(lat, lon, p["lat"], p["lon"]) <= radius_km:
+            mix[p["chain"]] = mix.get(p["chain"], 0) + 1
+    return [{"chain": c, "stores": n}
+            for c, n in sorted(mix.items(), key=lambda t: -t[1])]
+
+
+#: How long a pin evaluation will wait for the POS before giving up on it.
+#:
+#: Reading sales takes about ten seconds from a plain Python process and has
+#: been observed not to return AT ALL from inside the web server — the same
+#: query, the same database, blocked past two minutes. Whatever the cause
+#: (connection reuse across the request threadpool is the likely suspect), a
+#: web request that can hang forever is not shippable, and a bounded wait is
+#: honest where an unbounded one is a lie about how long "loading" lasts.
+_POS_READ_TIMEOUT_S = 25.0
+
+
+def _read_sales_bounded(days, root):
+    """Estate economics, or None if the POS does not answer in time."""
+    import concurrent.futures as _cf
+    try:
+        with _cf.ThreadPoolExecutor(max_workers=1) as ex:
+            return ex.submit(estate_economics, days, root).result(
+                timeout=_POS_READ_TIMEOUT_S)
+    except Exception:
+        # Including TimeoutError. The worker is left to finish on its own; if
+        # it eventually completes it populates the cache and the next
+        # evaluation is instant, which is the best outcome available here.
+        return None
+
+
+def _capital_for_pin(chain, band, entrant, days, root, revenue_per_sqft,
+                     load_sales=False):
+    """Opening capital, or a plain refusal naming what is missing."""
+    from oasis.logic import site_capital as SC
+
+    def refuse(why, fixable=None, needs_sales=False,
+               basis="no-sales-for-this-chain"):
+        # The basis is a LABEL the console prints next to the empty figure, so
+        # it has to name the actual reason. "No sales for this brand" is true
+        # of a competitor and false of the operator's own banner, whose sales
+        # we have and whose estate simply cannot calibrate yet.
+        return {"opening_capital": None, "basis": basis,
+                "note": why, "fixable": fixable, "needs_sales": needs_sales}
+
+    # The operator supplied their own productivity figure. Use it, label it,
+    # and do not dress it as ours.
+    if revenue_per_sqft:
+        try:
+            rps = float(revenue_per_sqft)
+        except (TypeError, ValueError):
+            return refuse("That sales-per-square-foot figure is not a number.")
+        if rps <= 0:
+            return refuse("Sales per square foot must be above zero.")
+        # PEEK, never fetch. The cover ratio is a nice-to-have on a pin
+        # evaluation, and evaluating a pin is a geography question that must
+        # never block on the transactional database. It did: an order run holds
+        # the POS connection, and a request that called estate_economics hung
+        # behind a replenishment job for as long as it took. If the ratio is
+        # already in hand, use it; otherwise report revenue and say what is
+        # missing.
+        econ = (_read_sales_bounded(days, root) if load_sales
+                else _ESTATE_ECON_CACHE.get((root or project_root(), int(days))))
+        covers = ([v / econ["revenue"][k]
+                   for k, v in (econ.get("stock_value") or {}).items()
+                   if econ.get("revenue", {}).get(k)] if econ else [])
+        cover = SC._median(covers) if covers else 0.0
+        rev = rps * entrant
+        return {
+            "opening_capital": round(rev * cover, 0) if cover else None,
+            "expected_revenue": round(rev, 0),
+            "cover_ratio": round(cover, 4),
+            "cover_measured": bool(covers),
+            "basis": "your-own-assumption",
+            "note": (f"From the {rps:,.0f} per sq ft you supplied, over "
+                     f"{entrant:,.0f} sq ft"
+                     + (f", at your own measured stock-to-sales ratio of "
+                        f"{cover:.2f} over {days} days."
+                        if covers else
+                        " — this is revenue, not capital. Turning it into "
+                        "opening stock needs your stock-to-sales ratio, which "
+                        "comes from the POS, which this has not read.")),
+        }
+
+    # DECIDE BEFORE ASKING THE DATABASE. The calibrated path can only ever work
+    # for the banner whose POS is connected; for anyone else it is guaranteed to
+    # refuse. Calling site_calibration anyway cost a ten-second POS query to
+    # learn something already known — and worse, it BLOCKED: an order run holds
+    # the same connection, so evaluating a pin for a competitor hung behind a
+    # replenishment job it had no business waiting for.
+    from oasis.logic.geo_sources import load_own_chain
+    own_names = [o.lower() for o in (load_own_chain(root) or [])]
+    picked = str(chain).strip().lower()
+    if not any(o in picked or picked in o for o in own_names):
+        return refuse(
+            "Opening capital is stock, and stock is a ratio against sales. "
+            "OASIS only sees sales for the chain running it, so there is no "
+            f"way to calibrate money for {chain}.",
+            fixable="Enter a sales-per-square-foot figure and the calculation "
+                    "will run on your number, labelled as yours.")
+
+    # Same rule for the calibrated path: it needs the POS, so it runs only when
+    # the POS has already been read. A pin evaluation must return.
+    if load_sales and (root or project_root(), int(days)) not in _ESTATE_ECON_CACHE:
+        if _read_sales_bounded(days, root) is None:
+            return refuse(
+                f"Your POS did not answer within {_POS_READ_TIMEOUT_S:.0f} "
+                "seconds, so this stopped waiting rather than hang.",
+                fixable="Try again in a moment — the read may still be "
+                        "finishing in the background. Or enter a "
+                        "sales-per-square-foot figure to run on your own "
+                        "number now.",
+                needs_sales=True, basis="pos-did-not-answer")
+
+    if (not load_sales
+            and (root or project_root(), int(days)) not in _ESTATE_ECON_CACHE):
+        return refuse(
+            "This is your own banner, so a calibrated figure is possible — but "
+            "it needs your sales, and reading them takes a POS query that this "
+            "will not run without being asked.",
+            fixable="Read my sales and work it out.", needs_sales=True,
+            basis="sales-not-read-yet")
+
+    calib = site_calibration(days, root)
+    cal, val = calib.get("calibration") or {}, calib.get("validation") or {}
+    if not cal.get("usable"):
+        return refuse(
+            "This is your own banner and your sales are loaded, but the "
+            "estate cannot calibrate yet. " + str(cal.get("reason") or ""),
+            basis="estate-cannot-calibrate",
+            fixable="Place your stores and connect their sales, or enter a "
+                    "sales-per-square-foot figure to run on your own number.")
+    prop = SC.propose_capital(
+        band.get("adjusted_capture_pct"), entrant, cal, val,
+        isolated=band.get("isolated", False),
+        captured_population=band.get("captured_population"))
+    prop["provisional"] = bool(val.get("provisional"))
+    prop["validated"] = bool(val.get("validated"))
+    return prop
+
+
 def score_sites(candidates: List[Dict[str, Any]],
                 size_sqft: float = 10_000.0,
                 root: Optional[str] = None) -> Dict[str, Any]:

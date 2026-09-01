@@ -209,7 +209,20 @@
       <p class="hint" id="r-msg"></p>
     </div>
 
+    <!-- Pick a banner, drop a pin. Everything below answers from THAT chain's
+         position: its branches become the own network, everyone else becomes
+         competition. -->
+    <div class="controls" style="margin:16px 0 2px;align-items:center">
+      <select id="e-chain" style="min-width:210px;flex:0"></select>
+      <input id="e-size" type="search" placeholder="Sq ft (optional)" style="min-width:140px;flex:0">
+      <input id="e-rps" type="search" placeholder="Your sales per sq ft (optional)" style="min-width:210px;flex:0">
+      <button class="btn ghost" id="e-clear">Clear pin</button>
+      <span class="muted" id="e-msg">Pick a brand, then click anywhere on the map.</span>
+    </div>
+
     <div id="sites-map" class="hide" style="margin:18px 0 4px"></div>
+
+    <div id="e-result"></div>
 
     <!-- OUTSIDE the setup block on purpose. Setup folds away once the inputs
          are in place, and correcting the competitive field is not setup: it is
@@ -306,7 +319,7 @@ function show(tab){
   });
   if(tab==='orders' && SITE && !ORDERS) loadOrders();
   if(tab==='transfers' && !TRANSFERS) loadTransfers();
-  if(tab==='sites' && !READY) loadReadiness();
+  if(tab==='sites' && !READY){ loadReadiness(); loadChains(); }
 }
 $('#t-orders').onclick = ()=>show('orders');
 $('#t-transfers').onclick = ()=>show('transfers');
@@ -581,7 +594,17 @@ async function loadMap(){
       '<svg viewBox="0 0 '+w+' '+h+'" style="display:block;width:100%;height:auto;'+
       'background:#0B1012" role="img" aria-label="Map of your region: population '+
       'density, rival shops, your branches and any candidate locations.">'+
-      heat + rivalDots + ownDots + cands + '</svg></div>'+
+      heat + rivalDots + ownDots + cands +
+      (PIN ? '<g style="pointer-events:none">'+
+        '<circle cx="'+x(PIN.lon).toFixed(1)+'" cy="'+y(PIN.lat).toFixed(1)+
+        '" r="11" fill="none" stroke="#fff" stroke-width="1.4" opacity=".9"/>'+
+        '<line x1="'+x(PIN.lon).toFixed(1)+'" y1="'+(y(PIN.lat)-17).toFixed(1)+
+        '" x2="'+x(PIN.lon).toFixed(1)+'" y2="'+(y(PIN.lat)+17).toFixed(1)+
+        '" stroke="#fff" stroke-width="1" opacity=".7"/>'+
+        '<line x1="'+(x(PIN.lon)-17).toFixed(1)+'" y1="'+y(PIN.lat).toFixed(1)+
+        '" x2="'+(x(PIN.lon)+17).toFixed(1)+'" y2="'+y(PIN.lat).toFixed(1)+
+        '" stroke="#fff" stroke-width="1" opacity=".7"/></g>' : '')+
+      '</svg></div>'+
     '<p class="hint" style="margin-top:10px">'+
       '<span style="color:#2ED3C6">&#9679;</span> your branches &nbsp; '+
       '<span style="color:#6B8086">&#9679;</span> rival shops (size shown to scale) &nbsp; '+
@@ -592,6 +615,24 @@ async function loadMap(){
       '<br>Rivals on the map: '+legend+'</p>'+
     (d.attribution ? '<p class="hint" style="font-family:var(--mono);font-size:11px">'+
       esc(d.attribution)+(d.source?' &middot; '+esc(d.source):'')+'</p>' : '');
+
+  // The map is the input, not a picture. Clicking anywhere converts the click
+  // back to a coordinate and evaluates it for the selected brand.
+  const svg = el.querySelector('svg');
+  if(svg){
+    svg.style.cursor = 'crosshair';
+    svg.addEventListener('click', ev=>{
+      // Rival dots have their own handler and stop here, so a click meant for
+      // "correct this shop" does not also drop a pin on top of it.
+      if(ev.target && ev.target.classList.contains('rival')) return;
+      const r = svg.getBoundingClientRect();
+      const px = (ev.clientX - r.left) / r.width * w;
+      const py = (ev.clientY - r.top) / r.height * h;
+      PIN = {lat: N - (py/h)*(N-S), lon: W + (px/w)*(E-W)};
+      loadMap();
+      evaluatePin();
+    });
+  }
 
   el.querySelectorAll('circle.rival').forEach(c=>{
     c.onclick = ()=>{
@@ -653,6 +694,102 @@ $('#r-fetch').onclick = async ()=>{
     READY = null; await loadReadiness(); await loadMap();
   }catch(e){ msg.textContent = String(e); }
 };
+
+/* ── pick a brand, drop a pin ────────────────────────────────────────────
+   The map already draws the market; making it clickable turns it from a
+   picture into the input. The pin is stored in map coordinates so a redraw
+   keeps it in the right place. */
+let PIN = null;
+
+async function loadChains(){
+  let d; try { d = await j('/api/sites/chains'); } catch(e){ return; }
+  const sel = $('#e-chain');
+  if(!d.chains || !d.chains.length){ sel.innerHTML = '<option>No brands yet</option>'; return; }
+  sel.innerHTML = '<option value="">Choose a brand…</option>' + d.chains.map(c=>
+    '<option value="'+esc(c.chain)+'">'+esc(c.chain)+' — '+c.stores+
+    ' branch'+(c.stores===1?'':'es')+(c.is_own?' (yours)':'')+'</option>').join('');
+}
+
+function evalRow(label, value, sub){
+  return '<div class="stat"><div class="k">'+label+'</div><div class="v sm">'+value+
+    (sub ? '<span class="sub">'+sub+'</span>' : '')+'</div></div>';
+}
+
+async function evaluatePin(loadSales){
+  const el = $('#e-result'), chain = $('#e-chain').value;
+  if(!PIN){ el.innerHTML = ''; return; }
+  if(!chain){ $('#e-msg').textContent = 'Pick a brand first.'; return; }
+  const size = parseFloat($('#e-size').value), rps = parseFloat($('#e-rps').value);
+  working(el, 'Evaluating '+chain+' at '+PIN.lat.toFixed(4)+', '+PIN.lon.toFixed(4),
+          loadSales ? 'reading your sales, then scoring the catchment'
+                    : 'against every branch in reach');
+  let r;
+  try{
+    r = await j('/api/sites/evaluate', {method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({chain, lat:PIN.lat, lon:PIN.lon,
+        size_sqft: isFinite(size)&&size>0 ? size : null,
+        revenue_per_sqft: isFinite(rps)&&rps>0 ? rps : null,
+        load_sales: !!loadSales})});
+  }catch(e){ el.innerHTML='<div class="state err"><b>Could not evaluate</b>'+esc(String(e))+'</div>'; return; }
+  if(r.error){ el.innerHTML='<div class="state err"><b>Could not evaluate</b>'+esc(r.error)+'</div>'; return; }
+
+  const s = r.score||{}, sz = r.size_recommendation||{}, c = r.capital||{};
+  const num = n => Number(n||0).toLocaleString(undefined,{maximumFractionDigits:0});
+
+  el.innerHTML =
+    // A pin whose catchment runs off the fetched data is the single most
+    // misleading thing this tool can draw, so it is said first and loudest.
+    (r.edge_warning ? '<div class="state err" style="padding:16px;text-align:left">'+
+      '<b>This pin is near the edge of your data</b>'+esc(r.edge_warning)+'</div>' : '')+
+    '<div class="stats" style="margin-top:14px">'+
+      evalRow('People won', num(s.captured_population),
+              num(s.captured_population_low)+' – '+num(s.captured_population_high))+
+      evalRow('New to you', num(s.net_new_people),
+              (s.cannibalisation_pct||0).toFixed(1)+'% from your own')+
+      evalRow('Catchment', num(s.catchment_population), 'within 10 km')+
+      evalRow('Size that fits', sz.recommended_sqft ? num(sz.recommended_sqft)+' <span style="font-size:11.5px;color:var(--ink3)">sq ft</span>' : '—',
+              esc(sz.format||''))+
+      evalRow('Opening stock', c.opening_capital!=null ? 'KES '+num(c.opening_capital) :
+              '<span style="color:var(--warn)">not from us</span>',
+              c.basis==='your-own-assumption' ? 'your figure' :
+              c.opening_capital!=null ? esc(c.basis||'') :
+              c.basis==='sales-not-read-yet' ? 'your sales not read yet' :
+              c.basis==='estate-cannot-calibrate' ? 'your estate cannot calibrate yet' :
+              'no sales for this brand')+
+    '</div>'+
+    '<p class="hint">'+esc(sz.note||'')+'</p>'+
+    (c.opening_capital==null ?
+      '<p class="hint" style="color:var(--warn)">'+esc(c.note||'')+
+      // A POS read is slow, so it is offered rather than done silently — the
+      // alternative was a request that hung behind whatever the database was
+      // already busy with.
+      (c.needs_sales ? ' <button class="btn ghost" id="e-sales">'+
+        esc(c.fixable||'Read my sales')+'</button>'
+       : c.fixable ? ' <b style="color:var(--ink2)">'+esc(c.fixable)+'</b>' : '')+'</p>'
+      : '<p class="hint">'+esc(c.note||'')+'</p>')+
+    '<div class="wrap" style="margin-top:12px"><table><thead><tr>'+
+      '<th>Nearest stores</th><th class="num">km</th><th>Chain</th><th class="num">Sq ft</th>'+
+    '</tr></thead><tbody>'+
+    (r.surrounding||[]).map(x =>
+      '<tr><td class="prod">'+esc(x.name||x.chain)+
+        (x.is_own?'<span class="sub" style="color:var(--ok,#2ED3C6)">your branch</span>':'')+'</td>'+
+      '<td class="num">'+x.km.toFixed(2)+'</td><td>'+esc(x.chain)+'</td>'+
+      '<td class="num">'+num(x.size_sqft)+
+        (x.size_is_default?'<span class="sub">assumed</span>':'')+'</td></tr>').join('')+
+    '</tbody></table></div>'+
+    '<p class="hint">Inside the 10 km catchment: '+
+      (r.catchment_mix||[]).map(m=>esc(m.chain)+' '+m.stores).join(' &middot; ')+
+      '. <b style="color:var(--ink2)">'+esc(s.verdict||'')+'</b></p>';
+  $('#e-msg').textContent = 'Click the map again to move the pin.';
+  const sales = $('#e-sales');
+  if(sales) sales.onclick = ()=>evaluatePin(true);
+}
+
+$('#e-clear').onclick = ()=>{ PIN=null; $('#e-result').innerHTML='';
+  $('#e-msg').textContent='Pick a brand, then click anywhere on the map.'; loadMap(); };
+$('#e-chain').onchange = ()=>{ if(PIN) evaluatePin(); };
+$('#e-size').onchange = $('#e-rps').onchange = ()=>{ if(PIN) evaluatePin(); };
 
 /* Correcting one rival, without replacing the whole competitive field. */
 async function correctRival(action){

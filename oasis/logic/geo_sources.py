@@ -45,6 +45,7 @@ import json
 import math
 import os
 import re
+import time
 from typing import Any, Dict, List, Optional
 
 from .population import KM_PER_DEG_LAT, KM_PER_DEG_LON
@@ -89,6 +90,11 @@ _CHAIN_ALIASES = {
     "cleanshelf": "Cleanshelf",
     "food plus": "Foodplus",
     "foodplus": "Foodplus",
+    # Singular and plural of one banner. Longest-wins matching sends most
+    # branches to "Magunas" and any shop signed without the S to "Maguna",
+    # which then trades as a separate one-store chain in every count.
+    "maguna": "Magunas",
+    "magunas": "Magunas",
 }
 
 #: A retailer's FORMAT SUB-BRAND is not a separate retailer. OSM records the
@@ -843,6 +849,32 @@ def load_competitors(root: Optional[str] = None,
             "attribution": OSM_ATTRIBUTION, "error": None}
 
 
+#: Largest span, in degrees, this will ask Overpass for in one request.
+#: Measured against the public endpoint: a 0.6 x 0.8 degree box returns in
+#: seconds, a 1.25 x 1.6 degree box returns 504.
+_MAX_BAND_DEG = 0.8
+
+#: Courtesy pause between bands on a shared public endpoint.
+_BAND_PAUSE_S = 3.0
+
+
+def _split_bbox(bbox: str) -> List[str]:
+    """Split ``south,west,north,east`` into pieces Overpass will answer."""
+    try:
+        s, w, n, e = [float(x) for x in str(bbox).split(",")]
+    except (TypeError, ValueError):
+        return [bbox]
+    n_lat = max(1, int(math.ceil((n - s) / _MAX_BAND_DEG)))
+    n_lon = max(1, int(math.ceil((e - w) / _MAX_BAND_DEG)))
+    if n_lat * n_lon <= 1:
+        return [bbox]
+    dlat = (n - s) / n_lat
+    dlon = (e - w) / n_lon
+    return [f"{s + i * dlat},{w + j * dlon},"
+            f"{s + (i + 1) * dlat},{w + (j + 1) * dlon}"
+            for i in range(n_lat) for j in range(n_lon)]
+
+
 def fetch_competitors(brands: List[str], bbox: str,
                       root: Optional[str] = None,
                       timeout: int = 65) -> Dict[str, object]:
@@ -870,39 +902,63 @@ def fetch_competitors(brands: List[str], bbox: str,
     # name match on "Naivas" also returns 93 bus stops, car parks and a petrol
     # station named after the supermarket.
     pattern = "|".join(re.escape(n) for n in names)
-    selectors = "".join(
-        f'{el}["shop"]["name"~"{pattern}",i]({bbox});'
-        for el in ("node", "way", "relation"))
-    query = f"[out:json][timeout:{timeout}];({selectors});out center;"
 
-    try:
-        resp = requests.get(OVERPASS_URL, params={"data": query},
-                            headers={"User-Agent": USER_AGENT},
-                            timeout=timeout)
-        if resp.status_code == 429:
-            return {"rows": [], "written": 0,
-                    "error": "Overpass is rate-limiting this address. Wait a "
-                             "minute and try again — this is throttling, not "
-                             "an empty region."}
-        resp.raise_for_status()
-        elements = resp.json().get("elements", [])
-    except Exception as e:
-        return {"rows": [], "written": 0, "error": str(e)[:200]}
-
+    # BANDED, because one query over a large region times out. A whole-country
+    # sweep returns 504 outright, and so did a 1.25 x 1.6 degree box over
+    # greater Nairobi — while the population layer for that same box fetched
+    # perfectly. That asymmetry is the dangerous part: a client ends up with
+    # people covering ground the competitor file does not, and every site out
+    # there scores as gloriously uncontested because nothing was ever fetched
+    # to contest it. Split the box rather than make the operator discover this.
+    bands = _split_bbox(bbox)
     rows: List[dict] = []
-    for el in elements:
-        centre = el.get("center") or {}
-        lat = el.get("lat", centre.get("lat"))
-        lon = el.get("lon", centre.get("lon"))
-        tags = el.get("tags") or {}
-        name = tags.get("name") or ""
-        if lat is None or lon is None:
+    seen = set()
+    errors: List[str] = []
+    for i, band in enumerate(bands):
+        selectors = "".join(
+            f'{el}["shop"]["name"~"{pattern}",i]({band});'
+            for el in ("node", "way", "relation"))
+        query = f"[out:json][timeout:{timeout}];({selectors});out center;"
+        try:
+            if i:
+                time.sleep(_BAND_PAUSE_S)   # be a good citizen on a shared API
+            resp = requests.get(OVERPASS_URL, params={"data": query},
+                                headers={"User-Agent": USER_AGENT},
+                                timeout=timeout)
+            if resp.status_code == 429:
+                errors.append("Overpass is rate-limiting this address. Wait a "
+                              "minute and try again — this is throttling, not "
+                              "an empty region.")
+                continue
+            resp.raise_for_status()
+            elements = resp.json().get("elements", [])
+        except Exception as e:
+            errors.append(str(e)[:120])
             continue
-        chain = match_chain(name, names)
-        if not chain:
-            continue
-        rows.append({"Store_Name": name, "Latitude": lat, "Longitude": lon,
-                     "Chain": chain, "Source": "OSM_Overpass"})
+
+        for el in elements:
+            centre = el.get("center") or {}
+            lat = el.get("lat", centre.get("lat"))
+            lon = el.get("lon", centre.get("lon"))
+            tags = el.get("tags") or {}
+            name = tags.get("name") or ""
+            if lat is None or lon is None:
+                continue
+            chain = match_chain(name, names)
+            if not chain:
+                continue
+            key = (round(float(lat), 5), round(float(lon), 5))
+            if key in seen:          # bands share edges
+                continue
+            seen.add(key)
+            rows.append({"Store_Name": name, "Latitude": lat, "Longitude": lon,
+                         "Chain": chain, "Source": "OSM_Overpass"})
+
+    # A PARTIAL fetch must never overwrite a complete one. Half a competitor
+    # field is worse than none: the half that is missing reads as opportunity.
+    if errors and not rows:
+        return {"rows": [], "written": 0, "bands": len(bands),
+                "error": "; ".join(errors[:2])}
 
     path = cache_path(root)
     try:

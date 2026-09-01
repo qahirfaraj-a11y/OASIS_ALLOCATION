@@ -505,6 +505,52 @@ def list_competitors(limit: int = 500) -> Dict[str, Any]:
             "error": comps.get("error")}
 
 
+@app.get("/api/sites/chains")
+def market_chains() -> Dict[str, Any]:
+    """Every banner in the field, for the brand picker."""
+    from oasis.desktop import data as D
+    try:
+        return D.market_chains(_root())
+    except Exception as e:
+        return {"chains": [], "error": str(e)[:200]}
+
+
+@app.post("/api/sites/evaluate")
+def evaluate_site(payload: Dict[str, Any]) -> Dict[str, Any]:
+    """One pin, from one brand's point of view.
+
+    ``{chain, lat, lon, size_sqft?, revenue_per_sqft?}``
+
+    Returns the size the catchment supports, what is around it, and a capital
+    figure only where something real can calibrate one — see
+    ``data.evaluate_site`` for why that last one is usually a refusal.
+    """
+    from oasis.desktop import data as D
+    chain = str(payload.get("chain") or "").strip()
+    if not chain:
+        return {"error": "Pick a brand first."}
+    try:
+        lat, lon = float(payload.get("lat")), float(payload.get("lon"))
+    except (TypeError, ValueError):
+        return {"error": "Drop a pin on the map first."}
+    if abs(lat) > 90 or abs(lon) > 180:
+        return {"error": "That pin is not on Earth."}
+    size = payload.get("size_sqft")
+    try:
+        size = max(100.0, float(size)) if size else None
+    except (TypeError, ValueError):
+        size = None
+    try:
+        return D.evaluate_site(chain, lat, lon, size_sqft=size,
+                               revenue_per_sqft=payload.get("revenue_per_sqft"),
+                               # Opt-in, because it is a POS query and a pin
+                               # evaluation must otherwise return promptly.
+                               load_sales=bool(payload.get("load_sales")),
+                               root=_root())
+    except Exception as e:
+        return {"error": str(e)[:200]}
+
+
 @app.post("/api/sites/score")
 def score_candidate_sites(payload: Dict[str, Any]) -> Dict[str, Any]:
     """Score candidate locations against the estate and the competition.
