@@ -257,6 +257,54 @@ def load_pack(country: str = "KEN",
             "attribution": OSM_ATTRIBUTION}
 
 
+#: The bbox the competitor field was actually fetched over.
+#:
+#: WITHOUT THIS, "no rivals nearby" is ambiguous — it means either an
+#: uncontested market or a place the download never reached, and those are
+#: opposite conclusions. A candidate 45 km east of the fetched region scored as
+#: gloriously empty with zero rivals within 2 km, and went straight into a
+#: shortlist. The population grid covered it, because WorldPop is national; the
+#: competitor fetch had not.
+COVERAGE_FILE = "competitor_region.json"
+
+
+def coverage_path(root: Optional[str] = None) -> str:
+    base = root or os.path.dirname(os.path.dirname(
+        os.path.dirname(os.path.abspath(__file__))))
+    return os.path.join(base, "oasis", "data", COVERAGE_FILE)
+
+
+def load_coverage(root: Optional[str] = None) -> Optional[Dict[str, float]]:
+    """The region competitors were fetched over, or None if unrecorded."""
+    path = coverage_path(root)
+    if not os.path.exists(path):
+        return None
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            d = json.load(f) or {}
+        return {k: float(d[k]) for k in ("south", "west", "north", "east")}
+    except (OSError, ValueError, KeyError, TypeError):
+        return None
+
+
+def covers_competitors(lat: float, lon: float, margin_km: float = 0.0,
+                       root: Optional[str] = None) -> Optional[bool]:
+    """Is this point inside the fetched competitor region, by ``margin_km``?
+
+    None when no region was recorded — an older install, where the honest
+    answer is "unknown" rather than a guess in either direction.
+    """
+    box = load_coverage(root)
+    if not box:
+        return None
+    cos_lat = max(math.cos(math.radians(lat)), 1e-6)
+    return (min((lat - box["south"]) * KM_PER_DEG_LAT,
+                (box["north"] - lat) * KM_PER_DEG_LAT,
+                (lon - box["west"]) * KM_PER_DEG_LON * cos_lat,
+                (box["east"] - lon) * KM_PER_DEG_LON * cos_lat)
+            >= float(margin_km))
+
+
 #: Operator corrections, layered over whatever base the matrix came from.
 #:
 #: Kept SEPARATE from the extract on purpose: a refresh replaces the extract
@@ -857,6 +905,22 @@ _MAX_BAND_DEG = 0.8
 #: Courtesy pause between bands on a shared public endpoint.
 _BAND_PAUSE_S = 3.0
 
+#: Retries per band. Overpass rate-limits hard and a 429 on one band is normal
+#: rather than exceptional; without retries a single throttled band silently
+#: removes a slice of the market.
+_BAND_RETRIES = 3
+_BAND_BACKOFF_S = 20.0
+
+#: A partial fetch may not replace an existing field that is materially bigger.
+#:
+#: THIS RULE WAS LEARNED THE EXPENSIVE WAY. The first version refused only when
+#: EVERY band failed. A re-fetch where most bands were throttled returned five
+#: stores, passed that test, and overwrote a complete 133-store field — which is
+#: gitignored client state, so there was no copy to restore from. Half a
+#: competitive field is worse than none: the half that is missing reads as
+#: opportunity.
+_PARTIAL_KEEP_FRACTION = 0.9
+
 
 def _split_bbox(bbox: str) -> List[str]:
     """Split ``south,west,north,east`` into pieces Overpass will answer."""
@@ -919,21 +983,26 @@ def fetch_competitors(brands: List[str], bbox: str,
             f'{el}["shop"]["name"~"{pattern}",i]({band});'
             for el in ("node", "way", "relation"))
         query = f"[out:json][timeout:{timeout}];({selectors});out center;"
-        try:
-            if i:
-                time.sleep(_BAND_PAUSE_S)   # be a good citizen on a shared API
-            resp = requests.get(OVERPASS_URL, params={"data": query},
-                                headers={"User-Agent": USER_AGENT},
-                                timeout=timeout)
-            if resp.status_code == 429:
-                errors.append("Overpass is rate-limiting this address. Wait a "
-                              "minute and try again — this is throttling, not "
-                              "an empty region.")
-                continue
-            resp.raise_for_status()
-            elements = resp.json().get("elements", [])
-        except Exception as e:
-            errors.append(str(e)[:120])
+        elements = None
+        for attempt in range(_BAND_RETRIES):
+            try:
+                time.sleep(_BAND_PAUSE_S if (i or attempt) else 0)
+                resp = requests.get(OVERPASS_URL, params={"data": query},
+                                    headers={"User-Agent": USER_AGENT},
+                                    timeout=timeout)
+                if resp.status_code in (429, 504):
+                    time.sleep(_BAND_BACKOFF_S)
+                    continue
+                resp.raise_for_status()
+                elements = resp.json().get("elements", [])
+                break
+            except Exception as e:
+                last = str(e)[:120]
+                time.sleep(_BAND_BACKOFF_S)
+        if elements is None:
+            errors.append(f"band {i + 1} of {len(bands)} failed after "
+                          f"{_BAND_RETRIES} attempts (throttled or timed out) "
+                          "— this is not an empty region")
             continue
 
         for el in elements:
@@ -956,9 +1025,23 @@ def fetch_competitors(brands: List[str], bbox: str,
 
     # A PARTIAL fetch must never overwrite a complete one. Half a competitor
     # field is worse than none: the half that is missing reads as opportunity.
-    if errors and not rows:
-        return {"rows": [], "written": 0, "bands": len(bands),
-                "error": "; ".join(errors[:2])}
+    if errors:
+        existing = 0
+        try:
+            with open(cache_path(root), "r", encoding="utf-8",
+                      errors="replace") as f:
+                existing = sum(1 for _ in csv.DictReader(f))
+        except OSError:
+            existing = 0
+        if not rows or len(rows) < existing * _PARTIAL_KEEP_FRACTION:
+            return {
+                "rows": [], "written": 0, "bands": len(bands),
+                "kept_existing": existing,
+                "error": (f"{len(errors)} of {len(bands)} bands failed, and the "
+                          f"{len(rows)} stores that came back would have "
+                          f"replaced the {existing} already on file. Nothing "
+                          "was overwritten — try again when Overpass is less "
+                          "busy. " + errors[0])}
 
     path = cache_path(root)
     try:
@@ -968,6 +1051,15 @@ def fetch_competitors(brands: List[str], bbox: str,
                                               "Longitude", "Chain", "Source"])
             w.writeheader()
             w.writerows(rows)
+        # Record WHERE we looked, not just what we found. "No rivals here" is
+        # only a finding inside this box; outside it, it is an absence of data.
+        try:
+            s_, w_, n_, e_ = [float(x) for x in str(bbox).split(",")]
+            with open(coverage_path(root), "w", encoding="utf-8") as f:
+                json.dump({"south": s_, "west": w_, "north": n_, "east": e_,
+                           "stores": len(rows)}, f, indent=1)
+        except (TypeError, ValueError, OSError):
+            pass
     except OSError as e:
         return {"rows": rows, "written": 0, "error": str(e)[:200]}
 

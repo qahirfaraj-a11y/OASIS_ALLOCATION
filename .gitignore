@@ -67,6 +67,9 @@ monitoring/inbound/
 oasis/data/competitor_overrides.json
 oasis/data/competitor_network.csv
 competitor_network.csv
+# Which region THIS install fetched competitors over. Per install, and written
+# beside the extract it describes.
+oasis/data/competitor_region.json
 
 # Generated intelligence vault (ObsidianMixin output, ~48k files)
 oasis_vault/Nodes/

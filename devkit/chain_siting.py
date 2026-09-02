@@ -104,7 +104,8 @@ def _score(task: tuple) -> dict:
             "catchment": r.get("catchment_population")}
 
 
-def main(chain: str, top: int, step: float, workers: int, out_path: str) -> None:
+def main(chain: str, top: int, step: float, workers: int, out_path: str,
+         source: str = "amenity") -> None:
     from oasis.logic import site_capital as SC
     from oasis.logic.geo_sources import load_competitors
     from oasis.logic.population import load_population
@@ -141,12 +142,36 @@ def main(chain: str, top: int, step: float, workers: int, out_path: str) -> None
     print(f"  median branch {cal['median_sqft']:,.0f} sqft serving "
           f"{cal['median_captured']:,.0f} people\n")
 
-    lats = [c[0] for c in pop.cells]; lons = [c[1] for c in pop.cells]
-    south, north, west, east = min(lats), max(lats), min(lons), max(lons)
-    n_lat = int((north - south) / step) + 1
-    n_lon = int((east - west) / step) + 1
-    grid = [(round(south + i * step, 4), round(west + j * step, 4))
-            for i in range(n_lat) for j in range(n_lon)]
+    # WHERE THE CANDIDATES COME FROM. A lattice treats every square kilometre
+    # as an available place to trade from; almost none are. Scored as
+    # candidates, the sites real operators chose came out WORSE than random
+    # points, and restricting to places where commerce demonstrably exists
+    # recovers most of that gap without touching the scoring. See
+    # oasis.logic.site_candidates.
+    if source == "amenity":
+        from oasis.logic import site_candidates as CAND
+        c = CAND.candidates(root=_ROOT, population=pop,
+                            exclude=own, min_distance_km=MIN_SELF_DISTANCE_KM)
+        if c["error"]:
+            print(f"  {c['error']}")
+            return
+        grid = [(n["lat"], n["lon"]) for n in c["candidates"]]
+        meta = {(n["lat"], n["lon"]): n for n in c["candidates"]}
+        print(f"  candidates {len(grid):,} commercial nodes from "
+              f"{c['amenities']:,} amenities  (dropped: {c['off_edge']} off the "
+              f"population edge, {c['outside_competitor_region']} outside the "
+              f"fetched competitor region, {c['too_close']} too near an own "
+              f"branch)")
+    else:
+        lats = [c[0] for c in pop.cells]; lons = [c[1] for c in pop.cells]
+        south, north, west, east = min(lats), max(lats), min(lons), max(lons)
+        n_lat = int((north - south) / step) + 1
+        n_lon = int((east - west) / step) + 1
+        grid = [(round(south + i * step, 4), round(west + j * step, 4))
+                for i in range(n_lat) for j in range(n_lon)]
+        meta = {}
+        print(f"  candidates {len(grid):,} lattice points at {step} deg "
+              f"— NOT filtered for whether a shop could stand there")
 
     t0 = time.time()
     found, edge = [], 0
@@ -196,16 +221,23 @@ def main(chain: str, top: int, step: float, workers: int, out_path: str) -> None
         # comparable investments and should not sit in one column.
         r["kind"] = ("infill" if (r["nearest_own_km"] or 999) < NEW_MARKET_KM
                      else "new market")
+        # How much commerce already stands here — the feasibility signal. A
+        # coordinate a client can act on, rather than one they must first go
+        # and check is not a field.
+        m = meta.get((r["lat"], r["lon"]))
+        r["amenities"] = m["amenities"] if m else None
+        r["discretionary"] = m["discretionary"] if m else None
 
     print(f"\n  TOP {len(short)} SITES FOR {chain.upper()} — no revenue used\n")
     print(f"  {'#':<3}{'latitude':>10}{'longitude':>11}{'net new':>10}"
-          f"{'of catchment':>14}{'cannib':>8}{'own km':>8}{'riv<2km':>8}"
+          f"{'cannib':>8}{'own km':>8}{'riv<2km':>8}{'shops here':>12}"
           f"  {'kind':<11} format")
     for i, r in enumerate(short, 1):
+        am = "-" if r.get("amenities") is None else f"{r['amenities']}"
         print(f"  {i:<3}{r['lat']:>10.4f}{r['lon']:>11.4f}{r['net_new']:>10,.0f}"
-              f"{r['capture_pct']:>13.2f}%{r['cannibalised_pct']:>7.1f}%"
+              f"{r['cannibalised_pct']:>7.1f}%"
               f"{(r['nearest_own_km'] or 0):>8.2f}{r['rivals_2km']:>8}"
-              f"  {r['kind']:<11} {r['format']}")
+              f"{am:>12}  {r['kind']:<11} {r['format']}")
 
     json.dump({"chain": chain, "calibration": cal, "sites": short,
                "swept": len(grid), "viable": len(found),
@@ -222,8 +254,12 @@ if __name__ == "__main__":
     ap.add_argument("--top", type=int, default=12)
     ap.add_argument("--step", type=float, default=0.01)
     ap.add_argument("--workers", type=int, default=8)
+    ap.add_argument("--candidates", choices=("amenity", "lattice"),
+                    default="amenity",
+                    help="amenity: places where commerce already exists. "
+                         "lattice: every square km, feasible or not.")
     ap.add_argument("--out", default=None)
     a = ap.parse_args()
     out = a.out or os.path.join(_ROOT, "devkit",
                                 f"siting_{a.chain.lower().replace(' ', '_')}.json")
-    main(a.chain, a.top, a.step, a.workers, out)
+    main(a.chain, a.top, a.step, a.workers, out, a.candidates)

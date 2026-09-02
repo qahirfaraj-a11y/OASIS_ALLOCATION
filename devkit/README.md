@@ -34,7 +34,8 @@ These scripts used to sit in the repo root next to `app.py` and
 | `generate_showcase_scenario.py` | Seeds the demo narrative. Backs `--mode showcase`. |
 | `production_diagnostic.py` | Pre-flight diagnostics. |
 | `modes.bat` | The dev menu. The client menu is `OASIS.bat`. |
-| `chain_siting.py` | Best next sites for ONE named chain, using no revenue at all — for competitors and for prospects, where sales data does not and will not exist. Ranks on net-new people and sizes against the chain's own people-per-sqft habit. Produces no capital figure, deliberately. |
+| `siting_robustness.py` | Perturbs every uncertain input against a real shortlist and reports how far the answer moves. The evidence behind any claim that the ordering is stable. |
+| `chain_siting.py` | Best next sites for ONE named chain, using no revenue at all — for competitors and for prospects, where sales data does not and will not exist. Ranks on net-new people and sizes against the chain's own people-per-sqft habit. `--candidates amenity` (default) proposes only places where commerce already exists; `--candidates lattice` sweeps every square km, feasible or not. Produces no capital figure, deliberately. |
 | `pov_sweep.py` | Every chain's view of the same city. Capture is identical for all of them at a point; only cannibalisation is theirs. |
 | `build_market_pack.py` | Rebuilds the shipped national competitor matrix from Overpass. The PACK ships (ODbL, with its notice); this script does not. Read its header before publishing a new one. |
 | `retail_sandbox/` | Browser sandbox + backtest harness for the replenishment and transfer engines, built on the real SKU/supplier data. Playable model of *The Algorithmic Retailer*. See its own README. |
