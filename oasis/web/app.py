@@ -382,6 +382,9 @@ def fetch_region(payload: Dict[str, Any]) -> Dict[str, Any]:
         return {"error": str(e)[:200]}
 
 
+#: How long the map waits for the POS before drawing without your branches.
+_MAP_STORE_TIMEOUT_S = 6.0
+
 #: Population is aggregated to this cell size for the map. The scoring grid is
 #: 1 km and 6,900 cells; sending that to a browser to draw is a waste of both.
 _MAP_CELL_DEG = 0.02
@@ -424,11 +427,22 @@ def site_map() -> Dict[str, Any]:
         out["source"] = comps.get("source")
         out["corrections"] = comps.get("corrections") or 0
 
-        placed = D.store_map(_root())
-        out["own"] = [{"lat": round(s["lat"], 4), "lon": round(s["lon"], 4),
-                       "name": s.get("name") or s["org_cd"],
-                       "sqft": int(s.get("size_sqft") or 0)}
-                      for s in (placed.get("located") or [])]
+        # BOUNDED. Your own branches come from the POS, and a POS that is down
+        # takes seventeen seconds to say so — the legacy ODBC driver carries no
+        # login timeout. This map is mostly rivals and population, both read
+        # from disk, and it must not sit on a dead database to draw them.
+        placed = D.bounded(lambda: D.store_map(_root()), _MAP_STORE_TIMEOUT_S)
+        if placed is None:
+            out["own"] = []
+            out["own_unavailable"] = (
+                f"Your own branches are not shown: the POS did not answer "
+                f"within {_MAP_STORE_TIMEOUT_S:.0f} seconds. Everything else "
+                "on this map is read from disk and is unaffected.")
+        else:
+            out["own"] = [{"lat": round(s["lat"], 4), "lon": round(s["lon"], 4),
+                           "name": s.get("name") or s["org_cd"],
+                           "sqft": int(s.get("size_sqft") or 0)}
+                          for s in (placed.get("located") or [])]
 
         grid = (D.population_set(_root()) or {}).get("grid")
         if grid:
@@ -551,6 +565,33 @@ def evaluate_site(payload: Dict[str, Any]) -> Dict[str, Any]:
         return {"error": str(e)[:200]}
 
 
+@app.post("/api/sites/suggest")
+def suggest_sites(payload: Dict[str, Any]) -> Dict[str, Any]:
+    """Rank real, feasible sites for one brand. ``{chain, top?, size_sqft?}``
+
+    Candidates come from where commerce already exists, not from a lattice over
+    the map — see ``data.suggest_sites``. Returns no capital figure, because a
+    suggestion run uses no sales.
+    """
+    from oasis.desktop import data as D
+    chain = str(payload.get("chain") or "").strip()
+    if not chain:
+        return {"sites": [], "error": "Pick a brand first."}
+    try:
+        top = max(1, min(int(payload.get("top") or 10), 25))
+    except (TypeError, ValueError):
+        top = 10
+    size = payload.get("size_sqft")
+    try:
+        size = max(100.0, float(size)) if size else None
+    except (TypeError, ValueError):
+        size = None
+    try:
+        return D.suggest_sites(chain, top=top, size_sqft=size, root=_root())
+    except Exception as e:
+        return {"sites": [], "error": str(e)[:200]}
+
+
 @app.post("/api/sites/score")
 def score_candidate_sites(payload: Dict[str, Any]) -> Dict[str, Any]:
     """Score candidate locations against the estate and the competition.
@@ -598,6 +639,37 @@ def start_orders(org_cd: str) -> Dict[str, Any]:
     progress instead of launching another one.
     """
     job = jobs.submit("orders", org_cd, lambda: _build_orders(org_cd))
+    return job.public(with_result=False)
+
+
+@app.post("/api/jobs/suggest")
+def start_suggest(payload: Dict[str, Any]) -> Dict[str, Any]:
+    """Rank feasible sites for a brand, as a JOB rather than a request.
+
+    Measured in this server: 15 to 40 seconds warm, and rising when anything
+    else is running — an order job in the same process starved it to 65. That
+    is the profile the job queue exists for, and the same reason the ordering
+    engine uses it. A spinner that cannot say how long is not an answer.
+
+    Single-flight per brand and size, so a reload or a second tab joins the run
+    in progress rather than starting another.
+    """
+    from oasis.desktop import data as D
+    chain = str(payload.get("chain") or "").strip()
+    if not chain:
+        return {"error": "Pick a brand first."}
+    try:
+        top = max(1, min(int(payload.get("top") or 10), 25))
+    except (TypeError, ValueError):
+        top = 10
+    size = payload.get("size_sqft")
+    try:
+        size = max(100.0, float(size)) if size else None
+    except (TypeError, ValueError):
+        size = None
+    job = jobs.submit("suggest", f"{chain}:{size or 0:.0f}",
+                      lambda: D.suggest_sites(chain, top=top, size_sqft=size,
+                                              root=_root()))
     return job.public(with_result=False)
 
 

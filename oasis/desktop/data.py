@@ -801,6 +801,141 @@ def site_calibration(days: int = 90,
                 "affluence": {}, "error": str(e)[:200]}
 
 
+#: How many candidates get a full Huff score. Everything found is ranked
+#: cheaply by catchment population first — 0.36 s for 330 — and only the
+#: leaders are scored properly, because a full score is 54 ms and 330 of them
+#: is eighteen seconds in a web request.
+#:
+#: VALIDATED, not assumed. Scoring every candidate for two chains and checking
+#: which the pre-filter would have dropped: the top 80 by catchment already
+#: contained 10 of the true top 10 for both. 120 is that with room to spare.
+_SUGGEST_SCORE_LIMIT = 120
+
+#: A suggestion must stand clear of the chain's own nearest branch. Huff ranks
+#: a site next to your own shop highly because it captures the same people; the
+#: cannibalisation column then says most of it is your own trade, and a
+#: shortlist needing that caveat on every row is a worse shortlist.
+_SUGGEST_MIN_SELF_KM = 1.5
+
+#: Suggestions closer together than this collapse to the better of them, so a
+#: "top ten" is ten places rather than one place ten times.
+_SUGGEST_DEDUPE_KM = 2.0
+
+
+def suggest_sites(chain: str, top: int = 10, size_sqft: Optional[float] = None,
+                  root: Optional[str] = None) -> Dict[str, Any]:
+    """Rank real, feasible sites for one brand. No revenue used.
+
+    Candidates come from ``site_candidates`` — places where commerce already
+    exists — rather than from a lattice over the map. Scored as candidates, the
+    131 sites real operators actually chose came out WORSE than points drawn at
+    random in proportion to population; restricting to commercial locations
+    recovers about three quarters of that gap without changing the scoring.
+    A lattice cell has no road, no frontage and no landlord.
+    """
+    from oasis.logic import site_candidates as CAND
+    from oasis.logic import site_capital as SCAP
+    from oasis.logic.geo_sources import load_competitors
+    from oasis.logic.site_scoring import (CATCHMENT_KM, build_field,
+                                          haversine_km, score_site)
+
+    out: Dict[str, Any] = {"chain": chain, "sites": [], "error": None}
+    try:
+        field = load_competitors(root=root, include_own=True)
+        rows = field.get("rows") or []
+        if not rows:
+            return {**out, "error": field.get("error")
+                    or "No competitor field on this install yet."}
+        pts = [{"lat": float(r["Latitude"]), "lon": float(r["Longitude"]),
+                "size_sqft": float(r.get("size_sqft") or 15_000.0),
+                "chain": str(r.get("Chain") or "").strip(),
+                "pull": r.get("pull")} for r in rows]
+        own = [p for p in pts if p["chain"].lower() == chain.strip().lower()]
+        rivals = [p for p in pts if p["chain"].lower() != chain.strip().lower()]
+        if not own:
+            return {**out, "error": f"No branches on file for '{chain}'."}
+
+        grid = (population_set(root) or {}).get("grid") or None
+        if grid is None:
+            return {**out, "error": "No population grid — fetch your region "
+                                    "first. Without people there is nothing to "
+                                    "rank sites by."}
+
+        found = CAND.candidates(root=root, population=grid,
+                                catchment_km=CATCHMENT_KM, exclude=own,
+                                min_distance_km=_SUGGEST_MIN_SELF_KM)
+        if found["error"]:
+            return {**out, "error": found["error"]}
+        out["searched"] = {
+            "amenities": found["amenities"], "nodes": found["nodes"],
+            "candidates": len(found["candidates"]),
+            "off_edge": found["off_edge"],
+            "outside_competitor_region": found["outside_competitor_region"],
+            "too_close": found["too_close"]}
+
+        cands = found["candidates"]
+        for n in cands:
+            n["catchment"] = sum(c[2] for c in grid.near(n["lat"], n["lon"],
+                                                         CATCHMENT_KM))
+        cands.sort(key=lambda n: -n["catchment"])
+        cands = cands[:_SUGGEST_SCORE_LIMIT]
+
+        entrant = float(size_sqft or 10_000.0)
+        cal = SCAP.calibrate_catchment(
+            SCAP.catchment_observations(own, rivals, population=grid))
+        scored = []
+        for n in cands:
+            r = score_site(n["lat"], n["lon"], own, rivals,
+                           size_sqft=entrant, population=grid)
+            people = r.get("captured_population") or 0.0
+            if people <= 0:
+                continue
+            cann = r["cannibalisation_pct"]
+            scored.append({
+                "lat": n["lat"], "lon": n["lon"],
+                "amenities": n["amenities"],
+                "discretionary": n["discretionary"],
+                "captured_population": round(people, 0),
+                "net_new_people": round(people * (1 - cann / 100.0), 0),
+                "cannibalisation_pct": cann,
+                "capture_pct": r["capture_pct"],
+                "catchment_population": r.get("catchment_population"),
+                "nearest_own_km": r.get("nearest_own_km"),
+                "nearest_competitor_km": r.get("nearest_competitor_km"),
+                "competitors_within_2km": r["competitors_within_2km"],
+                "verdict": r.get("verdict")})
+        scored.sort(key=lambda s: -s["net_new_people"])
+
+        # Collapse neighbours so a shortlist is ten places, not one place ten
+        # times, then size each survivor on the chain's own format habit.
+        short: List[Dict[str, Any]] = []
+        for s in scored:
+            if all(haversine_km(s["lat"], s["lon"], k["lat"], k["lon"])
+                   >= _SUGGEST_DEDUPE_KM for k in short):
+                short.append(s)
+            if len(short) >= max(1, int(top)):
+                break
+        for s in short:
+            fld = build_field(s["lat"], s["lon"], own, rivals, population=grid)
+            rec = SCAP.recommend_size_by_catchment(
+                lambda sz, _s=s, _f=fld: score_site(
+                    _s["lat"], _s["lon"], own, rivals, size_sqft=sz,
+                    population=grid, field=_f), cal)
+            s["recommended_sqft"] = rec["recommended_sqft"]
+            s["format"] = rec["format"]
+        out["sites"] = short
+        out["scored"] = len(scored)
+        out["attribution"] = field.get("attribution")
+        # No capital anywhere: a suggestion run uses no sales, so it can say
+        # where and how big and must not imply what it would earn.
+        out["capital_note"] = (
+            "No opening-capital figure: ranking sites for a brand uses no sales "
+            "data, so this says where and how big, not what a store would earn.")
+        return out
+    except Exception as e:
+        return {**out, "error": str(e)[:200]}
+
+
 def _price_each_beta(site, runs, by_beta, cal, val, SC):
     """Opening capital at every exponent, each on its own calibration.
 
@@ -988,6 +1123,23 @@ def _catchment_mix(lat: float, lon: float, pts: List[Dict[str, Any]],
 #: When it does fire the background read is left running, so it fills the cache
 #: and the next evaluation is instant.
 _POS_READ_TIMEOUT_S = 90.0
+
+
+def bounded(fn, timeout_s: float):
+    """Run ``fn`` with a deadline; None if it does not finish in time.
+
+    For reads that reach the POS from a web request. A dead SQL Server takes
+    seventeen seconds to refuse a connection — the legacy ODBC driver carries
+    no login timeout — and a page that waits for that is a page that looks
+    broken. The worker is left to finish; if it does, it warms whatever cache
+    it feeds and the next call is instant.
+    """
+    import concurrent.futures as _cf
+    try:
+        with _cf.ThreadPoolExecutor(max_workers=1) as ex:
+            return ex.submit(fn).result(timeout=timeout_s)
+    except Exception:
+        return None
 
 
 def _read_sales_bounded(days, root):

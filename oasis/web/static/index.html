@@ -216,8 +216,9 @@
       <select id="e-chain" style="min-width:210px;flex:0"></select>
       <input id="e-size" type="search" placeholder="Sq ft (optional)" style="min-width:140px;flex:0">
       <input id="e-rps" type="search" placeholder="Your sales per sq ft (optional)" style="min-width:210px;flex:0">
+      <button class="btn" id="e-suggest">Suggest sites</button>
       <button class="btn ghost" id="e-clear">Clear pin</button>
-      <span class="muted" id="e-msg">Pick a brand, then click anywhere on the map.</span>
+      <span class="muted" id="e-msg">Pick a brand, then click the map — or let it suggest sites.</span>
     </div>
 
     <div id="sites-map" class="hide" style="margin:18px 0 4px"></div>
@@ -595,6 +596,18 @@ async function loadMap(){
       'background:#0B1012" role="img" aria-label="Map of your region: population '+
       'density, rival shops, your branches and any candidate locations.">'+
       heat + rivalDots + ownDots + cands +
+      // Suggested sites, numbered to match the table. Ringed rather than
+      // filled so they read as proposals against the market rather than as
+      // another kind of shop.
+      (SUGGESTED||[]).map((s,i)=>
+        '<g class="sugg" data-i="'+i+'" style="cursor:pointer">'+
+        '<circle cx="'+x(s.lon).toFixed(1)+'" cy="'+y(s.lat).toFixed(1)+
+        '" r="9" fill="#0B1012" fill-opacity=".55" stroke="#E0A249" stroke-width="1.8"/>'+
+        '<text x="'+x(s.lon).toFixed(1)+'" y="'+(y(s.lat)+3.4).toFixed(1)+
+        '" text-anchor="middle" font-size="9.5" font-weight="700" fill="#E0A249"'+
+        ' font-family="var(--mono)">'+(i+1)+'</text>'+
+        '<title>'+(i+1)+'. '+Math.round(s.net_new_people).toLocaleString()+
+        ' new to you · '+s.amenities+' shops here</title></g>').join('')+
       (PIN ? '<g style="pointer-events:none">'+
         '<circle cx="'+x(PIN.lon).toFixed(1)+'" cy="'+y(PIN.lat).toFixed(1)+
         '" r="11" fill="none" stroke="#fff" stroke-width="1.4" opacity=".9"/>'+
@@ -613,6 +626,11 @@ async function loadMap(){
       (d.corrections ? ' <span style="color:#E0A249">&#9679;</span> amber rivals are '+
         'your corrections ('+d.corrections+').' : '')+
       '<br>Rivals on the map: '+legend+'</p>'+
+    // Your own branches come from the POS; everything else here is read from
+    // disk. Say which half is missing rather than draw a map that quietly
+    // omits your network.
+    (d.own_unavailable ? '<p class="hint" style="color:var(--warn)">'+
+      esc(d.own_unavailable)+'</p>' : '')+
     (d.attribution ? '<p class="hint" style="font-family:var(--mono);font-size:11px">'+
       esc(d.attribution)+(d.source?' &middot; '+esc(d.source):'')+'</p>' : '');
 
@@ -625,6 +643,9 @@ async function loadMap(){
       // Rival dots have their own handler and stop here, so a click meant for
       // "correct this shop" does not also drop a pin on top of it.
       if(ev.target && ev.target.classList.contains('rival')) return;
+      // A suggestion has its own handler; clicking one evaluates that exact
+      // site rather than dropping a fresh pin a few pixels from it.
+      if(ev.target && ev.target.closest && ev.target.closest('.sugg')) return;
       const r = svg.getBoundingClientRect();
       const px = (ev.clientX - r.left) / r.width * w;
       const py = (ev.clientY - r.top) / r.height * h;
@@ -633,6 +654,16 @@ async function loadMap(){
       evaluatePin();
     });
   }
+
+  el.querySelectorAll('g.sugg').forEach(g=>{
+    g.onclick = ()=>{
+      const s = (SUGGESTED||[])[parseInt(g.dataset.i,10)];
+      if(!s) return;
+      PIN = {lat:s.lat, lon:s.lon};
+      loadMap();
+      evaluatePin();
+    };
+  });
 
   el.querySelectorAll('circle.rival').forEach(c=>{
     c.onclick = ()=>{
@@ -786,7 +817,67 @@ async function evaluatePin(loadSales){
   if(sales) sales.onclick = ()=>evaluatePin(true);
 }
 
-$('#e-clear').onclick = ()=>{ PIN=null; $('#e-result').innerHTML='';
+/* Suggested sites come from where commerce already EXISTS, not from a lattice
+   over the map. Scored as candidates, the sites real operators chose came out
+   worse than random points — a lattice cell has no road, no frontage and no
+   landlord, so the points that maximise reachable population are the middle of
+   residential blocks. */
+let SUGGESTED = [];
+
+async function suggestSites(){
+  const el = $('#e-result'), chain = $('#e-chain').value;
+  if(!chain){ $('#e-msg').textContent = 'Pick a brand first.'; return; }
+  const size = parseFloat($('#e-size').value);
+  // A JOB, not a request. Ranking every commercial place in the region takes
+  // 15-40 seconds in this server and longer when an order run is going, which
+  // is exactly what the job queue is for.
+  let r;
+  try{
+    r = await runJob('/api/jobs/suggest', el, 'Finding sites for '+chain,
+                     {chain, top:10,
+                      size_sqft: isFinite(size)&&size>0 ? size : null});
+  }catch(e){ el.innerHTML='<div class="state err"><b>Could not suggest</b>'+esc(String(e))+'</div>'; return; }
+  if(r.error || !r.sites || !r.sites.length){
+    el.innerHTML='<div class="state err"><b>Could not suggest</b>'+
+      esc(r.error || 'Nothing came back.')+'</div>'; return;
+  }
+  SUGGESTED = r.sites; PIN = null;
+  const num = n => Number(n||0).toLocaleString(undefined,{maximumFractionDigits:0});
+  const s = r.searched || {};
+  el.innerHTML =
+    '<div class="wrap" style="margin-top:14px"><table><thead><tr>'+
+      '<th>Site</th><th class="num">New to you</th><th class="num">From your own</th>'+
+      '<th class="num">Shops here</th><th class="num">Nearest yours</th>'+
+      '<th>Size that fits</th><th>Read</th>'+
+    '</tr></thead><tbody>'+
+    r.sites.map((x,i)=>
+      '<tr><td class="prod">'+(i+1)+'. '+x.lat.toFixed(4)+', '+x.lon.toFixed(4)+
+        '<span class="sub">'+num(x.captured_population)+' people won</span></td>'+
+      '<td class="num">'+num(x.net_new_people)+'</td>'+
+      '<td class="num">'+(x.cannibalisation_pct||0).toFixed(1)+'%</td>'+
+      '<td class="num">'+x.amenities+'</td>'+
+      '<td class="num">'+(x.nearest_own_km==null?'&mdash;':x.nearest_own_km.toFixed(2)+' km')+'</td>'+
+      '<td>'+(x.recommended_sqft?num(x.recommended_sqft)+' <span style="font-size:11.5px;color:var(--ink3)">sq ft</span>':'&mdash;')+
+        '<span class="sub">'+esc(x.format||'')+'</span></td>'+
+      '<td><span class="why">'+esc(x.verdict||'')+'</span></td></tr>').join('')+
+    '</tbody></table></div>'+
+    '<p class="hint">Searched '+num(s.amenities)+' known shops, cafes and markets, '+
+      'grouped into '+num(s.nodes)+' commercial places, of which '+num(s.candidates)+
+      ' were usable and the '+num(r.scored)+' with the largest catchments were scored. '+
+      'Dropped: '+num(s.too_close)+' beside one of your own branches, '+
+      num(s.off_edge)+' whose catchment runs off your data, '+
+      num(s.outside_competitor_region)+' outside the region you fetched competitors for.</p>'+
+    '<p class="hint"><b style="color:var(--ink2)">Every row is somewhere shops already trade</b> '+
+      '&mdash; not a point on a grid. "Shops here" is how many are clustered at that spot. '+
+      esc(r.capital_note||'')+'</p>'+
+    (r.attribution ? '<p class="hint" style="font-family:var(--mono);font-size:11px">'+
+      esc(r.attribution)+'</p>' : '');
+  $('#e-msg').textContent = 'Suggestions are ringed on the map. Click one to evaluate it.';
+  loadMap();
+}
+$('#e-suggest').onclick = suggestSites;
+
+$('#e-clear').onclick = ()=>{ PIN=null; SUGGESTED=[]; $('#e-result').innerHTML='';
   $('#e-msg').textContent='Pick a brand, then click anywhere on the map.'; loadMap(); };
 $('#e-chain').onchange = ()=>{ if(PIN) evaluatePin(); };
 $('#e-size').onchange = $('#e-rps').onchange = ()=>{ if(PIN) evaluatePin(); };
@@ -841,9 +932,13 @@ function working(el, msg, sub){
 
 /* Start a job, then poll it. The engine is not a web request: on a full
    catalogue a synchronous call does not return inside any sane timeout. */
-async function runJob(startUrl, el, title){
+async function runJob(startUrl, el, title, body){
   working(el, title, 'Starting…');
-  const job = await j(startUrl, {method:'POST'});
+  const job = await j(startUrl, body
+    ? {method:'POST', headers:{'Content-Type':'application/json'},
+       body: JSON.stringify(body)}
+    : {method:'POST'});
+  if(job.error) throw new Error(job.error);
   let delay = 400;
   for(;;){
     await new Promise(r => setTimeout(r, delay));

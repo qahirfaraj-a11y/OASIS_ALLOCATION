@@ -748,7 +748,17 @@ def verdict(capture: float, cannibalisation: float,
 
     people = ("" if captured_population is None
               else f" (~{captured_population:,.0f} people)")
-    if nearest_own_km is not None and nearest_own_km < CANNIBALISATION_KM:
+    # Distance to your nearest branch is a PROXY for cannibalisation, and this
+    # function is handed the measured quantity itself. Where the two disagree,
+    # believe the measurement: a site 1.6 km from an own branch that displaces
+    # 8.4% of its own trade is not "most of this trade would move", and the
+    # console printed exactly that contradiction in one row — "8.4% from your
+    # own" beside "most of this trade would move, not grow".
+    #
+    # The proxy still speaks when displacement is genuinely high, and when
+    # there is no displacement figure to consult.
+    if (nearest_own_km is not None and nearest_own_km < CANNIBALISATION_KM
+            and cannibalisation > 0.25):
         return ("Too close to your own store — most of this trade would move, "
                 "not grow")
     if capture < 0.10:
