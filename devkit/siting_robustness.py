@@ -75,6 +75,7 @@ def _run(task: tuple) -> tuple:
         riv = riv + opts["extra_rivals"]
 
     beta = opts.get("beta", 2.0)
+    alpha = opts.get("alpha")
     catch = opts.get("catchment", CATCHMENT_KM)
 
     scored = []
@@ -82,7 +83,8 @@ def _run(task: tuple) -> tuple:
         if not pop.covers(lat, lon, catch):
             continue
         r = score_site(lat, lon, own, riv, size_sqft=10_000.0,
-                       catchment_km=catch, population=pop, beta=beta)
+                       catchment_km=catch, population=pop, beta=beta,
+                       alpha=alpha)
         people = r.get("captured_population") or 0.0
         scored.append(((lat, lon),
                        people * (1 - r["cannibalisation_pct"] / 100.0)))
@@ -131,6 +133,11 @@ def main(chain: str, pool_n: int, workers: int) -> None:
     conditions = [("baseline", {})]
     for b in (1.5, 2.5, 3.0):
         conditions.append((f"beta {b}", {"beta": b}))
+    # The SIZE exponent, the other parameter nobody fitted. Huff's A = S^alpha
+    # was pinned at 1 — pull exactly proportional to floor area — until it was
+    # named, so it belongs in the same sweep as beta rather than in a footnote.
+    for a in (0.6, 0.8, 1.2):
+        conditions.append((f"alpha {a}", {"alpha": a}))
     for c in (5.0, 15.0, 20.0):
         conditions.append((f"catchment {c:.0f}km", {"catchment": c}))
     conditions.append(("all shops 15k sqft", {"uniform_size": 15_000.0}))

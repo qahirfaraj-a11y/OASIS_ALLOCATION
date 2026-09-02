@@ -719,6 +719,97 @@ class TestConcurrentSalesReadsAreSingleFlighted:
         assert len(calls) == 2
 
 
+class TestTheSizeExponent:
+    """Huff's A = S^alpha. The literature estimates alpha alongside beta — the
+    standard estimator recovers both from observed market SHARES, which matters
+    here because shares are the one calibration input obtainable for a
+    competitor whose sales will never be visible.
+
+    OASIS fixed it at 1.0 and never named it. Now a parameter, and measured:
+    across 0.6 to 1.2 the top ten of a 200-site pool moved 0.2 to 0.4 places.
+    Immaterial to the ordering, like beta, and for the same reason — it scales
+    the whole field rather than reordering it.
+    """
+
+    def test_alpha_one_is_proportional_to_floor_area(self):
+        assert S.attractiveness(20000, alpha=1.0) == 2 * S.attractiveness(
+            10000, alpha=1.0)
+
+    def test_below_one_saturates_and_above_one_amplifies(self):
+        """The economic content: at alpha below 1 the second half of a big shop
+        adds less draw than the first."""
+        def ratio(a):
+            return S.attractiveness(40000.0, alpha=a) / S.attractiveness(
+                5000.0, alpha=a)
+        assert ratio(0.6) < ratio(1.0) < ratio(1.2)
+        assert ratio(1.0) == pytest.approx(8.0)
+
+    def test_the_default_changes_nothing(self):
+        """Shipped behaviour must be untouched: alpha 1.0 is the old
+        arithmetic, not a re-derivation of it."""
+        assert S.SIZE_EXPONENT == 1.0
+        for sz in (0.0, 2500.0, 12345.0, 60000.0):
+            assert S.attractiveness(sz) == S.attractiveness(sz, alpha=1.0)
+        # and through a whole score, against every reported field
+        own, rivals = _estate(), _rivals()
+        a = S.score_site(-1.28, 36.81, own, rivals, population=_grid())
+        b = S.score_site(-1.28, 36.81, own, rivals, population=_grid(),
+                         alpha=1.0)
+        for k in ("capture_pct", "captured_population", "cannibalisation_pct",
+                  "verdict"):
+            assert a[k] == b[k], k
+
+    def test_alpha_reaches_the_score_and_moves_it(self):
+        own, rivals = _estate(), _rivals()
+        lo = S.score_site(-1.28, 36.81, own, rivals, size_sqft=40000.0,
+                          alpha=0.6, population=_grid())
+        hi = S.score_site(-1.28, 36.81, own, rivals, size_sqft=40000.0,
+                          alpha=1.2, population=_grid())
+        assert lo["alpha"] == 0.6 and hi["alpha"] == 1.2
+        assert lo["capture_pct"] != hi["capture_pct"]
+
+    def test_the_entrant_is_sized_on_the_field_it_competes_in(self):
+        """Both sides of a Huff share must use one exponent. Sizing the entrant
+        at alpha 1 against rivals raised to 0.6 compares two different
+        quantities and the share means nothing."""
+        own, rivals = _estate(), _rivals()
+        for a in (0.6, 1.2):
+            f = S.build_field(-1.28, 36.81, own, rivals, alpha=a,
+                              population=_grid())
+            assert f.alpha == a
+            assert S.score_site(-1.28, 36.81, own, rivals,
+                                field=f)["alpha"] == a
+
+    def test_a_geometrys_alpha_wins_over_the_argument(self):
+        """Alpha is baked into a geometry's stored attractiveness, so it cannot
+        be re-specified later — the same rule as a field's beta, and the same
+        trap if it were silent."""
+        own, rivals = _estate(), _rivals()
+        geo = S.build_geometry(-1.28, 36.81, own, rivals, alpha=0.6,
+                               population=_grid())
+        f = S.build_field(-1.28, 36.81, own, rivals, geometry=geo, alpha=1.2)
+        assert f.alpha == 0.6
+        assert S.score_site(-1.28, 36.81, own, rivals,
+                            field=f)["alpha"] == 0.6
+
+    def test_one_geometry_serves_every_beta_at_a_fixed_alpha(self):
+        """The two parameters are independent: a beta sweep must not have to
+        rebuild the distance matrix just because alpha is not 1."""
+        own, rivals = _estate(), _rivals()
+        geo = S.build_geometry(-1.28, 36.81, own, rivals, alpha=0.8,
+                               population=_grid())
+        for b in S.BETA_RANGE:
+            direct = S.score_site(-1.28, 36.81, own, rivals, beta=b,
+                                  alpha=0.8, population=_grid())
+            shared = S.score_site(-1.28, 36.81, own, rivals, field=S.build_field(
+                -1.28, 36.81, own, rivals, beta=b, geometry=geo))
+            assert direct["capture_pct"] == shared["capture_pct"], b
+            assert shared["alpha"] == 0.8
+
+    def test_the_published_range_brackets_the_default(self):
+        assert min(S.ALPHA_RANGE) < S.SIZE_EXPONENT < max(S.ALPHA_RANGE)
+
+
 class TestTheDataBoundaryIsNotAnOpportunity:
     """A candidate near the edge of a fetched region has its catchment cut off
     by the DOWNLOAD, not by geography: its people are missing and so are its

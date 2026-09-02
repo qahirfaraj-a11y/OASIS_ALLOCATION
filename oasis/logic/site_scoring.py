@@ -98,8 +98,29 @@ def haversine_km(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
     return 2 * r * math.asin(min(1.0, math.sqrt(a)))
 
 
+#: The SIZE exponent, alpha, in Huff's A = S^alpha. The second unfitted
+#: parameter, and the quieter one — beta at least carries a published band and
+#: a warning; this was never named at all.
+#:
+#: The Huff literature treats alpha as ESTIMATED alongside beta, and the
+#: standard estimator (multiplicative competitive interaction, log-centred to
+#: become linear) recovers both from observed market SHARES rather than from
+#: revenue — which matters here, because shares are the one thing that could be
+#: obtained for a competitor whose sales will never be visible.
+#:
+#: 1.0 says pull is exactly proportional to floor area: a shop twice the size
+#: pulls twice as hard. Published grocery estimates commonly sit below that,
+#: because the second half of a large shop adds less draw than the first.
+SIZE_EXPONENT = 1.0
+
+#: The plausible range, for sensitivity reporting. Same discipline as
+#: BETA_RANGE: a parameter nobody fitted is published as a band or not at all.
+ALPHA_RANGE = (0.6, 0.8, 1.0, 1.2)
+
+
 def attractiveness(size_sqft: float, chain: str = "",
-                   pull: Optional[float] = None) -> float:
+                   pull: Optional[float] = None,
+                   alpha: Optional[float] = None) -> float:
     """Huff's A term: pull, in thousands of square feet (pure).
 
     ``pull`` is a per-chain multiplier from the competitor profile. When it is
@@ -117,7 +138,9 @@ def attractiveness(size_sqft: float, chain: str = "",
         pull = (BIG_BOX_WEIGHT
                 if any(c in (chain or "").lower() for c in BIG_BOX_CHAINS)
                 else 1.0)
-    return (max(float(size_sqft or 0), 0.0) / 1000.0) * max(0.0, float(pull))
+    base = max(float(size_sqft or 0), 0.0) / 1000.0
+    a = float(SIZE_EXPONENT if alpha is None else alpha)
+    return (base if a == 1.0 else base ** a) * max(0.0, float(pull))
 
 
 #: The distance-decay exponent. THE MODEL'S LEAST-SUPPORTED NUMBER.
@@ -247,14 +270,15 @@ class CatchmentField:
     the same values in the same summation order — only how often it happens.
     """
 
-    __slots__ = ("lat", "lon", "beta", "catchment_km", "cells",
+    __slots__ = ("lat", "lon", "beta", "alpha", "catchment_km", "cells",
                  "catchment_population", "own_in_catchment",
                  "competitors_within_direct", "nearest_own_km",
                  "nearest_competitor_km", "has_population", "any_stores")
 
-    def __init__(self, lat, lon, beta, catchment_km):
+    def __init__(self, lat, lon, beta, catchment_km, alpha=None):
         self.lat, self.lon = lat, lon
         self.beta, self.catchment_km = beta, catchment_km
+        self.alpha = float(SIZE_EXPONENT if alpha is None else alpha)
         #: (inv_distance_to_site**-beta, people, u_own, u_competitor) per cell.
         self.cells: List[tuple] = []
         self.catchment_population = None
@@ -279,12 +303,14 @@ class CatchmentGeometry:
     """
 
     __slots__ = ("lat", "lon", "catchment_km", "cells", "own_a", "comp_a",
+                 "alpha",
                  "catchment_population", "own_in_catchment",
                  "competitors_within_direct", "nearest_own_km",
                  "nearest_competitor_km", "has_population", "any_stores")
 
     def __init__(self, lat, lon, catchment_km):
         self.lat, self.lon, self.catchment_km = lat, lon, catchment_km
+        self.alpha = SIZE_EXPONENT
         #: (distance_to_site_km, people, [own distances], [rival distances])
         self.cells: List[tuple] = []
         #: Attractiveness of each own store / rival, in the same order.
@@ -304,8 +330,14 @@ def build_geometry(lat: float, lon: float,
                    competitors: Sequence[Dict[str, Any]] = (),
                    catchment_km: float = CATCHMENT_KM,
                    population: Any = None,
-                   supply_km: float = SUPPLY_KM) -> CatchmentGeometry:
-    """Every distance a location needs, computed once for all betas. Pure."""
+                   supply_km: float = SUPPLY_KM,
+                   alpha: Optional[float] = None) -> CatchmentGeometry:
+    """Every distance a location needs, computed once for all betas. Pure.
+
+    ``alpha`` is the SIZE exponent and is baked into the stored attractiveness,
+    because it does not vary across a beta sweep — the two parameters are
+    independent and only beta is reweighted per run.
+    """
     g = CatchmentGeometry(lat, lon, float(catchment_km))
 
     own_pts, comp_pts = [], []
@@ -350,8 +382,11 @@ def build_geometry(lat: float, lon: float,
                              None if _pull is None else float(_pull)))
 
     g.any_stores = bool(own_pts or comp_pts)
-    g.own_a = [attractiveness(sz, ch, pl) for _la, _lo, sz, ch, pl in own_pts]
-    g.comp_a = [attractiveness(sz, ch, pl) for _la, _lo, sz, ch, pl in comp_pts]
+    g.alpha = float(SIZE_EXPONENT if alpha is None else alpha)
+    g.own_a = [attractiveness(sz, ch, pl, g.alpha)
+               for _la, _lo, sz, ch, pl in own_pts]
+    g.comp_a = [attractiveness(sz, ch, pl, g.alpha)
+                for _la, _lo, sz, ch, pl in comp_pts]
 
     points, weights = quadrature(lat, lon, catchment_km, population)
     g.has_population = population is not None
@@ -378,16 +413,17 @@ def build_field(lat: float, lon: float,
                 population: Any = None,
                 supply_km: float = SUPPLY_KM,
                 beta: float = DISTANCE_DECAY,
-                geometry: Optional[CatchmentGeometry] = None) -> CatchmentField:
+                geometry: Optional[CatchmentGeometry] = None,
+                alpha: Optional[float] = None) -> CatchmentField:
     """The size-independent half of a score at ONE beta. Pure.
 
     Pass ``geometry`` to reuse the distances across a beta sweep; without one
     it builds its own, so a lone call behaves exactly as before.
     """
     g = geometry or build_geometry(lat, lon, own_stores, competitors,
-                                   catchment_km, population, supply_km)
+                                   catchment_km, population, supply_km, alpha)
     b = float(beta)
-    f = CatchmentField(g.lat, g.lon, b, g.catchment_km)
+    f = CatchmentField(g.lat, g.lon, b, g.catchment_km, g.alpha)
     f.catchment_population = g.catchment_population
     f.own_in_catchment = g.own_in_catchment
     f.competitors_within_direct = g.competitors_within_direct
@@ -413,6 +449,7 @@ def score_site(lat: float, lon: float,
                population: Any = None,
                supply_km: float = SUPPLY_KM,
                beta: float = DISTANCE_DECAY,
+               alpha: Optional[float] = None,
                field: Optional[CatchmentField] = None) -> Dict[str, Any]:
     """Score one candidate location. Pure — no I/O, no model, no globals.
 
@@ -457,7 +494,7 @@ def score_site(lat: float, lon: float,
     # Integrating on the cells removes the layer and its parameters together.
     if field is None:
         field = build_field(lat, lon, own_stores, competitors, catchment_km,
-                            population, supply_km, beta)
+                            population, supply_km, beta, alpha=alpha)
     else:
         # A field is built at ONE exponent. Silently scoring it at another would
         # report a beta the numbers do not come from.
@@ -465,7 +502,7 @@ def score_site(lat: float, lon: float,
 
     # The candidate's own pull is one multiplication now: attractiveness does
     # not vary across cells, and the reciprocal distance is already in the field.
-    a_site = attractiveness(size_sqft)
+    a_site = attractiveness(size_sqft, alpha=field.alpha)
 
     num_site = num_own = denom = own_displaced = 0.0
     for inv_d, w, u_own, u_comp in field.cells:
@@ -527,6 +564,7 @@ def score_site(lat: float, lon: float,
         "nearest_competitor_km": (None if field.nearest_competitor_km is None
                                   else round(field.nearest_competitor_km, 2)),
         "beta": float(beta),
+        "alpha": field.alpha,
         "travel_friction": round(friction, 3),
         "catchment_population": (None if catchment_population is None
                                  else round(catchment_population, 1)),
