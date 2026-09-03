@@ -1941,8 +1941,6 @@ if "smart_ordering" in tab_map and _mod_ok("smart_ordering"):
         t_app = None
 
     with t_gen:
-        calendar = get_calendar()
-        
         # G11 Fix: Stock refresh button to clear cache before PO generation
         rc1, rc2 = st.columns([3, 1])
         with rc1:
@@ -1952,6 +1950,13 @@ if "smart_ordering" in tab_map and _mod_ok("smart_ordering"):
                 load_products.clear()
                 load_network_stock.clear()
                 load_all_stocks.clear()
+                # These two feed the ordering maths, not just the display, and
+                # outlive the button by an hour and two minutes respectively.
+                # Left uncleared, "Refresh Stock" reloaded the stock and then
+                # ordered against a stale ADS profile and a stale risk score —
+                # exactly the numbers the operator pressed the button to renew.
+                _cached_ads_map.clear()
+                get_all_store_risks.clear()
                 for _k in [k for k in st.session_state.keys()
                            if str(k).startswith("so_pipeline_")]:
                     st.session_state.pop(_k, None)
@@ -2043,6 +2048,11 @@ if "smart_ordering" in tab_map and _mod_ok("smart_ordering"):
                         'sim_util': sim_util,
                         'enriched': enriched,
                         'store_risk': store_risk,
+                        # The gate-compliant risk the live POs were priced on.
+                        # Stored because the chaos scenarios must price on the
+                        # SAME risk, or their delta measures the risk model
+                        # changing rather than the disruption.
+                        'ordering_risk': _ordering_risk,
                         'org_name_map': org_name_map,
                         'enriched_network_stock': enriched_network_stock,
                         'network_plan': network_plan,
@@ -2054,19 +2064,29 @@ if "smart_ordering" in tab_map and _mod_ok("smart_ordering"):
             _so = st.session_state[_so_key]
             sim_util = _so['sim_util']
             enriched = _so['enriched']
-            store_risk = _so['store_risk']
+            # 'store_risk' (the blended GNN score) stays in session state as the
+            # record of what the model said, but is deliberately not bound here:
+            # nothing in this tab displays it, and the only code that used to
+            # read it was the chaos scenarios, which must price on the gated
+            # risk below instead.
+            ordering_risk = _so['ordering_risk']
             org_name_map = _so['org_name_map']
             enriched_network_stock = _so['enriched_network_stock']
             network_plan = _so['network_plan']
             po_recs = _so['po_recs']
             dropped_recs = _so['dropped_recs']
-            supplier_summary = _so['supplier_summary']
             final_recs = po_recs
 
             # ── G17 Fix: PO Dedup Check ──
             from datetime import date as _date
             try:
-                existing_pos = adapter.fetch_pending_pos(selected_org)
+                # Own handle. This read used to rely on `adapter` leaking from
+                # the Transfer Intelligence tab's body, so for any user without
+                # that tab it raised NameError straight into the `except` below
+                # and the duplicate-PO warning silently never appeared — for
+                # precisely the users who had no other way to notice.
+                _dedupe_adapter = get_adapter()
+                existing_pos = _dedupe_adapter.fetch_pending_pos(selected_org)
                 today_pos = [po for po in existing_pos if str(po.get('PO_DATE', ''))[:10] == str(_date.today())]
                 if today_pos:
                     st.markdown(f"""
@@ -2135,8 +2155,39 @@ if "smart_ordering" in tab_map and _mod_ok("smart_ordering"):
                         st.dataframe(pd.DataFrame(dropped_data), use_container_width=True, hide_index=True)
             
             st.markdown("---")
-            # Downstream display uses the final PO-only items
-            final_recs = po_recs
+
+            # A scenario has to be priced through the same stages as the
+            # baseline it is compared against, or the delta measures the
+            # pipeline instead of the disruption. It was not: the baseline
+            # (po_recs) had network transfers deducted and the MOQ gate
+            # applied, while the scenario had neither and was priced on the
+            # blended GNN risk with a simulated weekday. Three differences, all
+            # pushing the same way, so every scenario appeared to raise the
+            # order regardless of what it modelled.
+            _baseline_transfer_qty = {}
+            for _t in network_plan.transfers:
+                if _t.to_org == selected_org:
+                    _tk = str(_t.itm_cd)
+                    _baseline_transfer_qty[_tk] = _baseline_transfer_qty.get(_tk, 0) + _t.qty
+
+            def _scenario_recs(_products):
+                """Price a what-if product list exactly as the live POs were."""
+                _raw = sim_util.calculate_order_quantity(
+                    _products, gnn_risk_score=ordering_risk, use_real_date=True)
+                _fin = sim_util.finalize_orders(_raw)
+                # Hold the transfer plan fixed: a demand or lead-time shock at
+                # this store does not change what its siblings have on the
+                # shelf, so the same units stay sourceable internally.
+                for _r in _fin:
+                    _tq = _baseline_transfer_qty.get(
+                        str(_r.get('itm_cd', _r.get('item_code', ''))), 0)
+                    if _tq:
+                        _r['recommended_quantity'] = max(
+                            0, _r.get('recommended_quantity', 0) - _tq)
+                # Pure — returns the gate result, unlike the pipeline it does
+                # NOT write the MOQ failure store. A what-if must not rewrite
+                # the transfer deficit list the Transfer tab reads.
+                return sim_util.apply_minimum_order_gate(_fin)['po_recs']
 
             # =============================================================
             # 🔮 CHAOS & DISRUPTION SCENARIOS (Phase 3.2)
@@ -2150,7 +2201,6 @@ if "smart_ordering" in tab_map and _mod_ok("smart_ordering"):
                     key="disruption_scenario_type"
                 )
 
-                disruption_active = scenario_type != "None"
                 disrupted_recs = None
 
                 if scenario_type == "🚫 Supplier Failure":
@@ -2188,10 +2238,14 @@ if "smart_ordering" in tab_map and _mod_ok("smart_ordering"):
                                 # Create modified product list with disruption effects
                                 disrupted_products = []
                                 affected_count = 0
+                                # Exact match. Substring matching ("FARM" in
+                                # "FARM FRESH") pulled unrelated suppliers into
+                                # the failure and overstated its impact.
+                                _target = str(sel_supplier).upper().strip()
                                 for p in list(enriched):
                                     p_copy = dict(p)
                                     p_supplier = str(p_copy.get('supplier_name', '')).upper().strip()
-                                    if sel_supplier.upper() in p_supplier:
+                                    if p_supplier == _target:
                                         affected_count += 1
                                         if "Complete" in failure_mode:
                                             # Max out safety stock — force emergency order
@@ -2204,8 +2258,7 @@ if "smart_ordering" in tab_map and _mod_ok("smart_ordering"):
                                             p_copy['lead_time_days'] = p_copy.get('lead_time_days', 3) * 2
                                     disrupted_products.append(p_copy)
 
-                                disrupted_raw = sim_util.calculate_order_quantity(disrupted_products, gnn_risk_score=store_risk)
-                                disrupted_recs = sim_util.finalize_orders(disrupted_raw)
+                                disrupted_recs = _scenario_recs(disrupted_products)
 
                                 # Show impact comparison
                                 st.markdown(f"#### ⚡ Disruption Impact: **{sel_supplier}** ({failure_mode})")
@@ -2227,7 +2280,10 @@ if "smart_ordering" in tab_map and _mod_ok("smart_ordering"):
 
                                 # Replace final_recs with disrupted version
                                 final_recs = disrupted_recs
-                                st.success("✅ PO recommendations below now reflect the disruption scenario.")
+                                st.success(
+                                    "✅ The recommendations below are this scenario's, "
+                                    "for this view only — a preview, not a saved plan. "
+                                    "Any next click returns the table to the live POs.")
                     else:
                         st.info("No critical single-source suppliers found in the current inventory.")
 
@@ -2256,8 +2312,7 @@ if "smart_ordering" in tab_map and _mod_ok("smart_ordering"):
                                 p_copy['avg_daily_sales'] = p_copy.get('avg_daily_sales', 0) * mult
                                 disrupted_products.append(p_copy)
 
-                            disrupted_raw = sim_util.calculate_order_quantity(disrupted_products, gnn_risk_score=store_risk)
-                            disrupted_recs = sim_util.finalize_orders(disrupted_raw)
+                            disrupted_recs = _scenario_recs(disrupted_products)
 
                             baseline_qty = sum(r.get('recommended_quantity', 0) for r in final_recs if r.get('recommended_quantity', 0) > 0)
                             disrupted_qty = sum(r.get('recommended_quantity', 0) for r in disrupted_recs if r.get('recommended_quantity', 0) > 0)
@@ -2273,7 +2328,10 @@ if "smart_ordering" in tab_map and _mod_ok("smart_ordering"):
                                 st.metric("Demand Multiplier", f"{day_1_mult:.3f}")
 
                             final_recs = disrupted_recs
-                            st.success("✅ PO recommendations adjusted for competitive pressure.")
+                            st.success(
+                                "✅ Adjusted for competitive pressure, for this view "
+                                "only — a preview, not a saved plan. Any next click "
+                                "returns the table to the live POs.")
 
                 elif scenario_type == "💸 Price War":
                     event = SCENARIO_TEMPLATES["price_war_aggressive"]
@@ -2290,8 +2348,7 @@ if "smart_ordering" in tab_map and _mod_ok("smart_ordering"):
                                 p_copy['avg_daily_sales'] = p_copy.get('avg_daily_sales', 0) * mult
                                 disrupted_products.append(p_copy)
 
-                            disrupted_raw = sim_util.calculate_order_quantity(disrupted_products, gnn_risk_score=store_risk)
-                            disrupted_recs = sim_util.finalize_orders(disrupted_raw)
+                            disrupted_recs = _scenario_recs(disrupted_products)
 
                             baseline_qty = sum(r.get('recommended_quantity', 0) for r in final_recs if r.get('recommended_quantity', 0) > 0)
                             disrupted_qty = sum(r.get('recommended_quantity', 0) for r in disrupted_recs if r.get('recommended_quantity', 0) > 0)
@@ -2305,7 +2362,10 @@ if "smart_ordering" in tab_map and _mod_ok("smart_ordering"):
                                 st.metric("Adjusted PO Qty", f"{disrupted_qty:,.0f}", delta=f"{delta:+,.0f}")
 
                             final_recs = disrupted_recs
-                            st.success("✅ PO recommendations adjusted for price war scenario.")
+                            st.success(
+                                "✅ Adjusted for the price war, for this view only — "
+                                "a preview, not a saved plan. Any next click returns "
+                                "the table to the live POs.")
 
             # Removed redundant Network Transfer Overlay (now integrated natively above)
     
@@ -2355,6 +2415,14 @@ if "smart_ordering" in tab_map and _mod_ok("smart_ordering"):
                                            ENTITY_PO, f"PO_{selected_org}_{int(time.time())}", selected_org,
                                            {"items": pushed})
                                 st.success(f"Sent {pushed} items to pending approvals.")
+                                # Drop the cached pipeline so the rerun prices
+                                # against the POs just created. Without this the
+                                # rerun redrew the same recommendations with the
+                                # same Push button, and pressing it again
+                                # ordered the same items a second time — the
+                                # on-order quantities that would have zeroed
+                                # them were never re-read.
+                                st.session_state.pop(_so_key, None)
                                 time.sleep(1)
                                 st.rerun()
                 with colB:
@@ -2365,18 +2433,34 @@ if "smart_ordering" in tab_map and _mod_ok("smart_ordering"):
                         # (was a hardcoded relative SQLite path that broke when
                         # the app ran from a different working directory).
                         from oasis.logic import db as oasis_db
+                        _items = [r.get('itm_cd', r.get('item_code', '')) for r in pos_recs]
+                        # One query, not one per line. This ran a SELECT per
+                        # item: a 200-line PO fired 200 round trips before the
+                        # download button could even be drawn.
+                        _lookup = {}
                         _conn = oasis_db.get_raw_connection()
-                        for r in pos_recs:
-                            _itm = r.get('itm_cd', r.get('item_code', ''))
-                            _res = _conn.execute(
-                                "SELECT I.SCAN_ITM_CD, S.SUPPLIER_NAME FROM ITEM_MST I "
-                                "LEFT JOIN SUPPLIER_MST S ON I.SUPPLIER_CD = S.SUPPLIER_CD "
-                                "WHERE I.ITM_CD = ?", (_itm,)
-                            ).fetchone()
-                            
-                            _bcode = _res[0] if _res and _res[0] else 'N/A'
-                            _supp = _res[1] if _res and _res[1] else r.get('supplier', 'Unknown Supplier')
-                            
+                        try:
+                            _known = [i for i in _items if i]
+                            if _known:
+                                _ph = ",".join("?" for _ in _known)
+                                for _row in _conn.execute(
+                                    "SELECT I.ITM_CD, I.SCAN_ITM_CD, S.SUPPLIER_NAME FROM ITEM_MST I "
+                                    "LEFT JOIN SUPPLIER_MST S ON I.SUPPLIER_CD = S.SUPPLIER_CD "
+                                    f"WHERE I.ITM_CD IN ({_ph})", tuple(_known)
+                                ).fetchall():
+                                    _lookup[str(_row[0])] = (_row[1], _row[2])
+                        finally:
+                            # Closed on the way out however we leave. An
+                            # exception mid-loop used to skip the close and
+                            # leak the connection into the except branch.
+                            _conn.close()
+
+                        for r, _itm in zip(pos_recs, _items):
+                            _hit = _lookup.get(str(_itm))
+                            _bcode = _hit[0] if _hit and _hit[0] else 'N/A'
+                            _supp = (_hit[1] if _hit and _hit[1]
+                                     else r.get('supplier', 'Unknown Supplier'))
+
                             export_data.append({
                                 'Barcode': _bcode,
                                 'Supplier': _supp,
@@ -2386,7 +2470,6 @@ if "smart_ordering" in tab_map and _mod_ok("smart_ordering"):
                                 'Cost Est': r.get('cost_est', 0),
                                 'Reasoning': r.get('reasoning', '')
                             })
-                        _conn.close()
                     except Exception as e:
                         # Fallback if DB fails
                         for r in pos_recs:
@@ -2436,17 +2519,38 @@ if "smart_ordering" in tab_map and _mod_ok("smart_ordering"):
                         selected = edited_df[edited_df["Select"] == True]
                         if not selected.empty:
                             count = 0
+                            skipped = []
                             for _, row in selected.iterrows():
                                 po_id = row["PO_ID"]
                                 orig_qty = df_pending[df_pending["PO_ID"] == po_id].iloc[0]["QUANTITY"]
                                 new_qty = row["QUANTITY"]
+                                # The QUANTITY column is editable, and nothing
+                                # stopped an edited 0 or -5 from being approved
+                                # and sent to a supplier as a real order line.
+                                try:
+                                    _q = float(new_qty)
+                                except (TypeError, ValueError):
+                                    _q = None
+                                if _q is None or _q <= 0:
+                                    skipped.append(f"{po_id} (qty {new_qty})")
+                                    continue
                                 reason = row["Reason"] if new_qty != orig_qty else None
-                                
+
                                 if adapter.update_po_status(po_id, "APPROVED", current_user["username"], new_qty, reason):
                                     count += 1
                                     log_action(DB_PATH, current_user["username"], "PO_APPROVED", ENTITY_PO,
                                                f"PO_ID_{po_id}", row["ORG_CD"], {"new_qty": new_qty, "reason": reason})
+                            if skipped:
+                                st.warning(
+                                    "Skipped for a quantity of zero or less — edit the "
+                                    "quantity or reject instead: " + ", ".join(skipped))
                             st.success(f"Approved {count} purchase orders.")
+                            # An approved PO is committed stock. Leaving the
+                            # ordering pipeline cached would price the next
+                            # order as though it had not been placed.
+                            for _k in [k for k in st.session_state.keys()
+                                       if str(k).startswith("so_pipeline_")]:
+                                st.session_state.pop(_k, None)
                             time.sleep(1)
                             st.rerun()
                         else:
@@ -2458,10 +2562,17 @@ if "smart_ordering" in tab_map and _mod_ok("smart_ordering"):
                             count = 0
                             for _, row in selected.iterrows():
                                 po_id = row["PO_ID"]
-                                if adapter.update_po_status(po_id, "REJECTED", current_user["username"]):
+                                # Carry the Reason through. A rejection logged
+                                # as an empty dict left no record of why the
+                                # buyer refused the line — the one thing anyone
+                                # reviewing the decision later wants to know.
+                                _reject_reason = str(row.get("Reason", "") or "").strip() or None
+                                if adapter.update_po_status(po_id, "REJECTED", current_user["username"],
+                                                            reason=_reject_reason):
                                     count += 1
                                     log_action(DB_PATH, current_user["username"], "PO_REJECTED", ENTITY_PO,
-                                               f"PO_ID_{po_id}", row["ORG_CD"], {})
+                                               f"PO_ID_{po_id}", row["ORG_CD"],
+                                               {"reason": _reject_reason})
                             st.success(f"Rejected {count} purchase orders.")
                             time.sleep(1)
                             st.rerun()
