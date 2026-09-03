@@ -19,18 +19,33 @@ logger = logging.getLogger("MssqlConnector")
 # ---------------------------------------------------------------------------
 
 def detect_odbc_driver() -> str:
-    """Auto-detect the best available MSSQL ODBC driver on this machine."""
+    """Auto-detect the best available MSSQL ODBC driver on this machine.
+
+    Rank by the version number in the name, not by the name. Sorting the
+    strings descending looks like it prefers the newest and does the opposite:
+    "SQL Server" beats "ODBC Driver 18 for SQL Server" on the first character,
+    so a machine with Driver 18 installed was handed the legacy driver — the
+    one that needs the HY104 setinputsizes workaround to read a schema at all.
+    Alphabetical order would also rank 9 above 18.
+    """
+    import re
     try:
         import pyodbc
         drivers = [d for d in pyodbc.drivers() if 'SQL Server' in d]
-        # Prefer newest driver (e.g. "ODBC Driver 18 for SQL Server")
-        drivers.sort(reverse=True)
-        if drivers:
-            return drivers[0]
     except ImportError:
-        pass
-    # Fallback to the legacy driver that ships with Windows
-    return "SQL Server"
+        drivers = []
+
+    best, best_version = None, -1
+    for d in drivers:
+        m = re.match(r"ODBC Driver (\d+) for SQL Server$", d.strip())
+        # An unnumbered name ("SQL Server", "SQL Server Native Client 11.0")
+        # ranks below every numbered one but still above nothing at all.
+        version = int(m.group(1)) if m else 0
+        if version > best_version:
+            best, best_version = d, version
+
+    # Fallback to the legacy driver that ships with Windows.
+    return best or "SQL Server"
 
 
 class MssqlConnector:

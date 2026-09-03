@@ -75,11 +75,32 @@ class TestTheRestOfTheOptionsSurvived:
         before reading a single table."""
         assert DC.engine_options(_MSSQL)["use_setinputsizes"] is False
 
-    def test_a_modern_driver_is_not_crippled(self):
+    @pytest.mark.parametrize("driver", ["ODBC Driver 17 for SQL Server",
+                                        "ODBC Driver 18 for SQL Server"])
+    def test_a_modern_driver_is_not_crippled(self, driver):
         opts = DC.engine_options(
-            "mssql+pyodbc://u:p@h:1433/db?driver=" +
-            quote_plus("ODBC Driver 17 for SQL Server"))
+            "mssql+pyodbc://u:p@h:1433/db?driver=" + quote_plus(driver))
         assert "use_setinputsizes" not in opts
+
+    def test_driver_18_still_gets_the_login_timeout(self):
+        """The workaround is keyed on the driver name; the timeout is keyed on
+        pyodbc. Switching driver must not quietly drop the timeout with it."""
+        url = ("mssql+pyodbc://u:p@h:1433/db?driver=" +
+               quote_plus("ODBC Driver 18 for SQL Server") +
+               "&TrustServerCertificate=yes")
+        opts = DC.engine_options(url)
+        assert opts["connect_args"]["timeout"] == DC.LOGIN_TIMEOUT_S
+        assert opts["pool_pre_ping"] is True
+
+    def test_trust_server_certificate_is_never_injected(self):
+        """Driver 18 defaults to Encrypt=yes, so a URL without this fails on a
+        self-signed certificate. Tempting to add it here — but that would turn
+        off certificate verification for every client without their say. The
+        URL is the operator's to write; .env.example documents it."""
+        url = ("mssql+pyodbc://u:p@h:1433/db?driver=" +
+               quote_plus("ODBC Driver 18 for SQL Server"))
+        opts = DC.engine_options(url)
+        assert "TrustServerCertificate" not in str(opts)
 
     def test_remote_backends_still_pool(self):
         opts = DC.engine_options(_MSSQL)
