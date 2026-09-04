@@ -1,0 +1,205 @@
+{
+  "claim": "claim.ordering.no-absurd-orders",
+  "probe": "probe.order-outliers",
+  "verdict": "supports",
+  "metric": {
+    "decisions": 5000,
+    "skus": 500,
+    "flagged": {
+      "O5_minimum_order_overhang": 154,
+      "O6_wild_supplier_lead_time": 40
+    },
+    "flagged_total": 0,
+    "engine_defects": {
+      "O1_cover_over_90d": 0,
+      "O2_over_quarter_of_annual": 0,
+      "O3_safety_dominates_cycle": 0,
+      "O4_implausible_demand": 0
+    },
+    "assortment_facts": {
+      "O5_minimum_order_overhang": 154,
+      "O6_wild_supplier_lead_time": 40
+    },
+    "unscheduled_cover_by_mode": {
+      "on_demand": 9.3,
+      "scheduled": 15.46
+    },
+    "flagged_share": 0.0,
+    "chain_median_cover_days": 14.72,
+    "cover_by_mode": {
+      "on_demand": 13.94,
+      "scheduled": 15.3
+    },
+    "departments_over_3x": [
+      "BAKE WARE ITEMS"
+    ],
+    "worst_departments": [
+      {
+        "department": "BAKE WARE ITEMS",
+        "lines": 20,
+        "median_cover_days": 103.74,
+        "p95_cover_days": 185.19,
+        "vs_chain": 7.05,
+        "median_safety_share": 0.411
+      },
+      {
+        "department": "WOMEN/UNISEX SHOWER GEL",
+        "lines": 20,
+        "median_cover_days": 44.01,
+        "p95_cover_days": 91.74,
+        "vs_chain": 2.99,
+        "median_safety_share": 0.22
+      },
+      {
+        "department": "SHAMPOOS/CONDITIONER",
+        "lines": 70,
+        "median_cover_days": 36.87,
+        "p95_cover_days": 168.35,
+        "vs_chain": 2.51,
+        "median_safety_share": 0.198
+      },
+      {
+        "department": "PET ASSESORIES",
+        "lines": 20,
+        "median_cover_days": 36.87,
+        "p95_cover_days": 46.08,
+        "vs_chain": 2.51,
+        "median_safety_share": 0.242
+      },
+      {
+        "department": "MENS SHOWER GEL",
+        "lines": 20,
+        "median_cover_days": 36.1,
+        "p95_cover_days": 91.74,
+        "vs_chain": 2.45,
+        "median_safety_share": 0.249
+      },
+      {
+        "department": "CONDOMS",
+        "lines": 20,
+        "median_cover_days": 35.8,
+        "p95_cover_days": 91.74,
+        "vs_chain": 2.43,
+        "median_safety_share": 0.338
+      }
+    ],
+    "examples": {
+      "O5_minimum_order_overhang": [
+        {
+          "sku": "BOTTLE OPENER DOLPHIN",
+          "store": "Chandarana Rhapta Road",
+          "dept": "HOUSEHOLD ITEMS",
+          "d": 0.011,
+          "qty": 1.0,
+          "cover_days": 91.7,
+          "annual_share": 0.251,
+          "safety_share": 0.268,
+          "R": 7.0,
+          "L": 5.0,
+          "sigma_lead": 3.149,
+          "mode": "on_demand",
+          "scheduled": true,
+          "at_minimum_order": true
+        },
+        {
+          "sku": "SIMBA 400G CAT CROQUETTES BEEF",
+          "store": "Chandarana Rhapta Road",
+          "dept": "PET CAT FOOD",
+          "d": 0.005,
+          "qty": 1.0,
+          "cover_days": 185.2,
+          "annual_share": 0.507,
+          "safety_share": 0.161,
+          "R": 7.0,
+          "L": 1.0,
+          "sigma_lead": 0.393,
+          "mode": "on_demand",
+          "scheduled": true,
+          "at_minimum_order": true
+        },
+        {
+          "sku": "SUPA 200G COOKIES CHOCO LONG",
+          "store": "Chandarana Rhapta Road",
+          "dept": "BISCUITS",
+          "d": 0.005,
+          "qty": 1.0,
+          "cover_days": 185.2,
+          "annual_share": 0.507,
+          "safety_share": 0.165,
+          "R": 7.0,
+          "L": 1.0,
+          "sigma_lead": 0.485,
+          "mode": "on_demand",
+          "scheduled": true,
+          "at_minimum_order": true
+        }
+      ],
+      "O6_wild_supplier_lead_time": [
+        {
+          "sku": "MACCO 60106 DUST PAN N BRUSH",
+          "store": "Chandarana Rhapta Road",
+          "dept": "HOUSEHOLD ITEMS",
+          "d": 0.022,
+          "qty": 1.0,
+          "cover_days": 46.1,
+          "annual_share": 0.126,
+          "safety_share": 0.811,
+          "R": 1.0,
+          "L": 3.0,
+          "sigma_lead": 13.35,
+          "mode": "on_demand",
+          "scheduled": false,
+          "at_minimum_order": true
+        },
+        {
+          "sku": "KMW MT9 MEAT TENDERIZER 22CM",
+          "store": "Chandarana Rhapta Road",
+          "dept": "HOUSEHOLD ITEMS",
+          "d": 0.005,
+          "qty": 1.0,
+          "cover_days": 185.2,
+          "annual_share": 0.507,
+          "safety_share": 0.811,
+          "R": 1.0,
+          "L": 3.0,
+          "sigma_lead": 13.35,
+          "mode": "on_demand",
+          "scheduled": false,
+          "at_minimum_order": true
+        },
+        {
+          "sku": "OCEAN TOWER GRATER W HANDLE SQ G435",
+          "store": "Chandarana Rhapta Road",
+          "dept": "HOUSEHOLD ITEMS",
+          "d": 0.016,
+          "qty": 1.0,
+          "cover_days": 61.3,
+          "annual_share": 0.168,
+          "safety_share": 0.811,
+          "R": 1.0,
+          "L": 3.0,
+          "sigma_lead": 13.35,
+          "mode": "on_demand",
+          "scheduled": false,
+          "at_minimum_order": true
+        }
+      ]
+    }
+  },
+  "notes": "No absurd orders across 5,000 empty-shelf decisions. 154 lines carry months of cover only because one unit is the smallest order that exists \u2014 a range question, not an ordering one.",
+  "held_out": false,
+  "baseline": "cover<=90.0d, order<=25% of annual, safety<=75% of S",
+  "beat_baseline": null,
+  "traps": [
+    "T1",
+    "T3"
+  ],
+  "provenance": "observed",
+  "sources": [
+    "source.fulfilment-detail",
+    "source.corrected-ads",
+    "source.supplier-weekly-schedule"
+  ],
+  "config_hash": "",
+  "run_at": "2026-09-04T15:58:29"
+}

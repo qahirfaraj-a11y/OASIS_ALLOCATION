@@ -75,6 +75,10 @@ def main(argv=None) -> int:
     ap.add_argument("--db", default=None)
     ap.add_argument("--sigma-source", choices=("observed", "default"),
                     default="observed")
+    ap.add_argument("--mode", choices=("scheduled", "on_demand"),
+                    default="scheduled",
+                    help="scheduled waits for a declared order day; on_demand "
+                         "can raise an order any working day")
     a = ap.parse_args(argv)
     random.seed(a.seed)
 
@@ -138,7 +142,7 @@ def main(argv=None) -> int:
                                    .get("lead_time_days") or 3),
                 "current_stock": 0.0, "on_order_qty": 0.0, "pack_size": 1,
             }
-            base = OU.recommend(product, schedule, patterns)
+            base = OU.recommend(product, schedule, patterns, mode=a.mode)
             S = float(base.get("S") or 0)
             if S <= 0:
                 stats["zero_S"] += 1
@@ -147,7 +151,7 @@ def main(argv=None) -> int:
                 for g in ON_ORDER_GRID:
                     product["current_stock"] = S * f
                     product["on_order_qty"] = S * g
-                    t = OU.recommend(product, schedule, patterns)
+                    t = OU.recommend(product, schedule, patterns, mode=a.mode)
                     rows.append({
                         "org": store["id"], "entity": item,
                         "quantity": t["quantity"],
@@ -165,6 +169,8 @@ def main(argv=None) -> int:
                                    "cycle_stock": t["cycle_stock"],
                                    "safety_stock": t["safety_stock"],
                                    "clamped": t["clamped"],
+                                   "mode": t["mode"],
+                                   "scheduled": t["scheduled"],
                                    "cover_days": t["cover_days"]},
                     })
                     stats["decisions"] += 1
@@ -174,6 +180,7 @@ def main(argv=None) -> int:
     params = {"model": "order_up_to", "z": OU.z_score(),
               "service_level": OU.service_level(),
               "default_cv": DEFAULT_CV, "sigma_source": a.sigma_source,
+              "ordering_mode": a.mode,
               "stock_grid": list(STOCK_GRID), "on_order_grid": list(ON_ORDER_GRID),
               "schedule_suppliers": len(schedule),
               "vendor_patterns": len(patterns)}

@@ -1,0 +1,36 @@
+{
+  "claim": "claim.siting.recommendation-sensitive-to-distance-decay",
+  "probe": "probe.siting-robustness",
+  "verdict": "supports",
+  "metric": {
+    "conditions": 3,
+    "top1_held": 1,
+    "top1_held_rate": 0.333,
+    "min_top10_overlap": 8,
+    "mean_top10_overlap": 9,
+    "max_rank_drift": 1.9,
+    "mean_rank_drift": 1.2,
+    "family": "beta",
+    "is_worst": false,
+    "ranked_by_drift": [
+      "catchment",
+      "beta",
+      "alpha"
+    ],
+    "competitor_top1_survival": 0.5
+  },
+  "notes": "Perturbing beta moves the recommendation: top-1 held in 1/3 conditions, min top-10 overlap 8/10, mean rank drift 1.2.",
+  "held_out": false,
+  "baseline": "baseline assumptions, unperturbed",
+  "beat_baseline": null,
+  "traps": [
+    "T3"
+  ],
+  "provenance": "synthetic",
+  "sources": [
+    "source.stores-network-json",
+    "source.pos-fixtures"
+  ],
+  "config_hash": "",
+  "run_at": "2026-09-04T15:58:12"
+}

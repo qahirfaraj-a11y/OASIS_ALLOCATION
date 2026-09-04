@@ -1,0 +1,302 @@
+{
+  "claim": "claim.siting.estate-has-a-usable-revenue-label",
+  "probe": "probe.comparable-store-correlation",
+  "verdict": "contradicts",
+  "metric": {
+    "label_source": "mock_pos_erp.db",
+    "label": {
+      "estate_only": [],
+      "pos_only": [],
+      "join_is_genuine_non_overlap": false,
+      "pos_sources": [
+        {
+          "name": "mock_pos_erp.db",
+          "rows": 136102,
+          "observed": false,
+          "tells": [
+            "dates perfectly spaced every 1 day(s)",
+            "bill runs 1..136102 with no gaps"
+          ]
+        },
+        {
+          "name": "mock_pos_erp_lite.db",
+          "rows": 10938,
+          "observed": true,
+          "tells": [
+            "dates perfectly spaced every 1 day(s)"
+          ]
+        },
+        {
+          "name": "mock_pos_erp_showcase.db",
+          "rows": 77373,
+          "observed": false,
+          "tells": [
+            "dates perfectly spaced every 1 day(s)",
+            "bill runs 1..77373 with no gaps"
+          ]
+        },
+        {
+          "name": "oasis_store.db",
+          "rows": 12000,
+          "observed": false,
+          "tells": [
+            "identical record count per period, every group",
+            "dates perfectly spaced every 1 day(s)",
+            "counter takes 1 value(s), expected >= 2",
+            "pay takes 1 value(s), expected >= 2",
+            "cust takes 1 value(s), expected >= 5"
+          ]
+        },
+        {
+          "name": "rhapta_multi_store.db",
+          "rows": 9576,
+          "observed": false,
+          "tells": [
+            "identical record count per period, every group",
+            "dates perfectly spaced every 1 day(s)",
+            "counter takes 1 value(s), expected >= 2",
+            "pay takes 1 value(s), expected >= 2",
+            "cust takes 1 value(s), expected >= 5"
+          ]
+        },
+        {
+          "name": "rhapta_pos.db",
+          "rows": 612,
+          "observed": false,
+          "tells": [
+            "identical record count per period, every group",
+            "counter takes 1 value(s), expected >= 2",
+            "pay takes 1 value(s), expected >= 2",
+            "cust takes 1 value(s), expected >= 5"
+          ]
+        },
+        {
+          "name": "variant_network.db",
+          "rows": 17244,
+          "observed": false,
+          "tells": [
+            "identical record count per period, every group",
+            "dates perfectly spaced every 5 day(s)",
+            "counter takes 1 value(s), expected >= 2",
+            "pay takes 1 value(s), expected >= 2",
+            "cust takes 1 value(s), expected >= 5",
+            "bill runs 1..17244 with no gaps"
+          ]
+        }
+      ],
+      "observed_sources": [],
+      "declared_is_ladder": true,
+      "ladder_step": 456000.0,
+      "declared_vs_footfall_rho": 0.9955946922361485,
+      "declared_vs_size_rho": 0.48404869774861353,
+      "declared_vs_pos_rho": 1.0,
+      "matched_stores": 14,
+      "pos_window": [
+        "2026-03-08",
+        "2026-06-05"
+      ],
+      "synthetic": true,
+      "labels_disagree": false,
+      "usable": false
+    },
+    "best": {
+      "alpha": 1.0,
+      "beta": 1.5,
+      "catchment_km": 12.5,
+      "n": 14,
+      "spearman": 0.3010989010989011,
+      "pearson": 0.03070981393712268,
+      "mean_capture_pct": 2.287857142857143
+    },
+    "cross_source_agreement": {
+      "pairs": {
+        "declared ~ mock_pos_erp.db": {
+          "rho": 1.0,
+          "n": 14
+        },
+        "declared ~ mock_pos_erp_lite.db": {
+          "rho": 0.9956,
+          "n": 14
+        },
+        "declared ~ variant_network.db": {
+          "rho": -0.3833,
+          "n": 9
+        },
+        "mock_pos_erp.db ~ mock_pos_erp_lite.db": {
+          "rho": 0.9956,
+          "n": 14
+        },
+        "mock_pos_erp.db ~ variant_network.db": {
+          "rho": -0.3833,
+          "n": 9
+        },
+        "mock_pos_erp_lite.db ~ variant_network.db": {
+          "rho": -0.4333,
+          "n": 9
+        }
+      },
+      "perfect_agreement": [
+        "declared ~ mock_pos_erp.db",
+        "declared ~ mock_pos_erp_lite.db",
+        "mock_pos_erp.db ~ mock_pos_erp_lite.db"
+      ],
+      "contradictions": [
+        "declared ~ variant_network.db",
+        "mock_pos_erp.db ~ variant_network.db",
+        "mock_pos_erp_lite.db ~ variant_network.db"
+      ],
+      "spread": 1.4333
+    },
+    "beta_identification": {
+      "identified": false,
+      "best_beta": 1.5,
+      "by_beta": {
+        "1.5": 0.15198866626266452,
+        "2.0": -0.041217029948092246,
+        "2.5": -0.1514817928517844,
+        "3.0": -0.19794692375273643
+      },
+      "monotone": true,
+      "reason": "optimum is at the edge of the swept range \u2014 the data is not choosing an exponent"
+    },
+    "per_label": {
+      "mock_pos_erp.db": {
+        "best": {
+          "alpha": 1.0,
+          "beta": 1.5,
+          "catchment_km": 12.5,
+          "n": 14,
+          "spearman": 0.3010989010989011,
+          "pearson": 0.03070981393712268,
+          "mean_capture_pct": 2.287857142857143
+        },
+        "beta_identification": {
+          "identified": false,
+          "best_beta": 1.5,
+          "by_beta": {
+            "1.5": 0.15198866626266452,
+            "2.0": -0.041217029948092246,
+            "2.5": -0.1514817928517844,
+            "3.0": -0.19794692375273643
+          },
+          "monotone": true,
+          "reason": "optimum is at the edge of the swept range \u2014 the data is not choosing an exponent"
+        },
+        "n_swept": 80
+      },
+      "stores_network.json avg_monthly_revenue": {
+        "best": {
+          "alpha": 1.0,
+          "beta": 1.5,
+          "catchment_km": 12.5,
+          "n": 14,
+          "spearman": 0.3010989010989011,
+          "pearson": 0.03957588319200795,
+          "mean_capture_pct": 2.287857142857143
+        },
+        "beta_identification": {
+          "identified": false,
+          "best_beta": 1.5,
+          "by_beta": {
+            "1.5": 0.15198866626266452,
+            "2.0": -0.041217029948092246,
+            "2.5": -0.1514817928517844,
+            "3.0": -0.19794692375273643
+          },
+          "monotone": true,
+          "reason": "optimum is at the edge of the swept range \u2014 the data is not choosing an exponent"
+        },
+        "n_swept": 80
+      }
+    },
+    "preferred_constants_disagree": false,
+    "swept": 80,
+    "top": [
+      {
+        "alpha": 1.0,
+        "beta": 1.5,
+        "catchment_km": 12.5,
+        "n": 14,
+        "spearman": 0.3010989010989011,
+        "pearson": 0.03070981393712268,
+        "mean_capture_pct": 2.287857142857143
+      },
+      {
+        "alpha": 1.2,
+        "beta": 1.5,
+        "catchment_km": 10.0,
+        "n": 14,
+        "spearman": 0.3010989010989011,
+        "pearson": 0.044056389118390306,
+        "mean_capture_pct": 2.9942857142857138
+      },
+      {
+        "alpha": 1.0,
+        "beta": 1.5,
+        "catchment_km": 10.0,
+        "n": 14,
+        "spearman": 0.27912087912087913,
+        "pearson": 0.02831911930906108,
+        "mean_capture_pct": 2.9364285714285714
+      },
+      {
+        "alpha": 1.2,
+        "beta": 1.5,
+        "catchment_km": 7.5,
+        "n": 14,
+        "spearman": 0.27912087912087913,
+        "pearson": 0.03888173247728172,
+        "mean_capture_pct": 4.126428571428571
+      },
+      {
+        "alpha": 1.2,
+        "beta": 1.5,
+        "catchment_km": 12.5,
+        "n": 14,
+        "spearman": 0.27912087912087913,
+        "pearson": 0.04587486205457298,
+        "mean_capture_pct": 2.3428571428571425
+      },
+      {
+        "alpha": 1.2,
+        "beta": 1.5,
+        "catchment_km": 15.0,
+        "n": 14,
+        "spearman": 0.26153846153846155,
+        "pearson": 0.05169638670637905,
+        "mean_capture_pct": 1.929285714285714
+      },
+      {
+        "alpha": 1.0,
+        "beta": 1.5,
+        "catchment_km": 15.0,
+        "n": 14,
+        "spearman": 0.24835164835164836,
+        "pearson": 0.03685500780302739,
+        "mean_capture_pct": 1.8785714285714281
+      },
+      {
+        "alpha": 0.8,
+        "beta": 1.5,
+        "catchment_km": 15.0,
+        "n": 14,
+        "spearman": 0.2,
+        "pearson": 0.019029519829833575,
+        "mean_capture_pct": 1.8357142857142854
+      }
+    ]
+  },
+  "notes": "No observed store-performance label exists on this install. Declared avg_monthly_revenue sits on a fixed ladder (step 456,000) and tracks footfall_rank at rho=0.996, so it is a function of the model's own inputs. All 7 POS databases are fixtures on the provenance tells, and the richest is named 'mock'. Fitted against each candidate label in turn, the sweep prefers the same constants. 3 label pair(s) agree at rho>=0.99, which is a common generator rather than corroboration; 3 pair(s) contradict outright; Siting cannot be fitted until real client POS lands.",
+  "held_out": false,
+  "baseline": "stores_network.json avg_monthly_revenue",
+  "beat_baseline": null,
+  "traps": [
+    "T1",
+    "T4",
+    "T5"
+  ],
+  "provenance": "unknown",
+  "sources": [],
+  "config_hash": "",
+  "run_at": "2026-09-04T15:58:46"
+}

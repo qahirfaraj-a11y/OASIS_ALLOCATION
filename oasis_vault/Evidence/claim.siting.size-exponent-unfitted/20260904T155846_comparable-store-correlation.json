@@ -1,0 +1,38 @@
+{
+  "claim": "claim.siting.size-exponent-unfitted",
+  "probe": "probe.comparable-store-correlation",
+  "verdict": "inconclusive",
+  "metric": {
+    "current": 1.0,
+    "preferred": 1.0,
+    "spearman_at_preferred": 0.3010989010989011,
+    "n": 14,
+    "label_source": "mock_pos_erp.db",
+    "label_usable": false,
+    "beta_identification": {
+      "identified": false,
+      "best_beta": 1.5,
+      "by_beta": {
+        "1.5": 0.15198866626266452,
+        "2.0": -0.041217029948092246,
+        "2.5": -0.1514817928517844,
+        "3.0": -0.19794692375273643
+      },
+      "monotone": true,
+      "reason": "optimum is at the edge of the swept range \u2014 the data is not choosing an exponent"
+    }
+  },
+  "notes": "Swept 80 combinations leave-one-out against mock_pos_erp.db, which is a fixture. No value is fitted \u2014 the sweep is a diagnostic showing what the machinery WOULD say once a real label exists.",
+  "held_out": false,
+  "baseline": null,
+  "beat_baseline": null,
+  "traps": [
+    "T1",
+    "T4",
+    "T5"
+  ],
+  "provenance": "unknown",
+  "sources": [],
+  "config_hash": "",
+  "run_at": "2026-09-04T15:58:46"
+}

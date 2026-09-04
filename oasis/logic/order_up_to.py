@@ -257,12 +257,51 @@ def load_lead_patterns(root: str) -> Dict[str, dict]:
     return {}
 
 
+#: Under on-demand ordering there is no cycle to wait for: the next chance to
+#: buy is the next working day. R collapses to that, not to a week.
+ON_DEMAND_REVIEW_DAYS = 1.0
+
+MODES = ("scheduled", "on_demand")
+
+
+def ordering_mode(default: str = "scheduled") -> str:
+    """Whether ordering waits for a declared day, or can happen any day.
+
+    The distinction matters more than it looks. `R` is the review period — how
+    long until the buyer next gets a chance to order — and that is a property of
+    the ORDERING PROCESS, not of the supplier. A calendar day is needed when
+    ordering is scheduled or autonomous. When a buyer can raise an order today,
+    there is no cycle to cover.
+    """
+    v = (os.getenv("OASIS_ORDERING_MODE") or default).strip().lower()
+    return v if v in MODES else default
+
+
 def review_period(supplier: str, schedule: Optional[Dict[str, float]] = None,
-                  default: float = DEFAULT_REVIEW_DAYS) -> float:
-    if not schedule:
-        return default
+                  default: float = DEFAULT_REVIEW_DAYS,
+                  mode: Optional[str] = None) -> float:
+    """Days until the next chance to order this supplier.
+
+    A supplier absent from the calendar has NOT told us it can only be ordered
+    weekly — it has told us nothing. Which of those two the engine assumes is
+    worth a week of cover on 48% of the book:
+
+      scheduled   ordering waits for declared days, and a supplier with no
+                  declared day is reviewed on the chain's default cycle.
+      on_demand   a buyer can raise an order any working day, so an unscheduled
+                  supplier's review period is one day, not seven.
+
+    A supplier that IS on the calendar keeps its declared cadence in both modes:
+    that is a commitment somebody made, and it holds whether or not the engine
+    could have ordered sooner.
+    """
     key = " ".join(str(supplier or "").upper().split())
-    return schedule.get(key, default)
+    if schedule and key in schedule:
+        return schedule[key]
+    mode = (mode or ordering_mode()).lower()
+    if mode == "on_demand":
+        return ON_DEMAND_REVIEW_DAYS
+    return default
 
 
 # ── sigma_L: how much the supplier's lead time actually moves ─────────────
@@ -341,10 +380,30 @@ def order_quantity(S: float, on_hand: float, on_order: float,
     return math.ceil(net / pack) * pack
 
 
+_PATTERNS_CACHE: Optional[Dict[str, dict]] = None
+
+
+def default_patterns(root: Optional[str] = None) -> Dict[str, dict]:
+    """The measured lead patterns, loaded once.
+
+    `recommend()` used to fall back to an empty dict when a caller passed no
+    patterns, which meant every supplier silently took the chain-wide
+    sigma_L — including the 472 the receipt history can measure. A file nobody
+    loads is indistinguishable from a file that does not exist.
+    """
+    global _PATTERNS_CACHE
+    if _PATTERNS_CACHE is None:
+        base = root or os.path.abspath(
+            os.path.join(os.path.dirname(__file__), "..", ".."))
+        _PATTERNS_CACHE = load_lead_patterns(base)
+    return _PATTERNS_CACHE
+
+
 def recommend(product: Dict[str, Any],
               schedule: Optional[Dict[str, float]] = None,
               patterns: Optional[Dict[str, dict]] = None,
-              z: Optional[float] = None) -> Dict[str, Any]:
+              z: Optional[float] = None,
+              mode: Optional[str] = None) -> Dict[str, Any]:
     """One line's order, with every term it was built from.
 
     Returns the terms as well as the quantity: a number nobody can decompose is
@@ -360,8 +419,9 @@ def recommend(product: Dict[str, Any],
     sigma_d = cv * d
     L = max(1.0, float(product.get("lead_time_days")
                        or product.get("estimated_delivery_days") or 3))
-    R = review_period(supplier, schedule)
-    sL = sigma_lead((patterns or {}).get(supplier))
+    R = review_period(supplier, schedule, mode=mode)
+    pats = default_patterns() if patterns is None else patterns
+    sL = sigma_lead(pats.get(supplier))
     zz = z_score() if z is None else z
 
     S_raw = order_up_to_level(d, sigma_d, L, R, sL, zz)
@@ -379,6 +439,8 @@ def recommend(product: Dict[str, Any],
         "quantity": Q, "S": S, "S_unclamped": S_raw,
         "R": R, "L": L, "P": P, "d": d, "sigma_d": sigma_d,
         "sigma_lead": sL, "z": zz,
+        "mode": (mode or ordering_mode()),
+        "scheduled": bool(schedule and " ".join(supplier.split()) in schedule),
         "cycle_stock": d * P,
         "safety_stock": zz * demand_sigma_over(P, d, sigma_d, sL),
         "clamped": abs(S - S_raw) > 1e-9,
