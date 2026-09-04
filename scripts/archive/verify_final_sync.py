@@ -30,8 +30,16 @@ def verify_tier(budget):
     if not os.path.exists(scorecard_path):
         import glob
         cands = glob.glob(os.path.join(ROOT, "Full_Product_Allocation_Scorecard_v*.csv"))
-        if cands: scorecard_path = cands[0]
-        else: raise FileNotFoundError("Scorecard not found")
+        if not cands:
+            raise FileNotFoundError("Scorecard not found")
+        # Newest, explicitly. There are seven of these on disk and `cands[0]`
+        # took whatever the filesystem returned first — the same rule that once
+        # let a three-week-old duplicate shadow the derived lead times.
+        scorecard_path = max(cands, key=os.path.getmtime)
+        if len(cands) > 1:
+            print(f"WARNING: {len(cands)} scorecards match; using "
+                  f"{os.path.basename(scorecard_path)} and ignoring "
+                  f"{len(cands) - 1} other(s).")
 
     df = pd.read_csv(scorecard_path)
     recommendations = []

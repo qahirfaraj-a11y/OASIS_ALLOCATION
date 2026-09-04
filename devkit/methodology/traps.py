@@ -20,6 +20,7 @@ Use them as guards inside probes:
 from __future__ import annotations
 
 import ast
+import collections
 import os
 import re
 from dataclasses import dataclass, field
@@ -127,7 +128,8 @@ def newest_wins(paths: Sequence[os.PathLike | str],
 
 def scan_unsorted_globs(root: os.PathLike | str,
                         include: Sequence[str] = ("*.py",),
-                        only_high: bool = True) -> List[TrapResult]:
+                        only_high: bool = True,
+                        recursive: bool = True) -> List[TrapResult]:
     """Static form of T2: a listdir/glob whose result is used to PICK ONE FILE.
 
     The distinction matters, and getting it wrong is how a register starts
@@ -145,9 +147,12 @@ def scan_unsorted_globs(root: os.PathLike | str,
     FINDERS = ("listdir", "glob", "iglob", "rglob", "scandir")
 
     for pattern in include:
-        for path in sorted(Path(root).rglob(pattern)):
+        walk = Path(root).rglob(pattern) if recursive else Path(root).glob(pattern)
+        for path in sorted(walk):
             if any(part in ("__pycache__", ".git", "build", "dist", "node_modules",
-                            ".oasis_venv", "oasis_checkpoint_before_refactor")
+                            ".oasis_venv", ".venv", "venv", "site-packages",
+                            "oasis_checkpoint_before_refactor", "backups",
+                            "dist_release", "Allocation_Engine_Release")
                    for part in path.parts):
                 continue
             try:
@@ -179,11 +184,33 @@ def scan_unsorted_globs(root: os.PathLike | str,
                     if nm not in FINDERS:
                         continue
 
+                    # A guard may wrap the call, or arrive a line later as
+                    # `results.sort(key=os.path.getmtime, reverse=True)`. Missing
+                    # the second form is how this scanner cried wolf on
+                    # diagnose_stockouts.py, which sorts correctly.
+                    held_name = next((n for n, ln in held.items()
+                                      if ln == node.lineno), None)
                     guarded = any(
                         isinstance(a, ast.Call)
                         and getattr(a.func, "id", None) in ("sorted", "max", "min")
                         and any(x is node for x in a.args)
                         for a in body)
+                    if held_name and not guarded:
+                        for a in body:
+                            if not isinstance(a, ast.Call):
+                                continue
+                            f = a.func
+                            # results.sort(...)
+                            if (getattr(f, "attr", None) == "sort"
+                                    and isinstance(getattr(f, "value", None), ast.Name)
+                                    and f.value.id == held_name):
+                                guarded = True
+                            # sorted(results) / max(results, key=...)
+                            if (getattr(f, "id", None) in ("sorted", "max", "min")
+                                    and a.args
+                                    and isinstance(a.args[0], ast.Name)
+                                    and a.args[0].id == held_name):
+                                guarded = True
                     if guarded:
                         continue
 
@@ -297,6 +324,82 @@ def non_circular(measure: str, inputs: Iterable[str],
         detail += (f"  ← CIRCULAR on {overlap}: take the measure afterwards, "
                    "against the gap that actually had to be spanned")
     return TrapResult("T5", not overlap, detail, {"overlap": overlap})
+
+
+def looks_generated(records: Sequence[Dict[str, Any]], name: str,
+                    date_key: str = "date", group_key: Optional[str] = None,
+                    id_key: Optional[str] = None,
+                    low_cardinality: Optional[Dict[str, int]] = None) -> TrapResult:
+    """Is this label OBSERVED, or is it a fixture wearing the shape of data?
+
+    The second half of T5. Circularity asks whether a measure is fed by the
+    behaviour it measures; this asks whether the behaviour happened at all.
+    Both produce a number that correlates with something and means nothing.
+
+    OASIS has the worked example: every POS database on the install is a
+    fixture. `variant_network.db` has twelve dates exactly five days apart, an
+    identical bill count per store per day, one counter, one payment mode and
+    no customers. It has 17,244 rows, which is what makes it dangerous — row
+    count reads as evidence.
+
+    Tells, any two of which condemn a source:
+      * identical record count per period
+      * perfectly regular spacing between periods
+      * a single value where reality has many (one till, one payment mode)
+      * identifiers that run 1..N with no gaps
+    """
+    recs = list(records)
+    if not recs:
+        return TrapResult("T5", False, f"{name}: no records to judge")
+
+    tells: List[str] = []
+    dates = sorted({str(r.get(date_key)) for r in recs if r.get(date_key)})
+
+    if group_key:
+        per = collections.Counter(
+            (str(r.get(group_key)), str(r.get(date_key))) for r in recs)
+        by_group: Dict[str, set] = collections.defaultdict(set)
+        for (g, _d), n in per.items():
+            by_group[g].add(n)
+        flat = [g for g, ns in by_group.items() if len(ns) == 1]
+        if by_group and len(flat) == len(by_group):
+            tells.append("identical record count per period, every group")
+    else:
+        per_day = collections.Counter(str(r.get(date_key)) for r in recs)
+        if len(set(per_day.values())) == 1 and len(per_day) > 2:
+            tells.append("identical record count on every date")
+
+    if len(dates) > 2:
+        try:
+            import datetime as dt
+            ds = [dt.date.fromisoformat(d[:10]) for d in dates]
+            gaps = {(b - a).days for a, b in zip(ds, ds[1:])}
+            if len(gaps) == 1 and dates and len(ds) > 3:
+                tells.append(f"dates perfectly spaced every {gaps.pop()} day(s)")
+        except (ValueError, TypeError):
+            pass
+
+    for field, floor in (low_cardinality or {}).items():
+        seen = {r.get(field) for r in recs}
+        if len(seen) < floor:
+            tells.append(f"{field} takes {len(seen)} value(s), expected >= {floor}")
+
+    if id_key:
+        ids = sorted(str(r.get(id_key)) for r in recs if r.get(id_key))
+        nums = [int(m.group()) for m in
+                (re.search(r"\d+$", i) for i in ids) if m]
+        if nums and sorted(nums) == list(range(min(nums), min(nums) + len(nums))):
+            tells.append(f"{id_key} runs {min(nums)}..{max(nums)} with no gaps")
+
+    ok = len(tells) < 2
+    detail = f"{name}: {len(recs):,} records over {len(dates)} date(s)"
+    if tells:
+        detail += "  — tells: " + "; ".join(tells)
+    if not ok:
+        detail += ("  ← GENERATED: this is a fixture, not an observation. "
+                   "Row count is not evidence.")
+    return TrapResult("T5", ok, detail,
+                      {"records": len(recs), "dates": len(dates), "tells": tells})
 
 
 # ---------------------------------------------------------------- T6

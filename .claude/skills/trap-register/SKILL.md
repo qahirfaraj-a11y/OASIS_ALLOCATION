@@ -64,6 +64,19 @@ non_circular("residual cover", inputs, downstream_of_behaviour=["order_gaps"])
 The pattern that works is `--mode residual-cover`: cover carried against the gap
 the delivery actually had to span, taken **afterwards**.
 
+The sibling question is whether the behaviour happened at all:
+
+```python
+looks_generated(records, "variant_network.db", date_key="BILL_DT",
+                group_key="ORG_CD", id_key="BILL_NO",
+                low_cardinality={"COUNTER_CD": 2, "PAYMENT_MODE": 2})
+```
+
+Every POS database on this install is a fixture — identical bills per store per
+day, dates evenly spaced, one till, one payment mode, ids running 1..N. Row
+count reads as evidence and is not. Nor is agreement: labels that agree at
+rho >= 0.99 share a generator, they do not corroborate each other.
+
 ## T6 · hierarchy inversion
 
 A fix that measures clean can still invert the design. The rebuilt department
