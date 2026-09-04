@@ -1,0 +1,23 @@
+{
+  "claim": "claim.siting.trade-is-market-property",
+  "probe": "probe.prose-backfill",
+  "verdict": "supports",
+  "metric": {
+    "capture_pct_all_six_chains": 0.0095,
+    "people": 31773,
+    "cannibalisation": {
+      "jaza": 0.023,
+      "cleanshelf": 0.043,
+      "chandarana": 0.079,
+      "quickmart": 0.163,
+      "carrefour": 0.223,
+      "naivas": 0.47
+    }
+  },
+  "held_out": false,
+  "beat_baseline": null,
+  "traps": [],
+  "config_hash": "",
+  "notes": "Backfilled from devkit/pov_sweep.py. Measured before the ledger existed; dated to the source document so the TTL is honest.",
+  "run_at": "2026-08-25T00:00:00"
+}

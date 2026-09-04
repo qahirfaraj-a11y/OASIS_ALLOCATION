@@ -1,0 +1,15 @@
+{
+  "claim": "claim.gnn.risk-blind-to-stockouts",
+  "probe": "probe.prose-backfill",
+  "verdict": "contradicts",
+  "metric": {
+    "risk_delta_on_full_stockout": -1e-05,
+    "risk_spread_14_stores": 0.039
+  },
+  "held_out": false,
+  "beat_baseline": null,
+  "traps": [],
+  "config_hash": "",
+  "notes": "Backfilled from OASIS_GNN_Methodology_Review.md. Measured before the ledger existed; dated to the source document so the TTL is honest.",
+  "run_at": "2026-06-18T00:00:00"
+}

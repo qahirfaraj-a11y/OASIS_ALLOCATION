@@ -1,0 +1,17 @@
+{
+  "claim": "claim.gnn.is-static-attribute-prior",
+  "probe": "probe.prose-backfill",
+  "verdict": "supports",
+  "metric": {
+    "risk_spread": 0.039,
+    "train_nodes": 14,
+    "seeded": false,
+    "held_out_metric": null
+  },
+  "held_out": false,
+  "beat_baseline": null,
+  "traps": [],
+  "config_hash": "",
+  "notes": "Backfilled from OASIS_GNN_Methodology_Review.md. Measured before the ledger existed; dated to the source document so the TTL is honest.",
+  "run_at": "2026-06-18T00:00:00"
+}

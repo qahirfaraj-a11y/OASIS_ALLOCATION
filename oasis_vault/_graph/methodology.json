@@ -1,0 +1,746 @@
+{
+  "generated_at": "2026-09-04T02:50:06",
+  "nodes": [
+    {
+      "id": "claim.allocation.iteration-order-matters",
+      "type": "claim",
+      "status": "asserted",
+      "domain": "allocation",
+      "title": "Greedy allocation's iteration order changes who gets stock",
+      "worth": "unmeasured \u2014 fair-share only matters if it does",
+      "last_evidence": "",
+      "ttl_days": 120,
+      "file": "allocation_iteration-order-matters.md"
+    },
+    {
+      "id": "claim.allocation.sixty-percent-rule-real",
+      "type": "claim",
+      "status": "measured",
+      "domain": "allocation",
+      "title": "The 60% staple/general split is real and encoded in shipped data",
+      "worth": "department_scaling_ratios.csv = 60.7% essential",
+      "last_evidence": "2026-08-25",
+      "ttl_days": 180,
+      "file": "allocation_sixty-percent-rule-real.md"
+    },
+    {
+      "id": "claim.gnn.dynamic-block-untrained",
+      "type": "claim",
+      "status": "falsified",
+      "domain": "ordering",
+      "title": "The GNN's dynamic feature block (cols 24-29) carries learned weight",
+      "worth": "payday toggle delta = 0.00000",
+      "last_evidence": "2026-06-18",
+      "ttl_days": 365,
+      "file": "gnn_dynamic-block-untrained.md"
+    },
+    {
+      "id": "claim.gnn.is-static-attribute-prior",
+      "type": "claim",
+      "status": "measured",
+      "domain": "ordering",
+      "title": "GNN risk is a static, attribute-derived vulnerability prior",
+      "worth": "spread 0.039 across 14 stores",
+      "last_evidence": "2026-06-18",
+      "ttl_days": 365,
+      "file": "gnn_is-static-attribute-prior.md"
+    },
+    {
+      "id": "claim.gnn.risk-blind-to-stockouts",
+      "type": "claim",
+      "status": "falsified",
+      "domain": "ordering",
+      "title": "GNN store risk responds to live stockouts",
+      "worth": "risk delta = -0.00001 on full stockout injection",
+      "last_evidence": "2026-06-18",
+      "ttl_days": 365,
+      "file": "gnn_risk-blind-to-stockouts.md"
+    },
+    {
+      "id": "claim.ordering.R-is-observed-gap",
+      "type": "claim",
+      "status": "measured",
+      "domain": "ordering",
+      "title": "R should be the observed order gap, not a policy review period",
+      "worth": "2.14x working capital",
+      "last_evidence": "2026-08-25",
+      "ttl_days": 90,
+      "file": "ordering_R-is-observed-gap.md"
+    },
+    {
+      "id": "claim.ordering.cadence-is-a-distribution",
+      "type": "claim",
+      "status": "measured",
+      "domain": "ordering",
+      "title": "Cadence is a distribution, not a point estimate",
+      "worth": "gap CV median 1.27; 4% of lines have a rhythm",
+      "last_evidence": "2026-08-25",
+      "ttl_days": 180,
+      "file": "ordering_cadence-is-a-distribution.md"
+    },
+    {
+      "id": "claim.ordering.grn-cache-load-is-deterministic",
+      "type": "claim",
+      "status": "measured",
+      "domain": "ordering",
+      "title": "The GRN intelligence cache is loaded deterministically",
+      "worth": "lead times feed gap + lead + safety on every line",
+      "last_evidence": "2026-09-04",
+      "ttl_days": 30,
+      "file": "ordering_grn-cache-load-is-deterministic.md"
+    },
+    {
+      "id": "claim.ordering.lata-not-in-safety-buffer",
+      "type": "claim",
+      "status": "stale",
+      "domain": "ordering",
+      "title": "LATA supplier toxicity never reaches the replenishment safety buffer",
+      "worth": "F3 \u2014 open, no owner",
+      "last_evidence": "2026-06-19",
+      "ttl_days": 60,
+      "file": "ordering_lata-not-in-safety-buffer.md"
+    },
+    {
+      "id": "claim.ordering.p75-service-implicit",
+      "type": "claim",
+      "status": "measured",
+      "domain": "ordering",
+      "title": "The engine buys ~p75 service, implicitly and untunably",
+      "worth": "service level is an emergent property, not a setting",
+      "last_evidence": "2026-08-25",
+      "ttl_days": 180,
+      "file": "ordering_p75-service-implicit.md"
+    },
+    {
+      "id": "claim.ordering.rop-fallback-always-fires",
+      "type": "claim",
+      "status": "stale",
+      "domain": "ordering",
+      "title": "Live enrichment supplies no ROP or coverage target, so the fallback always fires",
+      "worth": "F4 \u2014 open",
+      "last_evidence": "2026-06-19",
+      "ttl_days": 60,
+      "file": "ordering_rop-fallback-always-fires.md"
+    },
+    {
+      "id": "claim.ordering.sigma-L-missing",
+      "type": "claim",
+      "status": "measured",
+      "domain": "ordering",
+      "title": "sigma_L belongs in the safety term and is the larger variance contributor",
+      "worth": "2.22d spread on a 2.29d mean",
+      "last_evidence": "2026-08-25",
+      "ttl_days": 90,
+      "file": "ordering_sigma-L-missing.md"
+    },
+    {
+      "id": "claim.ordering.z-over-engineered",
+      "type": "claim",
+      "status": "measured",
+      "domain": "ordering",
+      "title": "z as five multipliers times eleven category constants is over-engineered",
+      "worth": "only 1.52x across 50%->99%",
+      "last_evidence": "2026-08-25",
+      "ttl_days": 180,
+      "file": "ordering_z-over-engineered.md"
+    },
+    {
+      "id": "claim.siting.cannibalisation-km-unfitted",
+      "type": "claim",
+      "status": "asserted",
+      "domain": "siting",
+      "title": "CANNIBALISATION_KM = 3.0 is a convention that was never fitted",
+      "worth": "UNMEASURED \u2014 drives the model's most defensible output",
+      "last_evidence": "",
+      "ttl_days": 120,
+      "file": "siting_cannibalisation-km-unfitted.md"
+    },
+    {
+      "id": "claim.siting.catchment-km-unfitted",
+      "type": "claim",
+      "status": "asserted",
+      "domain": "siting",
+      "title": "CATCHMENT_KM = 10.0 is a convention that was never fitted",
+      "worth": "UNMEASURED \u2014 conditions every capture figure reported",
+      "last_evidence": "",
+      "ttl_days": 120,
+      "file": "siting_catchment-km-unfitted.md"
+    },
+    {
+      "id": "claim.siting.chain-is-sound",
+      "type": "claim",
+      "status": "measured",
+      "domain": "siting",
+      "title": "The site-selection chain is methodologically sound end to end",
+      "worth": "proven on four real Nairobi sites",
+      "last_evidence": "2026-08-25",
+      "ttl_days": 180,
+      "file": "siting_chain-is-sound.md"
+    },
+    {
+      "id": "claim.siting.distance-decay-unfitted",
+      "type": "claim",
+      "status": "asserted",
+      "domain": "siting",
+      "title": "DISTANCE_DECAY = 2.0 is a convention that was never fitted",
+      "worth": "UNMEASURED \u2014 every site recommendation depends on it",
+      "last_evidence": "",
+      "ttl_days": 120,
+      "file": "siting_distance-decay-unfitted.md"
+    },
+    {
+      "id": "claim.siting.ml-artefacts-unvalidated",
+      "type": "claim",
+      "status": "falsified",
+      "domain": "siting",
+      "title": "The siting ML artefacts have predictive validity",
+      "worth": "neither has seen an outcome",
+      "last_evidence": "2026-08-25",
+      "ttl_days": 365,
+      "file": "siting_ml-artefacts-unvalidated.md"
+    },
+    {
+      "id": "claim.siting.size-exponent-unfitted",
+      "type": "claim",
+      "status": "asserted",
+      "domain": "siting",
+      "title": "SIZE_EXPONENT = 1.0 is a convention that was never fitted",
+      "worth": "UNMEASURED \u2014 every site recommendation depends on it",
+      "last_evidence": "",
+      "ttl_days": 120,
+      "file": "siting_size-exponent-unfitted.md"
+    },
+    {
+      "id": "claim.siting.trade-is-market-property",
+      "type": "claim",
+      "status": "measured",
+      "domain": "siting",
+      "title": "Trade available at a point is a property of the market, not of the chain asking",
+      "worth": "all six chains scored identical 0.95% capture",
+      "last_evidence": "2026-08-25",
+      "ttl_days": 180,
+      "file": "siting_trade-is-market-property.md"
+    },
+    {
+      "id": "claim.transfer.network-vs-derived-diverge",
+      "type": "claim",
+      "status": "asserted",
+      "domain": "ordering",
+      "title": "The shipped transfer scan and the derived methodology give different answers",
+      "worth": "unmeasured across store subsets",
+      "last_evidence": "",
+      "ttl_days": 120,
+      "file": "transfer_network-vs-derived-diverge.md"
+    },
+    {
+      "id": "param.L",
+      "type": "parameter",
+      "status": "stale",
+      "domain": "ordering",
+      "title": "Lead time",
+      "worth": "",
+      "last_evidence": "",
+      "ttl_days": null,
+      "file": "L.md"
+    },
+    {
+      "id": "param.R",
+      "type": "parameter",
+      "status": "measured",
+      "domain": "ordering",
+      "title": "Review period / order gap",
+      "worth": "",
+      "last_evidence": "",
+      "ttl_days": null,
+      "file": "R.md"
+    },
+    {
+      "id": "param.cannibalisation-km",
+      "type": "parameter",
+      "status": "measured",
+      "domain": "siting",
+      "title": "CANNIBALISATION_KM",
+      "worth": "",
+      "last_evidence": "",
+      "ttl_days": null,
+      "file": "cannibalisation-km.md"
+    },
+    {
+      "id": "param.catchment-km",
+      "type": "parameter",
+      "status": "measured",
+      "domain": "siting",
+      "title": "CATCHMENT_KM",
+      "worth": "",
+      "last_evidence": "",
+      "ttl_days": null,
+      "file": "catchment-km.md"
+    },
+    {
+      "id": "param.department-scaling-ratios",
+      "type": "parameter",
+      "status": "measured",
+      "domain": "allocation",
+      "title": "Department scaling ratios",
+      "worth": "",
+      "last_evidence": "",
+      "ttl_days": null,
+      "file": "department-scaling-ratios.md"
+    },
+    {
+      "id": "param.distance-decay",
+      "type": "parameter",
+      "status": "measured",
+      "domain": "siting",
+      "title": "DISTANCE_DECAY",
+      "worth": "",
+      "last_evidence": "",
+      "ttl_days": null,
+      "file": "distance-decay.md"
+    },
+    {
+      "id": "param.gnn-ordering-weight",
+      "type": "parameter",
+      "status": "measured",
+      "domain": "ordering",
+      "title": "OASIS_GNN_ORDERING_WEIGHT",
+      "worth": "",
+      "last_evidence": "",
+      "ttl_days": null,
+      "file": "gnn-ordering-weight.md"
+    },
+    {
+      "id": "param.gnn-risk-blend-ratio",
+      "type": "parameter",
+      "status": "measured",
+      "domain": "ordering",
+      "title": "gnn_risk_blend_ratio",
+      "worth": "",
+      "last_evidence": "",
+      "ttl_days": null,
+      "file": "gnn-risk-blend-ratio.md"
+    },
+    {
+      "id": "param.lata-variance-multiplier",
+      "type": "parameter",
+      "status": "stale",
+      "domain": "ordering",
+      "title": "LATA variance multiplier",
+      "worth": "",
+      "last_evidence": "",
+      "ttl_days": null,
+      "file": "lata-variance-multiplier.md"
+    },
+    {
+      "id": "param.sigma_L",
+      "type": "parameter",
+      "status": "measured",
+      "domain": "ordering",
+      "title": "Lead time standard deviation",
+      "worth": "",
+      "last_evidence": "",
+      "ttl_days": null,
+      "file": "sigma_L.md"
+    },
+    {
+      "id": "param.size-exponent",
+      "type": "parameter",
+      "status": "measured",
+      "domain": "siting",
+      "title": "SIZE_EXPONENT",
+      "worth": "",
+      "last_evidence": "",
+      "ttl_days": null,
+      "file": "size-exponent.md"
+    },
+    {
+      "id": "param.z",
+      "type": "parameter",
+      "status": "measured",
+      "domain": "ordering",
+      "title": "Service level multiplier",
+      "worth": "",
+      "last_evidence": "",
+      "ttl_days": null,
+      "file": "z.md"
+    },
+    {
+      "id": "probe.backtest-allocation",
+      "type": "probe",
+      "status": "measured",
+      "domain": "allocation",
+      "title": "Allocation backtest",
+      "worth": "",
+      "last_evidence": "",
+      "ttl_days": null,
+      "file": "backtest-allocation.md"
+    },
+    {
+      "id": "probe.comparable-store-correlation",
+      "type": "probe",
+      "status": "asserted",
+      "domain": "siting",
+      "title": "Comparable-store correlation",
+      "worth": "",
+      "last_evidence": "",
+      "ttl_days": null,
+      "file": "comparable-store-correlation.md"
+    },
+    {
+      "id": "probe.gnn-feature-injection",
+      "type": "probe",
+      "status": "asserted",
+      "domain": "ordering",
+      "title": "GNN feature injection",
+      "worth": "",
+      "last_evidence": "",
+      "ttl_days": null,
+      "file": "gnn-feature-injection.md"
+    },
+    {
+      "id": "probe.order-sensitivity",
+      "type": "probe",
+      "status": "measured",
+      "domain": "allocation",
+      "title": "Allocation order sensitivity",
+      "worth": "",
+      "last_evidence": "",
+      "ttl_days": null,
+      "file": "order-sensitivity.md"
+    },
+    {
+      "id": "probe.pipeline-trace",
+      "type": "probe",
+      "status": "asserted",
+      "domain": "ordering",
+      "title": "Ordering pipeline trace",
+      "worth": "",
+      "last_evidence": "",
+      "ttl_days": null,
+      "file": "pipeline-trace.md"
+    },
+    {
+      "id": "probe.pov-sweep",
+      "type": "probe",
+      "status": "measured",
+      "domain": "siting",
+      "title": "Chain point-of-view sweep",
+      "worth": "",
+      "last_evidence": "",
+      "ttl_days": null,
+      "file": "pov-sweep.md"
+    },
+    {
+      "id": "probe.residual-cover",
+      "type": "probe",
+      "status": "asserted",
+      "domain": "ordering",
+      "title": "Residual cover",
+      "worth": "",
+      "last_evidence": "",
+      "ttl_days": null,
+      "file": "residual-cover.md"
+    },
+    {
+      "id": "probe.siting-robustness",
+      "type": "probe",
+      "status": "measured",
+      "domain": "siting",
+      "title": "Siting robustness",
+      "worth": "",
+      "last_evidence": "",
+      "ttl_days": null,
+      "file": "siting-robustness.md"
+    },
+    {
+      "id": "probe.term-attribution",
+      "type": "probe",
+      "status": "asserted",
+      "domain": "ordering",
+      "title": "Formula term attribution",
+      "worth": "",
+      "last_evidence": "",
+      "ttl_days": null,
+      "file": "term-attribution.md"
+    },
+    {
+      "id": "probe.transfer-methodology-compare",
+      "type": "probe",
+      "status": "measured",
+      "domain": "ordering",
+      "title": "Transfer methodology comparison",
+      "worth": "",
+      "last_evidence": "",
+      "ttl_days": null,
+      "file": "transfer-methodology-compare.md"
+    },
+    {
+      "id": "probe.trap-scan",
+      "type": "probe",
+      "status": "measured",
+      "domain": "ordering",
+      "title": "Loader determinism scan (T2)",
+      "worth": "",
+      "last_evidence": "",
+      "ttl_days": null,
+      "file": "trap-scan.md"
+    },
+    {
+      "id": "surface.allocation-priority",
+      "type": "decision",
+      "status": "trusted",
+      "domain": "allocation",
+      "title": "Allocation priority (AMIT/GMROI)",
+      "worth": "",
+      "last_evidence": "",
+      "ttl_days": null,
+      "file": "allocation-priority.md"
+    },
+    {
+      "id": "surface.initial-load-allocation",
+      "type": "decision",
+      "status": "trusted",
+      "domain": "allocation",
+      "title": "Initial load allocation",
+      "worth": "",
+      "last_evidence": "",
+      "ttl_days": null,
+      "file": "initial-load-allocation.md"
+    },
+    {
+      "id": "surface.purchase-order-quantity",
+      "type": "decision",
+      "status": "trusted",
+      "domain": "ordering",
+      "title": "Purchase order quantity",
+      "worth": "",
+      "last_evidence": "",
+      "ttl_days": null,
+      "file": "purchase-order-quantity.md"
+    },
+    {
+      "id": "surface.site-recommendation",
+      "type": "decision",
+      "status": "trusted",
+      "domain": "siting",
+      "title": "Site recommendation",
+      "worth": "",
+      "last_evidence": "",
+      "ttl_days": null,
+      "file": "site-recommendation.md"
+    },
+    {
+      "id": "surface.store-risk-display",
+      "type": "decision",
+      "status": "trusted",
+      "domain": "ordering",
+      "title": "Store risk (display only)",
+      "worth": "",
+      "last_evidence": "",
+      "ttl_days": null,
+      "file": "store-risk-display.md"
+    },
+    {
+      "id": "surface.transfer-suggestion",
+      "type": "decision",
+      "status": "trusted",
+      "domain": "ordering",
+      "title": "Transfer suggestion",
+      "worth": "",
+      "last_evidence": "",
+      "ttl_days": null,
+      "file": "transfer-suggestion.md"
+    },
+    {
+      "id": "trap.category-error",
+      "type": "trap",
+      "status": "trusted",
+      "domain": "method",
+      "title": "Category error across regimes",
+      "worth": "",
+      "last_evidence": "",
+      "ttl_days": null,
+      "file": "category-error.md"
+    },
+    {
+      "id": "trap.circularity",
+      "type": "trap",
+      "status": "trusted",
+      "domain": "method",
+      "title": "Circular measurement",
+      "worth": "",
+      "last_evidence": "",
+      "ttl_days": null,
+      "file": "circularity.md"
+    },
+    {
+      "id": "trap.denominator-sanity",
+      "type": "trap",
+      "status": "trusted",
+      "domain": "method",
+      "title": "Denominator sanity",
+      "worth": "",
+      "last_evidence": "",
+      "ttl_days": null,
+      "file": "denominator-sanity.md"
+    },
+    {
+      "id": "trap.hierarchy-inversion",
+      "type": "trap",
+      "status": "trusted",
+      "domain": "method",
+      "title": "Hierarchy inversion",
+      "worth": "",
+      "last_evidence": "",
+      "ttl_days": null,
+      "file": "hierarchy-inversion.md"
+    },
+    {
+      "id": "trap.like-for-like",
+      "type": "trap",
+      "status": "trusted",
+      "domain": "method",
+      "title": "Like-for-like comparison",
+      "worth": "",
+      "last_evidence": "",
+      "ttl_days": null,
+      "file": "like-for-like.md"
+    },
+    {
+      "id": "trap.silent-join-failure",
+      "type": "trap",
+      "status": "trusted",
+      "domain": "method",
+      "title": "Silent join failure",
+      "worth": "",
+      "last_evidence": "",
+      "ttl_days": null,
+      "file": "silent-join-failure.md"
+    },
+    {
+      "id": "trap.stale-duplicate-shadowing",
+      "type": "trap",
+      "status": "trusted",
+      "domain": "method",
+      "title": "Stale duplicate shadowing",
+      "worth": "",
+      "last_evidence": "",
+      "ttl_days": null,
+      "file": "stale-duplicate-shadowing.md"
+    }
+  ],
+  "edges": [
+    {
+      "from": "claim.allocation.sixty-percent-rule-real",
+      "to": "param.department-scaling-ratios"
+    },
+    {
+      "from": "claim.gnn.dynamic-block-untrained",
+      "to": "param.gnn-ordering-weight"
+    },
+    {
+      "from": "claim.gnn.is-static-attribute-prior",
+      "to": "param.gnn-risk-blend-ratio"
+    },
+    {
+      "from": "claim.gnn.risk-blind-to-stockouts",
+      "to": "param.gnn-ordering-weight"
+    },
+    {
+      "from": "claim.ordering.R-is-observed-gap",
+      "to": "param.R"
+    },
+    {
+      "from": "claim.ordering.cadence-is-a-distribution",
+      "to": "param.R"
+    },
+    {
+      "from": "claim.ordering.grn-cache-load-is-deterministic",
+      "to": "param.L"
+    },
+    {
+      "from": "claim.ordering.lata-not-in-safety-buffer",
+      "to": "param.lata-variance-multiplier"
+    },
+    {
+      "from": "claim.ordering.p75-service-implicit",
+      "to": "param.z"
+    },
+    {
+      "from": "claim.ordering.rop-fallback-always-fires",
+      "to": "param.L"
+    },
+    {
+      "from": "claim.ordering.sigma-L-missing",
+      "to": "param.sigma_L"
+    },
+    {
+      "from": "claim.ordering.z-over-engineered",
+      "to": "param.z"
+    },
+    {
+      "from": "claim.siting.cannibalisation-km-unfitted",
+      "to": "param.cannibalisation-km"
+    },
+    {
+      "from": "claim.siting.catchment-km-unfitted",
+      "to": "param.catchment-km"
+    },
+    {
+      "from": "claim.siting.distance-decay-unfitted",
+      "to": "param.distance-decay"
+    },
+    {
+      "from": "claim.siting.size-exponent-unfitted",
+      "to": "param.size-exponent"
+    },
+    {
+      "from": "param.L",
+      "to": "surface.purchase-order-quantity"
+    },
+    {
+      "from": "param.R",
+      "to": "surface.purchase-order-quantity"
+    },
+    {
+      "from": "param.cannibalisation-km",
+      "to": "surface.site-recommendation"
+    },
+    {
+      "from": "param.catchment-km",
+      "to": "surface.site-recommendation"
+    },
+    {
+      "from": "param.department-scaling-ratios",
+      "to": "surface.initial-load-allocation"
+    },
+    {
+      "from": "param.distance-decay",
+      "to": "surface.site-recommendation"
+    },
+    {
+      "from": "param.gnn-ordering-weight",
+      "to": "surface.purchase-order-quantity"
+    },
+    {
+      "from": "param.gnn-risk-blend-ratio",
+      "to": "surface.store-risk-display"
+    },
+    {
+      "from": "param.lata-variance-multiplier",
+      "to": "surface.allocation-priority"
+    },
+    {
+      "from": "param.sigma_L",
+      "to": "surface.purchase-order-quantity"
+    },
+    {
+      "from": "param.size-exponent",
+      "to": "surface.site-recommendation"
+    },
+    {
+      "from": "param.z",
+      "to": "surface.purchase-order-quantity"
+    }
+  ]
+}

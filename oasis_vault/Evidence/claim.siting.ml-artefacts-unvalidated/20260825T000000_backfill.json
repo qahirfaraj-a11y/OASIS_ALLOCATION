@@ -1,0 +1,17 @@
+{
+  "claim": "claim.siting.ml-artefacts-unvalidated",
+  "probe": "probe.prose-backfill",
+  "verdict": "contradicts",
+  "metric": {
+    "rf_synthetic_rows": 10000,
+    "validation_split": false,
+    "gcn_has_attention": false,
+    "gcn_has_temporal": false
+  },
+  "held_out": false,
+  "beat_baseline": null,
+  "traps": [],
+  "config_hash": "",
+  "notes": "Backfilled from oasis_vault/Decisions/Ordering_Formula_And_Site_Selection_2026-08.md. Measured before the ledger existed; dated to the source document so the TTL is honest.",
+  "run_at": "2026-08-25T00:00:00"
+}

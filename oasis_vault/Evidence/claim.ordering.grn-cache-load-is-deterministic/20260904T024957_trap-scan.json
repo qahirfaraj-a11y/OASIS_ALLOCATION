@@ -1,0 +1,19 @@
+{
+  "claim": "claim.ordering.grn-cache-load-is-deterministic",
+  "probe": "probe.trap-scan",
+  "verdict": "supports",
+  "metric": {
+    "high_severity_sites": 0,
+    "in_order_engine": 0,
+    "sites": []
+  },
+  "notes": "No site picks a single file by filesystem order.",
+  "held_out": false,
+  "baseline": "pick_intelligence_file (the hardened loader)",
+  "beat_baseline": null,
+  "traps": [
+    "T2"
+  ],
+  "config_hash": "",
+  "run_at": "2026-09-04T02:49:57"
+}

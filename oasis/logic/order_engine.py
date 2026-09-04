@@ -28,7 +28,9 @@ logger = logging.getLogger("OrderEngine")
 
 
 def pick_intelligence_file(data_dir: str, search_term: str,
-                           available_files: Optional[List[str]] = None) -> Optional[str]:
+                           available_files: Optional[List[str]] = None,
+                           suffix: str = ".json",
+                           case_insensitive: bool = False) -> Optional[str]:
     """Which file backs an intelligence database, chosen deterministically.
 
     THE BUG THIS EXISTS TO PREVENT. The old rule was
@@ -61,13 +63,18 @@ def pick_intelligence_file(data_dir: str, search_term: str,
         except OSError:
             return None
 
-    candidates = [f for f in available_files
-                  if search_term in f and f.endswith(".json")]
+    if case_insensitive:
+        term = search_term.lower()
+        candidates = [f for f in available_files
+                      if term in f.lower() and f.lower().endswith(suffix.lower())]
+    else:
+        candidates = [f for f in available_files
+                      if search_term in f and f.endswith(suffix)]
     if not candidates:
         return None
 
-    exact_updated = "%s_updated.json" % search_term
-    exact_plain = "%s.json" % search_term
+    exact_updated = "%s_updated%s" % (search_term, suffix)
+    exact_plain = "%s%s" % (search_term, suffix)
 
     if exact_updated in candidates:
         chosen = exact_updated
@@ -315,8 +322,11 @@ class OrderEngine(IntelligenceMixin, ProcurementMixin, MaintenanceMixin, DataMix
         """Phase 2: Parallel Database Loading (v10.0 Optimization)"""
         logger.info(f"Phase 2: Loading databases from {self.data_dir}...")
         
-        # v4.0 Performance Fix: Check for cached GRN file first
-        grn_cache_match = next((f for f in os.listdir(self.data_dir) if 'grn_intelligence' in f and f.endswith('.json')), None)
+        # v4.0 Performance Fix: Check for cached GRN file first.
+        # Chosen deterministically: this cache backs LEAD TIME, and lead time
+        # enters `gap + lead + safety` on every line. A stale duplicate here
+        # once had KAMILI PACKERS carrying 21 days against a measured 3.
+        grn_cache_match = pick_intelligence_file(self.data_dir, 'grn_intelligence')
         if grn_cache_match:
             try:
                 loop = asyncio.get_event_loop()
@@ -495,7 +505,8 @@ class OrderEngine(IntelligenceMixin, ProcurementMixin, MaintenanceMixin, DataMix
         path = os.path.join(self.data_dir, 'online_sales_export.csv')
         if not os.path.exists(path):
             # Try recursive search if not in root
-            match = next((f for f in os.listdir(self.data_dir) if 'online_sales' in f.lower() and f.endswith('.csv')), None)
+            match = pick_intelligence_file(self.data_dir, 'online_sales',
+                                           suffix='.csv', case_insensitive=True)
             if match: path = os.path.join(self.data_dir, match)
             else: return {}
 

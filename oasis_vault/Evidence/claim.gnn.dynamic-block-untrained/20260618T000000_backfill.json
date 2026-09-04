@@ -1,0 +1,22 @@
+{
+  "claim": "claim.gnn.dynamic-block-untrained",
+  "probe": "probe.prose-backfill",
+  "verdict": "contradicts",
+  "metric": {
+    "risk_delta_on_payday_toggle": 0.0,
+    "dead_feature_cols": [
+      24,
+      25,
+      26,
+      27,
+      28,
+      29
+    ]
+  },
+  "held_out": false,
+  "beat_baseline": null,
+  "traps": [],
+  "config_hash": "",
+  "notes": "Backfilled from OASIS_GNN_Methodology_Review.md. Measured before the ledger existed; dated to the source document so the TTL is honest.",
+  "run_at": "2026-06-18T00:00:00"
+}

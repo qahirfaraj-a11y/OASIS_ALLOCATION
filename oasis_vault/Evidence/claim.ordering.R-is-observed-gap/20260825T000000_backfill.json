@@ -1,0 +1,18 @@
+{
+  "claim": "claim.ordering.R-is-observed-gap",
+  "probe": "probe.prose-backfill",
+  "verdict": "supports",
+  "metric": {
+    "working_capital_multiple": 2.14,
+    "cover_to_gap": 0.97,
+    "capital_share": 0.41,
+    "lines_run_dry": 49,
+    "schedule_gap": 2.21
+  },
+  "held_out": false,
+  "beat_baseline": null,
+  "traps": [],
+  "config_hash": "",
+  "notes": "Backfilled from oasis_vault/Decisions/Ordering_Formula_And_Site_Selection_2026-08.md. Measured before the ledger existed; dated to the source document so the TTL is honest.",
+  "run_at": "2026-08-25T00:00:00"
+}

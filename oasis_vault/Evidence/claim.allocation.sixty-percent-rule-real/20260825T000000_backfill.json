@@ -1,0 +1,17 @@
+{
+  "claim": "claim.allocation.sixty-percent-rule-real",
+  "probe": "probe.prose-backfill",
+  "verdict": "supports",
+  "metric": {
+    "essential_share": 0.607,
+    "rebuilt_share": 0.313,
+    "fast_five_before": 0.35,
+    "fast_five_after": 0.146
+  },
+  "held_out": false,
+  "beat_baseline": null,
+  "traps": [],
+  "config_hash": "",
+  "notes": "Backfilled from oasis_vault/Decisions/Ordering_Formula_And_Site_Selection_2026-08.md. Measured before the ledger existed; dated to the source document so the TTL is honest.",
+  "run_at": "2026-08-25T00:00:00"
+}

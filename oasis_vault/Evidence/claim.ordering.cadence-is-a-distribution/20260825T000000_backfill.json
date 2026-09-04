@@ -1,0 +1,17 @@
+{
+  "claim": "claim.ordering.cadence-is-a-distribution",
+  "probe": "probe.prose-backfill",
+  "verdict": "supports",
+  "metric": {
+    "gap_cv_median": 1.27,
+    "share_with_rhythm": 0.04,
+    "line_vs_supplier_cadence": 1.93,
+    "lines_per_visit_median": 1.6
+  },
+  "held_out": false,
+  "beat_baseline": null,
+  "traps": [],
+  "config_hash": "",
+  "notes": "Backfilled from oasis_vault/Decisions/Ordering_Formula_And_Site_Selection_2026-08.md. Measured before the ledger existed; dated to the source document so the TTL is honest.",
+  "run_at": "2026-08-25T00:00:00"
+}

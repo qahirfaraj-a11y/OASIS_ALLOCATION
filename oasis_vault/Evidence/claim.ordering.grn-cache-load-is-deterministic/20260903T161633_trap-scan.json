@@ -1,0 +1,30 @@
+{
+  "claim": "claim.ordering.grn-cache-load-is-deterministic",
+  "probe": "probe.trap-scan",
+  "verdict": "contradicts",
+  "metric": {
+    "high_severity_sites": 2,
+    "in_order_engine": 2,
+    "sites": [
+      {
+        "file": "/sessions/rcw-01j6l1wtemwajtxfnutissqr/mnt/scratch/oasis/logic/order_engine.py",
+        "line": 319,
+        "finder": "listdir"
+      },
+      {
+        "file": "/sessions/rcw-01j6l1wtemwajtxfnutissqr/mnt/scratch/oasis/logic/order_engine.py",
+        "line": 498,
+        "finder": "listdir"
+      }
+    ]
+  },
+  "notes": "2 live site(s) still let filesystem order choose which file backs a number. The hardened loader exists; these call sites were never migrated to it.",
+  "held_out": false,
+  "baseline": "pick_intelligence_file (the hardened loader)",
+  "beat_baseline": null,
+  "traps": [
+    "T2"
+  ],
+  "config_hash": "",
+  "run_at": "2026-09-03T16:16:33"
+}

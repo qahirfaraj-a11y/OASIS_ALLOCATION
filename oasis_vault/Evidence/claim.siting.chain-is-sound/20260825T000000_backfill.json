@@ -1,0 +1,15 @@
+{
+  "claim": "claim.siting.chain-is-sound",
+  "probe": "probe.prose-backfill",
+  "verdict": "supports",
+  "metric": {
+    "sites_proven": 4,
+    "westlands_downgraded": true
+  },
+  "held_out": false,
+  "beat_baseline": null,
+  "traps": [],
+  "config_hash": "",
+  "notes": "Backfilled from oasis_vault/Decisions/Ordering_Formula_And_Site_Selection_2026-08.md. Measured before the ledger existed; dated to the source document so the TTL is honest.",
+  "run_at": "2026-08-25T00:00:00"
+}

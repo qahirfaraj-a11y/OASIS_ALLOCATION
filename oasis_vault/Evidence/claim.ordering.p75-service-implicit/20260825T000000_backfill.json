@@ -1,0 +1,15 @@
+{
+  "claim": "claim.ordering.p75-service-implicit",
+  "probe": "probe.prose-backfill",
+  "verdict": "supports",
+  "metric": {
+    "implied_service_level": 0.75,
+    "residual_cover_score": 1.9
+  },
+  "held_out": false,
+  "beat_baseline": null,
+  "traps": [],
+  "config_hash": "",
+  "notes": "Backfilled from oasis_vault/Decisions/Ordering_Formula_And_Site_Selection_2026-08.md. Measured before the ledger existed; dated to the source document so the TTL is honest.",
+  "run_at": "2026-08-25T00:00:00"
+}

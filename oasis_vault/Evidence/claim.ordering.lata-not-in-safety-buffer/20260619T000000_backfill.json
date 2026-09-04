@@ -1,0 +1,15 @@
+{
+  "claim": "claim.ordering.lata-not-in-safety-buffer",
+  "probe": "probe.prose-backfill",
+  "verdict": "supports",
+  "metric": {
+    "finding": "F3",
+    "lata_in_safety_buffer": false
+  },
+  "held_out": false,
+  "beat_baseline": null,
+  "traps": [],
+  "config_hash": "",
+  "notes": "Backfilled from OASIS_Intelligence_Ordering_Pipeline_Analysis.md. Measured before the ledger existed; dated to the source document so the TTL is honest.",
+  "run_at": "2026-06-19T00:00:00"
+}

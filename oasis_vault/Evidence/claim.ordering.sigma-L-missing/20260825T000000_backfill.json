@@ -1,0 +1,15 @@
+{
+  "claim": "claim.ordering.sigma-L-missing",
+  "probe": "probe.prose-backfill",
+  "verdict": "supports",
+  "metric": {
+    "lead_time_mean_days": 2.29,
+    "lead_time_sd_days": 2.22
+  },
+  "held_out": false,
+  "beat_baseline": null,
+  "traps": [],
+  "config_hash": "",
+  "notes": "Backfilled from oasis_vault/Decisions/Ordering_Formula_And_Site_Selection_2026-08.md. Measured before the ledger existed; dated to the source document so the TTL is honest.",
+  "run_at": "2026-08-25T00:00:00"
+}

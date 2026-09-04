@@ -1,0 +1,36 @@
+{
+  "claim": "claim.siting.size-exponent-unfitted",
+  "probe": "probe.comparable-store-correlation",
+  "verdict": "inconclusive",
+  "metric": {
+    "current": 1.0,
+    "preferred": 0.6,
+    "spearman_at_preferred": 0.6166666666666667,
+    "n": 9,
+    "label_source": "pos",
+    "label_usable": false,
+    "beta_identification": {
+      "identified": false,
+      "best_beta": 3.0,
+      "by_beta": {
+        "3.0": 0.42426450077849365,
+        "2.5": 0.2741151308816397,
+        "2.0": 0.10209556259731176,
+        "1.5": -0.12460953889900125
+      },
+      "monotone": true,
+      "reason": "optimum is at the edge of the swept range \u2014 the data is not choosing an exponent"
+    }
+  },
+  "notes": "Swept 80 combinations leave-one-out. The label is not defensible, so no value is fitted: the sweep is reported as a diagnostic only.",
+  "held_out": false,
+  "baseline": null,
+  "beat_baseline": null,
+  "traps": [
+    "T1",
+    "T4",
+    "T5"
+  ],
+  "config_hash": "",
+  "run_at": "2026-09-04T02:53:42"
+}

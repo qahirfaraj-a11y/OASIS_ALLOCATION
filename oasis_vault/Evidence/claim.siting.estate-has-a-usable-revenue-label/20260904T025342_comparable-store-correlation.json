@@ -1,0 +1,130 @@
+{
+  "claim": "claim.siting.estate-has-a-usable-revenue-label",
+  "probe": "probe.comparable-store-correlation",
+  "verdict": "contradicts",
+  "metric": {
+    "label_source": "pos",
+    "label": {
+      "declared_is_ladder": true,
+      "ladder_step": 456000.0,
+      "declared_vs_footfall_rho": 0.9955946922361485,
+      "declared_vs_size_rho": 0.48404869774861353,
+      "declared_vs_pos_rho": -0.38333333333333336,
+      "matched_stores": 9,
+      "pos_window": [
+        "2026-06-21",
+        "2026-08-15"
+      ],
+      "synthetic": true,
+      "labels_disagree": true,
+      "usable": false
+    },
+    "best": {
+      "alpha": 0.6,
+      "beta": 3.0,
+      "catchment_km": 7.5,
+      "n": 9,
+      "spearman": 0.6166666666666667,
+      "pearson": 0.7037698505533989,
+      "mean_capture_pct": 6.84
+    },
+    "beta_identification": {
+      "identified": false,
+      "best_beta": 3.0,
+      "by_beta": {
+        "3.0": 0.42426450077849365,
+        "2.5": 0.2741151308816397,
+        "2.0": 0.10209556259731176,
+        "1.5": -0.12460953889900125
+      },
+      "monotone": true,
+      "reason": "optimum is at the edge of the swept range \u2014 the data is not choosing an exponent"
+    },
+    "swept": 80,
+    "top": [
+      {
+        "alpha": 0.6,
+        "beta": 3.0,
+        "catchment_km": 7.5,
+        "n": 9,
+        "spearman": 0.6166666666666667,
+        "pearson": 0.7037698505533989,
+        "mean_capture_pct": 6.84
+      },
+      {
+        "alpha": 0.8,
+        "beta": 3.0,
+        "catchment_km": 10.0,
+        "n": 9,
+        "spearman": 0.5666666666666667,
+        "pearson": 0.6110777506834061,
+        "mean_capture_pct": 3.973333333333333
+      },
+      {
+        "alpha": 0.8,
+        "beta": 3.0,
+        "catchment_km": 5.0,
+        "n": 9,
+        "spearman": 0.55,
+        "pearson": 0.6470265579357835,
+        "mean_capture_pct": 11.986666666666666
+      },
+      {
+        "alpha": 0.6,
+        "beta": 2.5,
+        "catchment_km": 10.0,
+        "n": 9,
+        "spearman": 0.5333333333333333,
+        "pearson": 0.5050615468783877,
+        "mean_capture_pct": 3.314444444444445
+      },
+      {
+        "alpha": 0.6,
+        "beta": 3.0,
+        "catchment_km": 5.0,
+        "n": 9,
+        "spearman": 0.5166666666666667,
+        "pearson": 0.6704914515887365,
+        "mean_capture_pct": 12.214444444444444
+      },
+      {
+        "alpha": 0.6,
+        "beta": 3.0,
+        "catchment_km": 10.0,
+        "n": 9,
+        "spearman": 0.5166666666666667,
+        "pearson": 0.6563697271603613,
+        "mean_capture_pct": 4.081111111111111
+      },
+      {
+        "alpha": 0.6,
+        "beta": 3.0,
+        "catchment_km": 12.5,
+        "n": 9,
+        "spearman": 0.5166666666666667,
+        "pearson": 0.5327548354895325,
+        "mean_capture_pct": 2.5999999999999996
+      },
+      {
+        "alpha": 0.8,
+        "beta": 3.0,
+        "catchment_km": 12.5,
+        "n": 9,
+        "spearman": 0.5166666666666667,
+        "pearson": 0.47420161100636893,
+        "mean_capture_pct": 2.532222222222222
+      }
+    ]
+  },
+  "notes": "Declared avg_monthly_revenue sits on a fixed ladder (step 456,000) and tracks footfall_rank at rho=0.9955946922361485, so it is a function of the model's own inputs. Against POS takings on 9 matched stores it ranks the estate at rho=-0.38333333333333336. Two labels that disagree cannot both be the truth, and a fit against either is not held out.",
+  "held_out": false,
+  "baseline": "stores_network.json avg_monthly_revenue",
+  "beat_baseline": null,
+  "traps": [
+    "T1",
+    "T4",
+    "T5"
+  ],
+  "config_hash": "",
+  "run_at": "2026-09-04T02:53:42"
+}

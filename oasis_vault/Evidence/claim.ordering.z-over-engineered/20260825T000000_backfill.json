@@ -1,0 +1,14 @@
+{
+  "claim": "claim.ordering.z-over-engineered",
+  "probe": "probe.prose-backfill",
+  "verdict": "supports",
+  "metric": {
+    "worth_multiple_50_to_99": 1.52
+  },
+  "held_out": false,
+  "beat_baseline": null,
+  "traps": [],
+  "config_hash": "",
+  "notes": "Backfilled from oasis_vault/Decisions/Ordering_Formula_And_Site_Selection_2026-08.md. Measured before the ledger existed; dated to the source document so the TTL is honest.",
+  "run_at": "2026-08-25T00:00:00"
+}
