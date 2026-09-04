@@ -1,0 +1,26 @@
+{
+  "claim": "claim.ordering.cadence-is-a-distribution",
+  "probe": "probe.residual-cover",
+  "verdict": "supports",
+  "metric": {
+    "gap_cv": 1.255,
+    "gap_median": 6,
+    "n": 29719
+  },
+  "notes": "Receipt gap CV 1.26 across 29,719 observed test gaps. A point estimate of cadence is a summary of a wide distribution, not a property of the supplier.",
+  "held_out": true,
+  "baseline": "a point estimate of cadence",
+  "beat_baseline": null,
+  "traps": [
+    "T1",
+    "T3",
+    "T5"
+  ],
+  "provenance": "observed",
+  "sources": [
+    "source.fulfilment-detail",
+    "source.corrected-ads"
+  ],
+  "config_hash": "",
+  "run_at": "2026-09-04T15:02:45"
+}

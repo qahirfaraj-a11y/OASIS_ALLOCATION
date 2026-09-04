@@ -1,0 +1,16 @@
+{
+  "claim": "claim.siting.size-exponent-unfitted",
+  "probe": "probe.siting-robustness",
+  "verdict": "supports",
+  "metric": {
+    "superseded_verdict": "contradicts",
+    "reason": "sensitivity conflated with fittedness"
+  },
+  "held_out": false,
+  "provenance": "synthetic",
+  "beat_baseline": null,
+  "traps": [],
+  "sources": [],
+  "notes": "CORRECTION. The previous verdict falsified this claim on the evidence that the recommendation is insensitive to alpha. Insensitivity is not fittedness: SIZE_EXPONENT = 1.0 remains a convention nobody fitted, and the claim stands. Sensitivity now has its own claim, and this probe tests that instead.",
+  "run_at": "2026-09-04T15:05:19"
+}

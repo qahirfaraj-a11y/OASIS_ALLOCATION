@@ -5,8 +5,8 @@ status: measured
 domain: siting
 title: Siting robustness
 guards: []
-tests: [claim.siting.size-exponent-unfitted, claim.siting.distance-decay-unfitted, claim.siting.catchment-km-unfitted]
-entrypoint: devkit/siting_robustness.py
+tests: [claim.siting.recommendation-sensitive-to-distance-decay, claim.siting.recommendation-sensitive-to-size-exponent, claim.siting.recommendation-sensitive-to-catchment-km]
+entrypoint: devkit/probe_siting_robustness.py
 ---
 
 **Entrypoint:** `devkit/siting_robustness.py`

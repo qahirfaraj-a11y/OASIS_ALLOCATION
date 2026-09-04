@@ -1,0 +1,36 @@
+{
+  "claim": "claim.siting.recommendation-sensitive-to-catchment-km",
+  "probe": "probe.siting-robustness",
+  "verdict": "supports",
+  "metric": {
+    "conditions": 3,
+    "top1_held": 2,
+    "top1_held_rate": 0.667,
+    "min_top10_overlap": 4,
+    "mean_top10_overlap": 7,
+    "max_rank_drift": 3,
+    "mean_rank_drift": 2,
+    "family": "catchment",
+    "is_worst": true,
+    "ranked_by_drift": [
+      "catchment",
+      "beta",
+      "alpha"
+    ],
+    "competitor_top1_survival": 0.5
+  },
+  "notes": "Perturbing catchment moves the recommendation: top-1 held in 2/3 conditions, min top-10 overlap 4/10, mean rank drift 2. Largest mover of the three \u2014 fix this one first.",
+  "held_out": false,
+  "baseline": "baseline assumptions, unperturbed",
+  "beat_baseline": null,
+  "traps": [
+    "T3"
+  ],
+  "provenance": "synthetic",
+  "sources": [
+    "source.stores-network-json",
+    "source.pos-fixtures"
+  ],
+  "config_hash": "",
+  "run_at": "2026-09-04T15:05:20"
+}

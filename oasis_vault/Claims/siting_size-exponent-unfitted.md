@@ -18,4 +18,8 @@ stale_from: asserted
 
 ## Status history
 
+- 2026-09-04 — `measured` → `stale` — TTL expired
+
+- 2026-09-04 — `stale` → `falsified` — probe.siting-robustness → contradicts
+
 - 2026-09-04 — `asserted` → `stale` — downstream of falsified claim.siting.estate-has-a-usable-revenue-label

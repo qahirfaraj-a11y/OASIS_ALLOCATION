@@ -1,0 +1,36 @@
+{
+  "claim": "claim.siting.size-exponent-unfitted",
+  "probe": "probe.siting-robustness",
+  "verdict": "contradicts",
+  "metric": {
+    "conditions": 3,
+    "top1_held": 3,
+    "top1_held_rate": 1.0,
+    "min_top10_overlap": 9,
+    "mean_top10_overlap": 9.67,
+    "max_rank_drift": 0.1,
+    "mean_rank_drift": 0.033,
+    "family": "alpha",
+    "is_worst": false,
+    "ranked_by_drift": [
+      "catchment",
+      "beta",
+      "alpha"
+    ],
+    "competitor_top1_survival": 0.5
+  },
+  "notes": "The recommendation is INSENSITIVE to alpha across the swept range: top-1 held in every condition, mean rank drift 0.033. Still unfitted, but not urgent \u2014 an unfitted constant the answer does not depend on is a different problem from one it does.",
+  "held_out": false,
+  "baseline": "baseline assumptions, unperturbed",
+  "beat_baseline": null,
+  "traps": [
+    "T3"
+  ],
+  "provenance": "synthetic",
+  "sources": [
+    "source.stores-network-json",
+    "source.pos-fixtures"
+  ],
+  "config_hash": "",
+  "run_at": "2026-09-04T15:04:30"
+}

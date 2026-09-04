@@ -98,8 +98,10 @@ def _next_status(node: Node, v: Verdict, past: List[dict]) -> Optional[str]:
         # computed on data nobody observed. That is a successful EXERCISE, not
         # a validation, and the difference is the whole point of the gate.
         return "measured"
-    if v.beat_baseline is False:
-        # Measured honestly, but it did not earn the right to drive anything.
+    if v.beat_baseline is not True:
+        # False is a loss; None is no comparison at all. Neither earns a
+        # licence. A claim reaching `validated` without ever having been put
+        # against a baseline is how an unvalidated model gets its job back.
         return "measured"
     streak = 0
     for rec in reversed(past + [asdict(v)]):

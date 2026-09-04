@@ -84,7 +84,16 @@ class Graph:
         ordering surface and teach everyone to ignore the alarm.
         """
         n = self.nodes.get(node_id)
-        return bool(n and n.fm.get("neutralised"))
+        if not n:
+            return False
+        # `neutralised` — a parameter pinned to a no-op value.
+        # `mitigated`   — a defect that is real, known, and handled downstream.
+        #                 The receipt history IS incomplete; the ledger refuses
+        #                 every span that crosses the hole, so R measured on it
+        #                 is sound. Propagating anyway would put the whole
+        #                 ordering surface in question for a defect we already
+        #                 answered, which is how an alarm gets ignored.
+        return bool(n.fm.get("neutralised") or n.fm.get("mitigated"))
 
     def blast_radius(self, node_id: str, through_firebreaks: bool = False) -> List[str]:
         """Everything that would be in question if this node were wrong."""
@@ -122,6 +131,11 @@ class Graph:
         # Phase A — what is actually failing, on its own account.
         bad: Dict[str, str] = {}
         for n in self.nodes.values():
+            if self.is_firebreak(n.id):
+                # A firebreak stops the fall travelling THROUGH it; it must also
+                # stop it starting FROM it. A defect that is known and handled
+                # is not a live alarm, whichever end of the edge it sits on.
+                continue
             if n.status == "falsified":
                 bad[n.id] = f"downstream of falsified {n.id}"
             elif n.expired(today):
@@ -212,7 +226,7 @@ class Graph:
                          or self.nodes[t].fm.get("money", True)]
                 if not money:
                     continue      # display-only surface: nothing to gate
-                if n.fm.get("neutralised"):
+                if n.fm.get("neutralised") or n.fm.get("mitigated"):
                     issues.append(("INFO", n.id,
                                    "gated to a no-op value ("
                                    + str(n.fm.get("value", "0"))

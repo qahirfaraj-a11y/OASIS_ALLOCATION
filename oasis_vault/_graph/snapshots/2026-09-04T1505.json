@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-09-04T15:06:14",
+  "generated_at": "2026-09-04T15:05:35",
   "nodes": [
     {
       "id": "claim.allocation.iteration-order-matters",
@@ -180,7 +180,7 @@
     {
       "id": "claim.siting.catchment-km-unfitted",
       "type": "claim",
-      "status": "stale",
+      "status": "measured",
       "domain": "siting",
       "title": "CATCHMENT_KM = 10.0 is a convention that was never fitted",
       "worth": "UNMEASURED \u2014 conditions every capture figure reported",
@@ -202,7 +202,7 @@
     {
       "id": "claim.siting.distance-decay-unfitted",
       "type": "claim",
-      "status": "stale",
+      "status": "measured",
       "domain": "siting",
       "title": "DISTANCE_DECAY = 2.0 is a convention that was never fitted",
       "worth": "UNMEASURED \u2014 every site recommendation depends on it",
@@ -268,7 +268,7 @@
     {
       "id": "claim.siting.size-exponent-unfitted",
       "type": "claim",
-      "status": "stale",
+      "status": "measured",
       "domain": "siting",
       "title": "SIZE_EXPONENT = 1.0 is a convention that was never fitted",
       "worth": "UNMEASURED \u2014 every site recommendation depends on it",

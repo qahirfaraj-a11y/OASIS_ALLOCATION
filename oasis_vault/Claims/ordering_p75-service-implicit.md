@@ -5,8 +5,8 @@ status: measured
 domain: ordering
 title: The engine buys ~p75 service, implicitly and untunably
 worth: service level is an emergent property, not a setting
-last_evidence: 2026-08-25
 ttl_days: 180
+last_evidence: 2026-09-04
 source: oasis_vault/Decisions/Ordering_Formula_And_Site_Selection_2026-08.md
 supports: [param.z]
 tested_by: [probe.residual-cover]

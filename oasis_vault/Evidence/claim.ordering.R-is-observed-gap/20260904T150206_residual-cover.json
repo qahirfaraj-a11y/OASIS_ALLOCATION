@@ -1,0 +1,40 @@
+{
+  "claim": "claim.ordering.R-is-observed-gap",
+  "probe": "probe.residual-cover",
+  "verdict": "supports",
+  "metric": {
+    "service_policy": 0.6365,
+    "service_observed": 0.7059,
+    "cover_policy": 4.1152,
+    "cover_observed": 1.9856,
+    "working_capital_multiple": 2.072,
+    "items": 2689,
+    "test_gaps": 29719,
+    "train": [
+      "2025-01",
+      "2025-03"
+    ],
+    "test": [
+      "2025-07",
+      "2025-12"
+    ],
+    "L_median": 2.0,
+    "L_sd": 2.216
+  },
+  "notes": "Trained on 2025-01..2025-03, scored on 2025-07..2025-12 \u2014 two blocks the missing quarter keeps from touching. Observed R carries 1.99x cover against policy's 4.12x at 70.6% vs 63.6% service.",
+  "held_out": true,
+  "baseline": "policy R=7.0d + observed L",
+  "beat_baseline": true,
+  "traps": [
+    "T1",
+    "T3",
+    "T5"
+  ],
+  "provenance": "observed",
+  "sources": [
+    "source.fulfilment-detail",
+    "source.corrected-ads"
+  ],
+  "config_hash": "",
+  "run_at": "2026-09-04T15:02:06"
+}

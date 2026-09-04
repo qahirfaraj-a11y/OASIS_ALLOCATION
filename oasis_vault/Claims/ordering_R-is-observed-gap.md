@@ -1,12 +1,12 @@
 ---
 id: claim.ordering.R-is-observed-gap
 type: claim
-status: measured
+status: validated
 domain: ordering
 title: R should be the observed order gap, not a policy review period
 worth: 2.14x working capital
-last_evidence: 2026-08-25
 ttl_days: 90
+last_evidence: 2026-09-04
 source: oasis_vault/Decisions/Ordering_Formula_And_Site_Selection_2026-08.md
 supports: [param.R]
 depends_on: [claim.ordering.review-schedule-is-clean]
@@ -32,3 +32,7 @@ This does not overturn the claim; R is still the observed order gap and still
 the largest lever. It does mean the denominator behind "2.21x less often than
 the declared schedule" needs recomputing against 688, not 940 — see
 `trap.denominator-sanity` and `claim.ordering.review-schedule-is-clean`.
+
+## Status history
+
+- 2026-09-04 — `measured` → `validated` — probe.residual-cover → supports

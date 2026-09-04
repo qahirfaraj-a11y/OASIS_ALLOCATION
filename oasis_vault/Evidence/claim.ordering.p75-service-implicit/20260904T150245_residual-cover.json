@@ -1,0 +1,23 @@
+{
+  "claim": "claim.ordering.p75-service-implicit",
+  "probe": "probe.residual-cover",
+  "verdict": "supports",
+  "metric": {
+    "residual_cover_median": 1.341,
+    "deliveries": 44247
+  },
+  "notes": "The book carries a median 1.34x of the cover each delivery needed. Nobody chose that number.",
+  "held_out": false,
+  "baseline": "a chosen service level",
+  "beat_baseline": null,
+  "traps": [
+    "T5"
+  ],
+  "provenance": "observed",
+  "sources": [
+    "source.fulfilment-detail",
+    "source.corrected-ads"
+  ],
+  "config_hash": "",
+  "run_at": "2026-09-04T15:02:45"
+}

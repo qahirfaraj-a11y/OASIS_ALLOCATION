@@ -1,0 +1,33 @@
+{
+  "claim": "claim.ordering.receipt-history-is-complete",
+  "probe": "probe.residual-cover",
+  "verdict": "contradicts",
+  "metric": {
+    "holes": [
+      "2025-04",
+      "2025-05",
+      "2025-06"
+    ],
+    "subtotal_rows": 16,
+    "subtotal_qty": 2875674,
+    "undated_rows": 623,
+    "gaps_discarded_for_spanning": 9660,
+    "months": [
+      "2025-01",
+      "2025-12"
+    ]
+  },
+  "notes": "Months ['2025-04', '2025-05', '2025-06'] are absent entirely, and 9,660 inter-receipt gaps were discarded for spanning them. 16 subtotal rows carry 2,875,674 units \u2014 exactly half the naive total, so any sum of this file's quantities that kept them is 2x out.",
+  "held_out": false,
+  "baseline": "a complete year of receipts",
+  "beat_baseline": null,
+  "traps": [
+    "T3"
+  ],
+  "provenance": "observed",
+  "sources": [
+    "source.fulfilment-detail"
+  ],
+  "config_hash": "",
+  "run_at": "2026-09-04T15:02:45"
+}
