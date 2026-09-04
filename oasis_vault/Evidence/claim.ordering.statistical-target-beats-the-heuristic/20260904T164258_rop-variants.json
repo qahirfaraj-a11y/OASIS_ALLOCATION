@@ -1,0 +1,43 @@
+{
+  "claim": "claim.ordering.statistical-target-beats-the-heuristic",
+  "probe": "probe.rop-variants",
+  "verdict": "contradicts",
+  "metric": {
+    "heuristic": {
+      "service": 1.0,
+      "capital": 1.454,
+      "lines": 6313,
+      "median_cover_days": 14.0
+    },
+    "newsvendor": {
+      "service": 1.0,
+      "capital": 1.454,
+      "lines": 6313,
+      "median_cover_days": 14.0
+    },
+    "order_up_to": {
+      "service": 1.0,
+      "capital": 2.6866,
+      "lines": 6313,
+      "median_cover_days": 15.77
+    },
+    "dominates_heuristic": [],
+    "governance_blocked": 9098,
+    "compared_on": 6313
+  },
+  "notes": "Scored on whether the cover ordered reaches the protection interval, and how far past it goes. Neither alternative dominates: the heuristic's service is not matched, or it is matched only by carrying more cover. The difference is a trade-off, not an improvement.",
+  "held_out": false,
+  "baseline": "shipped heuristic: flat fallback ROP + DDoS coverage target",
+  "beat_baseline": false,
+  "traps": [
+    "T3"
+  ],
+  "provenance": "observed",
+  "sources": [
+    "source.fulfilment-detail",
+    "source.corrected-ads",
+    "source.supplier-weekly-schedule"
+  ],
+  "config_hash": "",
+  "run_at": "2026-09-04T16:42:58"
+}

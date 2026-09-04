@@ -1,0 +1,52 @@
+{
+  "claim": "claim.ordering.purge-gates-spare-the-hot-nodes",
+  "probe": "probe.assortment-health",
+  "verdict": "contradicts",
+  "metric": {
+    "universe": 15411,
+    "annual_units": 3503867,
+    "annual_value_kes": 561516292,
+    "top_decile_value_share": 0.6427,
+    "amit": {
+      "skus_blocked": 5683,
+      "sku_share": 0.3688,
+      "unit_share": 0.18877,
+      "value_share": 0.27381,
+      "top_decile_blocked": 483,
+      "top_decile_share": 0.3134,
+      "top100_blocked": 12,
+      "median_ads_blocked": 0.1141,
+      "median_ads_allowed": 0.1359
+    },
+    "mande": {
+      "skus_blocked": 6079,
+      "sku_share": 0.3945,
+      "unit_share": 0.13446,
+      "value_share": 0.23388,
+      "top_decile_blocked": 392,
+      "top_decile_share": 0.2544,
+      "top100_blocked": 1,
+      "median_ads_blocked": 0.1033,
+      "median_ads_allowed": 0.1522
+    },
+    "amit_zero_gmroi_share": 0.9887,
+    "mande_capital_release_kes": 6058887.42,
+    "amit_well_aimed": false,
+    "mande_well_aimed": false
+  },
+  "notes": "AMIT blocks 36.9% of lines but 27.38% of value, and 483 of the top value decile. MANDE blocks 39.5% of lines and 23.39% of value. At least one gate is taking trade with it, not just tail.",
+  "held_out": false,
+  "baseline": "a gate should take far less value than it takes lines",
+  "beat_baseline": null,
+  "traps": [
+    "T1",
+    "T3"
+  ],
+  "provenance": "observed",
+  "sources": [
+    "source.corrected-ads",
+    "source.fulfilment-detail"
+  ],
+  "config_hash": "",
+  "run_at": "2026-09-04T16:42:53"
+}
