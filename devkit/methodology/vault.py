@@ -30,7 +30,20 @@ NODE_DIRS = {
     # DECISION nodes live in Surfaces/, not Decisions/ — Decisions/ is the
     # existing narrative record and keeps its role untouched.
     "decision": "Surfaces",
+    "source": "Sources",
 }
+
+#: Where a number came from. This is orthogonal to the status lattice and it
+#: constrains it: synthetic data can EXERCISE the machinery all the way through
+#: and can never VALIDATE it. Most of this install is deliberately synthetic —
+#: one real store (Rhapta) extrapolated into an estate precisely so the
+#: methodology can be tested before real POS exists. That is good practice, and
+#: it is exactly why the distinction has to be mechanical rather than
+#: remembered: synthetic data is most dangerous when it is working well.
+PROVENANCE = ("observed", "extrapolated", "synthetic", "mixed", "unknown")
+
+#: Only this provenance can promote a claim past `measured`.
+VALIDATING_PROVENANCE = {"observed"}
 
 # The status lattice. Order matters: index is rank for promotion checks.
 STATUSES = ["asserted", "measured", "validated", "trusted"]

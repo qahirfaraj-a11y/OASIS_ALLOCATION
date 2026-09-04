@@ -1,0 +1,101 @@
+{
+  "claim": "claim.ordering.review-schedule-is-clean",
+  "probe": "probe.supplier-calendar-integrity",
+  "verdict": "supports",
+  "metric": {
+    "entries": 7361,
+    "coded": 3283,
+    "code_with_empty_name": 12,
+    "artefacts": 951,
+    "other_fragments": 3115,
+    "admitted_by_consumer": 688,
+    "real_suppliers": 688,
+    "junk_admitted": 0,
+    "junk_examples": [],
+    "artefact_examples": [
+      "(BI-WK)",
+      "...AND 1 MORE",
+      "...AND 123 MORE",
+      "...AND 124 MORE",
+      "...AND 125 MORE",
+      "...AND 126 MORE"
+    ],
+    "split_suppliers_repaired": [
+      [
+        "MONDAY",
+        "SB0179 -",
+        "BRANDACTIV KENYA SR"
+      ],
+      [
+        "MONDAY",
+        "SG0111 -",
+        "GLACIER PRODUCTS 2ND"
+      ],
+      [
+        "MONDAY",
+        "SP0008 -",
+        "PROPACK KENYA"
+      ],
+      [
+        "MONDAY",
+        "SSS010 -",
+        "SOYS"
+      ],
+      [
+        "FRIDAY",
+        "SH0002 -",
+        "HASBAH KENYA"
+      ],
+      [
+        "SATURDAY",
+        "SR0076 -",
+        "RAJ KAMAL ENTERPRISE"
+      ],
+      [
+        "SATURDAY",
+        "SP0196 -",
+        "PASAGOT SR"
+      ],
+      [
+        "SATURDAY",
+        "SN0074 -",
+        "NAIROBI ENTERPRISES"
+      ],
+      [
+        "SATURDAY",
+        "SW0070 -",
+        "WESSEX PHARMACEUTICAL SR"
+      ],
+      [
+        "SATURDAY",
+        "SS0510 -",
+        "SMARTBRIDGE DISTRIBUTORS SR"
+      ],
+      [
+        "SATURDAY",
+        "SP0138 -",
+        "PROLEX VENTURES"
+      ],
+      [
+        "SATURDAY",
+        "SW0022 -",
+        "WOODLANDS COMPANY"
+      ]
+    ],
+    "file_is_parsed_report": true
+  },
+  "notes": "The engine's review schedule admits 688 suppliers, all real: 12 comma-split names repaired and 4066 parse artefacts rejected. Was 940, of which 262 were display truncation markers \u2014 the figure the derivation quotes for R. The FILE is still a parsed report; the durable fix is upstream of it.",
+  "held_out": false,
+  "baseline": "order_up_to.load_review_schedule",
+  "beat_baseline": null,
+  "traps": [
+    "T1",
+    "T3"
+  ],
+  "provenance": "observed",
+  "sources": [
+    "source.supplier-weekly-schedule"
+  ],
+  "config_hash": "",
+  "run_at": "2026-09-04T03:32:22"
+}

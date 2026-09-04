@@ -21,12 +21,39 @@ whether the parameter it supports may move a purchase order:
 | `stale` | a dependency moved, or evidence outlived its TTL | **no** — revert to last good |
 | `falsified` | a probe returned a verdict against it | **no** — everything downstream goes stale |
 
+## The second rule: provenance
+
+**Synthetic data can exercise the machinery. It can never validate it.**
+
+One store on this book is real — Rhapta. The estate around it is extrapolated
+from that one store *on purpose*, so the methodology can be tested before real
+POS exists. That is good practice. It is also exactly why the distinction has to
+be mechanical rather than remembered: synthetic data is most dangerous when it
+is working well.
+
+Every verdict carries a `provenance`, and the harness enforces it — a verdict
+computed on anything but `observed` data cannot promote a claim past `measured`,
+whatever else it clears. `/gate` reports `blocked_on_data` when that is the only
+thing standing in the way, which is an honest and useful place to be.
+
+| Provenance | Meaning | Can validate |
+|---|---|---|
+| `observed` | measured from the real book | yes |
+| `extrapolated` | derived from observed data by a model | no |
+| `synthetic` | generated to exercise the machinery | no |
+
+Sources are nodes: `oasis_vault/Sources/`. Ordering rests on observed data (the
+GRN cache, the declared supplier calendar). Siting does not, and that is the
+whole of why its constants sit unfitted.
+
 ## Before you touch anything
 
 ```bash
-python devkit/methodology/cli.py build      # integrity + gate report
-python devkit/methodology/cli.py frontier   # what to interrogate next, ranked
-python devkit/methodology/cli.py blast <id> # what falls if this is wrong
+python devkit/methodology/cli.py build --snapshot   # integrity + gate, and snapshot
+python devkit/methodology/cli.py frontier           # what to interrogate next
+python devkit/methodology/cli.py blast <id>         # what falls if this is wrong
+python devkit/methodology/cli.py motifs             # structural anti-patterns
+python devkit/methodology/cli.py drift              # is the shape still moving?
 ```
 
 `build` currently reports GATE issues on ten parameters. That is not a bug list —

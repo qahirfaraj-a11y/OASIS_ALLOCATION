@@ -47,6 +47,7 @@ import json
 import logging
 import math
 import os
+import re
 from typing import Any, Dict, Optional
 
 logger = logging.getLogger("OASIS.OrderUpTo")
@@ -72,6 +73,13 @@ Z_FOR_SERVICE = {
 DEFAULT_SERVICE_LEVEL = 0.90
 
 SCHEDULE_FILE = "supplier_weekly_schedule.json"
+
+#: Supplier codes come in two shapes on this book: SA0209 and SDD067. A pattern
+#: that matches only the first silently discards a third of the file.
+_CODE = re.compile(r"^[A-Z]{2,4}\d{3,5}\s*-")
+_EMPTY_CODE = re.compile(r"^[A-Z]{2,4}\d{3,5}\s*-\s*$")
+#: Truncation markers from the report this file was parsed out of.
+_ARTEFACT = re.compile(r"^\.\.\.\s*AND\s+\d+\s+MORE$|^\(.*\)$|^\d+$", re.I)
 
 
 def model_name() -> str:
@@ -147,20 +155,61 @@ def load_review_schedule(root: str) -> Dict[str, float]:
                     DEFAULT_REVIEW_DAYS)
         return {}
 
+    # The file is not a data export; it was parsed out of a rendered report,
+    # and it shows. Three shapes arrive:
+    #
+    #   "SB0009 - BROOKSIDE DAIRY"   a supplier, code and name
+    #   "SB0179 -" then "BRANDACTIV KENYA SR"
+    #                                ONE supplier whose name contained a comma,
+    #                                split across two entries
+    #   "...AND 123 MORE", "(BI-WK)" display truncation markers, not suppliers
+    #
+    # The old guard was `len(key) > 3`, which admitted every marker. It let 262
+    # non-suppliers into the schedule and reported 940 "suppliers with a
+    # declared order day" — the figure the derivation quotes for R — when 678
+    # of them carry a supplier code. The markers were harmless in themselves,
+    # since nothing looks them up; the count was not, and the twelve split
+    # suppliers keyed to neither half of their own name and fell back to the
+    # default review period without a word.
     days_of: Dict[str, set] = {}
+    rejected = 0
+    repaired = 0
     for day, names in sched.items():
         if not isinstance(names, (list, tuple)):
             continue
-        for raw in names:
-            name = str(raw or "").strip()
-            if " - " in name:               # "SB0009 - BROOKSIDE DAIRY"
-                name = name.split(" - ", 1)[1]
+        entries = [str(n or "").strip() for n in names]
+        for i, raw in enumerate(entries):
+            if not raw:
+                continue
+            if _EMPTY_CODE.fullmatch(raw):
+                # A code with no name: the name is the next entry. Only rejoin
+                # when the previous entry is unambiguously a bare code — a
+                # general "glue fragments together" rule would be guesswork.
+                nxt = entries[i + 1] if i + 1 < len(entries) else ""
+                if nxt and not _CODE.match(nxt) and not _ARTEFACT.match(nxt):
+                    key = " ".join(nxt.upper().split())
+                    if len(key) > 3:
+                        days_of.setdefault(key, set()).add(day)
+                        repaired += 1
+                        continue
+                rejected += 1
+                continue
+            if not _CODE.match(raw):
+                # No supplier code. Either a truncation marker or the tail of a
+                # name split further up; neither is a supplier on its own.
+                rejected += 1
+                continue
+            name = raw.split(" - ", 1)[1] if " - " in raw else raw
             key = " ".join(name.upper().split())
-            if len(key) > 3:                # skip code fragments and blanks
+            if len(key) > 3:
                 days_of.setdefault(key, set()).add(day)
+            else:
+                rejected += 1
 
     out = {k: (7.0 / len(v)) for k, v in days_of.items() if v}
-    logger.info("review schedule: %d suppliers with a declared order day", len(out))
+    logger.info("review schedule: %d suppliers with a declared order day "
+                "(%d entries rejected as parse artefacts, %d comma-split names "
+                "repaired)", len(out), rejected, repaired)
     return out
 
 

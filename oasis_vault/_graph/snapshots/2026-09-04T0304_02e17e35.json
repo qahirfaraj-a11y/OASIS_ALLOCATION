@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-09-04T03:32:41",
+  "generated_at": "2026-09-04T02:50:06",
   "nodes": [
     {
       "id": "claim.allocation.iteration-order-matters",
@@ -112,17 +112,6 @@
       "file": "ordering_p75-service-implicit.md"
     },
     {
-      "id": "claim.ordering.review-schedule-is-clean",
-      "type": "claim",
-      "status": "measured",
-      "domain": "ordering",
-      "title": "The review schedule the engine derives contains only real suppliers",
-      "worth": "R is worth 2.14x working capital; its supplier count was 38% junk",
-      "last_evidence": "2026-09-04",
-      "ttl_days": 60,
-      "file": "ordering_review-schedule-is-clean.md"
-    },
-    {
       "id": "claim.ordering.rop-fallback-always-fires",
       "type": "claim",
       "status": "stale",
@@ -158,7 +147,7 @@
     {
       "id": "claim.siting.cannibalisation-km-unfitted",
       "type": "claim",
-      "status": "stale",
+      "status": "asserted",
       "domain": "siting",
       "title": "CANNIBALISATION_KM = 3.0 is a convention that was never fitted",
       "worth": "UNMEASURED \u2014 drives the model's most defensible output",
@@ -169,7 +158,7 @@
     {
       "id": "claim.siting.catchment-km-unfitted",
       "type": "claim",
-      "status": "stale",
+      "status": "asserted",
       "domain": "siting",
       "title": "CATCHMENT_KM = 10.0 is a convention that was never fitted",
       "worth": "UNMEASURED \u2014 conditions every capture figure reported",
@@ -191,24 +180,13 @@
     {
       "id": "claim.siting.distance-decay-unfitted",
       "type": "claim",
-      "status": "stale",
+      "status": "asserted",
       "domain": "siting",
       "title": "DISTANCE_DECAY = 2.0 is a convention that was never fitted",
       "worth": "UNMEASURED \u2014 every site recommendation depends on it",
       "last_evidence": "",
       "ttl_days": 120,
       "file": "siting_distance-decay-unfitted.md"
-    },
-    {
-      "id": "claim.siting.estate-has-a-usable-revenue-label",
-      "type": "claim",
-      "status": "falsified",
-      "domain": "siting",
-      "title": "The existing estate has a defensible measure of realised store performance",
-      "worth": "BLOCKING \u2014 no siting constant can be fitted without one",
-      "last_evidence": "",
-      "ttl_days": 60,
-      "file": "siting_estate-has-a-usable-revenue-label.md"
     },
     {
       "id": "claim.siting.ml-artefacts-unvalidated",
@@ -224,7 +202,7 @@
     {
       "id": "claim.siting.size-exponent-unfitted",
       "type": "claim",
-      "status": "stale",
+      "status": "asserted",
       "domain": "siting",
       "title": "SIZE_EXPONENT = 1.0 is a convention that was never fitted",
       "worth": "UNMEASURED \u2014 every site recommendation depends on it",
@@ -279,7 +257,7 @@
     {
       "id": "param.cannibalisation-km",
       "type": "parameter",
-      "status": "stale",
+      "status": "measured",
       "domain": "siting",
       "title": "CANNIBALISATION_KM",
       "worth": "",
@@ -290,7 +268,7 @@
     {
       "id": "param.catchment-km",
       "type": "parameter",
-      "status": "stale",
+      "status": "measured",
       "domain": "siting",
       "title": "CATCHMENT_KM",
       "worth": "",
@@ -312,7 +290,7 @@
     {
       "id": "param.distance-decay",
       "type": "parameter",
-      "status": "stale",
+      "status": "measured",
       "domain": "siting",
       "title": "DISTANCE_DECAY",
       "worth": "",
@@ -367,7 +345,7 @@
     {
       "id": "param.size-exponent",
       "type": "parameter",
-      "status": "stale",
+      "status": "measured",
       "domain": "siting",
       "title": "SIZE_EXPONENT",
       "worth": "",
@@ -400,7 +378,7 @@
     {
       "id": "probe.comparable-store-correlation",
       "type": "probe",
-      "status": "measured",
+      "status": "asserted",
       "domain": "siting",
       "title": "Comparable-store correlation",
       "worth": "",
@@ -475,17 +453,6 @@
       "file": "siting-robustness.md"
     },
     {
-      "id": "probe.supplier-calendar-integrity",
-      "type": "probe",
-      "status": "measured",
-      "domain": "ordering",
-      "title": "Supplier calendar integrity",
-      "worth": "",
-      "last_evidence": "",
-      "ttl_days": null,
-      "file": "supplier-calendar-integrity.md"
-    },
-    {
       "id": "probe.term-attribution",
       "type": "probe",
       "status": "asserted",
@@ -517,61 +484,6 @@
       "last_evidence": "",
       "ttl_days": null,
       "file": "trap-scan.md"
-    },
-    {
-      "id": "source.grn-intelligence-cache",
-      "type": "source",
-      "status": "trusted",
-      "domain": "data",
-      "title": "GRN intelligence cache",
-      "worth": "",
-      "last_evidence": "",
-      "ttl_days": null,
-      "file": "grn-intelligence-cache.md"
-    },
-    {
-      "id": "source.pos-fixtures",
-      "type": "source",
-      "status": "trusted",
-      "domain": "data",
-      "title": "POS fixture databases",
-      "worth": "",
-      "last_evidence": "",
-      "ttl_days": null,
-      "file": "pos-fixtures.md"
-    },
-    {
-      "id": "source.rhapta-store",
-      "type": "source",
-      "status": "trusted",
-      "domain": "data",
-      "title": "Rhapta Road store",
-      "worth": "",
-      "last_evidence": "",
-      "ttl_days": null,
-      "file": "rhapta-store.md"
-    },
-    {
-      "id": "source.stores-network-json",
-      "type": "source",
-      "status": "trusted",
-      "domain": "data",
-      "title": "Synthetic estate",
-      "worth": "",
-      "last_evidence": "",
-      "ttl_days": null,
-      "file": "stores-network-json.md"
-    },
-    {
-      "id": "source.supplier-weekly-schedule",
-      "type": "source",
-      "status": "trusted",
-      "domain": "data",
-      "title": "Declared supplier order calendar",
-      "worth": "",
-      "last_evidence": "",
-      "ttl_days": null,
-      "file": "supplier-weekly-schedule.md"
     },
     {
       "id": "surface.allocation-priority",
@@ -755,14 +667,6 @@
       "to": "param.z"
     },
     {
-      "from": "claim.ordering.review-schedule-is-clean",
-      "to": "claim.ordering.R-is-observed-gap"
-    },
-    {
-      "from": "claim.ordering.review-schedule-is-clean",
-      "to": "param.R"
-    },
-    {
       "from": "claim.ordering.rop-fallback-always-fires",
       "to": "param.L"
     },
@@ -785,22 +689,6 @@
     {
       "from": "claim.siting.distance-decay-unfitted",
       "to": "param.distance-decay"
-    },
-    {
-      "from": "claim.siting.estate-has-a-usable-revenue-label",
-      "to": "claim.siting.cannibalisation-km-unfitted"
-    },
-    {
-      "from": "claim.siting.estate-has-a-usable-revenue-label",
-      "to": "claim.siting.catchment-km-unfitted"
-    },
-    {
-      "from": "claim.siting.estate-has-a-usable-revenue-label",
-      "to": "claim.siting.distance-decay-unfitted"
-    },
-    {
-      "from": "claim.siting.estate-has-a-usable-revenue-label",
-      "to": "claim.siting.size-exponent-unfitted"
     },
     {
       "from": "claim.siting.size-exponent-unfitted",

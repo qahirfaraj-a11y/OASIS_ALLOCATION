@@ -22,7 +22,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 from .graph import Graph
-from .vault import VAULT, Node
+from .vault import VALIDATING_PROVENANCE, VAULT, Node
 
 SUPPORTS, CONTRADICTS, INCONCLUSIVE = "supports", "contradicts", "inconclusive"
 VERDICTS = (SUPPORTS, CONTRADICTS, INCONCLUSIVE)
@@ -48,6 +48,10 @@ class Verdict:
     baseline: Optional[str] = None
     beat_baseline: Optional[bool] = None
     traps: List[str] = field(default_factory=list)
+    #: Where the data behind this verdict came from. Synthetic and extrapolated
+    #: data can exercise a probe end to end; neither can validate a claim.
+    provenance: str = "unknown"
+    sources: List[str] = field(default_factory=list)
     config_hash: str = ""
     run_at: str = field(default_factory=lambda: _dt.datetime.now().isoformat(timespec="seconds"))
 
@@ -89,6 +93,11 @@ def _next_status(node: Node, v: Verdict, past: List[dict]) -> Optional[str]:
         # It recovers to `measured` — never straight back to a licence to move
         # money — and both verdicts stay in the evidence trail.
         return "measured" if cur in ("asserted", "stale", "falsified") else None
+    if v.provenance not in VALIDATING_PROVENANCE:
+        # The probe ran, the machinery works, the number is real — and it was
+        # computed on data nobody observed. That is a successful EXERCISE, not
+        # a validation, and the difference is the whole point of the gate.
+        return "measured"
     if v.beat_baseline is False:
         # Measured honestly, but it did not earn the right to drive anything.
         return "measured"
@@ -201,6 +210,7 @@ def gate(claim_id: str, vault: Optional[Path] = None,
     latest = recs[-1] if recs else {}
 
     checks = {
+        "observed_provenance": latest.get("provenance") in VALIDATING_PROVENANCE,
         "held_out": bool(latest.get("held_out")),
         "beat_baseline": bool(latest.get("beat_baseline")),
         "rank_check": "T6" in (latest.get("traps") or []),
@@ -214,6 +224,10 @@ def gate(claim_id: str, vault: Optional[Path] = None,
         "passed": passed,
         "verdict": ("may drive a live decision" if passed else
                     "MEASURED only — not permitted to move money"),
+        "provenance": latest.get("provenance", "unknown"),
+        "blocked_on_data": (not checks["observed_provenance"]
+                            and all(v for k, v in checks.items()
+                                    if k != "observed_provenance")),
         "baseline": latest.get("baseline"),
         "evidence_count": len(recs),
     }
