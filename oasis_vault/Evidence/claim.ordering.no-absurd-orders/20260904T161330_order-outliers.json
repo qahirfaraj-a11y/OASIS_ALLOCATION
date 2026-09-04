@@ -1,0 +1,275 @@
+{
+  "claim": "claim.ordering.no-absurd-orders",
+  "probe": "probe.order-outliers",
+  "verdict": "contradicts",
+  "metric": {
+    "decisions": 431508,
+    "skus": 15411,
+    "flagged": {
+      "O5_minimum_order_overhang": 44044,
+      "O6_wild_supplier_lead_time": 2604,
+      "O3_safety_dominates_cycle": 140
+    },
+    "flagged_total": 140,
+    "engine_defects": {
+      "O1_cover_over_90d": 0,
+      "O2_over_quarter_of_annual": 0,
+      "O3_safety_dominates_cycle": 140,
+      "O4_implausible_demand": 0
+    },
+    "assortment_facts": {
+      "O5_minimum_order_overhang": 44044,
+      "O6_wild_supplier_lead_time": 2604
+    },
+    "unscheduled_cover_by_mode": {
+      "on_demand": 13.63,
+      "scheduled": 18.59
+    },
+    "flagged_share": 0.00032,
+    "chain_median_cover_days": 17.32,
+    "cover_by_mode": {
+      "on_demand": 16.65,
+      "scheduled": 17.92
+    },
+    "departments_over_3x": [
+      "WATER DISPENSERS/PURIFIERS",
+      "HOME AUDIO/THEATERS",
+      "XMAS ITEMS",
+      "AIR/DEEP FRYERS",
+      "WOMEN DEO STICK",
+      "BABY ITEMS",
+      "HEATERS",
+      "COOKERS/OVENS/BURNERS",
+      "COFFEE MAKER/GRINDERS",
+      "MICROWAVE",
+      "MIXER/BLENDERS/CHOPPERS/JUICE EXT.",
+      "electrical items",
+      "DIWALI ITEMS",
+      "TOYS",
+      "SWICH/TOASTERS/WAFFLES MAKERS",
+      "FAN/AIR CONDITIONERS",
+      "EMPTY BOTTLE 20LT",
+      "RICE COOKERS",
+      "PET FISH FOOD",
+      "BAKE WARE ITEMS"
+    ],
+    "worst_departments": [
+      {
+        "department": "WATER DISPENSERS/PURIFIERS",
+        "lines": 28,
+        "median_cover_days": 265.91,
+        "p95_cover_days": 617.28,
+        "vs_chain": 15.36,
+        "median_safety_share": 0.205
+      },
+      {
+        "department": "HOME AUDIO/THEATERS",
+        "lines": 28,
+        "median_cover_days": 265.91,
+        "p95_cover_days": 617.28,
+        "vs_chain": 15.36,
+        "median_safety_share": 0.205
+      },
+      {
+        "department": "XMAS ITEMS",
+        "lines": 84,
+        "median_cover_days": 168.35,
+        "p95_cover_days": 529.1,
+        "vs_chain": 9.72,
+        "median_safety_share": 0.268
+      },
+      {
+        "department": "AIR/DEEP FRYERS",
+        "lines": 84,
+        "median_cover_days": 168.35,
+        "p95_cover_days": 529.1,
+        "vs_chain": 9.72,
+        "median_safety_share": 0.205
+      },
+      {
+        "department": "WOMEN DEO STICK",
+        "lines": 140,
+        "median_cover_days": 160.86,
+        "p95_cover_days": 529.1,
+        "vs_chain": 9.29,
+        "median_safety_share": 0.187
+      },
+      {
+        "department": "BABY ITEMS",
+        "lines": 756,
+        "median_cover_days": 141.14,
+        "p95_cover_days": 529.1,
+        "vs_chain": 8.15,
+        "median_safety_share": 0.269
+      }
+    ],
+    "examples": {
+      "O5_minimum_order_overhang": [
+        {
+          "sku": "ZONIN 750ML PROSECCO ROSE DOC",
+          "store": "Chandarana Azalea Square",
+          "dept": "WINES",
+          "d": 0.007,
+          "qty": 1.0,
+          "cover_days": 153.6,
+          "annual_share": 0.421,
+          "safety_share": 0.246,
+          "R": 7.0,
+          "L": 3.0,
+          "sigma_lead": 2.22,
+          "mode": "on_demand",
+          "scheduled": true,
+          "at_minimum_order": true
+        },
+        {
+          "sku": "ZIVA M.PAIN RELIEF PATCH 6PK",
+          "store": "Chandarana Azalea Square",
+          "dept": "MEDICARE",
+          "d": 0.003,
+          "qty": 1.0,
+          "cover_days": 305.8,
+          "annual_share": 0.838,
+          "safety_share": 0.177,
+          "R": 7.0,
+          "L": 3.0,
+          "sigma_lead": 1.098,
+          "mode": "on_demand",
+          "scheduled": true,
+          "at_minimum_order": true
+        },
+        {
+          "sku": "ZIPPER PULLER THERMOMETER",
+          "store": "Chandarana Azalea Square",
+          "dept": "HOUSEHOLD ITEMS",
+          "d": 0.003,
+          "qty": 1.0,
+          "cover_days": 305.8,
+          "annual_share": 0.838,
+          "safety_share": 0.268,
+          "R": 7.0,
+          "L": 5.0,
+          "sigma_lead": 3.149,
+          "mode": "on_demand",
+          "scheduled": true,
+          "at_minimum_order": true
+        }
+      ],
+      "O6_wild_supplier_lead_time": [
+        {
+          "sku": "SUNNEX MW193KU KITCHEN UTENCIL HOLDER",
+          "store": "Chandarana Azalea Square",
+          "dept": "HOUSEHOLD ITEMS",
+          "d": 0.007,
+          "qty": 1.0,
+          "cover_days": 153.6,
+          "annual_share": 0.421,
+          "safety_share": 0.811,
+          "R": 1.0,
+          "L": 3.0,
+          "sigma_lead": 13.35,
+          "mode": "on_demand",
+          "scheduled": false,
+          "at_minimum_order": true
+        },
+        {
+          "sku": "SUNNEX MVF50B VACUUM 0.5L BULLET FLASK BLUE",
+          "store": "Chandarana Azalea Square",
+          "dept": "HOUSEHOLD ITEMS",
+          "d": 0.002,
+          "qty": 1.0,
+          "cover_days": 617.3,
+          "annual_share": 1.691,
+          "safety_share": 0.811,
+          "R": 1.0,
+          "L": 3.0,
+          "sigma_lead": 13.35,
+          "mode": "on_demand",
+          "scheduled": false,
+          "at_minimum_order": true
+        },
+        {
+          "sku": "SUNNEX MGB06 CHEESE SLICER",
+          "store": "Chandarana Azalea Square",
+          "dept": "HOUSEHOLD ITEMS",
+          "d": 0.008,
+          "qty": 1.0,
+          "cover_days": 122.5,
+          "annual_share": 0.336,
+          "safety_share": 0.811,
+          "R": 1.0,
+          "L": 3.0,
+          "sigma_lead": 13.35,
+          "mode": "on_demand",
+          "scheduled": false,
+          "at_minimum_order": true
+        }
+      ],
+      "O3_safety_dominates_cycle": [
+        {
+          "sku": "SUNNEX M9300/6B STRAINER W WIRE",
+          "store": "Chandarana Azalea Square",
+          "dept": "HOUSEHOLD ITEMS",
+          "d": 0.06,
+          "qty": 2.0,
+          "cover_days": 33.3,
+          "annual_share": 0.091,
+          "safety_share": 0.811,
+          "R": 1.0,
+          "L": 3.0,
+          "sigma_lead": 13.35,
+          "mode": "on_demand",
+          "scheduled": false,
+          "at_minimum_order": false
+        },
+        {
+          "sku": "SUNNEX M9300/6B STRAINER W WIRE",
+          "store": "Chandarana Mobil Plaza Muthaiga",
+          "dept": "HOUSEHOLD ITEMS",
+          "d": 0.07,
+          "qty": 2.0,
+          "cover_days": 28.6,
+          "annual_share": 0.078,
+          "safety_share": 0.811,
+          "R": 1.0,
+          "L": 3.0,
+          "sigma_lead": 13.35,
+          "mode": "on_demand",
+          "scheduled": false,
+          "at_minimum_order": false
+        },
+        {
+          "sku": "SUNNEX M9300/6B STRAINER W WIRE",
+          "store": "Chandarana New Muthaiga Thigiri",
+          "dept": "HOUSEHOLD ITEMS",
+          "d": 0.08,
+          "qty": 2.0,
+          "cover_days": 25.0,
+          "annual_share": 0.068,
+          "safety_share": 0.811,
+          "R": 1.0,
+          "L": 3.0,
+          "sigma_lead": 13.35,
+          "mode": "on_demand",
+          "scheduled": false,
+          "at_minimum_order": false
+        }
+      ]
+    }
+  },
+  "notes": "140 of 431,508 decisions (0.03%) are orders a buyer would refuse: O3_safety_dominates_cycle 140, O5_minimum_order_overhang 44,044, O6_wild_supplier_lead_time 2,604. Concentrated in WATER DISPENSERS/PURIFIERS, HOME AUDIO/THEATERS, XMAS ITEMS.",
+  "held_out": false,
+  "baseline": "cover<=90.0d, order<=25% of annual, safety<=75% of S",
+  "beat_baseline": null,
+  "traps": [
+    "T1",
+    "T3"
+  ],
+  "provenance": "observed",
+  "sources": [
+    "source.fulfilment-detail",
+    "source.corrected-ads",
+    "source.supplier-weekly-schedule"
+  ],
+  "config_hash": "",
+  "run_at": "2026-09-04T16:13:30"
+}

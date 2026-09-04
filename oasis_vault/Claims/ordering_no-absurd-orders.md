@@ -1,7 +1,7 @@
 ---
 id: claim.ordering.no-absurd-orders
 type: claim
-status: measured
+status: falsified
 domain: ordering
 title: The engine never orders a quantity a buyer would refuse
 worth: the difference between a shaped surface and a sane one
@@ -37,4 +37,27 @@ twenty slow lines whose smallest possible order is months of stock.
 
 ## Status history
 
+- 2026-09-04 — `measured` → `falsified` — probe.order-outliers → contradicts
+
 - 2026-09-04 — `asserted` → `measured` — probe.order-outliers → supports
+
+## The whole book, 2026-09-04
+
+431,508 decisions - 15,411 SKUs across 14 stores in both ordering modes.
+
+**140 engine defects (0.03%)**, and they are all one thing: lines behind a
+single supplier whose measured lead-time spread is 13.35 days, where safety
+stock reaches 81% of the order-up-to level. Not minimum-order artefacts -
+real quantities, genuinely dominated by the variance term.
+
+**44,044 lines (10.2%) are minimum-order overhang**, and the tail is severe:
+`CH.PANCETTA TESA AFFUMICATA` orders one unit and carries **4,167 days** of
+cover. Eleven years. Still not an ordering defect - one unit is the smallest
+order that exists - but a range question with a number attached.
+
+Twenty departments carry more than 3x the chain median cover, and they are
+exactly the ones you would guess: WATER DISPENSERS and HOME AUDIO at 15.4x,
+XMAS ITEMS and AIR/DEEP FRYERS at 9.7x, BABY ITEMS at 8.2x across 756 lines.
+Durables and seasonal goods, where a single unit is months of stock.
+
+The 500-SKU sample found none of this. It was not wrong, it was small.

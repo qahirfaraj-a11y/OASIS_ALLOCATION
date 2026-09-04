@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-09-04T16:14:21",
+  "generated_at": "2026-09-04T16:13:36",
   "nodes": [
     {
       "id": "claim.allocation.iteration-order-matters",
@@ -99,17 +99,6 @@
       "last_evidence": "2026-09-04",
       "ttl_days": 30,
       "file": "ordering_grn-cache-load-is-deterministic.md"
-    },
-    {
-      "id": "claim.ordering.lata-multiplier-is-saturated",
-      "type": "claim",
-      "status": "asserted",
-      "domain": "ordering",
-      "title": "LATA discriminates across most of its range but saturates at the top",
-      "worth": "31% of suppliers share one multiplier, and it is 50% above the documented ceiling",
-      "last_evidence": "",
-      "ttl_days": 90,
-      "file": "ordering_lata-multiplier-is-saturated.md"
     },
     {
       "id": "claim.ordering.lata-not-in-safety-buffer",
@@ -378,7 +367,7 @@
     {
       "id": "param.R",
       "type": "parameter",
-      "status": "stale",
+      "status": "measured",
       "domain": "ordering",
       "title": "Review period / order gap",
       "worth": "",
@@ -455,7 +444,7 @@
     {
       "id": "param.lata-variance-multiplier",
       "type": "parameter",
-      "status": "measured",
+      "status": "stale",
       "domain": "ordering",
       "title": "LATA variance multiplier",
       "worth": "",
@@ -466,7 +455,7 @@
     {
       "id": "param.sigma_L",
       "type": "parameter",
-      "status": "stale",
+      "status": "measured",
       "domain": "ordering",
       "title": "Lead time standard deviation",
       "worth": "",
@@ -922,10 +911,6 @@
     {
       "from": "claim.ordering.grn-cache-load-is-deterministic",
       "to": "param.L"
-    },
-    {
-      "from": "claim.ordering.lata-multiplier-is-saturated",
-      "to": "param.lata-variance-multiplier"
     },
     {
       "from": "claim.ordering.lata-not-in-safety-buffer",

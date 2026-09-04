@@ -72,6 +72,9 @@ def main(argv=None) -> int:
     ap.add_argument("--skus", default="400", help="count, or 'all'")
     ap.add_argument("--stores", type=int, default=5)
     ap.add_argument("--seed", type=int, default=7)
+    ap.add_argument("--conditions", choices=("grid", "empty-shelf"), default="grid",
+                    help="grid sweeps every stock position; empty-shelf runs the "
+                         "one canonical order, which is what scales to the whole book")
     ap.add_argument("--db", default=None)
     ap.add_argument("--sigma-source", choices=("observed", "default"),
                     default="observed")
@@ -99,7 +102,8 @@ def main(argv=None) -> int:
         universe = random.sample(universe, n)
 
     print(f"  universe {len(universe):,} SKUs · {len(estate)} stores · "
-          f"{len(STOCK_GRID)}x{len(ON_ORDER_GRID)} stock conditions")
+          + (f"{len(STOCK_GRID)}x{len(ON_ORDER_GRID)} stock conditions"
+             if a.conditions == "grid" else "empty shelf, nothing on the water"))
     print(f"  sigma_L source: {a.sigma_source} "
           f"({len(patterns):,} vendor patterns loaded)")
     print(f"  review schedule: {len(schedule):,} suppliers with a declared day")
@@ -147,8 +151,10 @@ def main(argv=None) -> int:
             if S <= 0:
                 stats["zero_S"] += 1
                 continue
-            for f in STOCK_GRID:
-                for g in ON_ORDER_GRID:
+            stock_grid = STOCK_GRID if a.conditions == "grid" else (0.0,)
+            order_grid = ON_ORDER_GRID if a.conditions == "grid" else (0.0,)
+            for f in stock_grid:
+                for g in order_grid:
                     product["current_stock"] = S * f
                     product["on_order_qty"] = S * g
                     t = OU.recommend(product, schedule, patterns, mode=a.mode)
@@ -181,6 +187,7 @@ def main(argv=None) -> int:
               "service_level": OU.service_level(),
               "default_cv": DEFAULT_CV, "sigma_source": a.sigma_source,
               "ordering_mode": a.mode,
+              "conditions": a.conditions,
               "stock_grid": list(STOCK_GRID), "on_order_grid": list(ON_ORDER_GRID),
               "schedule_suppliers": len(schedule),
               "vendor_patterns": len(patterns)}

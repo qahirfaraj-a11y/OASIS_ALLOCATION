@@ -1,7 +1,9 @@
 ---
 id: claim.ordering.lata-not-in-safety-buffer
 type: claim
-status: stale
+mitigated: true
+mitigated_by: F3 closed 2026-09-04
+status: falsified
 domain: ordering
 title: LATA supplier toxicity never reaches the replenishment safety buffer
 worth: F3 — open, no owner
@@ -20,4 +22,21 @@ Resolve as either: thread it into the buffer, or document explicitly that LATA i
 
 ## Status history
 
+- 2026-09-04 — `stale` → `falsified` — probe.pipeline-trace → contradicts
+
 - 2026-09-04 — `measured` → `stale` — TTL expired
+
+## Closed, and badly named
+
+F3 is resolved: the multiplier reaches the replenishment safety buffer, and
+against lead-time variance measured independently from 92,181 receipts it
+correlates at **rho = 0.93** on the coefficient of variation. LATA measures
+what it says it measures.
+
+This claim is phrased as a DEFECT, so falsifying it is good news - and the
+graph propagated an alarm for it anyway, because falsified is falsified.
+That is a naming fault, not a graph fault. It is marked `mitigated` so the
+fall stops here, and the live finding moved to
+`claim.ordering.lata-multiplier-is-saturated`.
+
+**Name a claim for the state you want to be true.**

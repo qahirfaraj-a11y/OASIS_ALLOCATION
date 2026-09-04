@@ -1,0 +1,20 @@
+{
+  "claim": "claim.ordering.rop-fallback-always-fires",
+  "probe": "probe.pipeline-trace",
+  "verdict": "supports",
+  "metric": {
+    "default_mode": "heuristic",
+    "newsvendor_available": true,
+    "fallback_announces": true,
+    "env_mode": "heuristic"
+  },
+  "notes": "F4 is PARTIALLY closed. A statistically-correct reorder point (mu_LTD + z*sigma_LTD) now exists behind OASIS_ROP_MODE, and the flat fallback announces itself per line instead of passing silently. But the default is still 'heuristic', so on an unconfigured install the flat heuristic remains what actually supplies every reorder point. Mechanism built; not enabled.",
+  "held_out": false,
+  "baseline": "F4 as filed in 2026-06",
+  "beat_baseline": null,
+  "traps": [],
+  "provenance": "observed",
+  "sources": [],
+  "config_hash": "",
+  "run_at": "2026-09-04T16:14:13"
+}

@@ -97,6 +97,18 @@ from devkit.methodology.traps import join_match_rate, ratio, non_circular
 join_match_rate(derived, consumers, "supplier lookup").raise_if_violated()
 ```
 
+## Naming claims
+
+**Name a claim for the state you want to be true.** The graph propagates
+alarm from anything `falsified`, so a claim phrased as a defect inverts the
+meaning of its own verdict: falsifying "LATA is missing from the safety
+buffer" is good news, and the graph raised an alarm for it anyway.
+
+Write `lata-reaches-safety-buffer`, not `lata-not-in-safety-buffer`. Write
+`review-schedule-is-clean`, not `schedule-is-full-of-artefacts`. When a
+negatively-named claim is resolved, mark it `mitigated` and move the live
+finding to a positively-named one.
+
 ## Standing invariants
 
 1. **Never load a file by whatever `os.listdir` returned first.** Use

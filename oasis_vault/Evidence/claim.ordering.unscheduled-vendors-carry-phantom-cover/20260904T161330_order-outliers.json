@@ -1,0 +1,28 @@
+{
+  "claim": "claim.ordering.unscheduled-vendors-carry-phantom-cover",
+  "probe": "probe.order-outliers",
+  "verdict": "supports",
+  "metric": {
+    "unscheduled_lines": 90916,
+    "median_cover_scheduled_default": 18.59,
+    "median_cover_on_demand": 13.63,
+    "multiple": 1.364,
+    "vendors_with_declared_day": 301,
+    "vendors_total": 582
+  },
+  "notes": "On the 90,916 lines whose vendor has no declared order day, defaulting R to 7 days orders 1.36x the cover that on-demand ordering needs (18.6d against 13.6d). R is a property of the ordering PROCESS, not of the supplier: a vendor absent from the calendar has not said it can only be ordered weekly, it has said nothing.",
+  "held_out": false,
+  "baseline": "R defaults to 7d for a vendor with no declared day",
+  "beat_baseline": null,
+  "traps": [
+    "T3",
+    "T7"
+  ],
+  "provenance": "observed",
+  "sources": [
+    "source.supplier-weekly-schedule",
+    "source.fulfilment-detail"
+  ],
+  "config_hash": "",
+  "run_at": "2026-09-04T16:13:30"
+}

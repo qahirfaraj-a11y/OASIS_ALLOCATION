@@ -1,0 +1,35 @@
+{
+  "claim": "claim.ordering.lata-not-in-safety-buffer",
+  "probe": "probe.pipeline-trace",
+  "verdict": "contradicts",
+  "metric": {
+    "in_safety_buffer": true,
+    "referenced": true,
+    "suppliers": 599,
+    "median_multiplier": 2.594,
+    "max_multiplier": 3.0,
+    "documented_ceiling": 2.0,
+    "at_ceiling": 187,
+    "at_ceiling_share": 0.3122,
+    "non_neutral": 578,
+    "shared_vendors": 437,
+    "rho_vs_observed_sigma_L": 0.3983,
+    "rho_vs_observed_cv_L": 0.9289,
+    "tracks_observed_variance": true,
+    "saturated_at_ceiling": true
+  },
+  "notes": "F3 IS CLOSED \u2014 the multiplier reaches the replenishment safety buffer. It is also loud: median 2.59x, 187 of 599 suppliers (31%) pinned at 3.0, against a documented ceiling of 2.0. Against lead-time spread measured from receipts on 437 shared vendors it correlates at rho=0.39834378367020634. It tracks what it claims to measure: against the coefficient of variation of lead time it correlates at rho=0.9289234034534984, which is independent corroboration from a source LATA never saw. The remaining problem is the top of the range: 187 suppliers (31%) sit exactly at 3.0, so among the worst third the multiplier no longer discriminates \u2014 and the ceiling itself is undocumented, the code saying 2.0.",
+  "held_out": false,
+  "baseline": "F3 as filed in 2026-06: LATA absent from the buffer",
+  "beat_baseline": null,
+  "traps": [
+    "T1",
+    "T3"
+  ],
+  "provenance": "observed",
+  "sources": [
+    "source.fulfilment-detail"
+  ],
+  "config_hash": "",
+  "run_at": "2026-09-04T16:14:13"
+}
