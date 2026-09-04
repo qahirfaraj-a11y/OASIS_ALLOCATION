@@ -1,11 +1,12 @@
 ---
 id: claim.ordering.amit-ranks-on-data-it-mostly-lacks
 type: claim
-status: asserted
+status: measured
 domain: allocation
 title: AMIT trims departments by a GMROI that exists for 3% of the catalogue
 worth: 5,683 lines blocked, 27% of book value, on a signal that is mostly absent
 ttl_days: 60
+last_evidence: 2026-09-04
 source: devkit/probe_assortment_health.py
 supports: [param.department-scaling-ratios]
 tested_by: [probe.assortment-health]
@@ -40,3 +41,7 @@ unprofitable lines; they are unmeasured ones that tied at zero.
 The fix is upstream and cheap to state: populate gross profit, or rank the
 unmeasured population on something observed (velocity, receipt frequency)
 rather than letting them tie.
+
+## Status history
+
+- 2026-09-04 — `asserted` → `measured` — probe.derive-margin → supports

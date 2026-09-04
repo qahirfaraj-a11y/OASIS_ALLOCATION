@@ -1,0 +1,31 @@
+{
+  "claim": "claim.ordering.amit-ranks-on-data-it-mostly-lacks",
+  "probe": "probe.derive-margin",
+  "verdict": "supports",
+  "metric": {
+    "lines_with_gross_profit_before": 500,
+    "lines_with_gross_profit_after": 15412,
+    "coverage_multiple": 30.82,
+    "grn_cost_skus": 18037,
+    "scorecard_lines": 23497,
+    "negative_gp": 11999,
+    "both_routes": 15410,
+    "routes_disagree": 14204,
+    "written": false
+  },
+  "notes": "Gross profit is now computable for 15,412 lines against 500 before \u2014 30.8x \u2014 by joining GRN unit cost to scorecard price and POS velocity. The scorecard's own Margin_Pct is a 5.0% placeholder on 98.2% of lines, so it is used only as a cross-check, never as the signal. The stated margin matches the margin implied by GRN cost within 10 points on 1,206 of 15,410 lines. AMIT can now rank on a signal instead of on ties.",
+  "held_out": false,
+  "baseline": "gross_profit present on 500 of 17,249 lines",
+  "beat_baseline": null,
+  "traps": [
+    "T1",
+    "T3"
+  ],
+  "provenance": "observed",
+  "sources": [
+    "source.fulfilment-detail",
+    "source.corrected-ads"
+  ],
+  "config_hash": "",
+  "run_at": "2026-09-04T16:56:25"
+}
