@@ -1,7 +1,7 @@
 ---
 id: claim.ordering.rop-fallback-always-fires
 type: claim
-status: measured
+status: falsified
 domain: ordering
 title: Live enrichment supplies no ROP or coverage target, so the fallback always fires
 worth: F4 — open
@@ -17,6 +17,8 @@ stale_from: measured
 `fetch_enriched_products` sets ADS / cv / on_order but not `reorder_point` or `target_coverage_days`. The maths is sound, but this is a heuristic, not a forecasting layer — worth naming so it is not mistaken for one.
 
 ## Status history
+
+- 2026-09-04 — `measured` → `falsified` — probe.governance-sweep → contradicts
 
 - 2026-09-04 — `stale` → `measured` — probe.pipeline-trace → supports
 

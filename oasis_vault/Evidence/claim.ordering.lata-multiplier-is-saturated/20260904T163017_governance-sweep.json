@@ -1,0 +1,32 @@
+{
+  "claim": "claim.ordering.lata-multiplier-is-saturated",
+  "probe": "probe.governance-sweep",
+  "verdict": "supports",
+  "metric": {
+    "table_lines_shielded": 5420,
+    "derived_lines_shielded": 6142,
+    "table_median": 2.72,
+    "derived_median": 1.53,
+    "table_max": 3.0,
+    "derived_max": 12.65,
+    "quantities_changed": 6292,
+    "units_table": 105841,
+    "units_derived": 84382,
+    "units_multiple": 0.7973
+  },
+  "notes": "Deriving LATA moves the book 0.797x in units and changes 6,292 quantities. The table's median shield was x2.72 against a derived x1.53: the cap was not trimming the tail, it was inflating the middle.",
+  "held_out": false,
+  "baseline": "hand-tuned LATA table capped at 3.0",
+  "beat_baseline": null,
+  "traps": [
+    "T1",
+    "T3"
+  ],
+  "provenance": "observed",
+  "sources": [
+    "source.fulfilment-detail",
+    "source.corrected-ads"
+  ],
+  "config_hash": "",
+  "run_at": "2026-09-04T16:30:17"
+}

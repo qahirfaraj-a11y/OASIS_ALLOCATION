@@ -1,0 +1,68 @@
+{
+  "claim": "claim.ordering.governance-gates-discriminate",
+  "probe": "probe.governance-sweep",
+  "verdict": "contradicts",
+  "metric": {
+    "lines": 15411,
+    "fired": {
+      "amit_blacklist": 5684,
+      "mande_purge": 3414,
+      "halo_protected": 10,
+      "discontinued": 0,
+      "stale_fresh": 0,
+      "dead_stock": 0,
+      "lata_shield": 5420,
+      "gnn_risk_burst": 0,
+      "rop_newsvendor": 0,
+      "rop_fallback": 6313,
+      "schedule_hold": 0,
+      "critical_override": 2448,
+      "key_sku_boost": 10,
+      "adequate_coverage": 0,
+      "order_up_to_covered": 0
+    },
+    "rates": {
+      "amit_blacklist": 0.36883,
+      "mande_purge": 0.22153,
+      "halo_protected": 0.00065,
+      "discontinued": 0.0,
+      "stale_fresh": 0.0,
+      "dead_stock": 0.0,
+      "lata_shield": 0.3517,
+      "gnn_risk_burst": 0.0,
+      "rop_newsvendor": 0.0,
+      "rop_fallback": 0.40964,
+      "schedule_hold": 0.0,
+      "critical_override": 0.15885,
+      "key_sku_boost": 0.00065,
+      "adequate_coverage": 0.0,
+      "order_up_to_covered": 0.0
+    },
+    "never_fired": [
+      "discontinued",
+      "stale_fresh",
+      "dead_stock",
+      "gnn_risk_burst",
+      "rop_newsvendor",
+      "schedule_hold",
+      "adequate_coverage",
+      "order_up_to_covered"
+    ],
+    "fired_on_everything": []
+  },
+  "notes": "Across 15,411 lines: 8 gate(s) never fired (discontinued, stale_fresh, dead_stock, gnn_risk_burst, rop_newsvendor, schedule_hold, adequate_coverage, order_up_to_covered); 0 fired on effectively everything (none). A gate that never fires is decoration; a gate that fires on everything is a tax.",
+  "held_out": false,
+  "baseline": "a gate earns its place by discriminating",
+  "beat_baseline": null,
+  "traps": [
+    "T1",
+    "T3"
+  ],
+  "provenance": "observed",
+  "sources": [
+    "source.fulfilment-detail",
+    "source.corrected-ads"
+  ],
+  "config_hash": "",
+  "run_at": "2026-09-04T16:30:17"
+}

@@ -1,11 +1,12 @@
 ---
 id: claim.ordering.lata-multiplier-is-saturated
 type: claim
-status: asserted
+status: measured
 domain: ordering
 title: LATA discriminates across most of its range but saturates at the top
 worth: 31% of suppliers share one multiplier, and it is 50% above the documented ceiling
 ttl_days: 90
+last_evidence: 2026-09-04
 source: devkit/probe_pipeline_trace.py
 supports: [param.lata-variance-multiplier]
 tested_by: [probe.pipeline-trace]
@@ -29,3 +30,7 @@ Two things remain wrong at the top of the range:
 The median supplier's safety buffer is therefore multiplied by 2.59 on top of
 `base_safety * (1 + 2*cv)`. That is defensible if the ceiling is right and
 indefensible if it was raised without anyone writing it down.
+
+## Status history
+
+- 2026-09-04 — `asserted` → `measured` — probe.governance-sweep → supports

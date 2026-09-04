@@ -98,14 +98,41 @@ class SimulationOrderUtil:
         
     @staticmethod
     def _load_lata_multipliers(data_dir: str) -> Dict[str, float]:
-        """{SUPPLIER_UPPER: lata_variance_multiplier} from supplier_patterns_*.json."""
+        """{SUPPLIER_UPPER: lata_variance_multiplier}, derived where possible.
+
+        Two sources, in order:
+
+          lata_derived.json      multipliers DERIVED from the receipt history —
+                                 sqrt(1 + sigma_L^2 / (P * cv^2)), which is the
+                                 exact inflation the safety term implies. No
+                                 ceiling: the demand rate cancels and what is
+                                 left is measurable.
+          supplier_patterns_*    the older hand-tuned table, kept as a fallback.
+
+        The table was well-calibrated (rho = 0.93 against lead-time CV measured
+        from receipts) right up to its ceiling, where 187 of 599 suppliers sat
+        at exactly 3.0 and the multiplier stopped distinguishing anything. Its
+        median was 2.59; the derived median is 1.52. A cap is a decision
+        disguised as a constant, and this one had drifted 50% above the value
+        its own comment documented.
+
+        Set OASIS_LATA_SOURCE=table to force the old behaviour.
+        """
         import glob
         import json
         import os
         out: Dict[str, float] = {}
+        source = (os.getenv("OASIS_LATA_SOURCE") or "derived").lower().strip()
         try:
-            candidates = sorted(glob.glob(os.path.join(data_dir, "supplier_patterns_*.json")),
-                                reverse=True)
+            candidates = []
+            if source != "table":
+                derived = os.path.join(data_dir, "lata_derived.json")
+                if os.path.exists(derived):
+                    candidates = [derived]
+            if not candidates:
+                # Newest by mtime, not by name: filesystem order is not a policy.
+                pats = glob.glob(os.path.join(data_dir, "supplier_patterns_*.json"))
+                candidates = ([max(pats, key=os.path.getmtime)] if pats else [])
             if not candidates:
                 return out
             with open(candidates[0], "r", encoding="utf-8") as f:
@@ -116,7 +143,15 @@ class SimulationOrderUtil:
                         out[str(supplier).upper().strip()] = float(d["lata_variance_multiplier"])
                     except (TypeError, ValueError):
                         continue
-        except Exception:
+            print(f"LATA: {len(out)} suppliers from "
+                  f"{os.path.basename(candidates[0])}")
+        except (OSError, ValueError, TypeError) as e:
+            # Narrow, deliberately. The previous `except Exception: return {}`
+            # swallowed a NameError in this very method and reported it as "no
+            # LATA data" — every supplier silently neutral, nothing said. A
+            # bare except turns a programming error into a data condition, and
+            # the two want opposite responses.
+            print(f"LATA: unreadable ({e}); every supplier stays neutral")
             return {}
         return out
 
@@ -355,11 +390,30 @@ class SimulationOrderUtil:
                 from math import sqrt
 
                 from . import risk_baseline as RB
-                mu_ltd = avg_daily_sales * lead_time
-                sigma_ltd = cv * avg_daily_sales * sqrt(max(1.0, lead_time))
+                # THE HORIZON IS P = R + L, NOT L.
+                #
+                # A reorder point has to cover demand until stock can next
+                # ARRIVE, and under periodic review that is the review period
+                # plus the lead time. Using L alone protects only the delivery
+                # window and silently drops R — the one horizon in this engine
+                # with a derivation, and the term measured at 2.07x working
+                # capital.
+                #
+                # The omission does not look like an error, it looks like a
+                # tighter reorder point: on this book it halved ROP (31 -> 16.6
+                # units on a 10/day line) and stopped replenishment on every
+                # line holding more than ~1.7 days of cover. Flipping
+                # OASIS_ROP_MODE off 'heuristic' with L-only maths would have
+                # quietly stopped ordering across 6,313 lines.
+                _R = _ou.review_period(str(p.get('supplier_name') or '').upper(),
+                                       self._review_schedule)
+                horizon = max(1.0, float(lead_time) + float(_R))
+                mu_ltd = avg_daily_sales * horizon
+                sigma_ltd = cv * avg_daily_sales * sqrt(horizon)
                 reorder_point = RB.reorder_point(mu_ltd, sigma_ltd,
                                                  self._service_level)
-                rec['reasoning'] += (f" [ROP Newsvendor: SL{self._service_level:.0%}]")
+                rec['reasoning'] += (f" [ROP Newsvendor: SL{self._service_level:.0%}"
+                                     f" P={horizon:.1f}d]")
             elif reorder_point <= 0 and avg_daily_sales > 0:
                 # Fallback ROP = ADS * (lead_time + base_safety)
                 fallback_rop = avg_daily_sales * (lead_time + (base_safety * (1 + cv)))

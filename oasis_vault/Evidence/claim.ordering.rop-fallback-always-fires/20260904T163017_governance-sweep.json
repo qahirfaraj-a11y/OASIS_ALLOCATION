@@ -1,0 +1,77 @@
+{
+  "claim": "claim.ordering.rop-fallback-always-fires",
+  "probe": "probe.governance-sweep",
+  "verdict": "contradicts",
+  "metric": {
+    "heuristic_fallback_lines": 6313,
+    "newsvendor_lines": 6313,
+    "lines": 15411,
+    "quantities_changed": 0,
+    "share_changed": 0.0,
+    "units_heuristic": 105841,
+    "units_newsvendor": 105841,
+    "units_multiple": 1.0,
+    "by_stock_position": [
+      {
+        "cover_days": 0.0,
+        "ordered_heuristic": 6313,
+        "ordered_newsvendor": 6313,
+        "units_heuristic": 84382,
+        "units_newsvendor": 84382,
+        "line_delta": 0,
+        "units_multiple": 1.0
+      },
+      {
+        "cover_days": 2.0,
+        "ordered_heuristic": 6313,
+        "ordered_newsvendor": 6313,
+        "units_heuristic": 70186,
+        "units_newsvendor": 70186,
+        "line_delta": 0,
+        "units_multiple": 1.0
+      },
+      {
+        "cover_days": 5.0,
+        "ordered_heuristic": 0,
+        "ordered_newsvendor": 5154,
+        "units_heuristic": 0,
+        "units_newsvendor": 40779,
+        "line_delta": 5154,
+        "units_multiple": 40779.162
+      },
+      {
+        "cover_days": 10.0,
+        "ordered_heuristic": 0,
+        "ordered_newsvendor": 0,
+        "units_heuristic": 0,
+        "units_newsvendor": 0,
+        "line_delta": 0,
+        "units_multiple": 0.0
+      },
+      {
+        "cover_days": 20.0,
+        "ordered_heuristic": 0,
+        "ordered_newsvendor": 0,
+        "units_heuristic": 0,
+        "units_newsvendor": 0,
+        "line_delta": 0,
+        "units_multiple": 0.0
+      }
+    ]
+  },
+  "notes": "Flipped off heuristic across 15,411 lines. The flat fallback fired on 6,313 lines; the newsvendor reorder point replaces it on 6,313. 0 quantities change (0.0%), and the book moves 1.000x in units. At an empty shelf the two modes are IDENTICAL \u2014 ROP decides whether to order, not how much, and every line is below every reorder point at zero stock. The difference lives at the boundary: 0d cover +0 lines; 2d cover +0 lines; 5d cover +5,154 lines; 10d cover +0 lines; 20d cover +0 lines",
+  "held_out": false,
+  "baseline": "OASIS_ROP_MODE=heuristic",
+  "beat_baseline": null,
+  "traps": [
+    "T1",
+    "T3"
+  ],
+  "provenance": "observed",
+  "sources": [
+    "source.fulfilment-detail",
+    "source.corrected-ads"
+  ],
+  "config_hash": "",
+  "run_at": "2026-09-04T16:30:17"
+}
