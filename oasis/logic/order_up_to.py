@@ -213,6 +213,50 @@ def load_review_schedule(root: str) -> Dict[str, float]:
     return out
 
 
+PATTERNS_FILE = "supplier_lead_patterns.json"
+
+
+def load_lead_patterns(root: str) -> Dict[str, dict]:
+    """Supplier -> measured lead time and spread, from the receipt history.
+
+    `sigma_lead()` falls back to a chain-wide 2.22 days for any supplier it has
+    not measured, which is the right default and the wrong answer for the 472
+    suppliers the fulfilment export CAN measure: their median spread is 1.45
+    days, so the constant overstates safety stock for the typical line by about
+    a third.
+
+    Keyed on the supplier NAME — the part after the code — because that is what
+    `recommend()` looks up and what `load_review_schedule` produces. Written
+    with both spellings so either matches; a patterns file that loads, parses
+    and never matches is the worst of the three outcomes.
+
+    Produced by `devkit/probe_lead_time.py --write`. Absent, the engine keeps
+    the default and says so.
+    """
+    for cand in (os.path.join(root, "oasis", "data", PATTERNS_FILE),
+                 os.path.join(root, "data", PATTERNS_FILE),
+                 os.path.join(root, PATTERNS_FILE)):
+        path = os.path.abspath(cand)
+        if not os.path.exists(path):
+            continue
+        try:
+            with open(path, encoding="utf-8") as f:
+                data = json.load(f) or {}
+        except (OSError, ValueError) as e:
+            logger.warning("lead patterns at %s are unreadable (%s)", path, e)
+            return {}
+        out = {" ".join(str(k).upper().split()): v
+               for k, v in data.items() if isinstance(v, dict)}
+        measured = len({v.get("vendor") for v in out.values()})
+        logger.info("lead patterns: %d suppliers measured (%d keys); every "
+                    "other supplier keeps sigma_L=%.2f", measured, len(out),
+                    DEFAULT_SIGMA_LEAD)
+        return out
+    logger.info("no measured lead patterns found — every supplier uses "
+                "sigma_L=%.2f", DEFAULT_SIGMA_LEAD)
+    return {}
+
+
 def review_period(supplier: str, schedule: Optional[Dict[str, float]] = None,
                   default: float = DEFAULT_REVIEW_DAYS) -> float:
     if not schedule:

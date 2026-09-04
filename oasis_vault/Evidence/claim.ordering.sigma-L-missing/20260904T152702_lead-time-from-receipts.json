@@ -1,0 +1,31 @@
+{
+  "claim": "claim.ordering.sigma-L-missing",
+  "probe": "probe.lead-time-from-receipts",
+  "verdict": "supports",
+  "metric": {
+    "receipts_with_lead": 92181,
+    "vendors": 575,
+    "vendors_measured": 472,
+    "vendors_too_thin": 103,
+    "chain_L_median": 2.0,
+    "chain_sigma_L": 2.216,
+    "engine_default_sigma_L": 2.22,
+    "per_vendor_sigma_L_median": 1.449,
+    "vendors_with_zero_spread": 29,
+    "patterns_written": true
+  },
+  "notes": "sigma_L is measurable per vendor from receipts alone \u2014 no gaps, so the missing quarter cannot touch it. 944 of 575 vendors have enough receipts to measure; the chain figure is 2.22d against a 2.00d median lead, which is the derivation's point stated in observed numbers.",
+  "held_out": false,
+  "baseline": "chain-wide default sigma_L = 2.22d",
+  "beat_baseline": null,
+  "traps": [
+    "T3",
+    "T5"
+  ],
+  "provenance": "observed",
+  "sources": [
+    "source.fulfilment-detail"
+  ],
+  "config_hash": "",
+  "run_at": "2026-09-04T15:27:02"
+}

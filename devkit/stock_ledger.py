@@ -33,7 +33,9 @@ PROVENANCE
 from __future__ import annotations
 
 import datetime as _dt
+import hashlib
 import json
+import os
 import re
 from collections import defaultdict
 from dataclasses import dataclass, field
@@ -143,9 +145,46 @@ class Ledger:
         return snapshot_qty - recv + demand
 
 
+#: Parsing 107,165 rows out of a workbook takes long enough that a probe which
+#: runs the sweep twice cannot finish inside a shell timeout. The cache keys on
+#: the source's size and mtime, so an updated export invalidates it and a stale
+#: one can never be silently preferred — the T2 lesson, applied to a cache.
+CACHE_DIR = Path(os.environ.get("OASIS_LEDGER_CACHE", "/tmp")) / "oasis_ledger"
+
+
+def _cache_key(src: Path, ads: Path) -> str:
+    parts = []
+    for p_ in (src, ads):
+        try:
+            st_ = p_.stat()
+            parts.append(f"{p_.name}:{st_.st_size}:{int(st_.st_mtime)}")
+        except OSError:
+            parts.append(f"{p_.name}:missing")
+    return hashlib.sha256("|".join(parts).encode()).hexdigest()[:16]
+
+
 def load(fulfilment: Path = FULFILMENT, ads_file: Path = ADS_FILE,
-         local_copy: Optional[Path] = None) -> Ledger:
+         local_copy: Optional[Path] = None, use_cache: bool = True) -> Ledger:
     import openpyxl
+
+    src_p = Path(local_copy or fulfilment)
+    cache = CACHE_DIR / f"{_cache_key(src_p, Path(ads_file))}.json"
+    if use_cache and cache.exists():
+        try:
+            raw_c = json.loads(cache.read_text(encoding="utf-8"))
+            led_c = Ledger(
+                ads=raw_c["ads"], months_active=raw_c["months_active"],
+                covered_months=raw_c["covered_months"], holes=raw_c["holes"],
+                rejected_subtotals=raw_c["rejected_subtotals"],
+                rejected_undated=raw_c["rejected_undated"],
+                subtotal_qty=raw_c["subtotal_qty"])
+            for item, rs in raw_c["receipts"].items():
+                led_c.receipts[item] = [
+                    Receipt(item, v, _dt.date.fromisoformat(d), q, g, ld)
+                    for v, d, q, g, ld in rs]
+            return led_c
+        except Exception:
+            pass
 
     led = Ledger()
     raw = json.loads(Path(ads_file).read_text(encoding="utf-8"))
@@ -157,8 +196,7 @@ def load(fulfilment: Path = FULFILMENT, ads_file: Path = ADS_FILE,
                 led.months_active[str(k).strip().upper()] = float(
                     v.get("months_active") or 0)
 
-    src = str(local_copy or fulfilment)
-    wb = openpyxl.load_workbook(src, read_only=True, data_only=True)
+    wb = openpyxl.load_workbook(str(src_p), read_only=True, data_only=True)
     rows = wb["Sheet1"].iter_rows(values_only=True)
     next(rows, None)
     months = set()
@@ -199,4 +237,20 @@ def load(fulfilment: Path = FULFILMENT, ads_file: Path = ADS_FILE,
             if tag not in months:
                 led.holes.append(tag)
             cur = _dt.date(cur.year + (cur.month == 12), (cur.month % 12) + 1, 1)
+
+    if use_cache:
+        try:
+            CACHE_DIR.mkdir(parents=True, exist_ok=True)
+            cache.write_text(json.dumps({
+                "ads": led.ads, "months_active": led.months_active,
+                "covered_months": led.covered_months, "holes": led.holes,
+                "rejected_subtotals": led.rejected_subtotals,
+                "rejected_undated": led.rejected_undated,
+                "subtotal_qty": led.subtotal_qty,
+                "receipts": {k: [[r.vendor, r.date.isoformat(), r.qty,
+                                  r.grn_no, r.lead_days] for r in v]
+                             for k, v in led.receipts.items()},
+            }), encoding="utf-8")
+        except OSError:
+            pass
     return led

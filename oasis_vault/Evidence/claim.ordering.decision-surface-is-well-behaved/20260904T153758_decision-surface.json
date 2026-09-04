@@ -1,0 +1,35 @@
+{
+  "claim": "claim.ordering.decision-surface-is-well-behaved",
+  "probe": "probe.decision-surface",
+  "verdict": "supports",
+  "metric": {
+    "decisions": 21000,
+    "groups": 3000,
+    "P1_monotone": 0,
+    "P2_non_negative": 0,
+    "P3_decomposable": 0,
+    "P4_on_order_credited": 0,
+    "P4_pairs_checked": 10500,
+    "P5_covers_interval": 0,
+    "examples": {
+      "P1": null,
+      "P3": null,
+      "P5": null
+    }
+  },
+  "notes": "21,000 decisions across 3,000 (store, SKU, on-order) groups obey all five structural properties.",
+  "held_out": false,
+  "baseline": "the properties an order policy must obey",
+  "beat_baseline": null,
+  "traps": [
+    "T3"
+  ],
+  "provenance": "observed",
+  "sources": [
+    "source.fulfilment-detail",
+    "source.corrected-ads",
+    "source.supplier-weekly-schedule"
+  ],
+  "config_hash": "",
+  "run_at": "2026-09-04T15:37:58"
+}

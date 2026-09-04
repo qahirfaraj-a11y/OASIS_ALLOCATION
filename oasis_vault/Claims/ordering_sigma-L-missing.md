@@ -5,11 +5,11 @@ status: measured
 domain: ordering
 title: sigma_L belongs in the safety term and is the larger variance contributor
 worth: 2.22d spread on a 2.29d mean
-last_evidence: 2026-08-25
 ttl_days: 90
+last_evidence: 2026-09-04
 source: oasis_vault/Decisions/Ordering_Formula_And_Site_Selection_2026-08.md
 supports: [param.sigma_L]
-tested_by: [probe.term-attribution]
+tested_by: [probe.term-attribution, probe.lead-time-from-receipts]
 guarded_by: [trap.denominator-sanity]
 ---
 

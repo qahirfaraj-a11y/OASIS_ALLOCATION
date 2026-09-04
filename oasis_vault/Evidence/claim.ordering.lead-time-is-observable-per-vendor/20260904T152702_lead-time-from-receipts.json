@@ -1,0 +1,23 @@
+{
+  "claim": "claim.ordering.lead-time-is-observable-per-vendor",
+  "probe": "probe.lead-time-from-receipts",
+  "verdict": "supports",
+  "metric": {
+    "vendors_measured": 472,
+    "coverage": 0.821,
+    "min_samples": 8
+  },
+  "notes": "472 vendors carry 8+ receipts, so each can have its own lead time and spread instead of sharing one constant. The remainder keep the default, which is the correct behaviour for a supplier nobody has measured \u2014 not evidence that it delivers on time.",
+  "held_out": false,
+  "baseline": "one chain-wide constant for every supplier",
+  "beat_baseline": null,
+  "traps": [
+    "T5"
+  ],
+  "provenance": "observed",
+  "sources": [
+    "source.fulfilment-detail"
+  ],
+  "config_hash": "",
+  "run_at": "2026-09-04T15:27:02"
+}

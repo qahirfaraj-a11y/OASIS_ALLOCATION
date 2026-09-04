@@ -1,0 +1,27 @@
+{
+  "claim": "claim.ordering.sigma-L-changes-the-order",
+  "probe": "probe.decision-surface",
+  "verdict": "supports",
+  "metric": {
+    "compared": 21000,
+    "quantity_changed": 2638,
+    "share_changed": 0.1256,
+    "median_safety_ratio": 0.739,
+    "median_qty_delta_pct": 0.0
+  },
+  "notes": "Measuring sigma_L per vendor changes 12.6% of decisions; median safety stock moves to 0.739x of the chain-default figure and the median order by 0.0%. The term is not cosmetic.",
+  "held_out": false,
+  "baseline": "chain-wide sigma_L = 2.22d for every supplier",
+  "beat_baseline": null,
+  "traps": [
+    "T3"
+  ],
+  "provenance": "observed",
+  "sources": [
+    "source.fulfilment-detail",
+    "source.corrected-ads",
+    "source.supplier-weekly-schedule"
+  ],
+  "config_hash": "",
+  "run_at": "2026-09-04T15:37:58"
+}
