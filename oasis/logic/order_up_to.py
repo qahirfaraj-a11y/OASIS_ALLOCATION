@@ -215,6 +215,63 @@ def load_review_schedule(root: str) -> Dict[str, float]:
 
 PATTERNS_FILE = "supplier_lead_patterns.json"
 
+#: Second-choice source. This is the file `order_engine.py` loads into
+#: `databases['supplier_patterns']` and the ORIGINAL wiring bug handed
+#: straight to `sigma_lead()` -- it carries no `lead_time_stdev` key, only
+#: `lata_stdev_days`, so that lookup always missed and every supplier fell
+#: back to the 2.22 constant. It is not a bad file, it is the WRONG PRIMARY:
+#: same underlying statistic (Brookside: 0.56d here vs 0.555d in the receipt
+#: file), computed by a second pipeline, over a different vendor set (599
+#: vs. 472). Kept as a gap-filler for the ~127 vendors it has that the
+#: receipt file doesn't, never as an override.
+SECONDARY_PATTERNS_FILE = "supplier_patterns_2025.json"
+
+
+def _load_secondary_patterns(root: str) -> Dict[str, dict]:
+    """Gap-filler patterns from SECONDARY_PATTERNS_FILE's `lata_stdev_days`.
+
+    Returns only entries with that field present; every value is tagged
+    `provenance: "observed_secondary"` so a caller can tell a receipt-file
+    measurement from a table one -- "prefer measured over asserted, and
+    label which is which."
+    """
+    for cand in (os.path.join(root, "oasis", "data", SECONDARY_PATTERNS_FILE),
+                 os.path.join(root, "data", SECONDARY_PATTERNS_FILE),
+                 os.path.join(root, SECONDARY_PATTERNS_FILE)):
+        path = os.path.abspath(cand)
+        if not os.path.exists(path):
+            continue
+        try:
+            with open(path, encoding="utf-8") as f:
+                data = json.load(f) or {}
+        except (OSError, ValueError) as e:
+            logger.warning("secondary lead patterns at %s are unreadable "
+                           "(%s)", path, e)
+            return {}
+        out = {}
+        for k, v in data.items():
+            if not isinstance(v, dict):
+                continue
+            sd = v.get("lata_stdev_days")
+            if sd is None:
+                continue
+            try:
+                sd = float(sd)
+            except (TypeError, ValueError):
+                continue
+            if sd < 0:
+                continue
+            key = " ".join(str(k).upper().split())
+            out[key] = {"lead_time_stdev": sd,
+                       "samples": v.get("lata_sample_size"),
+                       "provenance": "observed_secondary",
+                       "vendor": k}
+        logger.info("secondary lead patterns: %d vendors from %s "
+                    "(gap-filler only)", len(out),
+                    os.path.basename(path))
+        return out
+    return {}
+
 
 def load_lead_patterns(root: str) -> Dict[str, dict]:
     """Supplier -> measured lead time and spread, from the receipt history.
@@ -460,17 +517,182 @@ def _r_source(supplier, schedule, cadence=None) -> str:
     return "cadence" if m is not None else "default"
 
 
+#: Chain-wide fraction of `sigma_lead()` calls (i.e. order lines actually
+#: sized) that must resolve a MEASURED spread before the fallback constant is
+#: trusted blind. Set from the observed join rate of the wiring bug this
+#: guards against: before the fix (patterns dict with no recognised key at
+#: all) the rate was ~0%; the measured file alone covers ~50% of declared
+#: suppliers by vendor count, more by order-line volume since it is weighted
+#: toward the suppliers who actually ship. 0.30 is well below either measured
+#: figure and well above the ~0% a silent re-break would produce -- see
+#: devkit/probe_lata_wiring.py for the number this floor is calibrated against.
+JOIN_RATE_FLOOR = 0.30
+
+
+class _JoinStats:
+    """Hits/misses for `sigma_lead()` -- the T1-style guard task A asks for.
+
+    A patterns dict that loads, parses and matches nothing is worse than no
+    patterns dict: it LOOKS wired up. This is the difference between "the
+    file is missing" (logged once, loudly, at load time) and "the file loads
+    fine but the join silently fails" (invisible unless someone counts).
+    """
+
+    def __init__(self) -> None:
+        self.hits = 0
+        self.total = 0
+
+    def reset(self) -> None:
+        self.hits = 0
+        self.total = 0
+
+    def record(self, matched: bool) -> None:
+        self.total += 1
+        if matched:
+            self.hits += 1
+
+    @property
+    def rate(self) -> float:
+        return (self.hits / self.total) if self.total else 0.0
+
+
+_JOIN_STATS = _JoinStats()
+
+
+def check_join_rate(floor: float = JOIN_RATE_FLOOR, raise_on_fail: bool = False,
+                    reset: bool = True) -> float:
+    """Chain-wide fraction of scored order lines that hit a MEASURED sigma_L.
+
+    Call this after a batch of `recommend()` calls (simulation_bridge does,
+    once per scan). Logs a warning below `floor`; raises instead when a
+    caller wants a hard stop rather than a log line nobody reads. This is the
+    guard against the exact failure this package fixes: a patterns dict that
+    resolves, but to the wrong file, so every lookup misses and the join rate
+    silently sits at (or near) zero while nothing else says so.
+    """
+    stats = _JOIN_STATS
+    rate = stats.rate
+    if stats.total == 0:
+        logger.info("sigma_L join rate: no order lines scored yet")
+        return rate
+    msg = (f"sigma_L join rate: {stats.hits}/{stats.total} order lines "
+          f"resolved a measured lead-time spread ({rate:.1%}), floor "
+          f"{floor:.0%}")
+    if rate < floor:
+        logger.warning(msg + " -- patterns dict is loaded but barely "
+                       "matching; check the key format/source before "
+                       "trusting the fallback constant (T1: silent join "
+                       "failure)")
+        if raise_on_fail:
+            raise RuntimeError(msg)
+    else:
+        logger.info(msg)
+    if reset:
+        stats.reset()
+    return rate
+
+
+#: Receipts needed before a measured lead-time spread is believed. Below this
+#: the figure is noise: the book's sigma_L tops out at 71 days unfiltered and
+#: at 13.35 days once 30 receipts are required.
+MIN_SIGMA_SAMPLES = 30
+#: Percentile of the measured population used for suppliers we cannot measure.
+#: NOT the median: an unmeasured supplier is an unknown, and an unknown should
+#: not be given the typical supplier's reliability. p75 is conservative and
+#: SOURCED, which the hardcoded 2.22 was not -- that constant sat 54% above the
+#: measured median of 1.44 with nothing behind it.
+CHAIN_SIGMA_PERCENTILE = 0.75
+_CHAIN_SIGMA: Optional[float] = None
+
+
+def chain_sigma_lead(patterns: Optional[Dict[str, dict]] = None) -> float:
+    """The fallback sigma_L, derived from the suppliers we CAN measure.
+
+    A constant nobody can point at is a parameter nobody can argue with. This
+    one is the p75 of `lead_time_stdev` across every supplier with at least
+    MIN_SIGMA_SAMPLES receipts, so it moves when the book moves and can be
+    checked against the file it came from.
+    """
+    global _CHAIN_SIGMA
+    if _CHAIN_SIGMA is not None:
+        return _CHAIN_SIGMA
+    pats = patterns if patterns is not None else default_patterns()
+    vals = []
+    for v in (pats or {}).values():
+        if not isinstance(v, dict):
+            continue
+        try:
+            if int(v.get("samples") or 0) < MIN_SIGMA_SAMPLES:
+                continue
+            x = float(v.get("lead_time_stdev", v.get("lata_stdev_days")))
+        except (TypeError, ValueError):
+            continue
+        if x >= 0:
+            vals.append(x)
+    if len(vals) < 50:
+        _CHAIN_SIGMA = DEFAULT_SIGMA_LEAD
+        logger.info("chain sigma_L: too few measured suppliers (%d), keeping "
+                    "the %.2f default", len(vals), DEFAULT_SIGMA_LEAD)
+        return _CHAIN_SIGMA
+    vals.sort()
+    _CHAIN_SIGMA = vals[int(CHAIN_SIGMA_PERCENTILE * len(vals))]
+    logger.info("chain sigma_L: p%d of %d measured suppliers = %.2f d "
+                "(was a hardcoded %.2f)", int(100 * CHAIN_SIGMA_PERCENTILE),
+                len(vals), _CHAIN_SIGMA, DEFAULT_SIGMA_LEAD)
+    return _CHAIN_SIGMA
+
+
 def sigma_lead(pattern: Optional[dict],
-               default: float = DEFAULT_SIGMA_LEAD) -> float:
+               default: Optional[float] = None,
+               record: bool = True) -> float:
     """Lead-time standard deviation for a supplier.
 
     Prefers a measured value on the supplier's pattern; falls back to the
     chain-wide figure. Never zero: a supplier we have not measured is not a
     supplier who always delivers on time, and treating it as one deletes the
     larger half of the safety term.
+
+    Four key spellings, not three: `lata_stdev_days` is the SAME measured
+    quantity under the name the older supplier_patterns_2025.json table uses
+    (Brookside: 0.56 there against 0.555 here -- one statistic, two
+    pipelines). Recognising it here means a caller who is handed that table
+    by mistake degrades gracefully instead of silently landing on the 2.22
+    constant for every supplier, which is exactly the wiring bug this
+    package exists to fix (see simulation_bridge.py's old
+    `patterns=self.engine.databases.get('supplier_patterns', {})`).
+
+    `record=False` is for callers that look up sigma_L for every line they
+    ever SCAN (e.g. the classic path's trigger, computed before a line is
+    known to need an order at all) rather than for a line actually being
+    SIZED -- passing False keeps that traffic out of `check_join_rate()`,
+    whose contract ("fraction of order lines") is about lines the derived
+    model actually sizes, not every SKU touched by a pass over the catalogue.
     """
+    # SAMPLE FLOOR. A standard deviation from six receipts is not a measurement
+    # of anything. Unfiltered, the book contains suppliers at sigma_L = 71 days
+    # -- which is not lead-time variance, it is a sporadic vendor seen twice a
+    # year -- and 71 days of sigma drives 91 days of safety stock through the
+    # quadrature. Above 30 samples the whole book tops out at 13.35 days with a
+    # p99 of 5.54, which is a spread you can actually plan against.
+    #
+    # A supplier this thin is not thereby RELIABLE, so the fallback is the
+    # chain-wide constant, not zero -- same reasoning as the missing-supplier
+    # case above. And a supplier whose lead time genuinely swings by weeks is a
+    # supplier to renegotiate or drop (MANDE's job), not one to absorb with
+    # stock: safety stock is priced for noise, not for a broken relationship.
+    if default is None:
+        default = chain_sigma_lead()
     if isinstance(pattern, dict):
-        for key in ("lead_time_stdev", "lead_time_std", "lead_stdev"):
+        try:
+            _n = int(pattern.get("samples") or pattern.get("n") or 0)
+        except (TypeError, ValueError):
+            _n = 0
+        if _n and _n < MIN_SIGMA_SAMPLES:
+            if record:
+                _JOIN_STATS.record(False)
+            return default
+        for key in ("lead_time_stdev", "lead_time_std", "lead_stdev",
+                   "lata_stdev_days"):
             v = pattern.get(key)
             if v is not None:
                 try:
@@ -478,7 +700,11 @@ def sigma_lead(pattern: Optional[dict],
                 except (TypeError, ValueError):
                     continue
                 if v >= 0:
+                    if record:
+                        _JOIN_STATS.record(True)
                     return v
+    if record:
+        _JOIN_STATS.record(False)
     return default
 
 
@@ -539,18 +765,56 @@ _PATTERNS_CACHE: Optional[Dict[str, dict]] = None
 
 
 def default_patterns(root: Optional[str] = None) -> Dict[str, dict]:
-    """The measured lead patterns, loaded once.
+    """The measured lead patterns, loaded once. THE canonical source for
+    `sigma_lead()` -- callers should pass this, not `order_engine`'s
+    `databases['supplier_patterns']` (supplier_patterns_2025.json raw),
+    which is the dict that caused the original wiring bug: it loads,
+    parses, and matches nothing `sigma_lead()` recognised.
 
     `recommend()` used to fall back to an empty dict when a caller passed no
     patterns, which meant every supplier silently took the chain-wide
     sigma_L — including the 472 the receipt history can measure. A file nobody
     loads is indistinguishable from a file that does not exist.
+
+    Merges in `_load_secondary_patterns()` as a gap-filler UNDER the primary
+    receipt-measured file -- never overriding it -- then reports the
+    supplier-level join rate against the declared order schedule so a
+    silent regression (a rename, a moved file) shows up as a log line
+    instead of a quiet return to the 2.22 constant for everyone.
     """
     global _PATTERNS_CACHE
     if _PATTERNS_CACHE is None:
         base = root or os.path.abspath(
             os.path.join(os.path.dirname(__file__), "..", ".."))
-        _PATTERNS_CACHE = load_lead_patterns(base)
+        primary = load_lead_patterns(base)
+        secondary = _load_secondary_patterns(base)
+        merged = dict(secondary)
+        merged.update(primary)          # measured file wins where both exist
+        _PATTERNS_CACHE = merged
+
+        # T1-style static guard: what fraction of the DECLARED supplier book
+        # (the order schedule, not just the patterns file's own vendor list)
+        # would resolve a measured sigma_L. This catches "the file loads but
+        # keys nothing real" at load time, before a single order line is
+        # scored; check_join_rate() catches the same failure at run time,
+        # per actual order-line traffic.
+        try:
+            schedule = load_review_schedule(base)
+        except Exception:
+            schedule = {}
+        if schedule:
+            universe = [k for k in schedule if k != "__counts__"]
+            hits = sum(1 for s in universe if s in merged)
+            rate = hits / len(universe) if universe else 0.0
+            msg = (f"sigma_L patterns join (static, vs declared schedule): "
+                  f"{hits}/{len(universe)} suppliers ({rate:.1%})")
+            if rate < JOIN_RATE_FLOOR:
+                logger.warning(msg + f" — below the {JOIN_RATE_FLOOR:.0%} "
+                              "floor; a patterns file that loads and "
+                              "matches almost nothing is worse than none "
+                              "(T1: silent join failure)")
+            else:
+                logger.info(msg)
     return _PATTERNS_CACHE
 
 

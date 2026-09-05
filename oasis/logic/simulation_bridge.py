@@ -1,6 +1,7 @@
 import sys
 import os
 import hashlib
+import math
 from datetime import datetime
 from typing import List, Dict, Any
 
@@ -75,7 +76,29 @@ class SimulationOrderUtil:
         # multipliers from supplier_patterns (written by run_lata). Unreliable
         # suppliers (>30% LT variance) inflate the buffer up to 2.0x; rock-solid
         # ones trim it toward 0.8x. Missing file/entry → neutral 1.0.
+        #
+        # RETAINED FOR TELEMETRY/COMPARISON ONLY as of the LATA wiring fix
+        # below -- it is no longer multiplied into `safety_buffer` (see
+        # `calculate_order_quantity`, "DOUBLE-COUNT FIX"). Sizing now reads
+        # sigma_L directly off `self._lead_patterns` and combines it with
+        # demand cv additively, once, instead of stacking this multiplier on
+        # top of a separate cv-driven factor.
         self._lata_multipliers = self._load_lata_multipliers(data_dir)
+
+        # THE WIRING FIX (task A): `order_up_to.sigma_lead()` needs a dict
+        # keyed by supplier with a `lead_time_stdev`-shaped field on it.
+        # `self.engine.databases['supplier_patterns']` (supplier_patterns_
+        # 2025.json, loaded by order_engine.py) carries NO such key -- only
+        # `lata_stdev_days` -- so the one live caller of `_ou.recommend()`
+        # used to hand it that dict directly and every lookup missed,
+        # silently falling back to the chain-wide 2.22d constant for EVERY
+        # supplier, including the ~472 the receipt history measures
+        # precisely. `_ou.default_patterns()` is THE canonical, correctly-
+        # keyed source (it also folds in supplier_patterns_2025.json's
+        # `lata_stdev_days` as a gap-filler -- see order_up_to.py) and is
+        # cached at module level, so calling it here is cheap and keeps one
+        # copy per process rather than one per SKU.
+        self._lead_patterns = _ou.default_patterns()
 
         # F4: ROP source gate. 'heuristic' (default) keeps the flat fallback
         # ADS×(LT+safety). 'newsvendor' computes the statistically-correct
@@ -299,19 +322,82 @@ class SimulationOrderUtil:
                 # scale from 1.0 at risk 0.5 to 1.3 at risk 1.0
                 gnn_multiplier = 1.0 + ((gnn_risk_score - 0.5) * 0.6)
 
-            # F3: LATA Supplier Shield — lead-time-variance multiplier for this
-            # SKU's supplier (unreliable suppliers need deeper safety stock).
-            lata_multiplier = self._lata_multipliers.get(supplier_upper, 1.0)
-
-            safety_buffer = (base_safety * (1 + (vol_factor * cv))
-                             * gnn_multiplier * lata_multiplier)
+            # F3: LATA Supplier Shield.
+            #
+            # sigma_L now comes from `_ou.sigma_lead()` against
+            # `self._lead_patterns` (task A) -- the correctly-keyed, measured
+            # patterns file. Before this fix, the only per-line signal for
+            # lead-time variance was `self._lata_multipliers` sourced from
+            # supplier_patterns_2025.json / lata_derived.json; that lookup
+            # itself was fine, but the QUANTITY MODEL's own sigma_lead() call
+            # (used when OASIS_ORDER_MODEL=order_up_to) was broken -- see the
+            # __init__ comment above.
+            #
+            # DOUBLE-COUNT FIX (diagnosis item 4): the old formula was
+            #     base_safety * (1 + vol_factor*cv) * gnn_multiplier * lata_multiplier
+            # `lata_multiplier` (however sourced) is itself SHAPED like
+            # sqrt(1 + sigma_L^2/(P*cv^2)) -- i.e. already a function of
+            # demand cv -- so multiplying it against a SEPARATE
+            # (1 + vol_factor*cv) let cv's effect enter twice, and let four
+            # independent-ish factors compound multiplicatively instead of
+            # combining the way independent variances should. Demand
+            # variability and lead-time variability are combined ONCE here,
+            # additively under a square root -- the same shape as the
+            # derivation this engine commits to elsewhere:
+            #     S = d*P + z*sqrt(P*sigma_d^2 + d^2*sigma_L^2)
+            #     (order_up_to.demand_sigma_over)
+            # dividing through by d turns that into a days-of-cover term:
+            #     sqrt(P*cv^2 + sigma_L^2)  ==  sqrt((sigma_d/d)^2 + sigma_L^2)
+            # and P's demand-side share is approximated here by the existing
+            # `vol_factor` scaling on cv, so the two components being
+            # combined are `vol_factor*cv` (demand) and `sigma_L/lead_time`
+            # (lead time's OWN coefficient of variation) -- both dimension-
+            # less relative spreads, safe to combine via sqrt(a^2+b^2).
+            #
+            # `lata_multiplier` is kept, NAMED and NEUTRALISED to 1.0, rather
+            # than deleted -- so anything still reading it (reasoning
+            # strings, scorecards) sees an explicit no-op instead of a
+            # missing field. `self._lata_multipliers` (the old table/derived
+            # value) is no longer multiplied in; it stays available for
+            # comparison logging only.
+            # DIMENSIONS. The solver's first pass combined `vol_factor*cv` with
+            # `sigma_L / lead_time` -- both "dimensionless relative spreads".
+            # They are not the same thing and the division is wrong. In
+            #     S = d*P + z*sqrt(P*sigma_d^2 + d^2*sigma_L^2)
+            # divide by d: sigma_L enters DIRECTLY IN DAYS, because the term is
+            # d^2*sigma_L^2. Turning it into sigma_L/L makes the lead-time
+            # contribution SHRINK as the lead time grows, which is backwards: a
+            # supplier at L=1 +/-1 day and one at L=10 +/-1 day carry the same
+            # absolute exposure, one day of demand, and the CV form charges the
+            # first ten times the second.
+            #
+            # So the safety term is computed by the engine's OWN function rather
+            # than reimplemented here. demand_sigma_over(P, 1, cv, sigma_L)
+            # returns sqrt(P*cv^2 + sigma_L^2) -- the days-of-cover form of the
+            # derivation, exactly. One derivation, one place.
+            #
+            # This also retires `base_safety` (4.0 fresh / 1.5 dry) from SIZING.
+            # It was calibrated as a TRIGGER constant and has no source; with
+            # sigma_L measured per supplier there is nothing left for it to
+            # stand in for. It survives below as a FLOOR only, so a line with a
+            # perfectly reliable supplier and no measured demand spread still
+            # keeps a token buffer rather than dropping to zero.
+            sigma_L = _ou.sigma_lead(self._lead_patterns.get(supplier_upper), record=False)
+            _P = float(gap_days) + float(lead_time)
+            _z = _ou.z_score()
+            lead_time_cv = (sigma_L / lead_time) if lead_time > 0 else 0.0   # reporting only
+            lata_multiplier = 1.0  # NEUTRALISED -- sigma_L enters via the quadrature
+            safety_days = _z * _ou.demand_sigma_over(_P, 1.0, cv, sigma_L)
+            safety_buffer = max(safety_days * gnn_multiplier, base_safety * 0.5)
 
             critical_thresh = lead_time + safety_buffer
 
             if gnn_multiplier > 1.0:
                  rec['reasoning'] += f" [GNN Risk Burst: +{(gnn_multiplier-1.0)*100:.0f}% Safety]"
-            if abs(lata_multiplier - 1.0) > 0.05:
-                 rec['reasoning'] += f" [LATA Shield: x{lata_multiplier:.2f} supplier variance]"
+            if sigma_L > 0.05:
+                 rec['reasoning'] += (f" [LATA Shield: sigma_L={sigma_L:.2f}d -> "
+                                      f"safety {safety_buffer:.2f}d of a {_P:.1f}d "
+                                      f"protection interval]")
                  
             is_critical = days_coverage < critical_thresh
             
@@ -440,9 +526,15 @@ class SimulationOrderUtil:
                 # The TRIGGER above is deliberately shared, so a difference in
                 # the result is attributable to the quantity decision alone.
                 if _ou.is_enabled():
+                    # TASK A FIX: was `self.engine.databases.get(
+                    # 'supplier_patterns', {})` -- supplier_patterns_2025.json,
+                    # which has no `lead_time_stdev`-shaped key, so every
+                    # lookup missed and `sigma_lead()` silently returned the
+                    # 2.22d chain constant for every supplier. Use the
+                    # correctly-keyed, measured cache instead (see __init__).
                     terms = _ou.recommend(
                         p, schedule=self._review_schedule,
-                        patterns=self.engine.databases.get('supplier_patterns', {}))
+                        patterns=self._lead_patterns)
                     q = float(terms.get("quantity") or 0)
                     if q > 0:
                         rec['recommended_quantity'] = q
@@ -467,6 +559,39 @@ class SimulationOrderUtil:
                 if is_fresh:
                     if target_coverage_days <= 0:
                         target_coverage_days = 1.2
+
+                    # TASK C FIX: fresh lines used to take target_coverage_days
+                    # straight from enrichment -- `safety_buffer` never entered
+                    # this branch at all, so LATA moved the TRIGGER
+                    # (critical_thresh, above) for a fresh line but never its
+                    # SIZE. A daily, reliable supplier should carry LESS safety
+                    # than an erratic one, not the same (zero) either way --
+                    # the spec's own language is "shrinks the Safety Stock to
+                    # free up working capital", and shrinking needs something
+                    # to shrink FROM. Added in days, the same units
+                    # target_coverage_days already uses.
+                    #
+                    # Bounded by the MEASURED shelf life so an unreliable
+                    # supplier can inflate the safety term without inflating
+                    # the order past what the product can physically survive
+                    # on the shelf -- the shelf life is a ceiling on what can
+                    # be HELD, not a target; see order_up_to.clamp_level and
+                    # shelf_life_days.json for the same rule applied to the
+                    # derived model.
+                    fresh_with_safety = target_coverage_days + safety_buffer
+                    shelf_life = _ou.shelf_life_for(
+                        p.get('department') or p.get('product_category') or '')
+                    if shelf_life > 0 and fresh_with_safety > shelf_life:
+                        target_coverage_days = shelf_life
+                        rec['reasoning'] += (
+                            f" [LATA Fresh Safety +{safety_buffer:.2f}d -> "
+                            f"{fresh_with_safety:.2f}d, shelf-life clamped to "
+                            f"{shelf_life:.1f}d]")
+                    else:
+                        target_coverage_days = fresh_with_safety
+                        rec['reasoning'] += (
+                            f" [LATA Fresh Safety +{safety_buffer:.2f}d -> "
+                            f"{target_coverage_days:.2f}d]")
                     rec['reasoning'] += f" [Fresh DDoS Target: {target_coverage_days:.2f}d]"
                 else:
                     gap_days = int(p.get('median_gap_days', 7))
@@ -497,7 +622,17 @@ class SimulationOrderUtil:
                  rec['reasoning'] = f" [Above ROP {reorder_point:.1f}]"
 
             recommendations.append(rec)
-            
+
+        # TASK A: report the chain-wide join rate for THIS batch's order
+        # lines -- how many actually resolved a measured sigma_L rather than
+        # the fallback constant. Logs (see order_up_to.check_join_rate); does
+        # not raise, because a thin batch (a handful of SKUs, a new store) is
+        # expected to look this way and should not crash a live scan -- the
+        # probe (devkit/probe_lata_wiring.py) is where a floor breach should
+        # fail a build.
+        if _ou.is_enabled():
+            _ou.check_join_rate()
+
         return recommendations
 
     def finalize_orders(self, recommendations: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
