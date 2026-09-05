@@ -1,0 +1,5501 @@
+{
+ "254 BREWING COMPANY LIMITED": {
+  "deliveries": 22,
+  "first": "2025-01-29",
+  "last": "2026-03-04",
+  "median_gap": 11,
+  "p90_gap": 14,
+  "provenance": "observed",
+  "span_days": 399
+ },
+ "ABACUS PHARMA A LTD SR": {
+  "deliveries": 1,
+  "median_gap": null,
+  "p90_gap": null,
+  "provenance": "observed",
+  "span_days": 0
+ },
+ "ABONY DAIRIES LIMITED": {
+  "deliveries": 32,
+  "first": "2025-01-07",
+  "last": "2026-03-16",
+  "median_gap": 8,
+  "p90_gap": 15,
+  "provenance": "observed",
+  "span_days": 433
+ },
+ "ACHAARI ENTERPRISES LTD": {
+  "deliveries": 13,
+  "first": "2025-01-20",
+  "last": "2026-03-14",
+  "median_gap": 27.5,
+  "p90_gap": 46,
+  "provenance": "observed",
+  "span_days": 418
+ },
+ "ACROSS AGRICULTURE LIMITED SR": {
+  "deliveries": 21,
+  "first": "2025-01-15",
+  "last": "2026-03-11",
+  "median_gap": 14.0,
+  "p90_gap": 45,
+  "provenance": "observed",
+  "span_days": 420
+ },
+ "AESTHETICS LIMITED SR": {
+  "deliveries": 1,
+  "median_gap": null,
+  "p90_gap": null,
+  "provenance": "observed",
+  "span_days": 0
+ },
+ "AFEEDA FARMS LIMITED": {
+  "deliveries": 7,
+  "first": "2026-02-17",
+  "last": "2026-03-19",
+  "median_gap": 5.0,
+  "p90_gap": 7,
+  "provenance": "observed",
+  "span_days": 30
+ },
+ "AFREXO TRADING GLOBAL LTD SR": {
+  "deliveries": 1,
+  "median_gap": null,
+  "p90_gap": null,
+  "provenance": "observed",
+  "span_days": 0
+ },
+ "AFRICAN BEEKEEPERS LIMITED": {
+  "deliveries": 4,
+  "first": "2025-09-05",
+  "last": "2026-03-02",
+  "median_gap": 69,
+  "p90_gap": 76,
+  "provenance": "observed",
+  "span_days": 178
+ },
+ "AFRICAN COTTON INDUSTRIES LTD": {
+  "deliveries": 29,
+  "first": "2025-01-11",
+  "last": "2026-03-21",
+  "median_gap": 10.5,
+  "p90_gap": 20,
+  "provenance": "observed",
+  "span_days": 434
+ },
+ "AFRO IRIS LIMITED SR": {
+  "deliveries": 6,
+  "first": "2025-01-31",
+  "last": "2025-11-28",
+  "median_gap": 49,
+  "p90_gap": 136,
+  "provenance": "observed",
+  "span_days": 301
+ },
+ "AFROMIX SPIRITS LIMITED": {
+  "deliveries": 1,
+  "median_gap": null,
+  "p90_gap": null,
+  "provenance": "observed",
+  "span_days": 0
+ },
+ "AGRAZA LIMITED SR": {
+  "deliveries": 2,
+  "first": "2026-03-06",
+  "last": "2026-03-17",
+  "median_gap": 11,
+  "p90_gap": 11,
+  "provenance": "observed",
+  "span_days": 11
+ },
+ "AGVENTURE LTD": {
+  "deliveries": 12,
+  "first": "2025-02-22",
+  "last": "2026-02-12",
+  "median_gap": 19,
+  "p90_gap": 70,
+  "provenance": "observed",
+  "span_days": 355
+ },
+ "AL FATAIRE FASARI LTD SR": {
+  "deliveries": 2,
+  "first": "2025-02-20",
+  "last": "2025-03-22",
+  "median_gap": 30,
+  "p90_gap": 30,
+  "provenance": "observed",
+  "span_days": 30
+ },
+ "ALIMP GROUP LIMITED SR": {
+  "deliveries": 19,
+  "first": "2025-01-17",
+  "last": "2025-11-26",
+  "median_gap": 10.0,
+  "p90_gap": 27,
+  "provenance": "observed",
+  "span_days": 313
+ },
+ "ALISON PRODUCTS LTD": {
+  "deliveries": 20,
+  "first": "2025-01-09",
+  "last": "2026-03-23",
+  "median_gap": 17,
+  "p90_gap": 30,
+  "provenance": "observed",
+  "span_days": 438
+ },
+ "ALPHAJIRI LIMITED SR": {
+  "deliveries": 11,
+  "first": "2025-01-10",
+  "last": "2026-03-12",
+  "median_gap": 21.0,
+  "p90_gap": 151,
+  "provenance": "observed",
+  "span_days": 426
+ },
+ "ALPINE COOLERS": {
+  "deliveries": 6,
+  "first": "2025-01-02",
+  "last": "2026-01-16",
+  "median_gap": 37,
+  "p90_gap": 165,
+  "provenance": "observed",
+  "span_days": 379
+ },
+ "ALTIN FOOD LIMITED SR": {
+  "deliveries": 2,
+  "first": "2025-12-08",
+  "last": "2026-03-13",
+  "median_gap": 95,
+  "p90_gap": 95,
+  "provenance": "observed",
+  "span_days": 95
+ },
+ "ANDREW MUROKI GATHAGE": {
+  "deliveries": 29,
+  "first": "2025-08-18",
+  "last": "2026-03-23",
+  "median_gap": 7.0,
+  "p90_gap": 7,
+  "provenance": "observed",
+  "span_days": 217
+ },
+ "ANEEK IMPORTERS AND TRADERS LTD": {
+  "deliveries": 14,
+  "first": "2025-02-05",
+  "last": "2026-02-19",
+  "median_gap": 15,
+  "p90_gap": 49,
+  "provenance": "observed",
+  "span_days": 379
+ },
+ "ANJU HOME BAKERS": {
+  "deliveries": 6,
+  "first": "2025-01-24",
+  "last": "2026-02-27",
+  "median_gap": 63,
+  "p90_gap": 218,
+  "provenance": "observed",
+  "span_days": 399
+ },
+ "ANNAPURNA ENTERPRISES LTD": {
+  "deliveries": 20,
+  "first": "2025-01-08",
+  "last": "2026-03-24",
+  "median_gap": 16,
+  "p90_gap": 33,
+  "provenance": "observed",
+  "span_days": 440
+ },
+ "ANTONIA STOGDALE LTD": {
+  "deliveries": 22,
+  "first": "2025-01-11",
+  "last": "2026-03-16",
+  "median_gap": 14,
+  "p90_gap": 33,
+  "provenance": "observed",
+  "span_days": 429
+ },
+ "AQUAMIST LIMITED": {
+  "deliveries": 74,
+  "first": "2025-01-04",
+  "last": "2026-03-19",
+  "median_gap": 4,
+  "p90_gap": 6,
+  "provenance": "observed",
+  "span_days": 439
+ },
+ "AQUAPET AND STATIONERS LTD": {
+  "deliveries": 7,
+  "first": "2025-01-22",
+  "last": "2026-03-19",
+  "median_gap": 39.5,
+  "p90_gap": 197,
+  "provenance": "observed",
+  "span_days": 421
+ },
+ "AQUINTA PHARMA LIMITED SR": {
+  "deliveries": 2,
+  "first": "2025-08-29",
+  "last": "2025-11-22",
+  "median_gap": 85,
+  "p90_gap": 85,
+  "provenance": "observed",
+  "span_days": 85
+ },
+ "ARGUS TRADING CO LIMITED": {
+  "deliveries": 15,
+  "first": "2025-01-17",
+  "last": "2026-03-17",
+  "median_gap": 19.5,
+  "p90_gap": 45,
+  "provenance": "observed",
+  "span_days": 424
+ },
+ "ARMAAN LIMITED SR": {
+  "deliveries": 15,
+  "first": "2025-01-06",
+  "last": "2026-03-14",
+  "median_gap": 24.5,
+  "p90_gap": 45,
+  "provenance": "observed",
+  "span_days": 432
+ },
+ "ARTCAFFE COFFEE AND BAKERY LTD SR": {
+  "deliveries": 6,
+  "first": "2025-09-24",
+  "last": "2026-03-02",
+  "median_gap": 31,
+  "p90_gap": 50,
+  "provenance": "observed",
+  "span_days": 159
+ },
+ "ARYUV AGENCIES LTD": {
+  "deliveries": 25,
+  "first": "2025-01-13",
+  "last": "2026-03-21",
+  "median_gap": 12.5,
+  "p90_gap": 33,
+  "provenance": "observed",
+  "span_days": 432
+ },
+ "ASHMAH GENERAL TRADING COM LTD SR": {
+  "deliveries": 1,
+  "median_gap": null,
+  "p90_gap": null,
+  "provenance": "observed",
+  "span_days": 0
+ },
+ "ASSOCIATED BEVERAGES LIMITED": {
+  "deliveries": 6,
+  "first": "2025-07-25",
+  "last": "2026-03-12",
+  "median_gap": 42,
+  "p90_gap": 106,
+  "provenance": "observed",
+  "span_days": 230
+ },
+ "AVANZAR DISTRIBUTORS LIMITED": {
+  "deliveries": 3,
+  "first": "2025-10-24",
+  "last": "2025-11-19",
+  "median_gap": 13.0,
+  "p90_gap": 13,
+  "provenance": "observed",
+  "span_days": 26
+ },
+ "BABY BRANDS DIRECTS LTD": {
+  "deliveries": 22,
+  "first": "2025-01-09",
+  "last": "2026-03-24",
+  "median_gap": 15,
+  "p90_gap": 28,
+  "provenance": "observed",
+  "span_days": 439
+ },
+ "BAKE EASY PRODUCTS E A LTD": {
+  "deliveries": 4,
+  "first": "2025-08-05",
+  "last": "2026-01-08",
+  "median_gap": 30,
+  "p90_gap": 111,
+  "provenance": "observed",
+  "span_days": 156
+ },
+ "BAKELS EAST AFRICA LTD": {
+  "deliveries": 11,
+  "first": "2025-07-17",
+  "last": "2026-01-28",
+  "median_gap": 11.0,
+  "p90_gap": 47,
+  "provenance": "observed",
+  "span_days": 195
+ },
+ "BAKEX MILLERS LIMITED": {
+  "deliveries": 10,
+  "first": "2025-01-23",
+  "last": "2026-03-09",
+  "median_gap": 34,
+  "p90_gap": 148,
+  "provenance": "observed",
+  "span_days": 410
+ },
+ "BAPLIX COMPANY LTD": {
+  "deliveries": 6,
+  "first": "2025-02-15",
+  "last": "2025-12-08",
+  "median_gap": 42,
+  "p90_gap": 127,
+  "provenance": "observed",
+  "span_days": 296
+ },
+ "BARAKA KENYA LIMITED": {
+  "deliveries": 6,
+  "first": "2025-07-30",
+  "last": "2026-03-13",
+  "median_gap": 30,
+  "p90_gap": 102,
+  "provenance": "observed",
+  "span_days": 226
+ },
+ "BARRIQUE LIMITED": {
+  "deliveries": 2,
+  "first": "2026-01-27",
+  "last": "2026-03-21",
+  "median_gap": 53,
+  "p90_gap": 53,
+  "provenance": "observed",
+  "span_days": 53
+ },
+ "BATH AND CO LIMITED SR": {
+  "deliveries": 6,
+  "first": "2025-09-24",
+  "last": "2026-03-13",
+  "median_gap": 27,
+  "p90_gap": 64,
+  "provenance": "observed",
+  "span_days": 170
+ },
+ "BEAUTYLAND LTD": {
+  "deliveries": 19,
+  "first": "2025-01-13",
+  "last": "2026-03-23",
+  "median_gap": 16.0,
+  "p90_gap": 48,
+  "provenance": "observed",
+  "span_days": 434
+ },
+ "BEBALYSA ENTERPRISES LIMITED": {
+  "deliveries": 26,
+  "first": "2025-01-07",
+  "last": "2026-03-21",
+  "median_gap": 12,
+  "p90_gap": 22,
+  "provenance": "observed",
+  "span_days": 438
+ },
+ "BEIERSDORF EAST AFRICA LTD HQ": {
+  "deliveries": 27,
+  "first": "2025-01-09",
+  "last": "2026-03-17",
+  "median_gap": 12.0,
+  "p90_gap": 26,
+  "provenance": "observed",
+  "span_days": 432
+ },
+ "BEST BUY COMMODITY LIMITED": {
+  "deliveries": 20,
+  "first": "2025-01-14",
+  "last": "2026-03-16",
+  "median_gap": 14,
+  "p90_gap": 62,
+  "provenance": "observed",
+  "span_days": 426
+ },
+ "BEYOND OPINION B S LTD SR": {
+  "deliveries": 8,
+  "first": "2025-01-25",
+  "last": "2026-02-11",
+  "median_gap": 36,
+  "p90_gap": 173,
+  "provenance": "observed",
+  "span_days": 382
+ },
+ "BIASHARA MERCHANT COMPANY SEZ LTD": {
+  "deliveries": 37,
+  "first": "2025-01-14",
+  "last": "2026-03-19",
+  "median_gap": 7.0,
+  "p90_gap": 14,
+  "provenance": "observed",
+  "span_days": 429
+ },
+ "BIC EAST AFRICA LIMITED": {
+  "deliveries": 15,
+  "first": "2025-01-16",
+  "last": "2026-03-12",
+  "median_gap": 18.0,
+  "p90_gap": 71,
+  "provenance": "observed",
+  "span_days": 420
+ },
+ "BIDCO AFRICA LTD BEVERAGE": {
+  "deliveries": 6,
+  "first": "2025-02-06",
+  "last": "2025-09-03",
+  "median_gap": 16,
+  "p90_gap": 150,
+  "provenance": "observed",
+  "span_days": 209
+ },
+ "BIDCO AFRICA LTD HQ": {
+  "deliveries": 11,
+  "first": "2025-01-11",
+  "last": "2025-09-04",
+  "median_gap": 14.0,
+  "p90_gap": 126,
+  "provenance": "observed",
+  "span_days": 236
+ },
+ "BIDCO AFRICA LTD SUNTORY": {
+  "deliveries": 12,
+  "first": "2025-01-06",
+  "last": "2025-09-06",
+  "median_gap": 10,
+  "p90_gap": 24,
+  "provenance": "observed",
+  "span_days": 243
+ },
+ "BIDCORO AFRICA LIMITED": {
+  "deliveries": 5,
+  "first": "2026-01-26",
+  "last": "2026-03-19",
+  "median_gap": 13.5,
+  "p90_gap": 15,
+  "provenance": "observed",
+  "span_days": 52
+ },
+ "BIGCOLD KENYA SIMPLIFINE BAKERY NO GRN": {
+  "deliveries": 5,
+  "first": "2025-01-03",
+  "last": "2025-03-12",
+  "median_gap": 17.0,
+  "p90_gap": 22,
+  "provenance": "observed",
+  "span_days": 68
+ },
+ "BIGCOLD KENYA SIMPLIFINE FROZEN AND CHILLED": {
+  "deliveries": 13,
+  "first": "2025-01-03",
+  "last": "2025-12-02",
+  "median_gap": 14.0,
+  "p90_gap": 64,
+  "provenance": "observed",
+  "span_days": 333
+ },
+ "BIGCOLD KENYA SIMPLIFINE SHELF BREAD": {
+  "deliveries": 59,
+  "first": "2025-01-04",
+  "last": "2025-09-10",
+  "median_gap": 2.0,
+  "p90_gap": 3,
+  "provenance": "observed",
+  "span_days": 249
+ },
+ "BIMUS PERFUMES LLP SR": {
+  "deliveries": 5,
+  "first": "2025-01-13",
+  "last": "2025-09-12",
+  "median_gap": 25.5,
+  "p90_gap": 174,
+  "provenance": "observed",
+  "span_days": 242
+ },
+ "BIO FOOD PRODUCTS LTD": {
+  "deliveries": 266,
+  "first": "2025-01-02",
+  "last": "2026-03-24",
+  "median_gap": 1,
+  "p90_gap": 2,
+  "provenance": "observed",
+  "span_days": 446
+ },
+ "BLUE RING PRD LTD": {
+  "deliveries": 5,
+  "first": "2025-01-10",
+  "last": "2026-01-06",
+  "median_gap": 67.0,
+  "p90_gap": 196,
+  "provenance": "observed",
+  "span_days": 361
+ },
+ "BLUEMART PRODUCTS E A LTD": {
+  "deliveries": 15,
+  "first": "2025-01-15",
+  "last": "2026-03-17",
+  "median_gap": 20.5,
+  "p90_gap": 63,
+  "provenance": "observed",
+  "span_days": 426
+ },
+ "BOGO BEVERAGES LIMITED": {
+  "deliveries": 6,
+  "first": "2025-01-06",
+  "last": "2026-03-21",
+  "median_gap": 62,
+  "p90_gap": 171,
+  "provenance": "observed",
+  "span_days": 439
+ },
+ "BOUNTY LIMITED": {
+  "deliveries": 20,
+  "first": "2025-01-10",
+  "last": "2026-02-27",
+  "median_gap": 15,
+  "p90_gap": 47,
+  "provenance": "observed",
+  "span_days": 413
+ },
+ "BOWIP AGENCIES LTD": {
+  "deliveries": 3,
+  "first": "2025-01-24",
+  "last": "2025-03-20",
+  "median_gap": 27.5,
+  "p90_gap": 35,
+  "provenance": "observed",
+  "span_days": 55
+ },
+ "BRAND IMPORT AFRICA 2ND ACCOUNT SR": {
+  "deliveries": 1,
+  "median_gap": null,
+  "p90_gap": null,
+  "provenance": "observed",
+  "span_days": 0
+ },
+ "BRAND ROYALTY LTD": {
+  "deliveries": 25,
+  "first": "2025-01-07",
+  "last": "2026-03-17",
+  "median_gap": 11.0,
+  "p90_gap": 24,
+  "provenance": "observed",
+  "span_days": 434
+ },
+ "BRAND ROYALTY LTD 2ND ACCOUNT SR": {
+  "deliveries": 5,
+  "first": "2025-01-24",
+  "last": "2026-01-24",
+  "median_gap": 67.0,
+  "p90_gap": 175,
+  "provenance": "observed",
+  "span_days": 365
+ },
+ "BRANDACTIV KENYA LTD SR": {
+  "deliveries": 21,
+  "first": "2025-01-20",
+  "last": "2026-02-24",
+  "median_gap": 12.0,
+  "p90_gap": 49,
+  "provenance": "observed",
+  "span_days": 400
+ },
+ "BRIGHT BONIKA FOOD LIMITED": {
+  "deliveries": 12,
+  "first": "2025-01-13",
+  "last": "2026-02-21",
+  "median_gap": 23,
+  "p90_gap": 56,
+  "provenance": "observed",
+  "span_days": 404
+ },
+ "BROADWAYS BAKERY LTD": {
+  "deliveries": 262,
+  "first": "2025-01-01",
+  "last": "2026-03-24",
+  "median_gap": 1,
+  "p90_gap": 2,
+  "provenance": "observed",
+  "span_days": 447
+ },
+ "BROOKSIDE DAIRY LIMITED": {
+  "deliveries": 268,
+  "first": "2025-01-01",
+  "last": "2026-03-24",
+  "median_gap": 1,
+  "p90_gap": 2,
+  "provenance": "observed",
+  "span_days": 447
+ },
+ "BRUNEL TRADING LIMITED": {
+  "deliveries": 3,
+  "first": "2025-10-24",
+  "last": "2026-02-18",
+  "median_gap": 58.5,
+  "p90_gap": 98,
+  "provenance": "observed",
+  "span_days": 117
+ },
+ "BRUSH MANUFACTURERS": {
+  "deliveries": 17,
+  "first": "2025-01-10",
+  "last": "2026-03-09",
+  "median_gap": 15.5,
+  "p90_gap": 49,
+  "provenance": "observed",
+  "span_days": 423
+ },
+ "BUDGET MEALS COMPANY LTD": {
+  "deliveries": 13,
+  "first": "2025-01-14",
+  "last": "2026-03-19",
+  "median_gap": 21.5,
+  "p90_gap": 50,
+  "provenance": "observed",
+  "span_days": 429
+ },
+ "BURTON AND BAMBER C LIMITED": {
+  "deliveries": 21,
+  "first": "2025-01-04",
+  "last": "2026-03-07",
+  "median_gap": 14.0,
+  "p90_gap": 30,
+  "provenance": "observed",
+  "span_days": 427
+ },
+ "BUYLINE INDUSTRIES LTD": {
+  "deliveries": 16,
+  "first": "2025-01-11",
+  "last": "2026-03-14",
+  "median_gap": 16,
+  "p90_gap": 41,
+  "provenance": "observed",
+  "span_days": 427
+ },
+ "C AND C POLAKEN LIMITED": {
+  "deliveries": 1,
+  "median_gap": null,
+  "p90_gap": null,
+  "provenance": "observed",
+  "span_days": 0
+ },
+ "C AND R FOOD INDUSTRIES LTD": {
+  "deliveries": 18,
+  "first": "2025-01-09",
+  "last": "2026-03-12",
+  "median_gap": 16,
+  "p90_gap": 38,
+  "provenance": "observed",
+  "span_days": 427
+ },
+ "CADCO EAST AFRICA LIMITED HQ": {
+  "deliveries": 1,
+  "median_gap": null,
+  "p90_gap": null,
+  "provenance": "observed",
+  "span_days": 0
+ },
+ "CAFFE DEL DUCA LIMITED": {
+  "deliveries": 4,
+  "first": "2025-01-24",
+  "last": "2025-09-26",
+  "median_gap": 32,
+  "p90_gap": 182,
+  "provenance": "observed",
+  "span_days": 245
+ },
+ "CALIBER FOODS LIMITED": {
+  "deliveries": 32,
+  "first": "2025-01-04",
+  "last": "2026-03-19",
+  "median_gap": 9,
+  "p90_gap": 16,
+  "provenance": "observed",
+  "span_days": 439
+ },
+ "CAMINO RUIZ AGENCIES LTD SR": {
+  "deliveries": 7,
+  "first": "2025-01-07",
+  "last": "2025-12-04",
+  "median_gap": 29.0,
+  "p90_gap": 192,
+  "provenance": "observed",
+  "span_days": 331
+ },
+ "CANINE BIOSCIENCES LTD": {
+  "deliveries": 24,
+  "first": "2025-01-07",
+  "last": "2026-03-19",
+  "median_gap": 13,
+  "p90_gap": 29,
+  "provenance": "observed",
+  "span_days": 436
+ },
+ "CANNED MEAT PRODUCTS": {
+  "deliveries": 10,
+  "first": "2025-01-24",
+  "last": "2025-11-20",
+  "median_gap": 20,
+  "p90_gap": 134,
+  "provenance": "observed",
+  "span_days": 300
+ },
+ "CANON CHEMICALS LTD": {
+  "deliveries": 22,
+  "first": "2025-01-14",
+  "last": "2026-03-12",
+  "median_gap": 14,
+  "p90_gap": 30,
+  "provenance": "observed",
+  "span_days": 422
+ },
+ "CANSATIONAL FLAVOURS LTD": {
+  "deliveries": 1,
+  "median_gap": null,
+  "p90_gap": null,
+  "provenance": "observed",
+  "span_days": 0
+ },
+ "CAPRINE FOODS E A LTD": {
+  "deliveries": 11,
+  "first": "2025-03-07",
+  "last": "2026-02-14",
+  "median_gap": 22.5,
+  "p90_gap": 145,
+  "provenance": "observed",
+  "span_days": 344
+ },
+ "CAPWELL INDUSTRIES LTD": {
+  "deliveries": 71,
+  "first": "2025-01-06",
+  "last": "2026-03-20",
+  "median_gap": 4.0,
+  "p90_gap": 10,
+  "provenance": "observed",
+  "span_days": 438
+ },
+ "CARD GROUP EAST AFRICA LTD FINI HQ": {
+  "deliveries": 6,
+  "first": "2025-01-18",
+  "last": "2025-10-29",
+  "median_gap": 39,
+  "p90_gap": 146,
+  "provenance": "observed",
+  "span_days": 284
+ },
+ "CARD GROUP EAST AFRICA LTD NO GRN": {
+  "deliveries": 11,
+  "first": "2025-01-13",
+  "last": "2026-03-05",
+  "median_gap": 28.0,
+  "p90_gap": 195,
+  "provenance": "observed",
+  "span_days": 416
+ },
+ "CAROLINES CUPCAKES LIMITED SR": {
+  "deliveries": 4,
+  "first": "2025-09-20",
+  "last": "2026-03-17",
+  "median_gap": 29,
+  "p90_gap": 124,
+  "provenance": "observed",
+  "span_days": 178
+ },
+ "CASKS & BARRELS LIMITED": {
+  "deliveries": 21,
+  "first": "2025-01-23",
+  "last": "2026-03-11",
+  "median_gap": 14.0,
+  "p90_gap": 42,
+  "provenance": "observed",
+  "span_days": 412
+ },
+ "CASTELLO DELL AMORE LTD": {
+  "deliveries": 1,
+  "median_gap": null,
+  "p90_gap": null,
+  "provenance": "observed",
+  "span_days": 0
+ },
+ "CEEKAN ENTERPRISES LIMITED": {
+  "deliveries": 3,
+  "first": "2025-02-08",
+  "last": "2026-02-24",
+  "median_gap": 190.5,
+  "p90_gap": 243,
+  "provenance": "observed",
+  "span_days": 381
+ },
+ "CHANDARIA INDUSTRIES LIMITED TONI": {
+  "deliveries": 17,
+  "first": "2025-01-07",
+  "last": "2026-03-12",
+  "median_gap": 17.0,
+  "p90_gap": 46,
+  "provenance": "observed",
+  "span_days": 429
+ },
+ "CHANDARIA INDUSTRIES LTD": {
+  "deliveries": 29,
+  "first": "2025-01-11",
+  "last": "2026-03-14",
+  "median_gap": 11.0,
+  "p90_gap": 20,
+  "provenance": "observed",
+  "span_days": 427
+ },
+ "CHANDARIA INDUSTRIES LTD HENKEL C BRANDS": {
+  "deliveries": 27,
+  "first": "2025-01-13",
+  "last": "2026-03-24",
+  "median_gap": 12.0,
+  "p90_gap": 19,
+  "provenance": "observed",
+  "span_days": 435
+ },
+ "CHANDARIA INDUSTRIES LTD HYGIENE": {
+  "deliveries": 21,
+  "first": "2025-01-09",
+  "last": "2026-03-12",
+  "median_gap": 15.0,
+  "p90_gap": 48,
+  "provenance": "observed",
+  "span_days": 427
+ },
+ "CHANDARIA INDUSTRIES LTD KENTASTE": {
+  "deliveries": 25,
+  "first": "2025-01-10",
+  "last": "2026-03-24",
+  "median_gap": 13.0,
+  "p90_gap": 31,
+  "provenance": "observed",
+  "span_days": 438
+ },
+ "CHANDARIA INDUSTRIES LTD MACCOFFEE": {
+  "deliveries": 32,
+  "first": "2025-01-06",
+  "last": "2026-03-24",
+  "median_gap": 11,
+  "p90_gap": 15,
+  "provenance": "observed",
+  "span_days": 442
+ },
+ "CHARLIES WINERY LIMITED": {
+  "deliveries": 1,
+  "median_gap": null,
+  "p90_gap": null,
+  "provenance": "observed",
+  "span_days": 0
+ },
+ "CHER BEAUTY SHOP": {
+  "deliveries": 4,
+  "first": "2025-02-04",
+  "last": "2026-03-10",
+  "median_gap": 169,
+  "p90_gap": 169,
+  "provenance": "observed",
+  "span_days": 399
+ },
+ "CHERRY FARM RANGE": {
+  "deliveries": 3,
+  "first": "2026-01-20",
+  "last": "2026-02-23",
+  "median_gap": 17.0,
+  "p90_gap": 22,
+  "provenance": "observed",
+  "span_days": 34
+ },
+ "CHERUBET COMPANY LIMITED": {
+  "deliveries": 18,
+  "first": "2025-01-08",
+  "last": "2026-03-21",
+  "median_gap": 16,
+  "p90_gap": 65,
+  "provenance": "observed",
+  "span_days": 437
+ },
+ "CHILLI PILLI CO. LTD": {
+  "deliveries": 9,
+  "first": "2025-01-11",
+  "last": "2026-02-25",
+  "median_gap": 34.0,
+  "p90_gap": 193,
+  "provenance": "observed",
+  "span_days": 410
+ },
+ "CHIQ QICK GROUP LTD SR": {
+  "deliveries": 3,
+  "first": "2025-08-20",
+  "last": "2026-02-16",
+  "median_gap": 90.0,
+  "p90_gap": 90,
+  "provenance": "observed",
+  "span_days": 180
+ },
+ "CHIRAG AFRICA LIMITED": {
+  "deliveries": 18,
+  "first": "2025-01-09",
+  "last": "2026-03-14",
+  "median_gap": 16,
+  "p90_gap": 48,
+  "provenance": "observed",
+  "span_days": 429
+ },
+ "CHOICE MEATS BEEF PLANT": {
+  "deliveries": 107,
+  "first": "2025-01-03",
+  "last": "2026-03-24",
+  "median_gap": 3.0,
+  "p90_gap": 4,
+  "provenance": "observed",
+  "span_days": 445
+ },
+ "CLIPS LIMITED": {
+  "deliveries": 11,
+  "first": "2025-01-15",
+  "last": "2026-03-24",
+  "median_gap": 31.5,
+  "p90_gap": 198,
+  "provenance": "observed",
+  "span_days": 433
+ },
+ "CLOROX SUB SAHARA AFRICA LTD": {
+  "deliveries": 17,
+  "first": "2025-01-17",
+  "last": "2026-03-17",
+  "median_gap": 17.0,
+  "p90_gap": 46,
+  "provenance": "observed",
+  "span_days": 424
+ },
+ "COCA COLA BEVERAGES KENYA LTD": {
+  "deliveries": 94,
+  "first": "2025-01-03",
+  "last": "2026-03-24",
+  "median_gap": 3,
+  "p90_gap": 5,
+  "provenance": "observed",
+  "span_days": 445
+ },
+ "COCKRID KENYA LIMITED": {
+  "deliveries": 4,
+  "first": "2025-01-08",
+  "last": "2026-03-13",
+  "median_gap": 92,
+  "p90_gap": 293,
+  "provenance": "observed",
+  "span_days": 429
+ },
+ "CODE BEVERAGES LIMITED SR": {
+  "deliveries": 4,
+  "first": "2025-09-19",
+  "last": "2026-03-17",
+  "median_gap": 48,
+  "p90_gap": 110,
+  "provenance": "observed",
+  "span_days": 179
+ },
+ "COFFEEBEE PROCESSORS LIMITED SR": {
+  "deliveries": 3,
+  "first": "2025-10-04",
+  "last": "2026-02-26",
+  "median_gap": 72.5,
+  "p90_gap": 95,
+  "provenance": "observed",
+  "span_days": 145
+ },
+ "COLOMER EAST AFRICA LTD SR": {
+  "deliveries": 9,
+  "first": "2025-02-13",
+  "last": "2026-02-12",
+  "median_gap": 28.5,
+  "p90_gap": 142,
+  "provenance": "observed",
+  "span_days": 364
+ },
+ "CONFINI LIMITED": {
+  "deliveries": 14,
+  "first": "2025-01-11",
+  "last": "2026-03-09",
+  "median_gap": 21,
+  "p90_gap": 49,
+  "provenance": "observed",
+  "span_days": 422
+ },
+ "CORE FOODS LIMITED": {
+  "deliveries": 6,
+  "first": "2025-03-26",
+  "last": "2026-01-27",
+  "median_gap": 78,
+  "p90_gap": 119,
+  "provenance": "observed",
+  "span_days": 307
+ },
+ "CORNER SHOP PREPACK NO GRN": {
+  "deliveries": 45,
+  "first": "2025-01-02",
+  "last": "2026-03-23",
+  "median_gap": 7.0,
+  "p90_gap": 10,
+  "provenance": "observed",
+  "span_days": 445
+ },
+ "COUNTRY MEAT PRODUCTS LTD": {
+  "deliveries": 4,
+  "first": "2026-01-16",
+  "last": "2026-03-07",
+  "median_gap": 16,
+  "p90_gap": 20,
+  "provenance": "observed",
+  "span_days": 50
+ },
+ "COUNTRY MILE COMPANY LTD": {
+  "deliveries": 16,
+  "first": "2025-01-28",
+  "last": "2026-03-11",
+  "median_gap": 21,
+  "p90_gap": 34,
+  "provenance": "observed",
+  "span_days": 407
+ },
+ "CRAZY PLANTS LIMITED SR": {
+  "deliveries": 5,
+  "first": "2025-08-01",
+  "last": "2026-02-19",
+  "median_gap": 43.5,
+  "p90_gap": 103,
+  "provenance": "observed",
+  "span_days": 202
+ },
+ "CREATIVE INNOVATIONS LTD SR": {
+  "deliveries": 9,
+  "first": "2025-01-20",
+  "last": "2026-02-25",
+  "median_gap": 36.0,
+  "p90_gap": 121,
+  "provenance": "observed",
+  "span_days": 401
+ },
+ "CROWN BRANDS": {
+  "deliveries": 12,
+  "first": "2025-01-13",
+  "last": "2026-03-14",
+  "median_gap": 16,
+  "p90_gap": 42,
+  "provenance": "observed",
+  "span_days": 425
+ },
+ "CRYSTAL FR AND CHILLED FOODS LTD WINE SR": {
+  "deliveries": 28,
+  "first": "2025-01-14",
+  "last": "2026-03-18",
+  "median_gap": 8,
+  "p90_gap": 21,
+  "provenance": "observed",
+  "span_days": 428
+ },
+ "CRYSTAL FROZEN AND CHILLED FOODS LTD": {
+  "deliveries": 48,
+  "first": "2025-01-04",
+  "last": "2026-03-19",
+  "median_gap": 7,
+  "p90_gap": 9,
+  "provenance": "observed",
+  "span_days": 439
+ },
+ "D LIGHT LIMITED SR": {
+  "deliveries": 2,
+  "first": "2025-01-15",
+  "last": "2026-03-17",
+  "median_gap": 426,
+  "p90_gap": 426,
+  "provenance": "observed",
+  "span_days": 426
+ },
+ "DEBENHAM AND FEAR LTD": {
+  "deliveries": 25,
+  "first": "2025-01-10",
+  "last": "2026-03-16",
+  "median_gap": 13.0,
+  "p90_gap": 22,
+  "provenance": "observed",
+  "span_days": 430
+ },
+ "DELICTABLE FOODS LIMITED SR": {
+  "deliveries": 12,
+  "first": "2025-01-24",
+  "last": "2026-03-18",
+  "median_gap": 22,
+  "p90_gap": 63,
+  "provenance": "observed",
+  "span_days": 418
+ },
+ "DELISH AND NUTRI LTD": {
+  "deliveries": 17,
+  "first": "2025-01-23",
+  "last": "2026-03-24",
+  "median_gap": 19.0,
+  "p90_gap": 49,
+  "provenance": "observed",
+  "span_days": 425
+ },
+ "DELMONTE KENYA LTD": {
+  "deliveries": 14,
+  "first": "2025-01-24",
+  "last": "2026-03-09",
+  "median_gap": 28,
+  "p90_gap": 50,
+  "provenance": "observed",
+  "span_days": 409
+ },
+ "DENSHA PRODUCTS SR": {
+  "deliveries": 4,
+  "first": "2025-07-25",
+  "last": "2026-01-17",
+  "median_gap": 57,
+  "p90_gap": 70,
+  "provenance": "observed",
+  "span_days": 176
+ },
+ "DEVYANI FOOD INDUSTRIES K LIMITED": {
+  "deliveries": 25,
+  "first": "2025-01-11",
+  "last": "2026-03-19",
+  "median_gap": 12.5,
+  "p90_gap": 24,
+  "provenance": "observed",
+  "span_days": 432
+ },
+ "DEVYANI FOOD INDUSTRIES K LIMITED MILK AND YOGHURT": {
+  "deliveries": 115,
+  "first": "2025-01-02",
+  "last": "2026-03-21",
+  "median_gap": 3.0,
+  "p90_gap": 5,
+  "provenance": "observed",
+  "span_days": 443
+ },
+ "DHARAMSHI LAKHAMSHI AND CO LTD": {
+  "deliveries": 16,
+  "first": "2025-01-10",
+  "last": "2026-03-13",
+  "median_gap": 16,
+  "p90_gap": 48,
+  "provenance": "observed",
+  "span_days": 427
+ },
+ "DION WINE AND SPIRIT E A LIMITED": {
+  "deliveries": 20,
+  "first": "2025-01-29",
+  "last": "2026-03-11",
+  "median_gap": 14,
+  "p90_gap": 64,
+  "provenance": "observed",
+  "span_days": 406
+ },
+ "DNO ASPENDOS DAIRY LTD": {
+  "deliveries": 1,
+  "median_gap": null,
+  "p90_gap": null,
+  "provenance": "observed",
+  "span_days": 0
+ },
+ "DNO AVANZAR LIQUOR STORE": {
+  "deliveries": 2,
+  "first": "2025-09-03",
+  "last": "2025-10-07",
+  "median_gap": 34,
+  "p90_gap": 34,
+  "provenance": "observed",
+  "span_days": 34
+ },
+ "DNO GROUPACO HOLDINGS LTD": {
+  "deliveries": 2,
+  "first": "2025-01-29",
+  "last": "2025-02-20",
+  "median_gap": 22,
+  "p90_gap": 22,
+  "provenance": "observed",
+  "span_days": 22
+ },
+ "DNO HALANFAL HOLDINGS LIMITED SR": {
+  "deliveries": 2,
+  "first": "2025-07-16",
+  "last": "2025-08-04",
+  "median_gap": 19,
+  "p90_gap": 19,
+  "provenance": "observed",
+  "span_days": 19
+ },
+ "DNO LE SAUCIER ENT LIMITED SR": {
+  "deliveries": 1,
+  "median_gap": null,
+  "p90_gap": null,
+  "provenance": "observed",
+  "span_days": 0
+ },
+ "DNO NATION MEDIA GROUP LTD ACC 2 NO GRN": {
+  "deliveries": 3,
+  "first": "2026-01-28",
+  "last": "2026-02-28",
+  "median_gap": 15.5,
+  "p90_gap": 28,
+  "provenance": "observed",
+  "span_days": 31
+ },
+ "DOMAINE KENYA LTD": {
+  "deliveries": 23,
+  "first": "2025-02-05",
+  "last": "2026-03-18",
+  "median_gap": 11.5,
+  "p90_gap": 24,
+  "provenance": "observed",
+  "span_days": 406
+ },
+ "DORMANS COFFEE LIMITED": {
+  "deliveries": 29,
+  "first": "2025-01-11",
+  "last": "2026-03-18",
+  "median_gap": 10.5,
+  "p90_gap": 20,
+  "provenance": "observed",
+  "span_days": 431
+ },
+ "DP WORLD L MARKET ACCESS CONSUMER K LTD SR": {
+  "deliveries": 10,
+  "first": "2025-10-02",
+  "last": "2026-03-23",
+  "median_gap": 14,
+  "p90_gap": 51,
+  "provenance": "observed",
+  "span_days": 172
+ },
+ "DP WORLD L MARKET ACCESS CONSUMER K LTD TENA": {
+  "deliveries": 5,
+  "first": "2025-11-08",
+  "last": "2026-03-07",
+  "median_gap": 18.5,
+  "p90_gap": 70,
+  "provenance": "observed",
+  "span_days": 119
+ },
+ "DPL FESTIVE LIMITED": {
+  "deliveries": 272,
+  "first": "2025-01-01",
+  "last": "2026-03-24",
+  "median_gap": 1,
+  "p90_gap": 2,
+  "provenance": "observed",
+  "span_days": 447
+ },
+ "DUE BAMBINE LIMITED": {
+  "deliveries": 1,
+  "median_gap": null,
+  "p90_gap": null,
+  "provenance": "observed",
+  "span_days": 0
+ },
+ "DWC AFRO FUSION KENYA LTD": {
+  "deliveries": 3,
+  "first": "2025-03-13",
+  "last": "2025-12-05",
+  "median_gap": 133.5,
+  "p90_gap": 135,
+  "provenance": "observed",
+  "span_days": 267
+ },
+ "DYNALINK TRADING LIMITED SR": {
+  "deliveries": 7,
+  "first": "2025-02-15",
+  "last": "2026-03-24",
+  "median_gap": 52.0,
+  "p90_gap": 152,
+  "provenance": "observed",
+  "span_days": 402
+ },
+ "E.A.G.M HQ": {
+  "deliveries": 7,
+  "first": "2025-01-20",
+  "last": "2026-03-23",
+  "median_gap": 62.0,
+  "p90_gap": 178,
+  "provenance": "observed",
+  "span_days": 427
+ },
+ "EAST AFRICAN SEA FOOD LTD": {
+  "deliveries": 21,
+  "first": "2025-01-22",
+  "last": "2026-03-13",
+  "median_gap": 14.0,
+  "p90_gap": 49,
+  "provenance": "observed",
+  "span_days": 415
+ },
+ "ECO ESSENTIALS LIMITED": {
+  "deliveries": 17,
+  "first": "2025-01-04",
+  "last": "2026-03-16",
+  "median_gap": 17.5,
+  "p90_gap": 47,
+  "provenance": "observed",
+  "span_days": 436
+ },
+ "ECO FRIENDLY CONVERTERS LTD": {
+  "deliveries": 12,
+  "first": "2025-01-09",
+  "last": "2026-03-09",
+  "median_gap": 21,
+  "p90_gap": 44,
+  "provenance": "observed",
+  "span_days": 424
+ },
+ "ECOPACK LIMITED": {
+  "deliveries": 7,
+  "first": "2025-01-11",
+  "last": "2025-12-06",
+  "median_gap": 38.5,
+  "p90_gap": 120,
+  "provenance": "observed",
+  "span_days": 329
+ },
+ "ECOZYM LIMITED SR": {
+  "deliveries": 7,
+  "first": "2025-01-09",
+  "last": "2026-03-17",
+  "median_gap": 61.5,
+  "p90_gap": 126,
+  "provenance": "observed",
+  "span_days": 432
+ },
+ "ECSTACY LTD": {
+  "deliveries": 22,
+  "first": "2025-01-10",
+  "last": "2026-03-21",
+  "median_gap": 14,
+  "p90_gap": 30,
+  "provenance": "observed",
+  "span_days": 435
+ },
+ "EDMAX LIMITED SR": {
+  "deliveries": 7,
+  "first": "2025-01-16",
+  "last": "2026-03-18",
+  "median_gap": 47.5,
+  "p90_gap": 178,
+  "provenance": "observed",
+  "span_days": 426
+ },
+ "EDUCATE YOURSELF LTD": {
+  "deliveries": 11,
+  "first": "2025-01-15",
+  "last": "2026-02-26",
+  "median_gap": 33.0,
+  "p90_gap": 122,
+  "provenance": "observed",
+  "span_days": 407
+ },
+ "EEEZY COOK LTD": {
+  "deliveries": 22,
+  "first": "2025-01-07",
+  "last": "2026-03-21",
+  "median_gap": 14,
+  "p90_gap": 28,
+  "provenance": "observed",
+  "span_days": 438
+ },
+ "EKRAMY COMPANY LIMITED SR": {
+  "deliveries": 1,
+  "median_gap": null,
+  "p90_gap": null,
+  "provenance": "observed",
+  "span_days": 0
+ },
+ "ELDORET GRAINS LIMITED": {
+  "deliveries": 8,
+  "first": "2025-07-17",
+  "last": "2026-02-19",
+  "median_gap": 33,
+  "p90_gap": 43,
+  "provenance": "observed",
+  "span_days": 217
+ },
+ "ELEX PRODUCTS LIMITED SR": {
+  "deliveries": 3,
+  "first": "2025-08-23",
+  "last": "2026-03-21",
+  "median_gap": 105.0,
+  "p90_gap": 124,
+  "provenance": "observed",
+  "span_days": 210
+ },
+ "ENOTECA WINES AGENCIES LIMITED SR": {
+  "deliveries": 17,
+  "first": "2025-01-22",
+  "last": "2026-03-04",
+  "median_gap": 15.0,
+  "p90_gap": 41,
+  "provenance": "observed",
+  "span_days": 406
+ },
+ "ENOVA INDUSTRIES LIMITED": {
+  "deliveries": 11,
+  "first": "2025-01-14",
+  "last": "2026-03-23",
+  "median_gap": 25.5,
+  "p90_gap": 163,
+  "provenance": "observed",
+  "span_days": 433
+ },
+ "ERNESTEA LIMITED SR": {
+  "deliveries": 2,
+  "first": "2025-09-17",
+  "last": "2026-01-06",
+  "median_gap": 111,
+  "p90_gap": 111,
+  "provenance": "observed",
+  "span_days": 111
+ },
+ "EROS VENTURES LIMITED": {
+  "deliveries": 1,
+  "median_gap": null,
+  "p90_gap": null,
+  "provenance": "observed",
+  "span_days": 0
+ },
+ "EUREKA NUTS LIMITED MEDIUM INDUSTRIAL": {
+  "deliveries": 19,
+  "first": "2025-01-07",
+  "last": "2026-03-24",
+  "median_gap": 16.5,
+  "p90_gap": 31,
+  "provenance": "observed",
+  "span_days": 441
+ },
+ "EXCEL CHEMICALS LTD": {
+  "deliveries": 41,
+  "first": "2025-01-06",
+  "last": "2026-03-21",
+  "median_gap": 7.0,
+  "p90_gap": 14,
+  "provenance": "observed",
+  "span_days": 439
+ },
+ "EXPORT TRADING CO. LTD": {
+  "deliveries": 12,
+  "first": "2025-01-09",
+  "last": "2026-03-09",
+  "median_gap": 33,
+  "p90_gap": 48,
+  "provenance": "observed",
+  "span_days": 424
+ },
+ "FARMERS CHOICE LTD": {
+  "deliveries": 129,
+  "first": "2025-01-03",
+  "last": "2026-03-24",
+  "median_gap": 3.0,
+  "p90_gap": 3,
+  "provenance": "observed",
+  "span_days": 445
+ },
+ "FARMERS CHOICE LTD DELI": {
+  "deliveries": 78,
+  "first": "2025-01-03",
+  "last": "2026-03-24",
+  "median_gap": 4,
+  "p90_gap": 7,
+  "provenance": "observed",
+  "span_days": 445
+ },
+ "FARMFEMME VENTURES LIMITED SR": {
+  "deliveries": 1,
+  "median_gap": null,
+  "p90_gap": null,
+  "provenance": "observed",
+  "span_days": 0
+ },
+ "FELPER SUPPLIES LIMITED": {
+  "deliveries": 14,
+  "first": "2025-01-13",
+  "last": "2026-03-11",
+  "median_gap": 20,
+  "p90_gap": 42,
+  "provenance": "observed",
+  "span_days": 422
+ },
+ "FENUEGREEK K LIMITED": {
+  "deliveries": 5,
+  "first": "2025-10-07",
+  "last": "2026-01-14",
+  "median_gap": 23.0,
+  "p90_gap": 43,
+  "provenance": "observed",
+  "span_days": 99
+ },
+ "FINSBURY TRADING LIMITED MSA": {
+  "deliveries": 19,
+  "first": "2025-01-17",
+  "last": "2026-03-17",
+  "median_gap": 16.0,
+  "p90_gap": 42,
+  "provenance": "observed",
+  "span_days": 424
+ },
+ "FLOWER MEETA": {
+  "deliveries": 16,
+  "first": "2025-01-06",
+  "last": "2025-08-13",
+  "median_gap": 7,
+  "p90_gap": 9,
+  "provenance": "observed",
+  "span_days": 219
+ },
+ "FOOD AND US LIMITED": {
+  "deliveries": 80,
+  "first": "2025-07-18",
+  "last": "2026-03-18",
+  "median_gap": 2,
+  "p90_gap": 5,
+  "provenance": "observed",
+  "span_days": 243
+ },
+ "FOODFIX BY AMBROSIA LTD SR": {
+  "deliveries": 4,
+  "first": "2025-10-01",
+  "last": "2026-03-10",
+  "median_gap": 26,
+  "p90_gap": 130,
+  "provenance": "observed",
+  "span_days": 160
+ },
+ "GENERIC BRANDS LIMITED HQ": {
+  "deliveries": 9,
+  "first": "2025-08-05",
+  "last": "2026-03-13",
+  "median_gap": 19.5,
+  "p90_gap": 60,
+  "provenance": "observed",
+  "span_days": 220
+ },
+ "GEORGE WAITHAKA MUNGAI": {
+  "deliveries": 1,
+  "median_gap": null,
+  "p90_gap": null,
+  "provenance": "observed",
+  "span_days": 0
+ },
+ "GILANI GOURMET LTD": {
+  "deliveries": 38,
+  "first": "2025-01-03",
+  "last": "2026-03-23",
+  "median_gap": 7,
+  "p90_gap": 16,
+  "provenance": "observed",
+  "span_days": 444
+ },
+ "GITHUNGURI DAIRY FARMERS": {
+  "deliveries": 272,
+  "first": "2025-01-01",
+  "last": "2026-03-24",
+  "median_gap": 1,
+  "p90_gap": 2,
+  "provenance": "observed",
+  "span_days": 447
+ },
+ "GLACIER PRODUCTS LTD 2ND": {
+  "deliveries": 45,
+  "first": "2025-01-10",
+  "last": "2026-03-24",
+  "median_gap": 7.0,
+  "p90_gap": 12,
+  "provenance": "observed",
+  "span_days": 438
+ },
+ "GLACIER PRODUCTS LTD G P": {
+  "deliveries": 41,
+  "first": "2025-01-04",
+  "last": "2026-03-24",
+  "median_gap": 7.0,
+  "p90_gap": 14,
+  "provenance": "observed",
+  "span_days": 444
+ },
+ "GLOBAL SLACKER ENTERPRISES LTD": {
+  "deliveries": 22,
+  "first": "2025-01-16",
+  "last": "2026-03-13",
+  "median_gap": 15,
+  "p90_gap": 19,
+  "provenance": "observed",
+  "span_days": 421
+ },
+ "GLOBE PHARMACY LTD": {
+  "deliveries": 7,
+  "first": "2025-09-09",
+  "last": "2026-02-28",
+  "median_gap": 32.5,
+  "p90_gap": 46,
+  "provenance": "observed",
+  "span_days": 172
+ },
+ "GM ALPHEA LIMITED SR": {
+  "deliveries": 1,
+  "median_gap": null,
+  "p90_gap": null,
+  "provenance": "observed",
+  "span_days": 0
+ },
+ "GO PRO FOODS LTD": {
+  "deliveries": 16,
+  "first": "2025-01-10",
+  "last": "2026-03-18",
+  "median_gap": 20,
+  "p90_gap": 39,
+  "provenance": "observed",
+  "span_days": 432
+ },
+ "GODSON ORGANICS LIMITED": {
+  "deliveries": 20,
+  "first": "2025-01-18",
+  "last": "2026-03-18",
+  "median_gap": 15,
+  "p90_gap": 32,
+  "provenance": "observed",
+  "span_days": 424
+ },
+ "GOLD CROWN BEVERAGES K LTD": {
+  "deliveries": 30,
+  "first": "2025-01-08",
+  "last": "2026-03-11",
+  "median_gap": 11,
+  "p90_gap": 18,
+  "provenance": "observed",
+  "span_days": 427
+ },
+ "GOLDEN AFRICA K LTD": {
+  "deliveries": 19,
+  "first": "2025-01-13",
+  "last": "2026-03-13",
+  "median_gap": 15.0,
+  "p90_gap": 47,
+  "provenance": "observed",
+  "span_days": 424
+ },
+ "GOOSEBERRY DELIGHT LTD SR": {
+  "deliveries": 6,
+  "first": "2025-01-21",
+  "last": "2026-02-13",
+  "median_gap": 62,
+  "p90_gap": 181,
+  "provenance": "observed",
+  "span_days": 388
+ },
+ "GOSHEN FARM EXPORTERS LTD SR": {
+  "deliveries": 4,
+  "first": "2025-08-22",
+  "last": "2026-03-18",
+  "median_gap": 85,
+  "p90_gap": 91,
+  "provenance": "observed",
+  "span_days": 208
+ },
+ "GOURMET FOODS INT LTD": {
+  "deliveries": 13,
+  "first": "2025-01-22",
+  "last": "2026-02-25",
+  "median_gap": 22.0,
+  "p90_gap": 79,
+  "provenance": "observed",
+  "span_days": 399
+ },
+ "GRAIN INDUSTRIES LIMITED": {
+  "deliveries": 24,
+  "first": "2025-01-03",
+  "last": "2026-03-18",
+  "median_gap": 14,
+  "p90_gap": 28,
+  "provenance": "observed",
+  "span_days": 439
+ },
+ "GRAPES AND TRADITIONS T LTD": {
+  "deliveries": 17,
+  "first": "2025-01-28",
+  "last": "2026-03-24",
+  "median_gap": 13.5,
+  "p90_gap": 35,
+  "provenance": "observed",
+  "span_days": 420
+ },
+ "GREEN BUSH E.A CO": {
+  "deliveries": 10,
+  "first": "2025-01-29",
+  "last": "2026-03-10",
+  "median_gap": 32,
+  "p90_gap": 137,
+  "provenance": "observed",
+  "span_days": 405
+ },
+ "GREEN FARM POULTRY": {
+  "deliveries": 43,
+  "first": "2025-01-04",
+  "last": "2026-03-21",
+  "median_gap": 7.0,
+  "p90_gap": 12,
+  "provenance": "observed",
+  "span_days": 441
+ },
+ "GREENFOREST FOODS": {
+  "deliveries": 7,
+  "first": "2025-01-20",
+  "last": "2025-09-17",
+  "median_gap": 17.0,
+  "p90_gap": 146,
+  "provenance": "observed",
+  "span_days": 240
+ },
+ "GROCER BOX LIMITED SR": {
+  "deliveries": 3,
+  "first": "2025-01-31",
+  "last": "2025-07-18",
+  "median_gap": 84.0,
+  "p90_gap": 141,
+  "provenance": "observed",
+  "span_days": 168
+ },
+ "HACO INDUSTRIES KENYA LTD": {
+  "deliveries": 20,
+  "first": "2025-01-27",
+  "last": "2026-03-16",
+  "median_gap": 15,
+  "p90_gap": 32,
+  "provenance": "observed",
+  "span_days": 413
+ },
+ "HADIAH SUPPLIES LIMITED": {
+  "deliveries": 1,
+  "median_gap": null,
+  "p90_gap": null,
+  "provenance": "observed",
+  "span_days": 0
+ },
+ "HALANFAL HOLDINGS LIMITED SR": {
+  "deliveries": 1,
+  "median_gap": null,
+  "p90_gap": null,
+  "provenance": "observed",
+  "span_days": 0
+ },
+ "HALEON KENYA LTD": {
+  "deliveries": 13,
+  "first": "2025-01-22",
+  "last": "2026-03-14",
+  "median_gap": 21.5,
+  "p90_gap": 54,
+  "provenance": "observed",
+  "span_days": 416
+ },
+ "HAPPY COW LIMITED": {
+  "deliveries": 42,
+  "first": "2025-01-10",
+  "last": "2026-03-18",
+  "median_gap": 7,
+  "p90_gap": 12,
+  "provenance": "observed",
+  "span_days": 432
+ },
+ "HAPPY DOPA LIMITED": {
+  "deliveries": 6,
+  "first": "2025-01-02",
+  "last": "2026-03-11",
+  "median_gap": 87,
+  "p90_gap": 216,
+  "provenance": "observed",
+  "span_days": 433
+ },
+ "HARLEYS LTD": {
+  "deliveries": 27,
+  "first": "2025-01-08",
+  "last": "2026-03-19",
+  "median_gap": 11.0,
+  "p90_gap": 32,
+  "provenance": "observed",
+  "span_days": 435
+ },
+ "HASBAH KENYA LIMITED NESTLE": {
+  "deliveries": 17,
+  "first": "2025-10-27",
+  "last": "2026-03-23",
+  "median_gap": 7.0,
+  "p90_gap": 14,
+  "provenance": "observed",
+  "span_days": 147
+ },
+ "HASBAH KENYA LTD": {
+  "deliveries": 49,
+  "first": "2025-01-06",
+  "last": "2026-03-23",
+  "median_gap": 7.0,
+  "p90_gap": 8,
+  "provenance": "observed",
+  "span_days": 441
+ },
+ "HASBAH KENYA LTD CADBURY": {
+  "deliveries": 42,
+  "first": "2025-01-06",
+  "last": "2026-03-23",
+  "median_gap": 7,
+  "p90_gap": 8,
+  "provenance": "observed",
+  "span_days": 441
+ },
+ "HASBAH KENYA LTD P AND G": {
+  "deliveries": 44,
+  "first": "2025-01-06",
+  "last": "2026-03-23",
+  "median_gap": 7,
+  "p90_gap": 8,
+  "provenance": "observed",
+  "span_days": 441
+ },
+ "HAYAT KIMYA K H PRODUCTS LTD": {
+  "deliveries": 18,
+  "first": "2025-01-16",
+  "last": "2026-03-13",
+  "median_gap": 18,
+  "p90_gap": 34,
+  "provenance": "observed",
+  "span_days": 421
+ },
+ "HC PADS LIMITED SR": {
+  "deliveries": 1,
+  "median_gap": null,
+  "p90_gap": null,
+  "provenance": "observed",
+  "span_days": 0
+ },
+ "HEALTH AND HAPPINESS CONSULT LTD": {
+  "deliveries": 10,
+  "first": "2025-01-14",
+  "last": "2026-03-12",
+  "median_gap": 34,
+  "p90_gap": 113,
+  "provenance": "observed",
+  "span_days": 422
+ },
+ "HEALTHCARE DIRECT K LTD": {
+  "deliveries": 9,
+  "first": "2025-01-15",
+  "last": "2026-03-11",
+  "median_gap": 34.5,
+  "p90_gap": 140,
+  "provenance": "observed",
+  "span_days": 420
+ },
+ "HEALTHY KAJUJU": {
+  "deliveries": 17,
+  "first": "2025-01-16",
+  "last": "2026-03-19",
+  "median_gap": 17.5,
+  "p90_gap": 46,
+  "provenance": "observed",
+  "span_days": 427
+ },
+ "HEALTHY U TWO THOUSAND LTD": {
+  "deliveries": 40,
+  "first": "2025-01-03",
+  "last": "2026-03-11",
+  "median_gap": 8,
+  "p90_gap": 15,
+  "provenance": "observed",
+  "span_days": 432
+ },
+ "HERITAGE FOODS KENYA LTD": {
+  "deliveries": 15,
+  "first": "2025-01-21",
+  "last": "2026-03-18",
+  "median_gap": 18.5,
+  "p90_gap": 53,
+  "provenance": "observed",
+  "span_days": 421
+ },
+ "HERITAGE SUPERSTORE LTD": {
+  "deliveries": 18,
+  "first": "2025-01-06",
+  "last": "2026-03-23",
+  "median_gap": 16,
+  "p90_gap": 62,
+  "provenance": "observed",
+  "span_days": 441
+ },
+ "HEXA KIMYA S VE TICARET ANONIM S": {
+  "deliveries": 3,
+  "first": "2025-03-14",
+  "last": "2025-10-29",
+  "median_gap": 114.5,
+  "p90_gap": 126,
+  "provenance": "observed",
+  "span_days": 229
+ },
+ "HIDDEN TREASURES BOOK W S LIMITED NO GRN": {
+  "deliveries": 10,
+  "first": "2025-01-13",
+  "last": "2026-03-10",
+  "median_gap": 35,
+  "p90_gap": 155,
+  "provenance": "observed",
+  "span_days": 421
+ },
+ "HIGHLANDS DRINKS LIMITED": {
+  "deliveries": 26,
+  "first": "2025-01-07",
+  "last": "2026-03-23",
+  "median_gap": 14,
+  "p90_gap": 24,
+  "provenance": "observed",
+  "span_days": 440
+ },
+ "HOMKART WHOLESALERS LTD SR": {
+  "deliveries": 5,
+  "first": "2025-08-15",
+  "last": "2026-03-23",
+  "median_gap": 47.0,
+  "p90_gap": 125,
+  "provenance": "observed",
+  "span_days": 220
+ },
+ "HOSFAM COMPANY (LTD)": {
+  "deliveries": 8,
+  "first": "2025-07-17",
+  "last": "2026-02-26",
+  "median_gap": 30,
+  "p90_gap": 47,
+  "provenance": "observed",
+  "span_days": 224
+ },
+ "HOUSE OF BOOCH LIMITED": {
+  "deliveries": 33,
+  "first": "2025-01-06",
+  "last": "2026-03-13",
+  "median_gap": 9.0,
+  "p90_gap": 17,
+  "provenance": "observed",
+  "span_days": 431
+ },
+ "HUNTLEYS BISCUITS LTD": {
+  "deliveries": 11,
+  "first": "2025-02-10",
+  "last": "2026-03-10",
+  "median_gap": 23.5,
+  "p90_gap": 148,
+  "provenance": "observed",
+  "span_days": 393
+ },
+ "HUSEINI BAKERY LTD": {
+  "deliveries": 29,
+  "first": "2025-01-08",
+  "last": "2026-03-13",
+  "median_gap": 9.0,
+  "p90_gap": 21,
+  "provenance": "observed",
+  "span_days": 429
+ },
+ "HYPERMART LTD SR": {
+  "deliveries": 15,
+  "first": "2025-01-11",
+  "last": "2026-03-12",
+  "median_gap": 22.0,
+  "p90_gap": 51,
+  "provenance": "observed",
+  "span_days": 425
+ },
+ "ICONIC TASTES LIMITED": {
+  "deliveries": 1,
+  "median_gap": null,
+  "p90_gap": null,
+  "provenance": "observed",
+  "span_days": 0
+ },
+ "IDEAL APPLIANCES LIMITED SR": {
+  "deliveries": 20,
+  "first": "2025-01-08",
+  "last": "2026-03-09",
+  "median_gap": 15,
+  "p90_gap": 40,
+  "provenance": "observed",
+  "span_days": 425
+ },
+ "INAFRICA TRADE LIMITED": {
+  "deliveries": 8,
+  "first": "2025-02-08",
+  "last": "2026-03-16",
+  "median_gap": 34,
+  "p90_gap": 193,
+  "provenance": "observed",
+  "span_days": 401
+ },
+ "INTELLIGENT MODERN STORES LTD SR": {
+  "deliveries": 7,
+  "first": "2025-01-25",
+  "last": "2026-01-24",
+  "median_gap": 56.5,
+  "p90_gap": 154,
+  "provenance": "observed",
+  "span_days": 364
+ },
+ "ISINYA FEEDS LIMITED": {
+  "deliveries": 75,
+  "first": "2025-01-03",
+  "last": "2026-03-20",
+  "median_gap": 4.0,
+  "p90_gap": 6,
+  "provenance": "observed",
+  "span_days": 441
+ },
+ "JADE CONCEPTS LIMITED": {
+  "deliveries": 4,
+  "first": "2025-01-16",
+  "last": "2025-08-13",
+  "median_gap": 14,
+  "p90_gap": 182,
+  "provenance": "observed",
+  "span_days": 209
+ },
+ "JAGGERNUT LIMITED SR": {
+  "deliveries": 1,
+  "median_gap": null,
+  "p90_gap": null,
+  "provenance": "observed",
+  "span_days": 0
+ },
+ "JAK INDUSTRIES LTD": {
+  "deliveries": 3,
+  "first": "2025-08-13",
+  "last": "2026-02-23",
+  "median_gap": 97.0,
+  "p90_gap": 160,
+  "provenance": "observed",
+  "span_days": 194
+ },
+ "JAK INDUSTRIES LTD 2ND ACC SR": {
+  "deliveries": 6,
+  "first": "2025-01-29",
+  "last": "2026-02-05",
+  "median_gap": 73,
+  "p90_gap": 175,
+  "provenance": "observed",
+  "span_days": 372
+ },
+ "JAPALA AND SONS LIMITED": {
+  "deliveries": 7,
+  "first": "2025-01-14",
+  "last": "2026-02-21",
+  "median_gap": 51.0,
+  "p90_gap": 142,
+  "provenance": "observed",
+  "span_days": 403
+ },
+ "JE AND JO NUT BAR SR": {
+  "deliveries": 1,
+  "median_gap": null,
+  "p90_gap": null,
+  "provenance": "observed",
+  "span_days": 0
+ },
+ "JESSICA INTERNATIONAL HQ": {
+  "deliveries": 3,
+  "first": "2025-08-14",
+  "last": "2025-12-08",
+  "median_gap": 58.0,
+  "p90_gap": 89,
+  "provenance": "observed",
+  "span_days": 116
+ },
+ "JETLAK FOODS LTD": {
+  "deliveries": 29,
+  "first": "2025-01-10",
+  "last": "2026-03-18",
+  "median_gap": 12.0,
+  "p90_gap": 23,
+  "provenance": "observed",
+  "span_days": 432
+ },
+ "JEVANS ENTERPRISES": {
+  "deliveries": 20,
+  "first": "2025-01-16",
+  "last": "2026-03-11",
+  "median_gap": 15,
+  "p90_gap": 61,
+  "provenance": "observed",
+  "span_days": 419
+ },
+ "JIAN CEREALS DEPOT": {
+  "deliveries": 33,
+  "first": "2025-03-04",
+  "last": "2026-03-17",
+  "median_gap": 7.0,
+  "p90_gap": 21,
+  "provenance": "observed",
+  "span_days": 378
+ },
+ "JOY MILLERS LIMITED": {
+  "deliveries": 2,
+  "first": "2026-01-17",
+  "last": "2026-02-11",
+  "median_gap": 25,
+  "p90_gap": 25,
+  "provenance": "observed",
+  "span_days": 25
+ },
+ "JOYLINE EAST AFRICA LTD SR": {
+  "deliveries": 1,
+  "median_gap": null,
+  "p90_gap": null,
+  "provenance": "observed",
+  "span_days": 0
+ },
+ "JUBILEE TISSUE INDUSTRIES LTD": {
+  "deliveries": 24,
+  "first": "2025-01-09",
+  "last": "2026-03-12",
+  "median_gap": 14,
+  "p90_gap": 33,
+  "provenance": "observed",
+  "span_days": 427
+ },
+ "JULIETA M CHIBUTSA": {
+  "deliveries": 32,
+  "first": "2025-01-11",
+  "last": "2026-03-19",
+  "median_gap": 7,
+  "p90_gap": 14,
+  "provenance": "observed",
+  "span_days": 432
+ },
+ "KALON FOODS LIMITED": {
+  "deliveries": 29,
+  "first": "2025-01-02",
+  "last": "2026-03-11",
+  "median_gap": 11.0,
+  "p90_gap": 21,
+  "provenance": "observed",
+  "span_days": 433
+ },
+ "KALON FOODS LIMITED BAKERY": {
+  "deliveries": 10,
+  "first": "2025-09-02",
+  "last": "2026-02-04",
+  "median_gap": 15,
+  "p90_gap": 47,
+  "provenance": "observed",
+  "span_days": 155
+ },
+ "KAMILI PACKERS LIMITED NORMAL": {
+  "deliveries": 19,
+  "first": "2025-01-25",
+  "last": "2026-03-13",
+  "median_gap": 14.0,
+  "p90_gap": 41,
+  "provenance": "observed",
+  "span_days": 412
+ },
+ "KAMILI PACKERS SUGAR ONLY": {
+  "deliveries": 10,
+  "first": "2025-01-30",
+  "last": "2026-03-14",
+  "median_gap": 21,
+  "p90_gap": 174,
+  "provenance": "observed",
+  "span_days": 408
+ },
+ "KANYANGOLD ABERDARE PARMESSAN CHEESE": {
+  "deliveries": 2,
+  "first": "2025-09-30",
+  "last": "2025-11-28",
+  "median_gap": 59,
+  "p90_gap": 59,
+  "provenance": "observed",
+  "span_days": 59
+ },
+ "KAPA OIL REFINERIES LTD": {
+  "deliveries": 26,
+  "first": "2025-01-02",
+  "last": "2026-03-14",
+  "median_gap": 14,
+  "p90_gap": 22,
+  "provenance": "observed",
+  "span_days": 436
+ },
+ "KAPI LTD": {
+  "deliveries": 13,
+  "first": "2025-01-18",
+  "last": "2026-03-16",
+  "median_gap": 21.5,
+  "p90_gap": 58,
+  "provenance": "observed",
+  "span_days": 422
+ },
+ "KAPUTEI FARM P LIMITED": {
+  "deliveries": 25,
+  "first": "2025-01-03",
+  "last": "2026-03-09",
+  "median_gap": 14.5,
+  "p90_gap": 19,
+  "provenance": "observed",
+  "span_days": 430
+ },
+ "KAREN FORK O CHICKEN P LTD SR": {
+  "deliveries": 1,
+  "median_gap": null,
+  "p90_gap": null,
+  "provenance": "observed",
+  "span_days": 0
+ },
+ "KARTASI PRODUCTS LIMITED": {
+  "deliveries": 13,
+  "first": "2025-01-10",
+  "last": "2026-02-25",
+  "median_gap": 25.0,
+  "p90_gap": 59,
+  "provenance": "observed",
+  "span_days": 411
+ },
+ "KASSIOPEA AND CO LTD": {
+  "deliveries": 8,
+  "first": "2025-09-03",
+  "last": "2026-02-10",
+  "median_gap": 17,
+  "p90_gap": 56,
+  "provenance": "observed",
+  "span_days": 160
+ },
+ "KENAFRIC BAKERY LTD": {
+  "deliveries": 269,
+  "first": "2025-01-01",
+  "last": "2026-03-24",
+  "median_gap": 1.0,
+  "p90_gap": 2,
+  "provenance": "observed",
+  "span_days": 447
+ },
+ "KENAFRIC BEVERAGES AND BOTTLING LTD": {
+  "deliveries": 3,
+  "first": "2025-03-11",
+  "last": "2025-11-17",
+  "median_gap": 125.5,
+  "p90_gap": 153,
+  "provenance": "observed",
+  "span_days": 251
+ },
+ "KENAFRIC INDUSTRIES LTD": {
+  "deliveries": 6,
+  "first": "2025-07-25",
+  "last": "2026-03-24",
+  "median_gap": 28,
+  "p90_gap": 122,
+  "provenance": "observed",
+  "span_days": 242
+ },
+ "KENCHIC BUTCHERY NO GRN": {
+  "deliveries": 20,
+  "first": "2025-01-03",
+  "last": "2026-03-24",
+  "median_gap": 14,
+  "p90_gap": 48,
+  "provenance": "observed",
+  "span_days": 445
+ },
+ "KENCHIC FROZEN": {
+  "deliveries": 55,
+  "first": "2025-01-07",
+  "last": "2025-12-04",
+  "median_gap": 4.0,
+  "p90_gap": 7,
+  "provenance": "observed",
+  "span_days": 331
+ },
+ "KENCHIC LIMITED DELI ACCOUNT 2": {
+  "deliveries": 17,
+  "first": "2025-01-07",
+  "last": "2026-03-17",
+  "median_gap": 17.5,
+  "p90_gap": 45,
+  "provenance": "observed",
+  "span_days": 434
+ },
+ "KENCHIC PLC": {
+  "deliveries": 25,
+  "first": "2026-01-05",
+  "last": "2026-03-24",
+  "median_gap": 3.0,
+  "p90_gap": 4,
+  "provenance": "observed",
+  "span_days": 78
+ },
+ "KENISA ENTERPRISES SR": {
+  "deliveries": 3,
+  "first": "2025-01-31",
+  "last": "2026-03-13",
+  "median_gap": 203.0,
+  "p90_gap": 293,
+  "provenance": "observed",
+  "span_days": 406
+ },
+ "KENJORD DISTRIBUTORS LTD SR": {
+  "deliveries": 3,
+  "first": "2025-11-18",
+  "last": "2026-02-18",
+  "median_gap": 46.0,
+  "p90_gap": 70,
+  "provenance": "observed",
+  "span_days": 92
+ },
+ "KENMEAT LIMITED": {
+  "deliveries": 62,
+  "first": "2025-01-08",
+  "last": "2026-03-21",
+  "median_gap": 4,
+  "p90_gap": 10,
+  "provenance": "observed",
+  "span_days": 437
+ },
+ "KENPOLY MANUFACTURERS": {
+  "deliveries": 25,
+  "first": "2025-01-11",
+  "last": "2026-03-23",
+  "median_gap": 14.0,
+  "p90_gap": 27,
+  "provenance": "observed",
+  "span_days": 436
+ },
+ "KENRUSS LIMITED SR": {
+  "deliveries": 5,
+  "first": "2025-01-22",
+  "last": "2026-03-11",
+  "median_gap": 108.5,
+  "p90_gap": 182,
+  "provenance": "observed",
+  "span_days": 413
+ },
+ "KENSALT LIMITED": {
+  "deliveries": 10,
+  "first": "2025-01-24",
+  "last": "2026-03-11",
+  "median_gap": 26,
+  "p90_gap": 156,
+  "provenance": "observed",
+  "span_days": 411
+ },
+ "KENSALT LIMITED CHEESE": {
+  "deliveries": 12,
+  "first": "2025-01-30",
+  "last": "2026-03-17",
+  "median_gap": 28,
+  "p90_gap": 44,
+  "provenance": "observed",
+  "span_days": 411
+ },
+ "KENSALT LIMITED MACADAMIA": {
+  "deliveries": 5,
+  "first": "2025-08-16",
+  "last": "2026-03-06",
+  "median_gap": 55.5,
+  "p90_gap": 68,
+  "provenance": "observed",
+  "span_days": 202
+ },
+ "KENSTAR PLASTIC INDUSTRIES LTD SR": {
+  "deliveries": 5,
+  "first": "2025-01-23",
+  "last": "2026-02-16",
+  "median_gap": 74.5,
+  "p90_gap": 182,
+  "provenance": "observed",
+  "span_days": 389
+ },
+ "KENXIBU FOSTER F COMPANY LTD": {
+  "deliveries": 1,
+  "median_gap": null,
+  "p90_gap": null,
+  "provenance": "observed",
+  "span_days": 0
+ },
+ "KENYA BREWERIES LTD": {
+  "deliveries": 38,
+  "first": "2025-01-10",
+  "last": "2026-03-21",
+  "median_gap": 8,
+  "p90_gap": 15,
+  "provenance": "observed",
+  "span_days": 435
+ },
+ "KENYA NUT COMPANY": {
+  "deliveries": 21,
+  "first": "2025-01-10",
+  "last": "2026-03-19",
+  "median_gap": 15.5,
+  "p90_gap": 42,
+  "provenance": "observed",
+  "span_days": 433
+ },
+ "KENYA NUT WINES": {
+  "deliveries": 5,
+  "first": "2025-01-16",
+  "last": "2026-03-09",
+  "median_gap": 78.0,
+  "p90_gap": 243,
+  "provenance": "observed",
+  "span_days": 417
+ },
+ "KENYA SWEETS LTD": {
+  "deliveries": 15,
+  "first": "2025-01-11",
+  "last": "2026-03-07",
+  "median_gap": 21.0,
+  "p90_gap": 49,
+  "provenance": "observed",
+  "span_days": 420
+ },
+ "KENYA TEA PACKERS KETEPA": {
+  "deliveries": 21,
+  "first": "2025-01-11",
+  "last": "2026-03-09",
+  "median_gap": 14.5,
+  "p90_gap": 43,
+  "provenance": "observed",
+  "span_days": 422
+ },
+ "KENYA WINE AGENCIES KWAL": {
+  "deliveries": 39,
+  "first": "2025-01-14",
+  "last": "2026-03-18",
+  "median_gap": 8.0,
+  "p90_gap": 13,
+  "provenance": "observed",
+  "span_days": 428
+ },
+ "KEVIAN KENYA LTD": {
+  "deliveries": 23,
+  "first": "2025-01-03",
+  "last": "2026-03-21",
+  "median_gap": 14.5,
+  "p90_gap": 24,
+  "provenance": "observed",
+  "span_days": 442
+ },
+ "KEVITA INTERNATIONAL CO LTD": {
+  "deliveries": 18,
+  "first": "2025-02-04",
+  "last": "2026-03-13",
+  "median_gap": 16,
+  "p90_gap": 36,
+  "provenance": "observed",
+  "span_days": 402
+ },
+ "KHETIA DRAPERS LTD": {
+  "deliveries": 28,
+  "first": "2025-01-04",
+  "last": "2026-03-09",
+  "median_gap": 10,
+  "p90_gap": 32,
+  "provenance": "observed",
+  "span_days": 429
+ },
+ "KHS PRODUCTS LIMITED SR": {
+  "deliveries": 5,
+  "first": "2025-02-08",
+  "last": "2026-02-10",
+  "median_gap": 74.0,
+  "p90_gap": 177,
+  "provenance": "observed",
+  "span_days": 367
+ },
+ "KIENYEJI POULTRY PRODUCTS": {
+  "deliveries": 12,
+  "first": "2025-01-16",
+  "last": "2026-03-18",
+  "median_gap": 32,
+  "p90_gap": 59,
+  "provenance": "observed",
+  "span_days": 426
+ },
+ "KIERU LIMITED SR": {
+  "deliveries": 1,
+  "median_gap": null,
+  "p90_gap": null,
+  "provenance": "observed",
+  "span_days": 0
+ },
+ "KIJANI COMMODITIES LTD": {
+  "deliveries": 5,
+  "first": "2025-01-13",
+  "last": "2026-03-19",
+  "median_gap": 110.0,
+  "p90_gap": 174,
+  "provenance": "observed",
+  "span_days": 430
+ },
+ "KIKKOMAN EAST AFRICA LTD": {
+  "deliveries": 10,
+  "first": "2025-01-31",
+  "last": "2026-03-09",
+  "median_gap": 28,
+  "p90_gap": 197,
+  "provenance": "observed",
+  "span_days": 402
+ },
+ "KIKWETU PACKAGING LTD": {
+  "deliveries": 1,
+  "median_gap": null,
+  "p90_gap": null,
+  "provenance": "observed",
+  "span_days": 0
+ },
+ "KIM FAY EAST AFRICA LTD": {
+  "deliveries": 32,
+  "first": "2025-01-06",
+  "last": "2026-03-21",
+  "median_gap": 11,
+  "p90_gap": 17,
+  "provenance": "observed",
+  "span_days": 439
+ },
+ "KIM FAY EAST AFRICA LTD DABUR": {
+  "deliveries": 29,
+  "first": "2025-01-09",
+  "last": "2026-03-23",
+  "median_gap": 12.0,
+  "p90_gap": 21,
+  "provenance": "observed",
+  "span_days": 438
+ },
+ "KIM FAY EAST AFRICA LTD DOVE": {
+  "deliveries": 27,
+  "first": "2025-01-06",
+  "last": "2026-03-21",
+  "median_gap": 13.0,
+  "p90_gap": 22,
+  "provenance": "observed",
+  "span_days": 439
+ },
+ "KINANGOP DAIRY LIMITED": {
+  "deliveries": 184,
+  "first": "2025-01-02",
+  "last": "2026-03-24",
+  "median_gap": 2,
+  "p90_gap": 3,
+  "provenance": "observed",
+  "span_days": 446
+ },
+ "KINGS COMMODITIES LTD": {
+  "deliveries": 1,
+  "median_gap": null,
+  "p90_gap": null,
+  "provenance": "observed",
+  "span_days": 0
+ },
+ "KINGS WEAR LIMITED": {
+  "deliveries": 8,
+  "first": "2025-01-18",
+  "last": "2026-02-23",
+  "median_gap": 30,
+  "p90_gap": 172,
+  "provenance": "observed",
+  "span_days": 401
+ },
+ "KIRAB TRADING COMPANY LTD": {
+  "deliveries": 3,
+  "first": "2025-01-17",
+  "last": "2025-07-17",
+  "median_gap": 90.5,
+  "p90_gap": 136,
+  "provenance": "observed",
+  "span_days": 181
+ },
+ "KIRICHWA WATER LIMITED": {
+  "deliveries": 46,
+  "first": "2025-01-02",
+  "last": "2026-03-23",
+  "median_gap": 7,
+  "p90_gap": 12,
+  "provenance": "observed",
+  "span_days": 445
+ },
+ "KIRSTEN EVENTS COMPANY LTD": {
+  "deliveries": 58,
+  "first": "2025-01-06",
+  "last": "2026-03-24",
+  "median_gap": 5,
+  "p90_gap": 8,
+  "provenance": "observed",
+  "span_days": 442
+ },
+ "KITUI FLOUR MILLS LTD NBI MBSA": {
+  "deliveries": 8,
+  "first": "2025-01-06",
+  "last": "2026-02-19",
+  "median_gap": 29,
+  "p90_gap": 141,
+  "provenance": "observed",
+  "span_days": 409
+ },
+ "KRISH COMMODITIES LTD": {
+  "deliveries": 8,
+  "first": "2025-01-24",
+  "last": "2026-01-10",
+  "median_gap": 39,
+  "p90_gap": 136,
+  "provenance": "observed",
+  "span_days": 351
+ },
+ "KUBE SQUARE LTD SR": {
+  "deliveries": 6,
+  "first": "2025-03-21",
+  "last": "2026-03-19",
+  "median_gap": 71,
+  "p90_gap": 147,
+  "provenance": "observed",
+  "span_days": 363
+ },
+ "KULAL INTERNATIONAL LTD": {
+  "deliveries": 14,
+  "first": "2025-01-28",
+  "last": "2026-03-13",
+  "median_gap": 15,
+  "p90_gap": 50,
+  "provenance": "observed",
+  "span_days": 409
+ },
+ "KWE AND COLE LIMITED SR": {
+  "deliveries": 6,
+  "first": "2025-07-18",
+  "last": "2026-02-12",
+  "median_gap": 34,
+  "p90_gap": 86,
+  "provenance": "observed",
+  "span_days": 209
+ },
+ "L H T INTERNATIONAL LIMITED SR": {
+  "deliveries": 2,
+  "first": "2026-02-14",
+  "last": "2026-03-04",
+  "median_gap": 18,
+  "p90_gap": 18,
+  "provenance": "observed",
+  "span_days": 18
+ },
+ "LABOREX KENYA LTD": {
+  "deliveries": 12,
+  "first": "2025-02-27",
+  "last": "2026-03-09",
+  "median_gap": 9,
+  "p90_gap": 79,
+  "provenance": "observed",
+  "span_days": 375
+ },
+ "LACOROMBE SUPPLIES LTD": {
+  "deliveries": 8,
+  "first": "2025-02-25",
+  "last": "2026-03-21",
+  "median_gap": 39,
+  "p90_gap": 170,
+  "provenance": "observed",
+  "span_days": 389
+ },
+ "LADIES PADS POUCH DIST": {
+  "deliveries": 5,
+  "first": "2025-01-16",
+  "last": "2026-02-20",
+  "median_gap": 88.0,
+  "p90_gap": 191,
+  "provenance": "observed",
+  "span_days": 400
+ },
+ "LAKHANI GENERAL SUPPLIERS LTD": {
+  "deliveries": 21,
+  "first": "2025-01-08",
+  "last": "2026-03-14",
+  "median_gap": 15.5,
+  "p90_gap": 35,
+  "provenance": "observed",
+  "span_days": 430
+ },
+ "LAKI LAKI LIMITED": {
+  "deliveries": 46,
+  "first": "2025-01-07",
+  "last": "2026-03-24",
+  "median_gap": 7,
+  "p90_gap": 10,
+  "provenance": "observed",
+  "span_days": 441
+ },
+ "LEADAV POULTRY FARM LTD": {
+  "deliveries": 31,
+  "first": "2025-01-04",
+  "last": "2026-03-21",
+  "median_gap": 7.0,
+  "p90_gap": 28,
+  "provenance": "observed",
+  "span_days": 441
+ },
+ "LEADING DISTILLERS U LTD SR": {
+  "deliveries": 10,
+  "first": "2025-01-17",
+  "last": "2025-11-21",
+  "median_gap": 18,
+  "p90_gap": 141,
+  "provenance": "observed",
+  "span_days": 308
+ },
+ "LEAN HC DISTRIBUTORS COM LTD SR": {
+  "deliveries": 1,
+  "median_gap": null,
+  "p90_gap": null,
+  "provenance": "observed",
+  "span_days": 0
+ },
+ "LEMOC LIMITED": {
+  "deliveries": 45,
+  "first": "2025-01-07",
+  "last": "2026-03-24",
+  "median_gap": 7.0,
+  "p90_gap": 14,
+  "provenance": "observed",
+  "span_days": 441
+ },
+ "LESAFFRE KENYA LIMITED": {
+  "deliveries": 2,
+  "first": "2025-09-08",
+  "last": "2025-11-19",
+  "median_gap": 72,
+  "p90_gap": 72,
+  "provenance": "observed",
+  "span_days": 72
+ },
+ "LIBERTYS CHOICE": {
+  "deliveries": 6,
+  "first": "2025-01-03",
+  "last": "2025-03-18",
+  "median_gap": 16,
+  "p90_gap": 18,
+  "provenance": "observed",
+  "span_days": 74
+ },
+ "LOKI VENTURES LIMITED": {
+  "deliveries": 26,
+  "first": "2025-01-10",
+  "last": "2026-03-13",
+  "median_gap": 13,
+  "p90_gap": 19,
+  "provenance": "observed",
+  "span_days": 427
+ },
+ "LONAT ENTERPRISES": {
+  "deliveries": 3,
+  "first": "2025-11-15",
+  "last": "2026-03-14",
+  "median_gap": 59.5,
+  "p90_gap": 96,
+  "provenance": "observed",
+  "span_days": 119
+ },
+ "LONDON DISTILLERS": {
+  "deliveries": 5,
+  "first": "2025-01-14",
+  "last": "2025-11-12",
+  "median_gap": 52.5,
+  "p90_gap": 183,
+  "provenance": "observed",
+  "span_days": 302
+ },
+ "LONDON DISTILLERS EA LTD": {
+  "deliveries": 11,
+  "first": "2025-01-28",
+  "last": "2026-02-05",
+  "median_gap": 17.0,
+  "p90_gap": 176,
+  "provenance": "observed",
+  "span_days": 373
+ },
+ "LOREAL E A LIMITED HQ": {
+  "deliveries": 20,
+  "first": "2025-01-11",
+  "last": "2026-03-21",
+  "median_gap": 16,
+  "p90_gap": 41,
+  "provenance": "observed",
+  "span_days": 434
+ },
+ "MABDA GENERAL TRAD COMP LTD": {
+  "deliveries": 5,
+  "first": "2025-08-29",
+  "last": "2026-03-11",
+  "median_gap": 32.5,
+  "p90_gap": 102,
+  "provenance": "observed",
+  "span_days": 194
+ },
+ "MACE FOODS LTD": {
+  "deliveries": 2,
+  "first": "2025-10-15",
+  "last": "2026-03-18",
+  "median_gap": 154,
+  "p90_gap": 154,
+  "provenance": "observed",
+  "span_days": 154
+ },
+ "MAGNUM VENTURES LIMITED": {
+  "deliveries": 8,
+  "first": "2025-01-14",
+  "last": "2025-12-05",
+  "median_gap": 19,
+  "p90_gap": 215,
+  "provenance": "observed",
+  "span_days": 325
+ },
+ "MAISHA BEVERAGES LIMITED": {
+  "deliveries": 16,
+  "first": "2025-01-14",
+  "last": "2026-03-04",
+  "median_gap": 17,
+  "p90_gap": 51,
+  "provenance": "observed",
+  "span_days": 414
+ },
+ "MAJIPONICS LIMITED": {
+  "deliveries": 22,
+  "first": "2025-01-08",
+  "last": "2026-03-18",
+  "median_gap": 14,
+  "p90_gap": 29,
+  "provenance": "observed",
+  "span_days": 434
+ },
+ "MALACHITE LIMITED": {
+  "deliveries": 53,
+  "first": "2025-01-04",
+  "last": "2026-03-19",
+  "median_gap": 6.0,
+  "p90_gap": 9,
+  "provenance": "observed",
+  "span_days": 439
+ },
+ "MALACHITE LIMITED BEER": {
+  "deliveries": 27,
+  "first": "2025-01-11",
+  "last": "2026-03-04",
+  "median_gap": 8.0,
+  "p90_gap": 28,
+  "provenance": "observed",
+  "span_days": 417
+ },
+ "MALINDI INDUSTRIES LIMITED": {
+  "deliveries": 14,
+  "first": "2025-01-21",
+  "last": "2026-03-12",
+  "median_gap": 18,
+  "p90_gap": 48,
+  "provenance": "observed",
+  "span_days": 415
+ },
+ "MANJI FOOD INDUSTRIES LTD": {
+  "deliveries": 28,
+  "first": "2025-01-04",
+  "last": "2026-03-21",
+  "median_gap": 11,
+  "p90_gap": 22,
+  "provenance": "observed",
+  "span_days": 441
+ },
+ "MANKA FOOD PRODUCTION SR": {
+  "deliveries": 15,
+  "first": "2025-01-21",
+  "last": "2026-03-11",
+  "median_gap": 19.0,
+  "p90_gap": 63,
+  "provenance": "observed",
+  "span_days": 414
+ },
+ "MARIESTA TRADING COM LTD SR": {
+  "deliveries": 1,
+  "median_gap": null,
+  "p90_gap": null,
+  "provenance": "observed",
+  "span_days": 0
+ },
+ "MASSATECH KENYA LIMITED SR": {
+  "deliveries": 5,
+  "first": "2025-01-24",
+  "last": "2026-02-26",
+  "median_gap": 96.0,
+  "p90_gap": 186,
+  "provenance": "observed",
+  "span_days": 398
+ },
+ "MAU HONEY AND BEE KEEPING EQUIP SR": {
+  "deliveries": 1,
+  "median_gap": null,
+  "p90_gap": null,
+  "provenance": "observed",
+  "span_days": 0
+ },
+ "MAUNDU NI MERI FARM LTD SR": {
+  "deliveries": 6,
+  "first": "2026-02-25",
+  "last": "2026-03-23",
+  "median_gap": 5,
+  "p90_gap": 7,
+  "provenance": "observed",
+  "span_days": 26
+ },
+ "MAX GRAINS LIMITED": {
+  "deliveries": 2,
+  "first": "2026-02-26",
+  "last": "2026-03-05",
+  "median_gap": 7,
+  "p90_gap": 7,
+  "provenance": "observed",
+  "span_days": 7
+ },
+ "MAXAM LIMITED": {
+  "deliveries": 31,
+  "first": "2025-01-23",
+  "last": "2026-03-18",
+  "median_gap": 8.0,
+  "p90_gap": 23,
+  "provenance": "observed",
+  "span_days": 419
+ },
+ "MAXAM LIMITED BABY MILK": {
+  "deliveries": 1,
+  "median_gap": null,
+  "p90_gap": null,
+  "provenance": "observed",
+  "span_days": 0
+ },
+ "MEAM TAYSTEE FOODS": {
+  "deliveries": 12,
+  "first": "2025-01-08",
+  "last": "2026-03-17",
+  "median_gap": 29,
+  "p90_gap": 55,
+  "provenance": "observed",
+  "span_days": 433
+ },
+ "MEGA IMPORTERS CO LIMITED": {
+  "deliveries": 7,
+  "first": "2025-01-09",
+  "last": "2025-08-29",
+  "median_gap": 24.5,
+  "p90_gap": 110,
+  "provenance": "observed",
+  "span_days": 232
+ },
+ "MEGA WINES AND SPIRITS LTD": {
+  "deliveries": 2,
+  "first": "2026-02-17",
+  "last": "2026-03-06",
+  "median_gap": 17,
+  "p90_gap": 17,
+  "provenance": "observed",
+  "span_days": 17
+ },
+ "MELVIN MARSH INTERNATIONAL LTD": {
+  "deliveries": 26,
+  "first": "2025-01-10",
+  "last": "2026-03-23",
+  "median_gap": 14,
+  "p90_gap": 21,
+  "provenance": "observed",
+  "span_days": 437
+ },
+ "MENENGAI O REFINERIES LTD": {
+  "deliveries": 19,
+  "first": "2025-01-04",
+  "last": "2026-03-13",
+  "median_gap": 14.0,
+  "p90_gap": 39,
+  "provenance": "observed",
+  "span_days": 433
+ },
+ "MERAKI FOODS LIMITED": {
+  "deliveries": 16,
+  "first": "2025-01-10",
+  "last": "2026-03-05",
+  "median_gap": 19,
+  "p90_gap": 55,
+  "provenance": "observed",
+  "span_days": 419
+ },
+ "MERIDIAN WINES KENYA LIMITED": {
+  "deliveries": 17,
+  "first": "2025-01-14",
+  "last": "2026-03-10",
+  "median_gap": 10.5,
+  "p90_gap": 87,
+  "provenance": "observed",
+  "span_days": 420
+ },
+ "MERIT AFRICA LTD": {
+  "deliveries": 40,
+  "first": "2025-01-02",
+  "last": "2026-03-17",
+  "median_gap": 7,
+  "p90_gap": 15,
+  "provenance": "observed",
+  "span_days": 439
+ },
+ "MERIT AFRICA LTD 2ND ACCOUNT SR": {
+  "deliveries": 15,
+  "first": "2025-01-02",
+  "last": "2026-03-11",
+  "median_gap": 22.5,
+  "p90_gap": 33,
+  "provenance": "observed",
+  "span_days": 433
+ },
+ "MERU CENTRAL DAIRY COOPERATIVE UNION LIMITED": {
+  "deliveries": 21,
+  "first": "2025-01-02",
+  "last": "2026-03-17",
+  "median_gap": 17.5,
+  "p90_gap": 42,
+  "provenance": "observed",
+  "span_days": 439
+ },
+ "METRO PHARMACEUTICALS LTD": {
+  "deliveries": 14,
+  "first": "2025-01-16",
+  "last": "2026-03-19",
+  "median_gap": 16,
+  "p90_gap": 77,
+  "provenance": "observed",
+  "span_days": 427
+ },
+ "MHOGO FOODS LIMITED": {
+  "deliveries": 5,
+  "first": "2025-03-03",
+  "last": "2026-03-04",
+  "median_gap": 91.0,
+  "p90_gap": 151,
+  "provenance": "observed",
+  "span_days": 366
+ },
+ "MIA WINES AND SPIRITS INTERNATIONAL": {
+  "deliveries": 16,
+  "first": "2025-02-07",
+  "last": "2026-03-04",
+  "median_gap": 13,
+  "p90_gap": 56,
+  "provenance": "observed",
+  "span_days": 390
+ },
+ "MIBISCO LTD": {
+  "deliveries": 186,
+  "first": "2025-01-01",
+  "last": "2025-12-09",
+  "median_gap": 1,
+  "p90_gap": 2,
+  "provenance": "observed",
+  "span_days": 342
+ },
+ "MIDDLETON COMMUNICATION LTD SR": {
+  "deliveries": 2,
+  "first": "2025-11-21",
+  "last": "2026-01-27",
+  "median_gap": 67,
+  "p90_gap": 67,
+  "provenance": "observed",
+  "span_days": 67
+ },
+ "MIG TRADING COM LTD SR": {
+  "deliveries": 13,
+  "first": "2025-07-29",
+  "last": "2026-03-13",
+  "median_gap": 13.5,
+  "p90_gap": 44,
+  "provenance": "observed",
+  "span_days": 227
+ },
+ "MIGLIORE FOODS E A LIMITED SR": {
+  "deliveries": 7,
+  "first": "2025-03-12",
+  "last": "2026-03-02",
+  "median_gap": 38.5,
+  "p90_gap": 141,
+  "provenance": "observed",
+  "span_days": 355
+ },
+ "MIKEN BRANDS KENYA LTD": {
+  "deliveries": 4,
+  "first": "2025-02-06",
+  "last": "2026-01-23",
+  "median_gap": 86,
+  "p90_gap": 188,
+  "provenance": "observed",
+  "span_days": 351
+ },
+ "MILL BAKERS LIMITED": {
+  "deliveries": 87,
+  "first": "2025-01-03",
+  "last": "2026-03-23",
+  "median_gap": 4.0,
+  "p90_gap": 6,
+  "provenance": "observed",
+  "span_days": 444
+ },
+ "MINI BAKERIES NBI LTD": {
+  "deliveries": 268,
+  "first": "2025-01-01",
+  "last": "2026-03-24",
+  "median_gap": 1,
+  "p90_gap": 2,
+  "provenance": "observed",
+  "span_days": 447
+ },
+ "MIRAGE INDUSTRIES LTD": {
+  "deliveries": 18,
+  "first": "2025-01-07",
+  "last": "2026-03-19",
+  "median_gap": 20,
+  "p90_gap": 40,
+  "provenance": "observed",
+  "span_days": 436
+ },
+ "MISS BEAUTY COMPANY LTD HQ": {
+  "deliveries": 13,
+  "first": "2025-01-13",
+  "last": "2026-03-13",
+  "median_gap": 27.5,
+  "p90_gap": 38,
+  "provenance": "observed",
+  "span_days": 424
+ },
+ "MIXGO ENTERPRISES COMPANY LTD SR": {
+  "deliveries": 1,
+  "median_gap": null,
+  "p90_gap": null,
+  "provenance": "observed",
+  "span_days": 0
+ },
+ "MJENGO LIMITED": {
+  "deliveries": 32,
+  "first": "2025-01-08",
+  "last": "2026-03-21",
+  "median_gap": 10,
+  "p90_gap": 22,
+  "provenance": "observed",
+  "span_days": 437
+ },
+ "MOHANS OYSTERBAY DRINKS KENYA": {
+  "deliveries": 1,
+  "median_gap": null,
+  "p90_gap": null,
+  "provenance": "observed",
+  "span_days": 0
+ },
+ "MOMBASA MAIZE MILLERS NAIROBI LIMITED": {
+  "deliveries": 12,
+  "first": "2025-01-16",
+  "last": "2026-02-19",
+  "median_gap": 27,
+  "p90_gap": 53,
+  "provenance": "observed",
+  "span_days": 399
+ },
+ "MONTILL LIMITED": {
+  "deliveries": 4,
+  "first": "2025-01-11",
+  "last": "2025-03-17",
+  "median_gap": 25,
+  "p90_gap": 28,
+  "provenance": "observed",
+  "span_days": 65
+ },
+ "MOONSUN PICTURES INTER LTD SR": {
+  "deliveries": 1,
+  "median_gap": null,
+  "p90_gap": null,
+  "provenance": "observed",
+  "span_days": 0
+ },
+ "MOONSUN TRADE INTERNATIONAL LTD SR": {
+  "deliveries": 4,
+  "first": "2025-11-07",
+  "last": "2026-03-17",
+  "median_gap": 39,
+  "p90_gap": 59,
+  "provenance": "observed",
+  "span_days": 130
+ },
+ "MORANI LIMITED": {
+  "deliveries": 48,
+  "first": "2025-01-08",
+  "last": "2026-03-17",
+  "median_gap": 7,
+  "p90_gap": 11,
+  "provenance": "observed",
+  "span_days": 433
+ },
+ "MORGANKIBE ENTERPRISES LIMITED": {
+  "deliveries": 16,
+  "first": "2025-02-17",
+  "last": "2026-03-24",
+  "median_gap": 20,
+  "p90_gap": 50,
+  "provenance": "observed",
+  "span_days": 400
+ },
+ "MOSORO AFYA FLOURS LTD SR": {
+  "deliveries": 1,
+  "median_gap": null,
+  "p90_gap": null,
+  "provenance": "observed",
+  "span_days": 0
+ },
+ "MUJI ENTERPRISES": {
+  "deliveries": 20,
+  "first": "2025-01-13",
+  "last": "2026-03-13",
+  "median_gap": 17,
+  "p90_gap": 34,
+  "provenance": "observed",
+  "span_days": 424
+ },
+ "MUSTY DISTRIBUTION LIMITED": {
+  "deliveries": 46,
+  "first": "2025-01-07",
+  "last": "2026-03-18",
+  "median_gap": 6,
+  "p90_gap": 12,
+  "provenance": "observed",
+  "span_days": 435
+ },
+ "MY FROZEN SUPPLIES LIMITED": {
+  "deliveries": 21,
+  "first": "2025-01-10",
+  "last": "2026-03-21",
+  "median_gap": 14.0,
+  "p90_gap": 42,
+  "provenance": "observed",
+  "span_days": 435
+ },
+ "MY FROZEN SUPPLIES LTD 2ND": {
+  "deliveries": 29,
+  "first": "2025-07-18",
+  "last": "2026-03-24",
+  "median_gap": 7.0,
+  "p90_gap": 14,
+  "provenance": "observed",
+  "span_days": 249
+ },
+ "MYPASTA LIMITED": {
+  "deliveries": 5,
+  "first": "2025-01-24",
+  "last": "2025-09-19",
+  "median_gap": 33.5,
+  "p90_gap": 150,
+  "provenance": "observed",
+  "span_days": 238
+ },
+ "MZURI SWEETS LIMITED": {
+  "deliveries": 19,
+  "first": "2025-01-10",
+  "last": "2026-03-16",
+  "median_gap": 17.0,
+  "p90_gap": 51,
+  "provenance": "observed",
+  "span_days": 430
+ },
+ "NABICO ENTERPRISES LTD SR": {
+  "deliveries": 14,
+  "first": "2025-01-31",
+  "last": "2026-02-23",
+  "median_gap": 23,
+  "p90_gap": 35,
+  "provenance": "observed",
+  "span_days": 388
+ },
+ "NAIROBI ENTERPRISES LTD": {
+  "deliveries": 8,
+  "first": "2025-01-13",
+  "last": "2026-02-10",
+  "median_gap": 44,
+  "p90_gap": 147,
+  "provenance": "observed",
+  "span_days": 393
+ },
+ "NAIROBI JAVA HOUSE LTD": {
+  "deliveries": 35,
+  "first": "2025-01-15",
+  "last": "2026-03-23",
+  "median_gap": 9.0,
+  "p90_gap": 16,
+  "provenance": "observed",
+  "span_days": 432
+ },
+ "NAIROBI SPORTS HOUSE LTD FIREWORKS SR": {
+  "deliveries": 2,
+  "first": "2025-02-20",
+  "last": "2025-10-22",
+  "median_gap": 244,
+  "p90_gap": 244,
+  "provenance": "observed",
+  "span_days": 244
+ },
+ "NAJI SUPERSTORES": {
+  "deliveries": 11,
+  "first": "2025-01-29",
+  "last": "2026-03-13",
+  "median_gap": 14.0,
+  "p90_gap": 213,
+  "provenance": "observed",
+  "span_days": 408
+ },
+ "NAKIM SOLUTIONS LIMITED": {
+  "deliveries": 2,
+  "first": "2026-01-26",
+  "last": "2026-02-13",
+  "median_gap": 18,
+  "p90_gap": 18,
+  "provenance": "observed",
+  "span_days": 18
+ },
+ "NASHMU ENTERPRISES": {
+  "deliveries": 2,
+  "first": "2025-01-17",
+  "last": "2025-07-30",
+  "median_gap": 194,
+  "p90_gap": 194,
+  "provenance": "observed",
+  "span_days": 194
+ },
+ "NATION MEDIA GROUP LTD ACC 2 NO GRN": {
+  "deliveries": 6,
+  "first": "2025-01-13",
+  "last": "2025-11-10",
+  "median_gap": 26,
+  "p90_gap": 192,
+  "provenance": "observed",
+  "span_days": 301
+ },
+ "NATURES HEALTH LTD": {
+  "deliveries": 16,
+  "first": "2025-01-10",
+  "last": "2026-03-18",
+  "median_gap": 17,
+  "p90_gap": 39,
+  "provenance": "observed",
+  "span_days": 432
+ },
+ "NATURES RECIPES LIMITED SR": {
+  "deliveries": 17,
+  "first": "2025-01-13",
+  "last": "2026-03-19",
+  "median_gap": 17.0,
+  "p90_gap": 48,
+  "provenance": "observed",
+  "span_days": 430
+ },
+ "NATURES TASTES LIMITED": {
+  "deliveries": 1,
+  "median_gap": null,
+  "p90_gap": null,
+  "provenance": "observed",
+  "span_days": 0
+ },
+ "NDUMUNYA INVESTMENT SOLUTION": {
+  "deliveries": 29,
+  "first": "2025-01-17",
+  "last": "2026-03-18",
+  "median_gap": 9.5,
+  "p90_gap": 23,
+  "provenance": "observed",
+  "span_days": 425
+ },
+ "NELI PRODUCTS LIMITED SR": {
+  "deliveries": 11,
+  "first": "2025-01-11",
+  "last": "2026-02-20",
+  "median_gap": 22.5,
+  "p90_gap": 143,
+  "provenance": "observed",
+  "span_days": 405
+ },
+ "NESTLE KENYA LTD": {
+  "deliveries": 14,
+  "first": "2025-01-14",
+  "last": "2025-09-25",
+  "median_gap": 12,
+  "p90_gap": 20,
+  "provenance": "observed",
+  "span_days": 254
+ },
+ "NEW CRYSTAL DAIRY": {
+  "deliveries": 33,
+  "first": "2025-01-03",
+  "last": "2026-03-21",
+  "median_gap": 9.5,
+  "p90_gap": 17,
+  "provenance": "observed",
+  "span_days": 442
+ },
+ "NEW ITALYCOR LIMITED WINE": {
+  "deliveries": 23,
+  "first": "2025-01-14",
+  "last": "2026-03-06",
+  "median_gap": 12.0,
+  "p90_gap": 28,
+  "provenance": "observed",
+  "span_days": 416
+ },
+ "NEW ITALYCOR LTD": {
+  "deliveries": 4,
+  "first": "2025-03-18",
+  "last": "2026-02-20",
+  "median_gap": 106,
+  "p90_gap": 219,
+  "provenance": "observed",
+  "span_days": 339
+ },
+ "NEW KENYA COOP CREAMERIES LTD": {
+  "deliveries": 258,
+  "first": "2025-01-01",
+  "last": "2026-03-24",
+  "median_gap": 1,
+  "p90_gap": 2,
+  "provenance": "observed",
+  "span_days": 447
+ },
+ "NEW WESTLAND STORES": {
+  "deliveries": 9,
+  "first": "2025-01-11",
+  "last": "2026-03-21",
+  "median_gap": 29.0,
+  "p90_gap": 134,
+  "provenance": "observed",
+  "span_days": 434
+ },
+ "NG WINDSONG KENYA LTD": {
+  "deliveries": 11,
+  "first": "2025-01-15",
+  "last": "2026-03-23",
+  "median_gap": 34.0,
+  "p90_gap": 142,
+  "provenance": "observed",
+  "span_days": 432
+ },
+ "NGAMIA MILK SUPPLIERS LIMITED": {
+  "deliveries": 7,
+  "first": "2025-01-22",
+  "last": "2026-03-17",
+  "median_gap": 32.5,
+  "p90_gap": 203,
+  "provenance": "observed",
+  "span_days": 419
+ },
+ "NIDA VENTURES LIMITED": {
+  "deliveries": 3,
+  "first": "2025-11-28",
+  "last": "2026-02-28",
+  "median_gap": 46.0,
+  "p90_gap": 54,
+  "provenance": "observed",
+  "span_days": 92
+ },
+ "NJORO CANNING FACTORY": {
+  "deliveries": 21,
+  "first": "2025-01-11",
+  "last": "2026-03-17",
+  "median_gap": 14.0,
+  "p90_gap": 46,
+  "provenance": "observed",
+  "span_days": 430
+ },
+ "NOBLE OUTLOOK LIMITED": {
+  "deliveries": 19,
+  "first": "2025-02-01",
+  "last": "2026-03-19",
+  "median_gap": 15.0,
+  "p90_gap": 48,
+  "provenance": "observed",
+  "span_days": 411
+ },
+ "NORDA INDUSTRIES LTD.": {
+  "deliveries": 25,
+  "first": "2025-01-07",
+  "last": "2026-03-21",
+  "median_gap": 14.0,
+  "p90_gap": 22,
+  "provenance": "observed",
+  "span_days": 438
+ },
+ "NUTCRACKER LTD HQ": {
+  "deliveries": 14,
+  "first": "2025-01-21",
+  "last": "2026-03-24",
+  "median_gap": 18,
+  "p90_gap": 52,
+  "provenance": "observed",
+  "span_days": 427
+ },
+ "NUTCRACKER LTD LOCAL ITEMS": {
+  "deliveries": 10,
+  "first": "2025-02-18",
+  "last": "2026-03-10",
+  "median_gap": 23,
+  "p90_gap": 160,
+  "provenance": "observed",
+  "span_days": 385
+ },
+ "NUTRI AFRICA LIMITED SR": {
+  "deliveries": 7,
+  "first": "2025-01-17",
+  "last": "2026-02-23",
+  "median_gap": 49.0,
+  "p90_gap": 187,
+  "provenance": "observed",
+  "span_days": 402
+ },
+ "NUTRI DELIGHTS LTD SR": {
+  "deliveries": 5,
+  "first": "2025-01-27",
+  "last": "2025-08-27",
+  "median_gap": 35.5,
+  "p90_gap": 123,
+  "provenance": "observed",
+  "span_days": 212
+ },
+ "NYOTA LIMITED": {
+  "deliveries": 20,
+  "first": "2025-01-10",
+  "last": "2026-03-19",
+  "median_gap": 15,
+  "p90_gap": 62,
+  "provenance": "observed",
+  "span_days": 433
+ },
+ "ODEX CHEMICALS": {
+  "deliveries": 7,
+  "first": "2025-01-16",
+  "last": "2026-02-10",
+  "median_gap": 40.0,
+  "p90_gap": 162,
+  "provenance": "observed",
+  "span_days": 390
+ },
+ "OLOLO FARMING CO LTD SR": {
+  "deliveries": 12,
+  "first": "2025-03-14",
+  "last": "2026-03-06",
+  "median_gap": 21,
+  "p90_gap": 51,
+  "provenance": "observed",
+  "span_days": 357
+ },
+ "ON DEMAND DISTRIBUTION HOUSE": {
+  "deliveries": 22,
+  "first": "2025-01-08",
+  "last": "2026-03-19",
+  "median_gap": 14,
+  "p90_gap": 35,
+  "provenance": "observed",
+  "span_days": 435
+ },
+ "ONE STOP ENTERPRISE": {
+  "deliveries": 13,
+  "first": "2025-01-13",
+  "last": "2026-03-13",
+  "median_gap": 19.0,
+  "p90_gap": 81,
+  "provenance": "observed",
+  "span_days": 424
+ },
+ "OSHO CHEMICAL INDUSTRIES LTD": {
+  "deliveries": 19,
+  "first": "2025-01-13",
+  "last": "2026-03-16",
+  "median_gap": 15.0,
+  "p90_gap": 50,
+  "provenance": "observed",
+  "span_days": 427
+ },
+ "OSHO GRAIN MILLERS LTD": {
+  "deliveries": 13,
+  "first": "2025-01-10",
+  "last": "2026-03-21",
+  "median_gap": 28.0,
+  "p90_gap": 57,
+  "provenance": "observed",
+  "span_days": 435
+ },
+ "OSHWAL LIFESCIENCES LTD SR": {
+  "deliveries": 2,
+  "first": "2025-07-21",
+  "last": "2026-01-27",
+  "median_gap": 190,
+  "p90_gap": 190,
+  "provenance": "observed",
+  "span_days": 190
+ },
+ "OXYPLUS INTERNATIONAL COM LTD SR": {
+  "deliveries": 2,
+  "first": "2025-08-14",
+  "last": "2026-02-14",
+  "median_gap": 184,
+  "p90_gap": 184,
+  "provenance": "observed",
+  "span_days": 184
+ },
+ "OZ FOODS AND BEVERAGES LTD": {
+  "deliveries": 15,
+  "first": "2025-03-15",
+  "last": "2026-03-21",
+  "median_gap": 17.0,
+  "p90_gap": 63,
+  "provenance": "observed",
+  "span_days": 371
+ },
+ "P Z CUSSONS EAST AFRICA LTD HQ": {
+  "deliveries": 23,
+  "first": "2025-01-11",
+  "last": "2026-03-19",
+  "median_gap": 13.0,
+  "p90_gap": 23,
+  "provenance": "observed",
+  "span_days": 432
+ },
+ "PAMULI POULTRY FARM": {
+  "deliveries": 4,
+  "first": "2025-07-19",
+  "last": "2025-08-26",
+  "median_gap": 11,
+  "p90_gap": 18,
+  "provenance": "observed",
+  "span_days": 38
+ },
+ "PANDA BRUSHES LIMITED": {
+  "deliveries": 24,
+  "first": "2025-01-06",
+  "last": "2026-03-23",
+  "median_gap": 15,
+  "p90_gap": 21,
+  "provenance": "observed",
+  "span_days": 441
+ },
+ "PANTRY MASTERS LIMITED": {
+  "deliveries": 3,
+  "first": "2026-02-14",
+  "last": "2026-03-07",
+  "median_gap": 10.5,
+  "p90_gap": 13,
+  "provenance": "observed",
+  "span_days": 21
+ },
+ "PAPER CONVERTERS LTD": {
+  "deliveries": 5,
+  "first": "2025-07-26",
+  "last": "2026-03-04",
+  "median_gap": 55.0,
+  "p90_gap": 93,
+  "provenance": "observed",
+  "span_days": 221
+ },
+ "PAPER SYSTEMS LTD": {
+  "deliveries": 6,
+  "first": "2025-02-13",
+  "last": "2026-03-03",
+  "median_gap": 66,
+  "p90_gap": 186,
+  "provenance": "observed",
+  "span_days": 383
+ },
+ "PASAGOT LIMITED SR": {
+  "deliveries": 17,
+  "first": "2025-01-09",
+  "last": "2026-03-19",
+  "median_gap": 17.0,
+  "p90_gap": 43,
+  "provenance": "observed",
+  "span_days": 434
+ },
+ "PAUL MUTUKU HQ": {
+  "deliveries": 1,
+  "median_gap": null,
+  "p90_gap": null,
+  "provenance": "observed",
+  "span_days": 0
+ },
+ "PEEKABOO LIMITED": {
+  "deliveries": 2,
+  "first": "2026-02-04",
+  "last": "2026-03-05",
+  "median_gap": 29,
+  "p90_gap": 29,
+  "provenance": "observed",
+  "span_days": 29
+ },
+ "PEMBE FLOUR MILLS": {
+  "deliveries": 35,
+  "first": "2025-01-07",
+  "last": "2026-03-17",
+  "median_gap": 8.0,
+  "p90_gap": 15,
+  "provenance": "observed",
+  "span_days": 434
+ },
+ "PERNOD RICARD KENYA": {
+  "deliveries": 35,
+  "first": "2025-01-15",
+  "last": "2026-03-19",
+  "median_gap": 7.0,
+  "p90_gap": 15,
+  "provenance": "observed",
+  "span_days": 428
+ },
+ "PETZONE ENTERPRISES LTD HQ": {
+  "deliveries": 20,
+  "first": "2025-01-18",
+  "last": "2026-03-21",
+  "median_gap": 13,
+  "p90_gap": 32,
+  "provenance": "observed",
+  "span_days": 427
+ },
+ "PLANET CHIKA CHIKA LIMITED": {
+  "deliveries": 3,
+  "first": "2025-11-17",
+  "last": "2026-02-09",
+  "median_gap": 42.0,
+  "p90_gap": 53,
+  "provenance": "observed",
+  "span_days": 84
+ },
+ "PLANTA FOOD FACTORY LTD": {
+  "deliveries": 14,
+  "first": "2025-01-15",
+  "last": "2026-03-05",
+  "median_gap": 20,
+  "p90_gap": 42,
+  "provenance": "observed",
+  "span_days": 414
+ },
+ "PLUM POT INVESTMENTS LTD SR": {
+  "deliveries": 13,
+  "first": "2025-01-15",
+  "last": "2026-03-07",
+  "median_gap": 26.5,
+  "p90_gap": 58,
+  "provenance": "observed",
+  "span_days": 416
+ },
+ "POLMERK INDUSTRIES LIMITED": {
+  "deliveries": 9,
+  "first": "2025-01-21",
+  "last": "2026-03-11",
+  "median_gap": 27.5,
+  "p90_gap": 205,
+  "provenance": "observed",
+  "span_days": 414
+ },
+ "POLYTHENE INDUSTRIES LIMITED": {
+  "deliveries": 11,
+  "first": "2025-01-11",
+  "last": "2026-03-19",
+  "median_gap": 32.0,
+  "p90_gap": 130,
+  "provenance": "observed",
+  "span_days": 432
+ },
+ "PONDERS LIMITED": {
+  "deliveries": 17,
+  "first": "2025-01-14",
+  "last": "2026-01-05",
+  "median_gap": 14.5,
+  "p90_gap": 33,
+  "provenance": "observed",
+  "span_days": 356
+ },
+ "PORTCROSS LTD PC.": {
+  "deliveries": 20,
+  "first": "2025-01-08",
+  "last": "2026-03-19",
+  "median_gap": 14,
+  "p90_gap": 44,
+  "provenance": "observed",
+  "span_days": 435
+ },
+ "PRADIP ENTERPRISES E A LTD": {
+  "deliveries": 5,
+  "first": "2025-01-30",
+  "last": "2026-02-10",
+  "median_gap": 44.5,
+  "p90_gap": 268,
+  "provenance": "observed",
+  "span_days": 376
+ },
+ "PRAZIER POULTRIES": {
+  "deliveries": 22,
+  "first": "2025-01-06",
+  "last": "2026-03-23",
+  "median_gap": 14,
+  "p90_gap": 30,
+  "provenance": "observed",
+  "span_days": 441
+ },
+ "PREFERRED CHOICE 53 LTD SR": {
+  "deliveries": 4,
+  "first": "2025-03-19",
+  "last": "2026-01-26",
+  "median_gap": 117,
+  "p90_gap": 141,
+  "provenance": "observed",
+  "span_days": 313
+ },
+ "PREMIER FOODS LIMITED": {
+  "deliveries": 30,
+  "first": "2025-01-09",
+  "last": "2026-03-14",
+  "median_gap": 9,
+  "p90_gap": 40,
+  "provenance": "observed",
+  "span_days": 429
+ },
+ "PRESTIGE DISTRIBUTORS SR": {
+  "deliveries": 12,
+  "first": "2025-01-22",
+  "last": "2026-03-16",
+  "median_gap": 30,
+  "p90_gap": 61,
+  "provenance": "observed",
+  "span_days": 418
+ },
+ "PRIME DUCKS KENYA LIMITED": {
+  "deliveries": 2,
+  "first": "2025-03-14",
+  "last": "2025-03-27",
+  "median_gap": 13,
+  "p90_gap": 13,
+  "provenance": "observed",
+  "span_days": 13
+ },
+ "PROCTOR AND ALLAN E.A LTD.": {
+  "deliveries": 1,
+  "median_gap": null,
+  "p90_gap": null,
+  "provenance": "observed",
+  "span_days": 0
+ },
+ "PROLEX VENTURES LIMITED": {
+  "deliveries": 8,
+  "first": "2025-01-27",
+  "last": "2026-03-23",
+  "median_gap": 35,
+  "p90_gap": 203,
+  "provenance": "observed",
+  "span_days": 420
+ },
+ "PROMASIDOR KENYA LTD": {
+  "deliveries": 18,
+  "first": "2025-01-09",
+  "last": "2026-03-02",
+  "median_gap": 16,
+  "p90_gap": 45,
+  "provenance": "observed",
+  "span_days": 417
+ },
+ "PROPACK KENYA LTD": {
+  "deliveries": 35,
+  "first": "2025-01-07",
+  "last": "2026-03-16",
+  "median_gap": 8.0,
+  "p90_gap": 14,
+  "provenance": "observed",
+  "span_days": 433
+ },
+ "PRUNUS PHARMA LIMITED SR": {
+  "deliveries": 3,
+  "first": "2025-11-10",
+  "last": "2026-02-18",
+  "median_gap": 50.0,
+  "p90_gap": 74,
+  "provenance": "observed",
+  "span_days": 100
+ },
+ "PURATOS KENYA LIMITED": {
+  "deliveries": 6,
+  "first": "2025-09-18",
+  "last": "2026-01-14",
+  "median_gap": 33,
+  "p90_gap": 42,
+  "provenance": "observed",
+  "span_days": 118
+ },
+ "PURE NATURE PRODUCTS": {
+  "deliveries": 15,
+  "first": "2025-01-09",
+  "last": "2026-03-23",
+  "median_gap": 16.5,
+  "p90_gap": 62,
+  "provenance": "observed",
+  "span_days": 438
+ },
+ "PURE VIBES LIMITED SR": {
+  "deliveries": 2,
+  "first": "2025-09-06",
+  "last": "2025-11-12",
+  "median_gap": 67,
+  "p90_gap": 67,
+  "provenance": "observed",
+  "span_days": 67
+ },
+ "PWANI OIL PRODUCTS LTD.": {
+  "deliveries": 20,
+  "first": "2025-01-14",
+  "last": "2026-03-17",
+  "median_gap": 15,
+  "p90_gap": 42,
+  "provenance": "observed",
+  "span_days": 427
+ },
+ "PYAAN LIMITED": {
+  "deliveries": 17,
+  "first": "2025-02-07",
+  "last": "2026-03-04",
+  "median_gap": 16.5,
+  "p90_gap": 36,
+  "provenance": "observed",
+  "span_days": 390
+ },
+ "QIAS PRODUCE SR": {
+  "deliveries": 7,
+  "first": "2025-01-17",
+  "last": "2026-03-02",
+  "median_gap": 53.0,
+  "p90_gap": 169,
+  "provenance": "observed",
+  "span_days": 409
+ },
+ "QUALIPAS INDUSTRIES LTD SR": {
+  "deliveries": 8,
+  "first": "2025-02-21",
+  "last": "2026-03-18",
+  "median_gap": 39,
+  "p90_gap": 124,
+  "provenance": "observed",
+  "span_days": 390
+ },
+ "QUALITY MEAT PACKERS LTD": {
+  "deliveries": 37,
+  "first": "2025-01-07",
+  "last": "2026-03-24",
+  "median_gap": 7.0,
+  "p90_gap": 14,
+  "provenance": "observed",
+  "span_days": 441
+ },
+ "R D ENTERPRISES LIMITED SR": {
+  "deliveries": 2,
+  "first": "2025-09-11",
+  "last": "2025-10-15",
+  "median_gap": 34,
+  "p90_gap": 34,
+  "provenance": "observed",
+  "span_days": 34
+ },
+ "RAA LIMITED": {
+  "deliveries": 23,
+  "first": "2025-01-11",
+  "last": "2026-03-19",
+  "median_gap": 14.0,
+  "p90_gap": 19,
+  "provenance": "observed",
+  "span_days": 432
+ },
+ "RAA LIMITED SR": {
+  "deliveries": 3,
+  "first": "2026-01-23",
+  "last": "2026-03-04",
+  "median_gap": 20.0,
+  "p90_gap": 25,
+  "provenance": "observed",
+  "span_days": 40
+ },
+ "RABAI FOODS LIMITED": {
+  "deliveries": 99,
+  "first": "2025-01-06",
+  "last": "2026-03-24",
+  "median_gap": 2.0,
+  "p90_gap": 4,
+  "provenance": "observed",
+  "span_days": 442
+ },
+ "RADBONE CLARK K LTD": {
+  "deliveries": 22,
+  "first": "2025-01-13",
+  "last": "2026-03-17",
+  "median_gap": 15,
+  "p90_gap": 40,
+  "provenance": "observed",
+  "span_days": 428
+ },
+ "RADBONE CLARK KENYA LIMITED 2 SR": {
+  "deliveries": 2,
+  "first": "2025-01-13",
+  "last": "2025-02-10",
+  "median_gap": 28,
+  "p90_gap": 28,
+  "provenance": "observed",
+  "span_days": 28
+ },
+ "RADBONE CLARK LIMITED MARS": {
+  "deliveries": 33,
+  "first": "2025-01-06",
+  "last": "2026-03-16",
+  "median_gap": 9.5,
+  "p90_gap": 17,
+  "provenance": "observed",
+  "span_days": 434
+ },
+ "RAHWALI TRADERS LTD": {
+  "deliveries": 1,
+  "median_gap": null,
+  "p90_gap": null,
+  "provenance": "observed",
+  "span_days": 0
+ },
+ "RAJ KAMAL ENTERPRISE LIMITED": {
+  "deliveries": 9,
+  "first": "2025-01-28",
+  "last": "2026-03-11",
+  "median_gap": 43.0,
+  "p90_gap": 140,
+  "provenance": "observed",
+  "span_days": 407
+ },
+ "RAMJI HARIBHAI DEVANI LTD": {
+  "deliveries": 19,
+  "first": "2025-01-31",
+  "last": "2026-03-18",
+  "median_gap": 17.0,
+  "p90_gap": 45,
+  "provenance": "observed",
+  "span_days": 411
+ },
+ "RAVINE DAIRIES LIMITED": {
+  "deliveries": 18,
+  "first": "2025-01-02",
+  "last": "2026-03-03",
+  "median_gap": 12,
+  "p90_gap": 33,
+  "provenance": "observed",
+  "span_days": 425
+ },
+ "RAZCO LTD": {
+  "deliveries": 58,
+  "first": "2025-01-06",
+  "last": "2026-03-19",
+  "median_gap": 6,
+  "p90_gap": 9,
+  "provenance": "observed",
+  "span_days": 437
+ },
+ "RAZCO LTD 2ND": {
+  "deliveries": 28,
+  "first": "2025-01-06",
+  "last": "2026-03-18",
+  "median_gap": 10,
+  "p90_gap": 26,
+  "provenance": "observed",
+  "span_days": 436
+ },
+ "READY BELLY LIMITED": {
+  "deliveries": 14,
+  "first": "2025-01-10",
+  "last": "2026-03-10",
+  "median_gap": 23,
+  "p90_gap": 45,
+  "provenance": "observed",
+  "span_days": 424
+ },
+ "REGAL PHARMACEUTICALS LIMITED": {
+  "deliveries": 11,
+  "first": "2025-01-27",
+  "last": "2026-03-13",
+  "median_gap": 33.5,
+  "p90_gap": 122,
+  "provenance": "observed",
+  "span_days": 410
+ },
+ "RICKS LTD": {
+  "deliveries": 17,
+  "first": "2025-01-03",
+  "last": "2026-03-23",
+  "median_gap": 16.5,
+  "p90_gap": 49,
+  "provenance": "observed",
+  "span_days": 444
+ },
+ "RINZ PRODUCTS LTD": {
+  "deliveries": 25,
+  "first": "2025-01-09",
+  "last": "2026-03-21",
+  "median_gap": 13.0,
+  "p90_gap": 21,
+  "provenance": "observed",
+  "span_days": 436
+ },
+ "RISAGIL AGENCIES": {
+  "deliveries": 6,
+  "first": "2025-03-05",
+  "last": "2026-01-22",
+  "median_gap": 55,
+  "p90_gap": 166,
+  "provenance": "observed",
+  "span_days": 323
+ },
+ "RIVERROSE DISTRIBUTORS LTD": {
+  "deliveries": 12,
+  "first": "2025-02-12",
+  "last": "2026-03-13",
+  "median_gap": 15,
+  "p90_gap": 64,
+  "provenance": "observed",
+  "span_days": 394
+ },
+ "RIVERWEST COMPANY LTD": {
+  "deliveries": 15,
+  "first": "2025-01-14",
+  "last": "2026-03-14",
+  "median_gap": 19.0,
+  "p90_gap": 61,
+  "provenance": "observed",
+  "span_days": 424
+ },
+ "ROCKBERN COFFEE GROUP LTD": {
+  "deliveries": 12,
+  "first": "2025-01-08",
+  "last": "2026-01-06",
+  "median_gap": 21,
+  "p90_gap": 34,
+  "provenance": "observed",
+  "span_days": 363
+ },
+ "ROK INDUSTRIES LIMITED": {
+  "deliveries": 10,
+  "first": "2025-01-24",
+  "last": "2026-02-17",
+  "median_gap": 26,
+  "p90_gap": 150,
+  "provenance": "observed",
+  "span_days": 389
+ },
+ "ROSAKIND EA LIMITED": {
+  "deliveries": 15,
+  "first": "2025-01-16",
+  "last": "2026-03-17",
+  "median_gap": 19.5,
+  "p90_gap": 47,
+  "provenance": "observed",
+  "span_days": 425
+ },
+ "ROSHNI DIST LTD R D": {
+  "deliveries": 16,
+  "first": "2025-01-18",
+  "last": "2026-03-06",
+  "median_gap": 21,
+  "p90_gap": 50,
+  "provenance": "observed",
+  "span_days": 412
+ },
+ "ROSHNI DISTRIBUTORS LTD CROCKERY SR": {
+  "deliveries": 9,
+  "first": "2025-03-21",
+  "last": "2026-03-17",
+  "median_gap": 29.5,
+  "p90_gap": 117,
+  "provenance": "observed",
+  "span_days": 361
+ },
+ "ROYAL BLOOMS S ENTERPRISES NO GRN": {
+  "deliveries": 16,
+  "first": "2025-07-17",
+  "last": "2026-03-16",
+  "median_gap": 15,
+  "p90_gap": 18,
+  "provenance": "observed",
+  "span_days": 242
+ },
+ "ROYAL BREKKERS LIMITED": {
+  "deliveries": 36,
+  "first": "2025-01-03",
+  "last": "2026-03-24",
+  "median_gap": 8,
+  "p90_gap": 15,
+  "provenance": "observed",
+  "span_days": 445
+ },
+ "RWENZORI KENYA LIMITED": {
+  "deliveries": 7,
+  "first": "2025-01-13",
+  "last": "2025-11-27",
+  "median_gap": 27.5,
+  "p90_gap": 145,
+  "provenance": "observed",
+  "span_days": 318
+ },
+ "SAI OFFICE SUPPLIES LIMITED": {
+  "deliveries": 11,
+  "first": "2025-01-08",
+  "last": "2026-01-22",
+  "median_gap": 15.5,
+  "p90_gap": 136,
+  "provenance": "observed",
+  "span_days": 379
+ },
+ "SAI PHARMACEUTICALS K LIMITED SR": {
+  "deliveries": 18,
+  "first": "2025-01-04",
+  "last": "2026-03-12",
+  "median_gap": 15,
+  "p90_gap": 39,
+  "provenance": "observed",
+  "span_days": 432
+ },
+ "SALIM WAZARAN KENYA CO. LTD": {
+  "deliveries": 21,
+  "first": "2025-01-29",
+  "last": "2026-03-18",
+  "median_gap": 15.5,
+  "p90_gap": 38,
+  "provenance": "observed",
+  "span_days": 413
+ },
+ "SANGARE GARDENS LTD": {
+  "deliveries": 2,
+  "first": "2025-09-24",
+  "last": "2025-10-27",
+  "median_gap": 33,
+  "p90_gap": 33,
+  "provenance": "observed",
+  "span_days": 33
+ },
+ "SANGYUG ENTERPRISES LTD SR": {
+  "deliveries": 17,
+  "first": "2025-01-06",
+  "last": "2026-03-09",
+  "median_gap": 11.5,
+  "p90_gap": 66,
+  "provenance": "observed",
+  "span_days": 427
+ },
+ "SARAYA KENYA COMPANY LTD SR": {
+  "deliveries": 24,
+  "first": "2025-02-06",
+  "last": "2026-03-19",
+  "median_gap": 9,
+  "p90_gap": 47,
+  "provenance": "observed",
+  "span_days": 406
+ },
+ "SASINI PLC": {
+  "deliveries": 12,
+  "first": "2025-02-06",
+  "last": "2026-03-09",
+  "median_gap": 23,
+  "p90_gap": 71,
+  "provenance": "observed",
+  "span_days": 396
+ },
+ "SATIMA FARMHOUSE LIMITED": {
+  "deliveries": 66,
+  "first": "2025-01-06",
+  "last": "2026-03-23",
+  "median_gap": 4,
+  "p90_gap": 7,
+  "provenance": "observed",
+  "span_days": 441
+ },
+ "SATNAM INVESTMENT KENYA LTD SR": {
+  "deliveries": 1,
+  "median_gap": null,
+  "p90_gap": null,
+  "provenance": "observed",
+  "span_days": 0
+ },
+ "SAVANNAH BRANDS COMPANY LIMITED": {
+  "deliveries": 35,
+  "first": "2025-01-14",
+  "last": "2026-03-18",
+  "median_gap": 8.0,
+  "p90_gap": 15,
+  "provenance": "observed",
+  "span_days": 428
+ },
+ "SAVORY LEANS SR": {
+  "deliveries": 5,
+  "first": "2025-08-23",
+  "last": "2026-01-26",
+  "median_gap": 31.0,
+  "p90_gap": 73,
+  "provenance": "observed",
+  "span_days": 156
+ },
+ "SBC KENYA LIMITED": {
+  "deliveries": 23,
+  "first": "2025-01-08",
+  "last": "2026-03-07",
+  "median_gap": 12.5,
+  "p90_gap": 32,
+  "provenance": "observed",
+  "span_days": 423
+ },
+ "SEA HARVEST K LIMITED": {
+  "deliveries": 6,
+  "first": "2025-02-07",
+  "last": "2026-03-17",
+  "median_gap": 90,
+  "p90_gap": 133,
+  "provenance": "observed",
+  "span_days": 403
+ },
+ "SELECTIONS WORLD LIMITED NO GRN": {
+  "deliveries": 9,
+  "first": "2025-01-25",
+  "last": "2026-03-11",
+  "median_gap": 30.0,
+  "p90_gap": 185,
+  "provenance": "observed",
+  "span_days": 410
+ },
+ "SESIA LIMITED": {
+  "deliveries": 15,
+  "first": "2025-01-13",
+  "last": "2026-03-09",
+  "median_gap": 24.0,
+  "p90_gap": 49,
+  "provenance": "observed",
+  "span_days": 420
+ },
+ "SETUR": {
+  "deliveries": 8,
+  "first": "2025-01-15",
+  "last": "2026-03-12",
+  "median_gap": 42,
+  "p90_gap": 178,
+  "provenance": "observed",
+  "span_days": 421
+ },
+ "SEVI ENTERPRISES": {
+  "deliveries": 7,
+  "first": "2025-01-14",
+  "last": "2026-03-11",
+  "median_gap": 33.5,
+  "p90_gap": 183,
+  "provenance": "observed",
+  "span_days": 421
+ },
+ "SHALIMAR SPICES LIMITED": {
+  "deliveries": 6,
+  "first": "2025-02-26",
+  "last": "2026-03-11",
+  "median_gap": 60,
+  "p90_gap": 198,
+  "provenance": "observed",
+  "span_days": 378
+ },
+ "SHALINA HEALTHCARE K LTD": {
+  "deliveries": 20,
+  "first": "2025-01-07",
+  "last": "2026-03-03",
+  "median_gap": 13,
+  "p90_gap": 62,
+  "provenance": "observed",
+  "span_days": 420
+ },
+ "SHAMULA LIMITED": {
+  "deliveries": 21,
+  "first": "2025-01-09",
+  "last": "2026-03-10",
+  "median_gap": 14.5,
+  "p90_gap": 39,
+  "provenance": "observed",
+  "span_days": 425
+ },
+ "SHIVOM ENTERPRISES LIMITED SR": {
+  "deliveries": 4,
+  "first": "2025-08-01",
+  "last": "2026-02-19",
+  "median_gap": 53,
+  "p90_gap": 120,
+  "provenance": "observed",
+  "span_days": 202
+ },
+ "SIDDHAM BEVERAGES LIMITED": {
+  "deliveries": 36,
+  "first": "2025-01-14",
+  "last": "2026-03-11",
+  "median_gap": 8,
+  "p90_gap": 15,
+  "provenance": "observed",
+  "span_days": 421
+ },
+ "SIERRA PREMIUM BREWERIES LIMITED": {
+  "deliveries": 16,
+  "first": "2025-01-22",
+  "last": "2026-03-18",
+  "median_gap": 15,
+  "p90_gap": 91,
+  "provenance": "observed",
+  "span_days": 420
+ },
+ "SIGMA FEEDS LTD": {
+  "deliveries": 21,
+  "first": "2025-01-06",
+  "last": "2026-03-09",
+  "median_gap": 14.0,
+  "p90_gap": 50,
+  "provenance": "observed",
+  "span_days": 427
+ },
+ "SINE IMPORT LIMITED": {
+  "deliveries": 5,
+  "first": "2025-01-14",
+  "last": "2025-11-10",
+  "median_gap": 38.5,
+  "p90_gap": 205,
+  "provenance": "observed",
+  "span_days": 300
+ },
+ "SKYPEX SUPPLIES LIMITED": {
+  "deliveries": 9,
+  "first": "2025-03-12",
+  "last": "2026-03-06",
+  "median_gap": 28.0,
+  "p90_gap": 148,
+  "provenance": "observed",
+  "span_days": 359
+ },
+ "SLATER AND WHITTAKER LTD": {
+  "deliveries": 24,
+  "first": "2025-01-14",
+  "last": "2026-03-11",
+  "median_gap": 8,
+  "p90_gap": 21,
+  "provenance": "observed",
+  "span_days": 421
+ },
+ "SLEEK KENYA LIMITED SR": {
+  "deliveries": 19,
+  "first": "2025-01-13",
+  "last": "2026-03-24",
+  "median_gap": 16.5,
+  "p90_gap": 54,
+  "provenance": "observed",
+  "span_days": 435
+ },
+ "SMART BRANDS LTD HQ": {
+  "deliveries": 20,
+  "first": "2025-01-11",
+  "last": "2026-03-17",
+  "median_gap": 14,
+  "p90_gap": 68,
+  "provenance": "observed",
+  "span_days": 430
+ },
+ "SMART GLOBAL LIMITED": {
+  "deliveries": 20,
+  "first": "2025-01-11",
+  "last": "2026-03-16",
+  "median_gap": 14,
+  "p90_gap": 46,
+  "provenance": "observed",
+  "span_days": 429
+ },
+ "SMARTBRIDGE DISTRIBUTORS LTD": {
+  "deliveries": 13,
+  "first": "2025-03-03",
+  "last": "2026-03-09",
+  "median_gap": 15.0,
+  "p90_gap": 50,
+  "provenance": "observed",
+  "span_days": 371
+ },
+ "SMARTBRIDGE DISTRIBUTORS LTD SR": {
+  "deliveries": 7,
+  "first": "2025-02-14",
+  "last": "2026-01-07",
+  "median_gap": 40.0,
+  "p90_gap": 140,
+  "provenance": "observed",
+  "span_days": 327
+ },
+ "SMOKES AND GIFTS": {
+  "deliveries": 8,
+  "first": "2025-01-15",
+  "last": "2026-02-17",
+  "median_gap": 44,
+  "p90_gap": 147,
+  "provenance": "observed",
+  "span_days": 398
+ },
+ "SOLOMON NGETHE": {
+  "deliveries": 8,
+  "first": "2025-01-13",
+  "last": "2026-03-13",
+  "median_gap": 52,
+  "p90_gap": 179,
+  "provenance": "observed",
+  "span_days": 424
+ },
+ "SOPHIA BLENE ABDI": {
+  "deliveries": 1,
+  "median_gap": null,
+  "p90_gap": null,
+  "provenance": "observed",
+  "span_days": 0
+ },
+ "SOYS LIMITED": {
+  "deliveries": 30,
+  "first": "2025-01-15",
+  "last": "2026-03-07",
+  "median_gap": 8,
+  "p90_gap": 25,
+  "provenance": "observed",
+  "span_days": 416
+ },
+ "SPAHK LIMITED": {
+  "deliveries": 5,
+  "first": "2025-02-12",
+  "last": "2025-10-27",
+  "median_gap": 41.0,
+  "p90_gap": 156,
+  "provenance": "observed",
+  "span_days": 257
+ },
+ "SPARKLE BRANDS LIMITED": {
+  "deliveries": 27,
+  "first": "2025-01-03",
+  "last": "2026-03-07",
+  "median_gap": 12.0,
+  "p90_gap": 18,
+  "provenance": "observed",
+  "span_days": 428
+ },
+ "SPHERETASTE FOODS LIMITED": {
+  "deliveries": 16,
+  "first": "2025-02-05",
+  "last": "2026-03-17",
+  "median_gap": 14,
+  "p90_gap": 28,
+  "provenance": "observed",
+  "span_days": 405
+ },
+ "SPICE WORLD LTD": {
+  "deliveries": 26,
+  "first": "2025-01-17",
+  "last": "2026-03-16",
+  "median_gap": 11,
+  "p90_gap": 20,
+  "provenance": "observed",
+  "span_days": 423
+ },
+ "SPREAD MASTERS LIMITED": {
+  "deliveries": 15,
+  "first": "2025-02-11",
+  "last": "2026-03-09",
+  "median_gap": 21.5,
+  "p90_gap": 33,
+  "provenance": "observed",
+  "span_days": 391
+ },
+ "SPRING VALLEY COFFEE ROASTERS LTD": {
+  "deliveries": 26,
+  "first": "2025-01-11",
+  "last": "2026-03-19",
+  "median_gap": 12,
+  "p90_gap": 22,
+  "provenance": "observed",
+  "span_days": 432
+ },
+ "STALLION TRADING LIMITED": {
+  "deliveries": 15,
+  "first": "2025-01-04",
+  "last": "2026-03-12",
+  "median_gap": 15.5,
+  "p90_gap": 49,
+  "provenance": "observed",
+  "span_days": 432
+ },
+ "STATPACK INDUSTRIES LTD": {
+  "deliveries": 13,
+  "first": "2025-01-09",
+  "last": "2026-03-19",
+  "median_gap": 24.0,
+  "p90_gap": 54,
+  "provenance": "observed",
+  "span_days": 434
+ },
+ "STEELWOOL AFRICA LTD": {
+  "deliveries": 21,
+  "first": "2025-01-13",
+  "last": "2026-03-24",
+  "median_gap": 15.0,
+  "p90_gap": 44,
+  "provenance": "observed",
+  "span_days": 435
+ },
+ "STENIC ENTERPRISES LTD": {
+  "deliveries": 1,
+  "median_gap": null,
+  "p90_gap": null,
+  "provenance": "observed",
+  "span_days": 0
+ },
+ "STENTOR ENTERPRISES LIMITED NO GRN": {
+  "deliveries": 22,
+  "first": "2025-01-04",
+  "last": "2026-03-17",
+  "median_gap": 15,
+  "p90_gap": 18,
+  "provenance": "observed",
+  "span_days": 437
+ },
+ "STORESOME TRADING CO LTD SR": {
+  "deliveries": 13,
+  "first": "2025-03-13",
+  "last": "2026-03-23",
+  "median_gap": 24.0,
+  "p90_gap": 57,
+  "provenance": "observed",
+  "span_days": 375
+ },
+ "STREAMLINE IMPEX KENYA LTD SR": {
+  "deliveries": 5,
+  "first": "2025-08-23",
+  "last": "2026-03-12",
+  "median_gap": 51.0,
+  "p90_gap": 79,
+  "provenance": "observed",
+  "span_days": 201
+ },
+ "STYROPLAST LIMITED": {
+  "deliveries": 1,
+  "median_gap": null,
+  "p90_gap": null,
+  "provenance": "observed",
+  "span_days": 0
+ },
+ "SUDI CHEMICAL INDUSTRIES LTD": {
+  "deliveries": 15,
+  "first": "2025-01-10",
+  "last": "2026-03-19",
+  "median_gap": 18.0,
+  "p90_gap": 46,
+  "provenance": "observed",
+  "span_days": 433
+ },
+ "SUMO FOODS LIMITED SR": {
+  "deliveries": 13,
+  "first": "2025-02-01",
+  "last": "2026-03-16",
+  "median_gap": 26.0,
+  "p90_gap": 42,
+  "provenance": "observed",
+  "span_days": 408
+ },
+ "SUN FOOD IMPORTERS AND EXPORTERS LTD SR": {
+  "deliveries": 2,
+  "first": "2025-11-10",
+  "last": "2026-02-23",
+  "median_gap": 105,
+  "p90_gap": 105,
+  "provenance": "observed",
+  "span_days": 105
+ },
+ "SUNDRIES BARGAIN NAIROBI LTD": {
+  "deliveries": 28,
+  "first": "2025-01-16",
+  "last": "2026-03-17",
+  "median_gap": 11,
+  "p90_gap": 19,
+  "provenance": "observed",
+  "span_days": 425
+ },
+ "SUNPOWER PRODUCTS LTD": {
+  "deliveries": 109,
+  "first": "2025-01-03",
+  "last": "2026-03-23",
+  "median_gap": 3.0,
+  "p90_gap": 5,
+  "provenance": "observed",
+  "span_days": 444
+ },
+ "SUNPOWER PRODUCTS LTD DELI NO GRN": {
+  "deliveries": 11,
+  "first": "2025-01-08",
+  "last": "2026-03-06",
+  "median_gap": 28.0,
+  "p90_gap": 148,
+  "provenance": "observed",
+  "span_days": 422
+ },
+ "SUNVEAT FOODS LIMITED": {
+  "deliveries": 29,
+  "first": "2025-01-09",
+  "last": "2026-03-16",
+  "median_gap": 9.5,
+  "p90_gap": 21,
+  "provenance": "observed",
+  "span_days": 431
+ },
+ "SUPA BRITE LTD": {
+  "deliveries": 20,
+  "first": "2025-01-11",
+  "last": "2026-03-13",
+  "median_gap": 15,
+  "p90_gap": 48,
+  "provenance": "observed",
+  "span_days": 426
+ },
+ "SUPA SNACKS LTD": {
+  "deliveries": 20,
+  "first": "2025-01-14",
+  "last": "2026-03-21",
+  "median_gap": 15,
+  "p90_gap": 46,
+  "provenance": "observed",
+  "span_days": 431
+ },
+ "SUPER GIBS LTD": {
+  "deliveries": 4,
+  "first": "2025-09-08",
+  "last": "2026-03-06",
+  "median_gap": 46,
+  "p90_gap": 88,
+  "provenance": "observed",
+  "span_days": 179
+ },
+ "SUPER SAVERS DISTRIBUTION LTD": {
+  "deliveries": 24,
+  "first": "2025-01-07",
+  "last": "2026-03-17",
+  "median_gap": 14,
+  "p90_gap": 28,
+  "provenance": "observed",
+  "span_days": 434
+ },
+ "SUPERSLEEK LIMITED": {
+  "deliveries": 22,
+  "first": "2025-01-13",
+  "last": "2026-03-23",
+  "median_gap": 14,
+  "p90_gap": 28,
+  "provenance": "observed",
+  "span_days": 434
+ },
+ "SURGILINKS LIMITED": {
+  "deliveries": 3,
+  "first": "2025-08-28",
+  "last": "2025-11-15",
+  "median_gap": 39.5,
+  "p90_gap": 47,
+  "provenance": "observed",
+  "span_days": 79
+ },
+ "SYMBIO HEALTHCARE LIMITED SR": {
+  "deliveries": 4,
+  "first": "2025-02-12",
+  "last": "2025-09-03",
+  "median_gap": 36,
+  "p90_gap": 144,
+  "provenance": "observed",
+  "span_days": 203
+ },
+ "SYNERGY TECHNOLOGIES": {
+  "deliveries": 10,
+  "first": "2025-01-17",
+  "last": "2026-03-12",
+  "median_gap": 27,
+  "p90_gap": 169,
+  "provenance": "observed",
+  "span_days": 419
+ },
+ "TAIFA IMPORTS LIMITED": {
+  "deliveries": 33,
+  "first": "2025-01-10",
+  "last": "2026-03-17",
+  "median_gap": 7.0,
+  "p90_gap": 28,
+  "provenance": "observed",
+  "span_days": 431
+ },
+ "TAIFA IMPORTS LIMITED 2ND SR": {
+  "deliveries": 8,
+  "first": "2025-01-10",
+  "last": "2026-02-18",
+  "median_gap": 52,
+  "p90_gap": 134,
+  "provenance": "observed",
+  "span_days": 404
+ },
+ "TAMARTA INDUSTRIES LTD SR": {
+  "deliveries": 4,
+  "first": "2025-07-16",
+  "last": "2025-09-04",
+  "median_gap": 13,
+  "p90_gap": 26,
+  "provenance": "observed",
+  "span_days": 50
+ },
+ "TANIA EAST AFRICA LTD": {
+  "deliveries": 9,
+  "first": "2025-01-23",
+  "last": "2026-03-10",
+  "median_gap": 17.0,
+  "p90_gap": 259,
+  "provenance": "observed",
+  "span_days": 411
+ },
+ "TAWI NATURALS AFRICA LTD SR": {
+  "deliveries": 6,
+  "first": "2025-01-18",
+  "last": "2025-11-18",
+  "median_gap": 59,
+  "p90_gap": 123,
+  "provenance": "observed",
+  "span_days": 304
+ },
+ "TECHNOMATIC LIMITED SR": {
+  "deliveries": 1,
+  "median_gap": null,
+  "p90_gap": null,
+  "provenance": "observed",
+  "span_days": 0
+ },
+ "TECHPAK INDUSTRIES LTD": {
+  "deliveries": 25,
+  "first": "2025-01-11",
+  "last": "2026-03-23",
+  "median_gap": 11.0,
+  "p90_gap": 31,
+  "provenance": "observed",
+  "span_days": 436
+ },
+ "TELA LIMITED": {
+  "deliveries": 7,
+  "first": "2025-02-06",
+  "last": "2026-02-17",
+  "median_gap": 38.0,
+  "p90_gap": 183,
+  "provenance": "observed",
+  "span_days": 376
+ },
+ "TERMINATOR ELECTRICAL P T COM LTD": {
+  "deliveries": 6,
+  "first": "2025-08-21",
+  "last": "2025-12-08",
+  "median_gap": 25,
+  "p90_gap": 31,
+  "provenance": "observed",
+  "span_days": 109
+ },
+ "TERMINATOR ELECTRICAL P T COM LTD SR": {
+  "deliveries": 3,
+  "first": "2026-01-10",
+  "last": "2026-03-12",
+  "median_gap": 30.5,
+  "p90_gap": 33,
+  "provenance": "observed",
+  "span_days": 61
+ },
+ "TEXPLAST INDUSTRIES LIMITED": {
+  "deliveries": 9,
+  "first": "2025-08-13",
+  "last": "2026-03-17",
+  "median_gap": 19.0,
+  "p90_gap": 57,
+  "provenance": "observed",
+  "span_days": 216
+ },
+ "TEXT BOOK CENTRE LTD": {
+  "deliveries": 12,
+  "first": "2025-01-02",
+  "last": "2026-02-27",
+  "median_gap": 24,
+  "p90_gap": 61,
+  "provenance": "observed",
+  "span_days": 421
+ },
+ "THE CHOICE OF E A LTD": {
+  "deliveries": 28,
+  "first": "2025-02-11",
+  "last": "2026-03-11",
+  "median_gap": 8,
+  "p90_gap": 21,
+  "provenance": "observed",
+  "span_days": 393
+ },
+ "THE CORNER SHOP LIMITED NO GRN": {
+  "deliveries": 45,
+  "first": "2025-01-02",
+  "last": "2026-03-23",
+  "median_gap": 7.0,
+  "p90_gap": 10,
+  "provenance": "observed",
+  "span_days": 445
+ },
+ "THE DREAM FACTORY KENYA LIMITED SR": {
+  "deliveries": 3,
+  "first": "2025-07-22",
+  "last": "2025-11-10",
+  "median_gap": 55.5,
+  "p90_gap": 59,
+  "provenance": "observed",
+  "span_days": 111
+ },
+ "THE STANDARD GROUP PLC NO GRN": {
+  "deliveries": 8,
+  "first": "2025-01-02",
+  "last": "2026-01-31",
+  "median_gap": 35,
+  "p90_gap": 206,
+  "provenance": "observed",
+  "span_days": 394
+ },
+ "THE STAR PUBLICATIONS LTD NO GRN": {
+  "deliveries": 8,
+  "first": "2025-01-11",
+  "last": "2026-02-28",
+  "median_gap": 32,
+  "p90_gap": 206,
+  "provenance": "observed",
+  "span_days": 413
+ },
+ "THE WELL HUNG BUTCHER LTD": {
+  "deliveries": 17,
+  "first": "2025-01-06",
+  "last": "2026-03-12",
+  "median_gap": 19.0,
+  "p90_gap": 42,
+  "provenance": "observed",
+  "span_days": 430
+ },
+ "THE WINES SHOP": {
+  "deliveries": 1,
+  "median_gap": null,
+  "p90_gap": null,
+  "provenance": "observed",
+  "span_days": 0
+ },
+ "TOLSTOY TRADING LIMITED": {
+  "deliveries": 10,
+  "first": "2025-01-08",
+  "last": "2026-02-18",
+  "median_gap": 31,
+  "p90_gap": 138,
+  "provenance": "observed",
+  "span_days": 406
+ },
+ "TOP FOOD EA LTD": {
+  "deliveries": 23,
+  "first": "2025-01-08",
+  "last": "2026-03-16",
+  "median_gap": 14.0,
+  "p90_gap": 25,
+  "provenance": "observed",
+  "span_days": 432
+ },
+ "TOWFIQ K LIMITED HQ": {
+  "deliveries": 33,
+  "first": "2025-01-04",
+  "last": "2026-03-16",
+  "median_gap": 9.5,
+  "p90_gap": 17,
+  "provenance": "observed",
+  "span_days": 436
+ },
+ "TOYZOONA LIMITED HQ": {
+  "deliveries": 3,
+  "first": "2025-08-23",
+  "last": "2026-01-19",
+  "median_gap": 74.5,
+  "p90_gap": 82,
+  "provenance": "observed",
+  "span_days": 149
+ },
+ "TRADE ROOTS LTD": {
+  "deliveries": 22,
+  "first": "2025-01-09",
+  "last": "2026-03-10",
+  "median_gap": 13,
+  "p90_gap": 33,
+  "provenance": "observed",
+  "span_days": 425
+ },
+ "TRESKEN INTERNATIONAL LIMITED": {
+  "deliveries": 15,
+  "first": "2025-01-13",
+  "last": "2026-03-23",
+  "median_gap": 29.5,
+  "p90_gap": 58,
+  "provenance": "observed",
+  "span_days": 434
+ },
+ "TRI CLOVER INDUSTRIES LTD": {
+  "deliveries": 21,
+  "first": "2025-01-07",
+  "last": "2026-03-14",
+  "median_gap": 14.5,
+  "p90_gap": 43,
+  "provenance": "observed",
+  "span_days": 431
+ },
+ "TROPICAL HEAT LTD": {
+  "deliveries": 30,
+  "first": "2025-01-07",
+  "last": "2026-03-17",
+  "median_gap": 11,
+  "p90_gap": 22,
+  "provenance": "observed",
+  "span_days": 434
+ },
+ "TROPIKAL BRANDS AFRICA LTD": {
+  "deliveries": 24,
+  "first": "2025-01-13",
+  "last": "2026-03-13",
+  "median_gap": 11,
+  "p90_gap": 23,
+  "provenance": "observed",
+  "span_days": 424
+ },
+ "TRUFOODS LIMITED T F": {
+  "deliveries": 30,
+  "first": "2025-01-10",
+  "last": "2026-03-18",
+  "median_gap": 10,
+  "p90_gap": 16,
+  "provenance": "observed",
+  "span_days": 432
+ },
+ "TRUPTI ENTERPRISES SR": {
+  "deliveries": 8,
+  "first": "2025-02-21",
+  "last": "2026-03-19",
+  "median_gap": 39,
+  "p90_gap": 166,
+  "provenance": "observed",
+  "span_days": 391
+ },
+ "TWIGA BROTHERS INVEST LIMITED": {
+  "deliveries": 7,
+  "first": "2025-02-07",
+  "last": "2026-02-19",
+  "median_gap": 47.0,
+  "p90_gap": 179,
+  "provenance": "observed",
+  "span_days": 377
+ },
+ "TWIGA CHEMICAL I LIMITED": {
+  "deliveries": 2,
+  "first": "2025-11-08",
+  "last": "2025-12-09",
+  "median_gap": 31,
+  "p90_gap": 31,
+  "provenance": "observed",
+  "span_days": 31
+ },
+ "TWIGA STATIONERS AND PRINTERS LTD": {
+  "deliveries": 19,
+  "first": "2025-01-16",
+  "last": "2026-02-25",
+  "median_gap": 14.0,
+  "p90_gap": 44,
+  "provenance": "observed",
+  "span_days": 405
+ },
+ "TWIRL ENTERPRISES LTD": {
+  "deliveries": 31,
+  "first": "2025-01-08",
+  "last": "2026-03-23",
+  "median_gap": 11.5,
+  "p90_gap": 20,
+  "provenance": "observed",
+  "span_days": 439
+ },
+ "TWO COUSINS DISTILLERS LTD": {
+  "deliveries": 1,
+  "median_gap": null,
+  "p90_gap": null,
+  "provenance": "observed",
+  "span_days": 0
+ },
+ "UDV KENYA LIMITED": {
+  "deliveries": 41,
+  "first": "2025-01-06",
+  "last": "2026-03-21",
+  "median_gap": 7.5,
+  "p90_gap": 15,
+  "provenance": "observed",
+  "span_days": 439
+ },
+ "UKWALA TRADING 2022 LTD SR": {
+  "deliveries": 13,
+  "first": "2025-01-07",
+  "last": "2026-03-10",
+  "median_gap": 25.5,
+  "p90_gap": 59,
+  "provenance": "observed",
+  "span_days": 427
+ },
+ "UNDER THE INFLUENCE E A LIMITED": {
+  "deliveries": 4,
+  "first": "2025-07-24",
+  "last": "2026-01-28",
+  "median_gap": 54,
+  "p90_gap": 113,
+  "provenance": "observed",
+  "span_days": 188
+ },
+ "UNGA LTD": {
+  "deliveries": 30,
+  "first": "2025-01-08",
+  "last": "2026-03-19",
+  "median_gap": 11,
+  "p90_gap": 24,
+  "provenance": "observed",
+  "span_days": 435
+ },
+ "UNIHOPE STAR BRILLIANCE LIMITED SR": {
+  "deliveries": 3,
+  "first": "2025-01-11",
+  "last": "2026-01-22",
+  "median_gap": 188.0,
+  "p90_gap": 329,
+  "provenance": "observed",
+  "span_days": 376
+ },
+ "UNILEVER KENYA LIMITED": {
+  "deliveries": 29,
+  "first": "2025-01-04",
+  "last": "2026-03-13",
+  "median_gap": 12.0,
+  "p90_gap": 18,
+  "provenance": "observed",
+  "span_days": 433
+ },
+ "URBAN BREWERIES LIMITED": {
+  "deliveries": 1,
+  "median_gap": null,
+  "p90_gap": null,
+  "provenance": "observed",
+  "span_days": 0
+ },
+ "UVA WINES LIMITED SR": {
+  "deliveries": 28,
+  "first": "2025-01-03",
+  "last": "2026-03-04",
+  "median_gap": 8,
+  "p90_gap": 21,
+  "provenance": "observed",
+  "span_days": 425
+ },
+ "VALENCIA COSMETICS LIMITED": {
+  "deliveries": 11,
+  "first": "2025-01-22",
+  "last": "2026-03-10",
+  "median_gap": 26.5,
+  "p90_gap": 174,
+  "provenance": "observed",
+  "span_days": 412
+ },
+ "VEGAN WORLD LIMITED": {
+  "deliveries": 44,
+  "first": "2025-01-10",
+  "last": "2026-03-18",
+  "median_gap": 7,
+  "p90_gap": 13,
+  "provenance": "observed",
+  "span_days": 432
+ },
+ "VERUM DIMENSIONS LIMITED SR": {
+  "deliveries": 14,
+  "first": "2025-07-31",
+  "last": "2026-03-24",
+  "median_gap": 8,
+  "p90_gap": 22,
+  "provenance": "observed",
+  "span_days": 236
+ },
+ "VIBS ENTERPRISES LIMITED": {
+  "deliveries": 5,
+  "first": "2025-01-22",
+  "last": "2026-03-18",
+  "median_gap": 79.0,
+  "p90_gap": 229,
+  "provenance": "observed",
+  "span_days": 420
+ },
+ "VINO ELEGANT WINES LTD": {
+  "deliveries": 1,
+  "median_gap": null,
+  "p90_gap": null,
+  "provenance": "observed",
+  "span_days": 0
+ },
+ "VIPINGO INDUSTRIES LTD": {
+  "deliveries": 3,
+  "first": "2025-03-14",
+  "last": "2025-11-19",
+  "median_gap": 125.0,
+  "p90_gap": 175,
+  "provenance": "observed",
+  "span_days": 250
+ },
+ "VIVA GLOBAL LIMITED": {
+  "deliveries": 39,
+  "first": "2025-01-14",
+  "last": "2026-03-19",
+  "median_gap": 7.0,
+  "p90_gap": 18,
+  "provenance": "observed",
+  "span_days": 429
+ },
+ "VIVEK INVESTMENT LIMITED": {
+  "deliveries": 14,
+  "first": "2025-01-16",
+  "last": "2026-03-16",
+  "median_gap": 16,
+  "p90_gap": 63,
+  "provenance": "observed",
+  "span_days": 424
+ },
+ "VIVEK INVESTMENT LTD SR": {
+  "deliveries": 1,
+  "median_gap": null,
+  "p90_gap": null,
+  "provenance": "observed",
+  "span_days": 0
+ },
+ "WANANCHI BREWERIES LIMITED": {
+  "deliveries": 5,
+  "first": "2025-03-25",
+  "last": "2026-03-19",
+  "median_gap": 95.0,
+  "p90_gap": 136,
+  "provenance": "observed",
+  "span_days": 359
+ },
+ "WAY BEYOND VENTURES LTD SR": {
+  "deliveries": 3,
+  "first": "2026-02-19",
+  "last": "2026-03-19",
+  "median_gap": 14.0,
+  "p90_gap": 18,
+  "provenance": "observed",
+  "span_days": 28
+ },
+ "WEETABIX EAST AFRICA LTD HQ": {
+  "deliveries": 24,
+  "first": "2025-01-08",
+  "last": "2026-03-19",
+  "median_gap": 14,
+  "p90_gap": 23,
+  "provenance": "observed",
+  "span_days": 435
+ },
+ "WESSEX PHARMACEUTICAL LTD SR": {
+  "deliveries": 2,
+  "first": "2025-10-23",
+  "last": "2026-02-11",
+  "median_gap": 111,
+  "p90_gap": 111,
+  "provenance": "observed",
+  "span_days": 111
+ },
+ "WEST KENYA SUGAR COMPANY LTD": {
+  "deliveries": 7,
+  "first": "2025-02-12",
+  "last": "2026-03-05",
+  "median_gap": 54.0,
+  "p90_gap": 139,
+  "provenance": "observed",
+  "span_days": 386
+ },
+ "WESTLANDS FOODS AND COMMODITIES LIMITED": {
+  "deliveries": 5,
+  "first": "2026-01-07",
+  "last": "2026-03-13",
+  "median_gap": 17.5,
+  "p90_gap": 21,
+  "provenance": "observed",
+  "span_days": 65
+ },
+ "WESTLANDS TRADING LTD": {
+  "deliveries": 18,
+  "first": "2025-01-11",
+  "last": "2026-03-21",
+  "median_gap": 15,
+  "p90_gap": 64,
+  "provenance": "observed",
+  "span_days": 434
+ },
+ "WETGREEN FARMS LTD": {
+  "deliveries": 4,
+  "first": "2025-02-11",
+  "last": "2025-10-27",
+  "median_gap": 17,
+  "p90_gap": 230,
+  "provenance": "observed",
+  "span_days": 258
+ },
+ "WHEREIS ENTERPRISES": {
+  "deliveries": 5,
+  "first": "2025-01-13",
+  "last": "2026-01-28",
+  "median_gap": 77.5,
+  "p90_gap": 195,
+  "provenance": "observed",
+  "span_days": 380
+ },
+ "WHITE COAL INDUSTRIES LTD": {
+  "deliveries": 1,
+  "median_gap": null,
+  "p90_gap": null,
+  "provenance": "observed",
+  "span_days": 0
+ },
+ "WILFAY INVESTMENTS LIMITED": {
+  "deliveries": 6,
+  "first": "2025-01-08",
+  "last": "2026-02-10",
+  "median_gap": 11,
+  "p90_gap": 358,
+  "provenance": "observed",
+  "span_days": 398
+ },
+ "WINE AND MORE COMPANY LTD": {
+  "deliveries": 17,
+  "first": "2025-01-15",
+  "last": "2026-03-18",
+  "median_gap": 17.0,
+  "p90_gap": 50,
+  "provenance": "observed",
+  "span_days": 427
+ },
+ "WINE ROUTES LIMITED": {
+  "deliveries": 6,
+  "first": "2025-02-18",
+  "last": "2026-02-05",
+  "median_gap": 62,
+  "p90_gap": 183,
+  "provenance": "observed",
+  "span_days": 352
+ },
+ "WINE YARD EAST AFRICA LTD": {
+  "deliveries": 3,
+  "first": "2025-08-30",
+  "last": "2026-02-20",
+  "median_gap": 87.0,
+  "p90_gap": 130,
+  "provenance": "observed",
+  "span_days": 174
+ },
+ "WINNIES PURE HEALTH PRODUCTS LIMITED": {
+  "deliveries": 21,
+  "first": "2025-01-11",
+  "last": "2026-03-17",
+  "median_gap": 14.0,
+  "p90_gap": 47,
+  "provenance": "observed",
+  "span_days": 430
+ },
+ "WISH KENYA LIMITED SR": {
+  "deliveries": 18,
+  "first": "2025-01-07",
+  "last": "2026-03-13",
+  "median_gap": 17,
+  "p90_gap": 49,
+  "provenance": "observed",
+  "span_days": 430
+ },
+ "WOODLANDS COMPANY LTD": {
+  "deliveries": 5,
+  "first": "2025-01-21",
+  "last": "2026-02-28",
+  "median_gap": 67.0,
+  "p90_gap": 227,
+  "provenance": "observed",
+  "span_days": 403
+ },
+ "WORLD BRANDS K LTD": {
+  "deliveries": 20,
+  "first": "2025-01-18",
+  "last": "2026-03-12",
+  "median_gap": 15,
+  "p90_gap": 49,
+  "provenance": "observed",
+  "span_days": 418
+ },
+ "WOW BEVERAGES LTD": {
+  "deliveries": 8,
+  "first": "2025-02-12",
+  "last": "2026-03-05",
+  "median_gap": 16,
+  "p90_gap": 260,
+  "provenance": "observed",
+  "span_days": 386
+ },
+ "XING MING INDUSTRY CO LTD SR": {
+  "deliveries": 4,
+  "first": "2026-01-15",
+  "last": "2026-03-12",
+  "median_gap": 18,
+  "p90_gap": 22,
+  "provenance": "observed",
+  "span_days": 56
+ },
+ "XPRO PACKAGING LIMITED SR": {
+  "deliveries": 11,
+  "first": "2025-01-13",
+  "last": "2026-02-20",
+  "median_gap": 36.0,
+  "p90_gap": 114,
+  "provenance": "observed",
+  "span_days": 403
+ },
+ "YASTECH BRANDS LTD SR": {
+  "deliveries": 15,
+  "first": "2025-01-15",
+  "last": "2026-03-12",
+  "median_gap": 21.0,
+  "p90_gap": 37,
+  "provenance": "observed",
+  "span_days": 421
+ },
+ "ZAEEM LOGISTICS LIMITED SR": {
+  "deliveries": 2,
+  "first": "2025-10-31",
+  "last": "2026-02-24",
+  "median_gap": 116,
+  "p90_gap": 116,
+  "provenance": "observed",
+  "span_days": 116
+ },
+ "ZENKO KENYA LIMITED": {
+  "deliveries": 23,
+  "first": "2025-01-17",
+  "last": "2026-03-11",
+  "median_gap": 14.0,
+  "p90_gap": 28,
+  "provenance": "observed",
+  "span_days": 418
+ },
+ "ZHENG HONG K LIMITED SR": {
+  "deliveries": 16,
+  "first": "2025-03-12",
+  "last": "2026-03-11",
+  "median_gap": 18,
+  "p90_gap": 32,
+  "provenance": "observed",
+  "span_days": 364
+ }
+}

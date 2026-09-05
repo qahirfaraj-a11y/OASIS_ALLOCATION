@@ -257,6 +257,123 @@ def load_lead_patterns(root: str) -> Dict[str, dict]:
     return {}
 
 
+CADENCE_FILE = "supplier_cadence_from_grn.json"
+MIN_CADENCE_DELIVERIES = 10
+#: How far the receipt book has to contradict the order calendar before the
+#: calendar is treated as falsified rather than authoritative. 2.0 means a
+#: supplier declared weekly and observed at 3.5 days or less loses the
+#: declaration. Set deliberately loose: a supplier delivering a little more
+#: often than promised has not broken its promise.
+CADENCE_OVERRIDE_FACTOR = 2.0
+#: and only on enough evidence to call it a cadence rather than a run of luck.
+CADENCE_OVERRIDE_MIN_RECEIPTS = 30
+
+
+def load_cadence(root: str) -> Dict[str, float]:
+    """Supplier -> the delivery interval the receipt history actually shows.
+
+    lata_derived.json carries review_days = 7.0 for all 944 suppliers. That is
+    not a measurement, it is the default wearing a measurement's clothes. The
+    GRN book knows better: every receipt carries a vendor and a date, so the
+    DISTINCT delivery dates per vendor measure the cadence the supplier runs.
+    The dairies come out at a median gap of 1 day against an assumed 7.
+
+    This is a delivery interval, not a declared order day, so it ranks BELOW
+    the calendar: a supplier with a declared day keeps it, because that is a
+    commitment somebody made. It ranks ABOVE the blanket default, because a
+    measured 1-day cadence is evidence and 7.0 is an assumption.
+
+    Only vendors with at least MIN_CADENCE_DELIVERIES receipts are used: a
+    vendor seen twice has a gap, not a cadence.
+
+    Produced by `devkit/probe_fresh_cover.py`.
+    """
+    for cand in (os.path.join(root, "oasis", "data", CADENCE_FILE),
+                 os.path.join(root, "data", CADENCE_FILE),
+                 os.path.join(root, CADENCE_FILE)):
+        path = os.path.abspath(cand)
+        if not os.path.exists(path):
+            continue
+        try:
+            with open(path, encoding="utf-8") as f:
+                data = json.load(f) or {}
+        except (OSError, ValueError) as e:
+            logger.warning("cadence at %s is unreadable (%s)", path, e)
+            return {}
+        out, counts = {}, {}
+        for k, v in data.items():
+            if not isinstance(v, dict):
+                continue
+            g = v.get("median_gap")
+            if g is None or (v.get("deliveries") or 0) < MIN_CADENCE_DELIVERIES:
+                continue
+            kk = " ".join(str(k).upper().split())
+            out[kk] = max(1.0, float(g))
+            counts[kk] = int(v.get("deliveries") or 0)
+        out["__counts__"] = counts
+        logger.info("measured cadence: %d suppliers with >=%d receipts",
+                    len(out) - 1, MIN_CADENCE_DELIVERIES)
+        return out
+    logger.info("no measured cadence found - unscheduled suppliers keep the "
+                "mode default")
+    return {}
+
+
+_CADENCE_CACHE: Optional[Dict[str, float]] = None
+
+
+def default_cadence(root: Optional[str] = None) -> Dict[str, float]:
+    global _CADENCE_CACHE
+    if _CADENCE_CACHE is None:
+        base = root or os.path.abspath(
+            os.path.join(os.path.dirname(__file__), "..", ".."))
+        _CADENCE_CACHE = load_cadence(base)
+    return _CADENCE_CACHE
+
+
+SHELF_LIFE_FILE = "shelf_life_days.json"
+_SHELF_CACHE: Optional[Dict[str, float]] = None
+
+
+def load_shelf_life(root: Optional[str] = None) -> Dict[str, float]:
+    """Department -> days the product survives on a shelf.
+
+    `clamp_level()` has always accepted `shelf_life_days` and NOTHING has ever
+    populated it, so the clamp has never once fired. The engine was asking for
+    10.7 days of cover on fresh milk with a day and a bit of life.
+
+    These numbers are ASSERTED, not measured: they come from the category, not
+    from the data, and they should be replaced by code-date evidence when any
+    exists. They are a ceiling, so an asserted ceiling that is roughly right
+    beats no ceiling at all.
+    """
+    global _SHELF_CACHE
+    if _SHELF_CACHE is not None:
+        return _SHELF_CACHE
+    base = root or os.path.abspath(
+        os.path.join(os.path.dirname(__file__), "..", ".."))
+    for cand in (os.path.join(base, "oasis", "data", SHELF_LIFE_FILE),
+                 os.path.join(base, "data", SHELF_LIFE_FILE)):
+        if os.path.exists(cand):
+            try:
+                with open(cand, encoding="utf-8") as f:
+                    data = json.load(f) or {}
+                _SHELF_CACHE = {" ".join(str(k).upper().split()): float(v)
+                                for k, v in data.items()
+                                if isinstance(v, (int, float))}
+                logger.info("shelf life: %d departments", len(_SHELF_CACHE))
+                return _SHELF_CACHE
+            except (OSError, ValueError, TypeError):
+                break
+    _SHELF_CACHE = {}
+    return _SHELF_CACHE
+
+
+def shelf_life_for(department: str, root: Optional[str] = None) -> float:
+    return load_shelf_life(root).get(
+        " ".join(str(department or "").upper().split()), 0.0)
+
+
 #: Under on-demand ordering there is no cycle to wait for: the next chance to
 #: buy is the next working day. R collapses to that, not to a week.
 ON_DEMAND_REVIEW_DAYS = 1.0
@@ -279,7 +396,8 @@ def ordering_mode(default: str = "scheduled") -> str:
 
 def review_period(supplier: str, schedule: Optional[Dict[str, float]] = None,
                   default: float = DEFAULT_REVIEW_DAYS,
-                  mode: Optional[str] = None) -> float:
+                  mode: Optional[str] = None,
+                  cadence: Optional[Dict[str, float]] = None) -> float:
     """Days until the next chance to order this supplier.
 
     A supplier absent from the calendar has NOT told us it can only be ordered
@@ -296,8 +414,32 @@ def review_period(supplier: str, schedule: Optional[Dict[str, float]] = None,
     could have ordered sooner.
     """
     key = " ".join(str(supplier or "").upper().split())
-    if schedule and key in schedule:
-        return schedule[key]
+    cad = default_cadence() if cadence is None else cadence
+    measured = cad.get(key) if cad else None
+    declared = schedule.get(key) if schedule else None
+
+    # A calendar entry is ASSERTED: somebody wrote a weekday down. A cadence
+    # built from 300 distinct receipt dates is MEASURED. Where the two agree,
+    # or disagree mildly, the declaration stands -- it is a commitment, and a
+    # commitment can be honoured more often than it promises without ceasing
+    # to be the thing you can rely on.
+    #
+    # Where the receipt book contradicts the declaration by a FACTOR, the
+    # declaration is falsified, not authoritative. The dairies are on the
+    # calendar for one weekday and appear in the GRN book at a median gap of
+    # one day. Believing the calendar there costs a week of cover on product
+    # that lives a day and a bit.
+    if declared is not None:
+        if (measured is not None
+                and measured <= declared / CADENCE_OVERRIDE_FACTOR
+                and (cad.get("__counts__", {}) or {}).get(key, MIN_CADENCE_DELIVERIES)
+                >= CADENCE_OVERRIDE_MIN_RECEIPTS):
+            logger.debug("cadence overrides calendar for %s: declared %.1f d, "
+                         "measured %.1f d", key, declared, measured)
+            return measured
+        return declared
+    if measured is not None:
+        return measured
     mode = (mode or ordering_mode()).lower()
     if mode == "on_demand":
         return ON_DEMAND_REVIEW_DAYS
@@ -305,6 +447,19 @@ def review_period(supplier: str, schedule: Optional[Dict[str, float]] = None,
 
 
 # ── sigma_L: how much the supplier's lead time actually moves ─────────────
+def _r_source(supplier, schedule, cadence=None) -> str:
+    key = " ".join(str(supplier or "").upper().split())
+    cad = default_cadence() if cadence is None else cadence
+    m = cad.get(key) if cad else None
+    d = schedule.get(key) if schedule else None
+    if d is not None:
+        if m is not None and m <= d / CADENCE_OVERRIDE_FACTOR and \
+                (cad.get("__counts__", {}) or {}).get(key, 0) >= CADENCE_OVERRIDE_MIN_RECEIPTS:
+            return "cadence_overrides_calendar"
+        return "calendar"
+    return "cadence" if m is not None else "default"
+
+
 def sigma_lead(pattern: Optional[dict],
                default: float = DEFAULT_SIGMA_LEAD) -> float:
     """Lead-time standard deviation for a supplier.
@@ -419,14 +574,18 @@ def recommend(product: Dict[str, Any],
     sigma_d = cv * d
     L = max(1.0, float(product.get("lead_time_days")
                        or product.get("estimated_delivery_days") or 3))
-    R = review_period(supplier, schedule, mode=mode)
+    R = review_period(supplier, schedule, mode=mode,
+                      cadence=product.get("_cadence"))
     pats = default_patterns() if patterns is None else patterns
     sL = sigma_lead(pats.get(supplier))
     zz = z_score() if z is None else z
 
     S_raw = order_up_to_level(d, sigma_d, L, R, sL, zz)
+    # A shelf life given on the line wins; otherwise the department's.
+    _sl = float(product.get("shelf_life_days") or 0) \
+        or shelf_life_for(product.get("department") or "")
     S = clamp_level(S_raw, d,
-                    shelf_life_days=float(product.get("shelf_life_days") or 0),
+                    shelf_life_days=_sl,
                     min_display=float(product.get("min_presentation_stock") or 0))
     I = float(product.get("current_stock")
               if product.get("current_stock") is not None
@@ -435,7 +594,30 @@ def recommend(product: Dict[str, Any],
     Q = order_quantity(S, I, O, float(product.get("pack_size") or 1))
 
     P = R + L
+    # A CLAMP BELOW THE PROTECTION INTERVAL IS NOT A POLICY, IT IS A PLANNED
+    # STOCKOUT. If the product dies before the next delivery can arrive, no
+    # order-up-to level exists that both respects the shelf life and covers
+    # the exposure window. The engine must say so rather than return a number
+    # that looks like an answer: 188 of 311 clamped fresh lines sit here, and
+    # fresh milk lands on a 2.1% fill rate against a 90% target.
+    #
+    # The resolution is never arithmetic. It is one of:
+    #   shorten L      same-day drop, so R + L falls under the shelf life
+    #   accept waste   hold d*P and write off the difference
+    #   accept gaps    hold d*shelf_life and be empty part of the cycle
+    # and which one is right is a buyer's decision, not a formula's.
+    _cycle = d * P
+    _sigma_P = demand_sigma_over(P, d, sigma_d, sL)
+    _infeasible = bool(_sl and S < _cycle - 1e-9)
+    _service = None
+    if _sigma_P > 0:
+        _service = 0.5 * (1.0 + math.erf((S - _cycle) / (_sigma_P * math.sqrt(2.0))))
     return {
+        "feasible": not _infeasible,
+        "binding": ("shelf_life" if _infeasible else
+                    "shelf_life_slack" if (_sl and abs(S - S_raw) > 1e-9) else "service"),
+        "implied_service": _service,
+        "min_feasible_cover_days": P,
         "quantity": Q, "S": S, "S_unclamped": S_raw,
         "R": R, "L": L, "P": P, "d": d, "sigma_d": sigma_d,
         "sigma_lead": sL, "z": zz,
@@ -443,7 +625,8 @@ def recommend(product: Dict[str, Any],
         "scheduled": bool(schedule and " ".join(supplier.split()) in schedule),
         "cycle_stock": d * P,
         "safety_stock": zz * demand_sigma_over(P, d, sigma_d, sL),
-        "clamped": abs(S - S_raw) > 1e-9,
+        "clamped": abs(S - S_raw) > 1e-9, "shelf_life_days": _sl,
+        "R_source": _r_source(supplier, schedule, product.get("_cadence")),
         "cover_days": ((I + Q) / d) if d > 0 else 0.0,
     }
 
