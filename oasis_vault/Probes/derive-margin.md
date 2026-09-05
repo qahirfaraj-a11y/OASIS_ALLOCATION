@@ -6,7 +6,7 @@ domain: allocation
 title: Gross margin assembly
 entrypoint: devkit/derive_margin.py --xlsx /tmp/ff.xlsx
 guards: []
-tests: [claim.ordering.margin-is-blocked-on-pack-size, claim.ordering.amit-ranks-on-data-it-mostly-lacks]
+tests: [claim.ordering.margin-is-blocked-on-basis-mismatch, claim.ordering.amit-ranks-on-data-it-mostly-lacks]
 ---
 
 **Entrypoint:** `devkit/derive_margin.py`
