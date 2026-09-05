@@ -8,7 +8,18 @@
     "brand_loyalty_factor": 0.5,
     "min_affinity_weight": 5,
     "min_anchor_ads": 0.5,
-    "max_recovery_multiplier": 2.5
+    "max_recovery_multiplier": 2.5,
+    "ghost_demand_ads_floor": 2.0,
+    "anchors_with_availability_signal": {
+      "basket_day_coverage": 0,
+      "legacy_store_fill_rate": 0,
+      "unknown_assume_available": 0
+    },
+    "ghost_demand_events": 0,
+    "substitution_offset_count": 0,
+    "ads_floor_skipped_lines": 0,
+    "pos_db_used": "/sessions/rcw-01j6l1wtemwajtxfnutissqr/mnt/scratch/oasis/data/oasis_network.db",
+    "pos_db_provenance": "demo"
   },
   "top_patches": []
 }

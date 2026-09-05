@@ -155,8 +155,20 @@ def anchors_and_attachments(metrics: List[dict], velocity_ads: Dict[str, float],
 
 # ── DB / graph integration ───────────────────────────────────────────────────
 def load_transactions(db_path: str, org: Optional[str] = None,
-                      since: Optional[str] = None) -> List[List[str]]:
-    """Read POS_SALES_DTL into baskets: distinct items per (org, bill, date)."""
+                      since: Optional[str] = None,
+                      item_col: str = "ITEM_NAME") -> List[List[str]]:
+    """Read POS_SALES_DTL into baskets: distinct items per (org, bill, date).
+
+    item_col defaults to ITEM_NAME, not ITM_CD. This is a fix, not a style
+    choice: the neutral_network graph (nodes.csv / edges.csv) keys every SKU
+    node by its NAME (e.g. "14 HANDS 750ML CAB SAUVIGNON"), never by the POS
+    barcode. Mining on ITM_CD joins 0/23,401 items into nodes.csv on the
+    chain's own data (checked in devkit/probe_dharam_halo.py) — the basket
+    layer would build, run clean, and match nothing, which is T1 silent join
+    failure wearing a passing exit code. ITEM_NAME joins 82-96% depending on
+    the source table (also checked there); pass item_col="ITM_CD" explicitly
+    if a future POS source keys nodes.csv by barcode instead.
+    """
     import sqlite3
     conn = sqlite3.connect(db_path, timeout=60.0)
     try:
@@ -168,7 +180,7 @@ def load_transactions(db_path: str, org: Optional[str] = None,
         if since:
             where.append("BILL_DT >= ?")
             params.append(since)
-        sql = ("SELECT ORG_CD, BILL_DT, BILL_NO, ITM_CD FROM POS_SALES_DTL "
+        sql = (f"SELECT ORG_CD, BILL_DT, BILL_NO, {item_col} FROM POS_SALES_DTL "
                "WHERE " + " AND ".join(where) + " ORDER BY ORG_CD, BILL_DT, BILL_NO")
         baskets: List[List[str]] = []
         cur_key = None
@@ -272,6 +284,79 @@ def build_baskets_from_db(db_path: str, nn_dir: str, org: Optional[str] = None,
     res = mine_baskets(db_path, org=org, since=since, min_count=min_count,
                        min_lift=min_lift, min_item_count=min_item_count,
                        velocity_ads=velocity)
+    if res["n_baskets"] == 0:
+        # Safety: write_basket_layer DROPS the existing link layer before
+        # writing the fresh one. An empty mine (no transactions at the
+        # resolved db -- an unpopulated install, a bad path, a POS not yet
+        # connected) must never be allowed to silently wipe out whatever
+        # link edges the graph already had. Skip the merge entirely and say
+        # so; the caller still gets n_pairs_seen/n_items for diagnosis.
+        return {"n_baskets": 0, "assoc_pairs": 0, "link_edges_written": 0,
+               "skipped": True,
+               "skipped_reason": f"0 baskets mined from {db_path} -- left existing edges.csv untouched",
+               "n_items": res["n_items"], "n_pairs_seen": res["n_pairs"]}
     summary = write_basket_layer(nn_dir, res["edges"], res["metrics"], res["n_baskets"])
     summary.update({"n_items": res["n_items"], "n_pairs_seen": res["n_pairs"]})
     return summary
+
+
+
+# ── anchor-absence signature (the ghost-demand stockout gate) ───────────────
+def anchor_day_coverage(db_path: str, org: Optional[str] = None,
+                        since: Optional[str] = None,
+                        item_col: str = "ITEM_NAME",
+                        min_days_total: int = 14) -> Dict[str, dict]:
+    """Day-level sale-presence rate per item — the fallback stockout signal.
+
+    WHY THIS EXISTS: DHARAM's stockout gate reads a `store_fill_rate` field
+    off every SKU node, and on this install that field is 0.0 or blank for
+    all 23,511 nodes (rhapta_master_metrics.json stopped carrying
+    `live_fill_rate` — see devkit/probe_dharam_halo.py). There is no stock or
+    inventory feed anywhere in OASIS to replace it with. And every POS table
+    on this install (rhapta_pos.db, rhapta_multi_store.db, oasis_store.db,
+    mock_pos_erp*.db) carries BILL_DT as a DATE, never a timestamp — so the
+    spec's "sold out at 2pm" intra-day signature cannot be observed from any
+    data this system has, real or synthetic. What CAN be observed: whether an
+    item that normally sells every day went a full day with zero scans. That
+    is a real fact about the till, at day granularity — weaker than a stock
+    reading (a zero-sale day can also be a delivery gap upstream, shrinkage,
+    or genuinely zero footfall for a borderline-slow item, not only a
+    stockout) and it is reported as such, never as an observed stockout.
+
+    Returns {item: {"days_sold", "days_total", "coverage"}} for items with
+    days_total >= min_days_total; thinner history is dropped rather than
+    returned as a noisy ratio (same guard probe_lead_time.py applies via
+    MIN_SAMPLE).
+    """
+    import sqlite3
+    from collections import defaultdict as _dd
+    conn = sqlite3.connect(db_path, timeout=60.0)
+    try:
+        where = ["COALESCE(VOID_FLAG,'F') <> 'T'"]
+        params: List = []
+        if org:
+            where.append("ORG_CD = ?")
+            params.append(org)
+        if since:
+            where.append("BILL_DT >= ?")
+            params.append(since)
+        sql = (f"SELECT DISTINCT {item_col}, BILL_DT FROM POS_SALES_DTL WHERE "
+               + " AND ".join(where))
+        by_item: Dict[str, set] = _dd(set)
+        all_days: set = set()
+        for name, bdt in conn.execute(sql, params):
+            if not name:
+                continue
+            by_item[str(name).strip()].add(bdt)
+            all_days.add(bdt)
+    finally:
+        conn.close()
+
+    days_total = len(all_days)
+    out: Dict[str, dict] = {}
+    if days_total < min_days_total:
+        return out
+    for item, days in by_item.items():
+        out[item] = {"days_sold": len(days), "days_total": days_total,
+                    "coverage": round(len(days) / days_total, 4)}
+    return out

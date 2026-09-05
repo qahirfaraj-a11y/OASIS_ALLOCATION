@@ -19,7 +19,8 @@ class TestRunGovernance:
         monkeypatch.setattr(G, "_call", fake_call)
         out = G.run_governance("DATA", "NN")
         order = [m for m, _, _ in calls]
-        assert order == ["lata_shield", "amit_gatekeeper", "mande_triage", "dharam_revenue"]
+        assert order == ["lata_shield", "amit_gatekeeper", "mande_triage",
+                        "basket_affinity", "dharam_revenue"]
         assert out["overall"] == "OK"
         # LATA arg order is (data_dir, nn); graph engines are (nn, data_dir)
         lata_args = calls[0][2]

@@ -37,8 +37,30 @@ GOV_STEPS: List[Tuple[str, str, str, object]] = [
      lambda dd, nn: (dd, nn if (nn and os.path.isdir(nn)) else None)),
     ("amit", "amit_gatekeeper", "run_amit", lambda dd, nn: (nn, dd)),
     ("mande", "mande_triage", "run_mande", lambda dd, nn: (nn, dd)),
+    # basket runs BEFORE dharam: it merges real co-purchase weight into
+    # edges.csv's `link` rows, which is what dharam's anchor test reads.
+    # Without this step edges.csv has no `weight` column and DHARAM's anchor
+    # test (weight >= min_affinity_core_count, deployed 5) can never pass for
+    # any anchor -- 0 patches out of 23,511 SKUs, unconditionally. See
+    # devkit/probe_dharam_halo.py.
+    ("basket", "basket_affinity", "build_baskets_from_db",
+     lambda dd, nn: (_resolve_pos_db(dd), nn)),
     ("dharam", "dharam_revenue", "run_dharam", lambda dd, nn: (nn, dd)),
 ]
+
+
+def _resolve_pos_db(data_dir: str) -> str:
+    """Which POS database the basket layer mines -- the same resolution
+    order every console uses (onboarding.resolved_db_path), so this never
+    drifts from whatever database the install is actually connected to.
+    Falls back to a bare filename only if onboarding cannot be resolved at
+    all (e.g. a data_dir with no repo root above it, as some tests build)."""
+    try:
+        from .onboarding import resolved_db_path
+        root = os.path.dirname(os.path.dirname(os.path.abspath(data_dir)))
+        return resolved_db_path(root)
+    except Exception:
+        return os.path.join(data_dir, "oasis_store.db")
 
 
 def _call(module: str, fn: str, *args):
