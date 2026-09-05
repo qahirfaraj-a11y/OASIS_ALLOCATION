@@ -163,7 +163,7 @@ def main(argv=None) -> int:
         rec = ou.recommend({
             "avg_daily_sales": d, "supplier_name": vendor,
             "current_stock": sv["qty"], "lead_time_days":
-                (pats.get(vendor) or {}).get("mean_lead_days", 2.0),
+                (pats.get(vendor) or {}).get("lead_time_mean", (pats.get(vendor) or {}).get("lead_time_days", 2.0)),
         }, schedule=sched, patterns=pats, mode=a.mode)
         rows.append({
             "sku": k, "dept": dept, "vendor": vendor, "d": d,

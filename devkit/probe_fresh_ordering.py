@@ -84,7 +84,7 @@ def main(argv=None) -> int:
         if d <= 0 or not m:
             continue
         vendor = strip_code(m.get("vendor") or "")
-        L = float((pats.get(vendor) or {}).get("mean_lead_days", 2.0) or 2.0)
+        L = float((pats.get(vendor) or {}).get("lead_time_mean", (pats.get(vendor) or {}).get("lead_time_days", 2.0)) or 2.0)
         base = {"avg_daily_sales": d, "supplier_name": vendor,
                 "current_stock": 0, "lead_time_days": L, "department": dept}
         A = ou.recommend(dict(base, **{"_cadence": {}}), schedule=sched, patterns=pats)
