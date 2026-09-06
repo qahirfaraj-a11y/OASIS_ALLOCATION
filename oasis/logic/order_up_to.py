@@ -773,6 +773,52 @@ def sigma_lead(pattern: Optional[dict],
     return default
 
 
+#: DEMAND VARIABILITY, DERIVED RATHER THAN BANDED.
+#:
+#: intelligence_mixin scales the whole target by a step function of ADS --
+#: 1.4 above 10/day down to 0.8 at or below 1/day -- as its spike and
+#: bulk-event handling. Two things are wrong with it and one is right.
+#:
+#: WRONG, placement. `target_days *= v(d)` scales CYCLE stock, which is not a
+#: risk quantity at all -- it is the demand that will certainly arrive over the
+#: protection interval -- and it scales the safety term a second time when
+#: sigma_P is already proportional to d.
+#:
+#: WRONG, direction. Counting arrivals in a fixed window is Poisson to first
+#: order, and for Poisson
+#:        sigma = sqrt(d)   =>   cv = sigma/d = 1/sqrt(d)
+#: so relative variability FALLS as velocity rises. A SKU selling 0.2 a day has
+#: a cv of 2.2; one selling 60 a day has 0.13. The band table runs the other
+#: way: it gives fast movers 1.4x and slow movers 0.8x, which is the reverse of
+#: the statistics, and it is why the long tail -- 13,553 of 15,037 SKUs sell a
+#: unit a day or less -- carries almost no safety stock and produces the
+#: stockouts.
+#:
+#: RIGHT, the instinct. A bulk-shopping day does land harder on a fast mover,
+#: and that is real overdispersion on top of Poisson. So the model is
+#:        cv(d) = sqrt( 1/d + phi^2 )
+#: one Poisson term that needs no parameter, plus ONE overdispersion parameter
+#: phi that survives at high velocity and carries the basket and payday effects.
+#: phi replaces five hand-set bands and the flat 0.40, and it is the single
+#: number to fit when real till data exists -- every POS database in this
+#: install is synthetic, so it cannot be fitted today.
+#:
+#: phi defaults to the chain's old flat assumption, so nothing changes for a
+#: fast mover and the slow tail gets the protection the arithmetic says it
+#: always needed.
+DEMAND_OVERDISPERSION = float(os.getenv("OASIS_DEMAND_OVERDISPERSION", "0.40"))
+CV_CAP = 2.5        # a cv above this is a dead line, not a variable one
+
+
+def demand_cv(avg_daily_sales: float, phi: Optional[float] = None) -> float:
+    """cv of daily demand = sqrt(1/d + phi^2). Poisson plus overdispersion."""
+    d = float(avg_daily_sales or 0)
+    p = DEMAND_OVERDISPERSION if phi is None else float(phi)
+    if d <= 0:
+        return min(CV_CAP, math.sqrt(1.0 + p * p))
+    return min(CV_CAP, math.sqrt(1.0 / d + p * p))
+
+
 # ── the formula ───────────────────────────────────────────────────────────
 def demand_sigma_over(interval_days: float, d: float, sigma_d: float,
                       sigma_lead_days: float) -> float:
@@ -899,7 +945,10 @@ def recommend(product: Dict[str, Any],
         return {"quantity": 0.0, "reason": "no measured sales rate"}
 
     supplier = str(product.get("supplier_name") or "").upper().strip()
-    cv = float(product.get("demand_cv") or 0.4)
+    # cv from the line if the caller measured one, else from velocity. A flat
+    # 0.4 for a SKU selling 60 a day and one selling 0.2 is one number doing
+    # two jobs.
+    cv = float(product.get("demand_cv") or 0) or demand_cv(d)
     sigma_d = cv * d
     L = max(1.0, float(product.get("lead_time_days")
                        or product.get("estimated_delivery_days") or 3))

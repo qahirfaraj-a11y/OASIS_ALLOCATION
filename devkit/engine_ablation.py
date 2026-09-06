@@ -59,6 +59,7 @@ AMIT = ROOT / "oasis" / "data" / "amit_enforcement.json"
 MANDE = ROOT / "oasis" / "data" / "mande_purge_report.json"
 DHARAM = ROOT / "oasis" / "data" / "dharam_demand_patch.json"
 CV = 0.40
+PHI = 0.40
 DAYS = 315          # 45 weeks
 WARM = 63          # 9 weeks discarded so the opening seed does not dominate
 
@@ -124,7 +125,8 @@ def build():
 
 
 def simulate(f, cfg, seeds, days=DAYS, lead_mult=1.0, open_mult=1.0, rng_base=12345,
-             real_open=False, warm=WARM):
+             real_open=False, warm=WARM, cv_mode="poisson",
+             demand_law="poisson"):
     """One configuration. Returns the metric dict."""
     n = f["d"].size
     R = np.maximum(1.0, f["R_on"] if cfg["lata"] else f["R_off"])
@@ -133,7 +135,11 @@ def simulate(f, cfg, seeds, days=DAYS, lead_mult=1.0, open_mult=1.0, rng_base=12
     z = ou.z_score()
     d_plan = f["d"] * (f["dharam"] if cfg["dharam"] else 1.0)
     P = R + L
-    S = d_plan * P + z * np.sqrt(P * (CV * d_plan) ** 2 + (d_plan * sL) ** 2)
+    # cv: flat 0.40 as the engine shipped, or sqrt(1/d + phi^2) -- Poisson plus
+    # overdispersion, which is what counting arrivals in a window actually is.
+    cvv = (np.array([ou.demand_cv(x) for x in f["d"]]) if cv_mode == "poisson"
+           else np.full(f["d"].size, CV))
+    S = d_plan * P + z * np.sqrt(P * (cvv * d_plan) ** 2 + (d_plan * sL) ** 2)
     if cfg["shelf"]:
         cap = np.where(f["shelf"] > 0, d_plan * f["shelf"], np.inf)
         S = np.minimum(S, cap)
@@ -166,7 +172,14 @@ def simulate(f, cfg, seeds, days=DAYS, lead_mult=1.0, open_mult=1.0, rng_base=12
         for t in range(days):
             on_hand += pipe[0]
             pipe[:-1] = pipe[1:]; pipe[-1] = 0.0
-            dem = np.maximum(0.0, rng.normal(f["d"], CV * f["d"]))
+            # DEMAND IS GENERATED FROM THE SAME LAW THE PLAN ASSUMES, which is
+            # the only honest way to compare two cv models: Poisson counts for
+            # the arrivals, a lognormal-ish multiplier for the basket effect.
+            if demand_law == "poisson":
+                dem = rng.poisson(f["d"]) * np.exp(
+                    rng.normal(-0.5 * PHI ** 2, PHI, n))
+            else:
+                dem = np.maximum(0.0, rng.normal(f["d"], CV * f["d"]))
             sold = np.minimum(dem, on_hand)
             on_hand -= sold
             # EXPIRY, and the rate matters.
@@ -231,6 +244,7 @@ def main(argv=None) -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--seeds", type=int, default=12)
     ap.add_argument("--sweep", action="store_true")
+    ap.add_argument("--cv-mode", default="poisson", choices=("poisson", "flat"))
     ap.add_argument("--real-open", action="store_true",
                     help="start from the observed shelf, discard nothing")
     ap.add_argument("--out", default=str(ROOT / "devkit" / "engine_ablation_result.json"))
@@ -254,7 +268,7 @@ def main(argv=None) -> int:
     for name, cfg in CONFIGS.items():
         t0 = time.time()
         m = simulate(f, cfg, a.seeds, real_open=a.real_open,
-                     warm=(0 if a.real_open else WARM))
+                     warm=(0 if a.real_open else WARM), cv_mode=a.cv_mode)
         res[name] = m
         if base is None:
             base = m

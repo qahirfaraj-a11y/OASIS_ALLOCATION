@@ -85,8 +85,9 @@ def main(argv=None) -> int:
         R = ou.review_period(v, sched)
         sL = ou.sigma_lead(pt, record=False)
         P = R + L
+        cvx = ou.demand_cv(d)
         cyc = d * P
-        saf = z * math.sqrt(P * (CV * d) ** 2 + (d * sL) ** 2)
+        saf = z * math.sqrt(P * (cvx * d) ** 2 + (d * sL) ** 2)
         S_raw = cyc + saf
         sl = ou.shelf_life_for(dept, str(ROOT), sku=k)
         S = min(S_raw, d * sl) if sl > 0 else S_raw
