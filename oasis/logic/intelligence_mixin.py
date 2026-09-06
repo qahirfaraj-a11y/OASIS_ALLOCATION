@@ -175,6 +175,38 @@ class IntelligenceMixin:
             return float(selling_price) * (1 - float(margin_pct) / 100.0)
         return float(selling_price) * 0.75
 
+    #: Fallback if the config carries no long_life block. Deliberately narrow -
+    #: see `_why_tokens_are_narrow` in oasis_engines_config.json.
+    _LONG_LIFE_TOKENS = ("UHT", "ESL", "LONG LIFE")
+
+    def _long_life_names(self) -> set:
+        """Operator-maintained set of long-life product names, upper-cased."""
+        cached = getattr(self, "_ll_names_cache", None)
+        if cached is None:
+            cfg = (getattr(self, "engines_config", None) or {}).get("long_life") or {}
+            cached = {str(p).upper().strip() for p in (cfg.get("products") or ())}
+            self._ll_names_cache = cached
+        return cached
+
+    def _is_long_life(self, p_name_upper: str) -> bool:
+        """Does this line keep for months despite sitting in a fresh department?
+
+        It matters because the fresh path caps coverage near a single day. That
+        is correct for something that spoils in a week and badly wrong for UHT:
+        it removes any ability to carry stock against a supply disruption on a
+        product that would happily sit for months.
+
+        Explicit list first, then the narrow name tokens. The tokens are not
+        broadened because packaging markings are only reliable on a milk line -
+        'VARTA LONGLIFE POWER BATT' is a battery.
+        """
+        name = (p_name_upper or "").strip()
+        if name in self._long_life_names():
+            return True
+        cfg = (getattr(self, "engines_config", None) or {}).get("long_life") or {}
+        tokens = cfg.get("name_tokens") or self._LONG_LIFE_TOKENS
+        return any(str(tok).upper() in name for tok in tokens)
+
     def calculate_replenishment_target_stock(self, product: dict, tier_profile: dict) -> float:
         """
         v9.5 PRECISION ALLOCATION: Smart Greenfield & Replenishment Logic.
@@ -228,7 +260,12 @@ class IntelligenceMixin:
         # Fresh items get a lean 1.2-day TOTAL BASE if supplied daily, 
         # otherwise Dry goods get 3.0 days safety buffer.
         
-        if is_fresh and order_cycle <= 1.5:
+        # A long-life line is never "daily fresh", however often the truck
+        # comes. Without this exemption the JIT branch pins it at 1.2 days and
+        # the long-life guardrail below - a min() - can only ever hold it there.
+        long_life = self._is_long_life(p_name_upper)
+
+        if is_fresh and order_cycle <= 1.5 and not long_life:
             # v10.12: Strict 1.2 Day Total Coverage for Daily Fresh (Bread/Milk)
             # This covers the immediate 24h gap + 0.2 morning rush buffer.
             target_days = 1.2
@@ -271,7 +308,7 @@ class IntelligenceMixin:
         target_days *= velocity_multiplier
         
         # 4. Strategic Guardrails & Department Caps
-        if any(x in p_name_upper for x in ['UHT', 'ESL', 'LONG LIFE']):
+        if long_life:
             target_days = min(target_days, max(7.0, order_cycle + lead_time))
         elif is_fresh:
             # Fresh cap is tighter to prevent spoilage
@@ -452,13 +489,45 @@ class IntelligenceMixin:
                 p['months_active'] = sales_data.get('months_active', 6)  # R14: Golden Parity
                 
                 # v10.10: Blended Velocity (Prefer Live Ingestion if available)
+                #
+                # MEASURED DEMAND OUTRANKS THE FORECAST FILE.
+                # The `else` here used to be an unconditional
+                # `p['avg_daily_sales'] = hist_ads`, which threw away whatever
+                # the caller had measured and planned on a static JSON instead.
+                # That mattered more than it looks: fetch_enriched_products
+                # computes a recency-weighted ADS from raw POS sales (60% of
+                # the last 30 days, 30% of 30-60, 10% of 60-90) and hands it
+                # over in this field -- and it was discarded on 97.5% of SKUs
+                # (14,667 of 15,037 on the live book), because live_ads_30d is
+                # only ever set by the CSV parser, never on the database path.
+                #
+                # The file it deferred to is sales_forecasting_2025 (1).json,
+                # dated 2026-02-21 and 29.1% below the POS-derived series that
+                # reconciles unit-for-unit against the cash extracts. So every
+                # order-up-to level in the system was built on demand roughly a
+                # third too low, and no surface said so.
+                #
+                # Precedence, most specific first: a live 30-day feed, then
+                # anything the caller measured, then the forecast file as the
+                # fallback it was always meant to be. ads_source records which,
+                # so this is answerable from the data instead of by reading
+                # this comment.
                 live_ads = p.get('live_ads_30d', 0.0)
+                supplied_ads = float(p.get('avg_daily_sales') or 0)
                 if live_ads > 0:
                      # 70/30 Blend: Favor recent volatility but anchor with history
                      p['avg_daily_sales'] = round((0.7 * live_ads) + (0.3 * hist_ads), 3)
                      p['is_velocity_blended'] = True
+                     p['ads_source'] = 'live_blend_30d'
+                elif supplied_ads > 0:
+                     p['avg_daily_sales'] = round(supplied_ads, 3)
+                     # The producer may have already said what it measured
+                     # (pos_erp_adapter marks pos_weighted / pos_flat); only
+                     # name it generically when nobody claimed it.
+                     p.setdefault('ads_source', 'supplied')
                 else:
                      p['avg_daily_sales'] = hist_ads
+                     p['ads_source'] = 'forecast_file'
 
                 p['demand_cv'] = self._calculate_cv(sales_data.get('monthly_sales', {}))
                 monthly_sales = sales_data.get('monthly_sales', {})
@@ -478,6 +547,8 @@ class IntelligenceMixin:
                         p['avg_daily_sales_last_30d'] = 0.0
             else:
                 p['avg_daily_sales'] = float(round(float(p.get('avg_daily_sales', p.get('estimated_daily_sales', 0.0))), 3))
+                p.setdefault('ads_source',
+                             'supplied' if p['avg_daily_sales'] > 0 else 'none')
                 p['demand_cv'] = 0.5  # Golden standard default
                 p['days_since_last_sale'] = 999
                 p['total_units_sold_last_90d'] = 0
@@ -908,6 +979,26 @@ class IntelligenceMixin:
                     if p['sales_rank'] < TOP_SKU_RANK:
                         p['is_top_sku'] = True
                         p['is_key_sku'] = True
+
+        # Where the demand every order-up-to level is built on came from.
+        # This was silent, and the silence is how a static February file came
+        # to price the whole book without anyone noticing.
+        try:
+            from collections import Counter as _C
+            _src = _C(str(p.get('ads_source') or 'unset') for p in products)
+            _n = max(1, len(products))
+            logger.info(
+                "ADS provenance: " + ", ".join(
+                    f"{k} {v:,} ({100.0*v/_n:.1f}%)"
+                    for k, v in _src.most_common()))
+            _stale = _src.get('forecast_file', 0)
+            if _stale > 0.5 * _n:
+                logger.warning(
+                    "ADS provenance: %.1f%% of lines are priced on the static "
+                    "forecast file rather than measured sales. Ordering is only "
+                    "as current as that file.", 100.0 * _stale / _n)
+        except Exception:      # provenance reporting must never break a scan
+            pass
 
         return products
 

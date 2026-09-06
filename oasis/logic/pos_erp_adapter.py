@@ -803,16 +803,23 @@ class PosErpAdapter(erp_contract.ErpAdapter):
             # G12 Fix: Use weighted ADS if available, else fall back to flat average
             w_ads = weighted_ads.get(itm_cd_key, {})
             w_ads_val = w_ads.get("weighted_ads", 0.0)
+            # Say where the number came from. enrich_product_data used to
+            # overwrite this field from a static forecast file regardless, and
+            # nothing recorded that it had happened; ads_source makes the
+            # provenance answerable from the row itself.
             if w_ads_val > 0:
                 product["avg_daily_sales"] = float(w_ads_val)
                 product["estimated_daily_sales"] = float(w_ads_val)
                 product["flat_ads"] = float(intel.get("avg_daily_sales", 0.0))  # Keep flat for compare
                 product["total_units_sold_last_90d"] = int(w_ads.get("total_90d", 0))
+                product["ads_source"] = "pos_weighted"
             else:
                 flat_ads = float(intel.get("avg_daily_sales", 0.0))
                 product["avg_daily_sales"] = flat_ads
                 product["estimated_daily_sales"] = flat_ads
                 product["total_units_sold_last_90d"] = 0
+                if flat_ads > 0:
+                    product["ads_source"] = "pos_flat"
 
             product["units_sold_last_month"] = intel.get("avg_monthly_sales", 0.0)
             product["sales_trend"] = intel.get("trend", "stable")
