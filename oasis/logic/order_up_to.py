@@ -501,10 +501,19 @@ def shelf_life_for(department: str, root: Optional[str] = None,
     # of which the asserted table never covered and all of which the return
     # book shows expiring -- the measured number stands alone. Some clamp
     # beats none.
-    dept_v = load_shelf_life(root).get(
-        " ".join(str(department or "").upper().split()), 0.0)
+    dept = " ".join(str(department or "").upper().split())
+    v = (load_shelf_life_per_sku(root).get(" ".join(str(sku).upper().split()))
+         if sku else None)
+    # A caller that knows the SKU but not its department should still get the
+    # clamp. The per-SKU file records the department the SKU was seen in, so
+    # the asserted ceiling is recoverable without the caller supplying it --
+    # otherwise a product record missing one field silently loses its shelf
+    # life entirely, which is how a 500ml milk pouch ends up sized at three
+    # and a third days of cover.
+    if not dept and v:
+        dept = " ".join(str(v.get("department") or "").upper().split())
+    dept_v = load_shelf_life(root).get(dept, 0.0)
     if sku:
-        v = load_shelf_life_per_sku(root).get(" ".join(str(sku).upper().split()))
         sku_v = float(v.get("shelf_life_days") or 0) if v else 0.0
         if sku_v > 0:
             return min(sku_v, dept_v) if dept_v > 0 else sku_v
@@ -516,6 +525,25 @@ def shelf_life_for(department: str, root: Optional[str] = None,
 ON_DEMAND_REVIEW_DAYS = 1.0
 
 MODES = ("scheduled", "on_demand")
+
+
+#: Vendor strings arrive in two spellings and always have. The GRN book and
+#: most product records carry "SB0009 - BROOKSIDE DAIRY LIMITED"; the order
+#: calendar, the cadence file and the lead patterns are keyed on the NAME
+#: alone. Every lookup in this module missed on the code-prefixed form and
+#: fell to the blanket default -- so a dairy the receipt book measures at a
+#: one-day cadence was reviewed as if weekly, R went 1 -> 7, and the entire
+#: LATA gain evaporated in production while every offline probe (which strips
+#: the code before looking up) reported it working. A join that succeeds in
+#: the harness and fails in the engine is the worst kind, because the harness
+#: keeps saying yes.
+_CODE_PREFIX = re.compile(r"^[A-Z]{1,3}\d{3,6}\s*-\s*")
+
+
+def supplier_key(name: Any) -> str:
+    """The one spelling every supplier lookup in this module uses."""
+    s = " ".join(str(name or "").upper().split()).strip("[]").strip()
+    return _CODE_PREFIX.sub("", s).strip()
 
 
 def ordering_mode(default: str = "scheduled") -> str:
@@ -550,7 +578,7 @@ def review_period(supplier: str, schedule: Optional[Dict[str, float]] = None,
     that is a commitment somebody made, and it holds whether or not the engine
     could have ordered sooner.
     """
-    key = " ".join(str(supplier or "").upper().split())
+    key = supplier_key(supplier)
     cad = default_cadence() if cadence is None else cadence
     measured = cad.get(key) if cad else None
     declared = schedule.get(key) if schedule else None
@@ -585,7 +613,7 @@ def review_period(supplier: str, schedule: Optional[Dict[str, float]] = None,
 
 # ── sigma_L: how much the supplier's lead time actually moves ─────────────
 def _r_source(supplier, schedule, cadence=None) -> str:
-    key = " ".join(str(supplier or "").upper().split())
+    key = supplier_key(supplier)
     cad = default_cadence() if cadence is None else cadence
     m = cad.get(key) if cad else None
     d = schedule.get(key) if schedule else None
@@ -676,6 +704,10 @@ def check_join_rate(floor: float = JOIN_RATE_FLOOR, raise_on_fail: bool = False,
 #: the figure is noise: the book's sigma_L tops out at 71 days unfiltered and
 #: at 13.35 days once 30 receipts are required.
 MIN_SIGMA_SAMPLES = 30
+#: How far above its own shelf life a line may be forced by the protection
+#: interval before the engine treats it as a supply-terms failure rather than
+#: an order.
+MAX_SHELF_MULTIPLE = 2.0
 #: Percentile of the measured population used for suppliers we cannot measure.
 #: NOT the median: an unmeasured supplier is an unknown, and an unknown should
 #: not be given the typical supplier's reliability. p75 is conservative and
@@ -887,7 +919,15 @@ def clamp_level(S: float, d: float, shelf_life_days: float = 0.0,
         # time or changing the delivery terms. Pass min_protection=0 to get the
         # old behaviour, which is the right choice only if a stockout is
         # genuinely cheaper than spoilage on that line.
-        floor = float(d) * float(min_protection or 0.0)
+        # DEFENCE IN DEPTH. The floor is d*P, and P is only as good as R. When
+        # a supplier lookup missed and R fell back to the blanket 7 days, this
+        # floor turned a 1.2-day milk clamp into 8.28 days of milk -- it
+        # AMPLIFIED the error instead of protecting service. A line forced to
+        # hold more than MAX_SHELF_MULTIPLE times its own shelf life is not a
+        # replenishment decision, it is a broken supply term, and it should be
+        # capped and flagged rather than quietly ordered.
+        floor = min(float(d) * float(min_protection or 0.0),
+                    shelf_cap * MAX_SHELF_MULTIPLE)
         out = max(min(out, shelf_cap), min(floor, out))
     if min_display and min_display > 0:
         out = max(out, float(min_display))
@@ -976,7 +1016,7 @@ def recommend(product: Dict[str, Any],
     if d <= 0:
         return {"quantity": 0.0, "reason": "no measured sales rate"}
 
-    supplier = str(product.get("supplier_name") or "").upper().strip()
+    supplier = supplier_key(product.get("supplier_name"))
     # cv from the line if the caller measured one, else from velocity. A flat
     # 0.4 for a SKU selling 60 a day and one selling 0.2 is one number doing
     # two jobs.
