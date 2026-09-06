@@ -104,6 +104,15 @@ DEFAULT_DEPT_CAPS_BASELINE = {
 }
 
 # Reference constants (will be updated from config in run_amit)
+#: A blanket cap for departments nobody has written a number for. OFF unless
+#: declared: see the comment at the cap lookup in run_amit().
+_FALLBACK_DECLARED = bool(os.getenv("OASIS_AMIT_FALLBACK_CAP"))
+#: Share of LIVE-DEMAND revenue this engine may block before it refuses to
+#: publish. A gatekeeper that shuts a fifth of the shop is not a gatekeeper,
+#: it is an outage, and it should not be able to become one silently by way of
+#: a caps table nobody re-read. Override deliberately, never by accident.
+MAX_BLOCKED_REVENUE_SHARE = float(os.getenv("OASIS_AMIT_MAX_BLOCK_SHARE", "0.10"))
+
 BASELINE_BUDGET = 10_000_000
 MIN_DEPT_CAP_FLOOR = 5
 DEFAULT_CAP_FALLBACK_BASELINE = 50
@@ -371,7 +380,20 @@ def run_amit(nn_path: str, data_dir: str, dept_caps: Dict[str, int] = None,
     # spellings onto the categories these caps actually name, and report any
     # collisions the fold produces (T1-adjacent: a silent merge is a silent
     # policy change).
-    caps, cap_collisions = merge_caps(caps)
+    # CAPS ARE APPLIED ON THE RAW DEPARTMENT NAME.
+    # norm_dept() folds YOGHURT, FRESH MILK, UHT MILK, CHEESE and CREAM onto
+    # DAIRY, and BREAD and CAKES onto BAKERY. That is the right move for
+    # COMPARING a 16-row caps table against 245 real departments, and the
+    # wrong move for ENFORCING it: the 60 somebody wrote next to "DAIRY" was
+    # a number for one department, and applying it to the union of five turns
+    # a 500-SKU dairy hall into a 60-SKU one. Folding the names made the caps
+    # reachable and, in the same stroke, lethal -- 3,724 live lines carrying
+    # KES 74.3m of annual revenue newly blocked, most of it yoghurt, cheese,
+    # bacon and sausage.
+    #
+    # So: enforce on the raw name, report on the folded one.
+    caps_folded, cap_collisions = merge_caps(caps)
+    caps = {" ".join(str(k).upper().split()): v for k, v in caps.items()}
     for nk, old, raw_k, new in cap_collisions:
         logger.warning(f"[AMIT] Cap collision folding '{raw_k}' -> '{nk}': "
                        f"kept max({old}, {new}) = {max(old, new)}.")
@@ -386,7 +408,7 @@ def run_amit(nn_path: str, data_dir: str, dept_caps: Dict[str, int] = None,
     for node in nodes:
         dept_raw = node["department"]
         raw_depts_seen.add(dept_raw)
-        dept = norm_dept(dept_raw)
+        dept = " ".join(str(dept_raw).upper().split())
         supplier = node["supplier"].upper()
 
         # Get LATA multiplier or default to 1.0 (Neutral)
@@ -426,6 +448,9 @@ def run_amit(nn_path: str, data_dir: str, dept_caps: Dict[str, int] = None,
         node["department"] = dept
         node["department_raw"] = dept_raw
         node["annual_gross_profit"] = annual_gross_profit
+        # annualised revenue at the SAME ads and price the GP used, so the
+        # blast-radius denominator below is on one basis with the numerator
+        node["revenue_year"] = (float(gp_per_unit) + float(unit_cost)) * ads_val * 365.0
         node["gmroi"] = gmroi
         node["structurally_short"] = structurally_short
         node["lata_multiplier"] = multiplier
@@ -438,7 +463,32 @@ def run_amit(nn_path: str, data_dir: str, dept_caps: Dict[str, int] = None,
     dept_stats = {}
 
     for dept, skus in dept_skus.items():
-        cap = caps.get(dept, fallback_cap)
+        # AN UNSET CAP IS NOT A CAP OF 50.
+        # `fallback_cap` blocked every department nobody had written a number
+        # for -- 219 of 245 of them -- and that undeclared literal WAS the
+        # assortment policy for 90% of the store. A department absent from the
+        # caps table has not been told it has a limit; it has been told
+        # nothing, and the engine's own review_period() makes exactly this
+        # argument about suppliers absent from the order calendar. Absence of
+        # a declared limit is not a declaration.
+        #
+        # Set OASIS_AMIT_FALLBACK_CAP to reinstate a blanket cap deliberately.
+        cap = caps.get(dept)
+        if cap is None:
+            cap = fallback_cap if _FALLBACK_DECLARED else None
+        if cap is None:
+            dept_stats[dept] = {"total_skus": len(skus), "cap": None, "over_cap": 0,
+                                "uncapped": True}
+            if skus:
+                skus.sort(key=lambda x: (x["structurally_short"],
+                                        x["annual_gross_profit"]), reverse=True)
+                worst = skus[-1]
+                lowest_gmroi_per_dept[dept] = {
+                    "sku": worst["id"],
+                    "annual_gross_profit": round(worst.get("annual_gross_profit", 0.0), 2),
+                    "gmroi": round(worst.get("gmroi", 0.0), 4),
+                    "sales_rank": worst.get("sales_rank", 99999)}
+            continue
 
         # RANKING KEY: annual_gross_profit, not gmroi -- see module docstring
         # ("THE FIX"). A department's SKU-count cap is a per-line constraint,
@@ -532,7 +582,9 @@ def run_amit(nn_path: str, data_dir: str, dept_caps: Dict[str, int] = None,
         "blacklist": blacklist_set,
         "blacklist_details": blacklist,
         "lowest_gmroi_per_dept": lowest_gmroi_per_dept,
-        "department_caps_applied": {d: caps.get(d, fallback_cap) for d in dept_skus},
+        "department_caps_applied": {d: caps.get(d) for d in dept_skus},
+        "departments_uncapped": sum(1 for v in dept_stats.values() if v.get("uncapped")),
+        "fallback_cap_declared": _FALLBACK_DECLARED,
         "cap_collisions": [{"normalized_dept": nk, "kept_cap": max(o, n)}
                           for nk, o, _rk, n in cap_collisions],
         "total_budget_scale": total_budget,
@@ -551,6 +603,33 @@ def run_amit(nn_path: str, data_dir: str, dept_caps: Dict[str, int] = None,
     }
 
     # Write output
+    # BLAST RADIUS. Compute what this enforcement file would cost before it is
+    # allowed to exist. The last version of this engine blocked 52% of
+    # live-demand lines and 21% of annual revenue, and nothing anywhere said
+    # so -- it took a 12-seed simulation showing service at 45% to surface it.
+    _live_rev = sum(n.get("revenue_year", 0.0) for n in nodes
+                    if n.get("velocity_ads", 0) > 0)
+    _blocked = {b["sku"] for b in blacklist}
+    _blocked_rev = sum(n.get("revenue_year", 0.0) for n in nodes
+                       if n.get("velocity_ads", 0) > 0 and n["id"] in _blocked)
+    _share = (_blocked_rev / _live_rev) if _live_rev else 0.0
+    enforcement["stats"]["blocked_revenue_share"] = round(_share, 4)
+    enforcement["stats"]["blocked_revenue_year"] = round(_blocked_rev)
+    if _share > MAX_BLOCKED_REVENUE_SHARE:
+        enforcement["blacklist"] = []
+        enforcement["blacklist_details"] = []
+        enforcement["stats"]["refused"] = True
+        enforcement["stats"]["refused_reason"] = (
+            f"would block {_share:.1%} of live-demand revenue "
+            f"(KES {_blocked_rev:,.0f}/yr), over the "
+            f"{MAX_BLOCKED_REVENUE_SHARE:.0%} ceiling. The caps table, not the "
+            f"ranking, decides this number: author caps for the departments "
+            f"that need them, or raise OASIS_AMIT_MAX_BLOCK_SHARE knowing what "
+            f"it costs. Published EMPTY rather than silently shutting the shop.")
+        logger.error("[AMIT] REFUSED: %s", enforcement["stats"]["refused_reason"])
+    else:
+        enforcement["stats"]["refused"] = False
+
     output_path = os.path.join(data_dir, "amit_enforcement.json")
     with open(output_path, "w", encoding="utf-8") as f:
         json.dump(enforcement, f, indent=2)
