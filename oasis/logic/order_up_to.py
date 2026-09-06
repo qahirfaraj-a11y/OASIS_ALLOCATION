@@ -48,7 +48,7 @@ import logging
 import math
 import os
 import re
-from typing import Any, Dict, Optional
+from typing import Tuple, Any, Dict, Optional
 
 logger = logging.getLogger("OASIS.OrderUpTo")
 
@@ -485,6 +485,73 @@ def load_shelf_life_per_sku(root: Optional[str] = None) -> Dict[str, dict]:
     return _PER_SKU_SHELF
 
 
+LONG_LIFE_CONFIG = "oasis_engines_config.json"
+_LONG_LIFE: Optional[Tuple[frozenset, tuple]] = None
+
+
+def load_long_life(root: Optional[str] = None):
+    """The operator-maintained long-life list, as (products, name_tokens).
+
+    Lines that sit in a FRESH department and keep for months. The config block
+    has existed and been inert: intelligence_mixin carried its own hardcoded
+    ('UHT','ESL','LONG LIFE') in four places and never read the file, and the
+    order-up-to path never consulted it at all -- so BROOKSIDE 500ML DAIRY
+    BEST, an ESL pouch, took FRESH MILK's 1.2-day ceiling, and TUZO 500ML
+    FINO 180DAYS took it too. A product whose own name says 180 days was being
+    ordered as though it died tomorrow.
+
+    The list is deliberately curated rather than pattern-matched. The config's
+    own note says why: LONGLIFE also appears on a battery, and the long-life
+    cap is tighter than the dry-goods cap, so a broad token would quietly
+    REDUCE cover on non-dairy stock. Awkward cases go in `products`.
+    """
+    global _LONG_LIFE
+    if _LONG_LIFE is not None:
+        return _LONG_LIFE
+    base = root or os.path.abspath(
+        os.path.join(os.path.dirname(__file__), "..", ".."))
+    prods, toks = frozenset(), ()
+    for cand in (os.path.join(base, "oasis", "data", LONG_LIFE_CONFIG),
+                 os.path.join(base, "data", LONG_LIFE_CONFIG)):
+        if os.path.exists(cand):
+            try:
+                with open(cand, encoding="utf-8") as f:
+                    ll = (json.load(f) or {}).get("long_life") or {}
+                prods = frozenset(" ".join(str(x).upper().split())
+                                  for x in (ll.get("products") or []))
+                toks = tuple(" ".join(str(x).upper().split())
+                             for x in (ll.get("name_tokens") or []))
+                logger.info("long life: %d named products, %d name tokens",
+                            len(prods), len(toks))
+            except (OSError, ValueError, TypeError):
+                pass
+            break
+    _LONG_LIFE = (prods, toks)
+    return _LONG_LIFE
+
+
+def is_long_life(sku: Any, root: Optional[str] = None) -> bool:
+    """Named product, or a name token on a WORD BOUNDARY.
+
+    A naive substring test is wrong and quietly so: 'ESL' is inside DESLY and
+    inside MUESLI, so bread crumbs and muesli bread both came back long-life
+    on the first pass and were handed an unclamped ceiling. The config's own
+    note worries about VARTA LONGLIFE POWER BATT -- a whole-word false
+    positive -- and misses that the shortest token fires inside ordinary
+    words. Both are the same failure and a boundary fixes both.
+    """
+    k = " ".join(str(sku or "").upper().split())
+    if not k:
+        return False
+    prods, toks = load_long_life(root)
+    if k in prods:
+        return True
+    for t in toks:
+        if t and re.search(r"(?<![A-Z0-9])" + re.escape(t) + r"(?![A-Z0-9])", k):
+            return True
+    return False
+
+
 def shelf_life_for(department: str, root: Optional[str] = None,
                    sku: Optional[str] = None) -> float:
     """Effective shelf life in days: the SKU's own where it is measured, else
@@ -512,6 +579,16 @@ def shelf_life_for(department: str, root: Optional[str] = None,
     # and a third days of cover.
     if not dept and v:
         dept = " ".join(str(v.get("department") or "").upper().split())
+    # LONG LIFE OUTRANKS THE DEPARTMENT.
+    # A department ceiling is an assertion about the typical product in that
+    # aisle. An ESL or UHT pouch in the fresh-milk chiller is the exception the
+    # operator has already written down, and applying FRESH MILK's 1.2 days to
+    # it removes any ability to hold stock against a supply disruption on a
+    # product that keeps for months. The SKU's own measured life still applies
+    # if the return book has one; otherwise it is unclamped, like dry goods.
+    if is_long_life(sku, root):
+        sku_v = float(v.get("shelf_life_days") or 0) if v else 0.0
+        return sku_v if sku_v > 0 else 0.0
     dept_v = load_shelf_life(root).get(dept, 0.0)
     if sku:
         sku_v = float(v.get("shelf_life_days") or 0) if v else 0.0

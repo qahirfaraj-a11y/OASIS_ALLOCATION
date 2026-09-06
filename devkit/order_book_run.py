@@ -42,7 +42,7 @@ FIELDS = ["sku", "dept", "vendor", "d", "cost", "gp_unit", "price",
           "R", "R_source", "L", "sigma_L", "sigma_L_source", "z", "P",
           "cycle_units", "safety_units", "S_raw", "shelf_life", "S",
           "clamped", "on_hand", "Q", "cover_before", "cover_after",
-          "structurally_short", "below_protection", "amit_blocked",
+          "long_life", "feasible", "structurally_short", "below_protection", "amit_blocked",
           "mande_flagged", "order_kes", "excess_kes", "gp_year"]
 
 
@@ -79,24 +79,31 @@ def main(argv=None) -> int:
         if not m or d <= 0:
             continue
         dept = " ".join(str(sv.get("dept") or "").upper().split())
-        v = strip_code(m.get("vendor") or "")
+        v_raw = " ".join(str(m.get("vendor") or "").upper().split())
+        v = strip_code(v_raw)
+        oh_pre = max(0.0, float(sv["stock"]))
         pt = pats.get(v) or {}
         L = max(0.5, float(pt.get("lead_time_mean", pt.get("lead_time_days", 2)) or 2))
-        R = ou.review_period(v, sched)
-        sL = ou.sigma_lead(pt, record=False)
-        P = R + L
+        # THE ENGINE, NOT A COPY OF IT. This file used to rebuild S inline --
+        # and with a bare min(S, d*shelf) that predated the protection-interval
+        # floor, so the audit artefact disagreed with production on the 770
+        # structurally-short lines. It also pre-stripped the vendor code, which
+        # is exactly how the supplier-key defect stayed invisible. Same call,
+        # same strings.
+        rec = ou.recommend({"avg_daily_sales": d, "supplier_name": v_raw,
+                            "current_stock": oh_pre, "lead_time_days": L,
+                            "department": dept, "sku": k},
+                           schedule=sched, patterns=pats)
+        R = rec["R"]; sL = rec["sigma_lead"]; P = rec["P"]
         cvx = ou.demand_cv(d)
-        cyc = d * P
-        saf = z * math.sqrt(P * (cvx * d) ** 2 + (d * sL) ** 2)
-        S_raw = cyc + saf
-        sl = ou.shelf_life_for(dept, str(ROOT), sku=k)
-        S = min(S_raw, d * sl) if sl > 0 else S_raw
-        oh = max(0.0, float(sv["stock"]))
-        Q = max(0.0, S - oh)
+        cyc = rec["cycle_stock"]; saf = rec["safety_stock"]
+        S_raw = rec["S_unclamped"]; S = rec["S"]; sl = rec["shelf_life_days"]
+        oh = oh_pre
+        Q = rec["quantity"]
         rows.append(dict(
             sku=k, dept=dept, vendor=v, d=round(d, 4), cost=round(m["unit_cost"], 4),
             gp_unit=round(m["gross_profit_per_unit"], 4), price=round(m["selling_price"], 4),
-            R=round(R, 3), R_source=ou._r_source(v, sched), L=round(L, 3),
+            R=round(R, 3), R_source=ou._r_source(v_raw, sched), L=round(L, 3),
             sigma_L=round(sL, 3),
             sigma_L_source=("measured" if (pt.get("lead_time_stdev") is not None
                                            and int(pt.get("samples") or 0) >= ou.MIN_SIGMA_SAMPLES)
@@ -105,6 +112,8 @@ def main(argv=None) -> int:
             safety_units=round(saf, 3), S_raw=round(S_raw, 3), shelf_life=sl,
             S=round(S, 3), clamped=int(S < S_raw - 1e-9), on_hand=round(oh, 2),
             Q=round(Q, 3), cover_before=round(oh / d, 2), cover_after=round((oh + Q) / d, 2),
+            long_life=int(ou.is_long_life(k)),
+            feasible=int(bool(rec.get("feasible", True))),
             structurally_short=int(sl > 0 and S < cyc - 1e-9),
             below_protection=int(oh < cyc - 1e-9),
             amit_blocked=int(k in amit), mande_flagged=int(v in purge),
