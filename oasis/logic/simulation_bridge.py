@@ -546,7 +546,25 @@ class SimulationOrderUtil:
                             f"z={terms['z']:.2f} sigmaL={terms['sigma_lead']:.1f}d "
                             f"S={terms['S']:.0f}]")
                     else:
-                        rec['reasoning'] += " [order-up-to: position already covers P]"
+                        # A ZERO IS NOT ALWAYS A ZERO.
+                        # order_up_to_terms used to be attached only when q > 0,
+                        # so a line the engine deliberately REFUSED -- one pack
+                        # exceeding 60 days of cover, a special-order or
+                        # transfer decision rather than replenishment -- left
+                        # this function indistinguishable from a healthy line
+                        # that simply did not need stock. The transfer module
+                        # then had to rediscover the population by accident,
+                        # from raw cover, and only while the shelf happened to
+                        # read zero. The reason is the useful part; carry it.
+                        rec['order_up_to_terms'] = terms
+                        if terms.get('auto_order_suppressed'):
+                            rec['auto_order_suppressed'] = True
+                            rec['suppress_reason'] = terms.get('suppress_reason')
+                            rec['transfer_candidate'] = True
+                            rec['reasoning'] += (
+                                f" [SUPPRESSED: {terms.get('suppress_reason')}]")
+                        else:
+                            rec['reasoning'] += " [order-up-to: position already covers P]"
                     recommendations.append(rec)
                     continue
 

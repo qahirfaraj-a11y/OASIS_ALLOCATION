@@ -785,6 +785,18 @@ MIN_SIGMA_SAMPLES = 30
 #: interval before the engine treats it as a supply-terms failure rather than
 #: an order.
 MAX_SHELF_MULTIPLE = 2.0
+#: DAILY-REPLENISHED FRESH IS CAPPED, AND THAT IS THE POLICY, NOT A DEFECT.
+#: Milk and bread cycle every day. The operator's rule is 1.2 days, never
+#: above 2.0, and the protection-interval floor must respect it: d*(R+L) came
+#: to 2.28 days on the dairies because the measured lead time is 1.28, and
+#: 2.28 > 2.0. The floor exists to stop a ceiling manufacturing a stockout,
+#: not to overrule a merchandising limit that is there for spoilage. Where the
+#: two disagree the cap wins and the line is reported as infeasible, which
+#: points at the real fix: a shorter lead time, not a deeper shelf.
+#: Long-life and UHT are exempt -- they are not on this cycle and keep their
+#: longer buffer.
+FRESH_CYCLE_SHELF_DAYS = 3.0     # at or under this, a line is daily-cycle fresh
+FRESH_COVER_CEILING_DAYS = 2.0   # and never carries more than this
 #: Percentile of the measured population used for suppliers we cannot measure.
 #: NOT the median: an unmeasured supplier is an unknown, and an unknown should
 #: not be given the typical supplier's reliability. p75 is conservative and
@@ -1005,10 +1017,24 @@ def clamp_level(S: float, d: float, shelf_life_days: float = 0.0,
         # capped and flagged rather than quietly ordered.
         floor = min(float(d) * float(min_protection or 0.0),
                     shelf_cap * MAX_SHELF_MULTIPLE)
+        if float(shelf_life_days) <= FRESH_CYCLE_SHELF_DAYS:
+            # daily-cycle fresh: the merchandising ceiling outranks the floor
+            floor = min(floor, float(d) * FRESH_COVER_CEILING_DAYS)
+            out = min(out, float(d) * FRESH_COVER_CEILING_DAYS)
         out = max(min(out, shelf_cap), min(floor, out))
     if min_display and min_display > 0:
         out = max(out, float(min_display))
     return max(0.0, out)
+
+
+#: A line where ONE pack is more cover than this should not be bought
+#: automatically. You cannot order 0.02 of a microwave, so the smallest
+#: orderable quantity is months of stock -- 479 lines in the book round to
+#: exactly one unit at a median 92 days of cover, and RAMTONS RM/459 lands at
+#: 185. The arithmetic is not wrong about them; buying them on a replenishment
+#: rule is. They belong to a special-order or transfer decision a person
+#: makes, and the engine should say so instead of quietly issuing the PO.
+MAX_AUTO_ORDER_COVER_DAYS = float(os.getenv("OASIS_MAX_AUTO_COVER", "60"))
 
 
 def order_quantity(S: float, on_hand: float, on_order: float,
@@ -1121,6 +1147,10 @@ def recommend(product: Dict[str, Any],
               else product.get("current_stocks") or 0)
     O = float(product.get("on_order_qty") or 0)
     Q = order_quantity(S, I, O, float(product.get("pack_size") or 1))
+    _dead = False
+    if Q > 0 and d > 0 and (I + Q) / d > MAX_AUTO_ORDER_COVER_DAYS:
+        _dead = True
+        Q = 0.0
 
     P = R + L
     # A CLAMP BELOW THE PROTECTION INTERVAL IS NOT A POLICY, IT IS A PLANNED
@@ -1143,6 +1173,11 @@ def recommend(product: Dict[str, Any],
         _service = 0.5 * (1.0 + math.erf((S - _cycle) / (_sigma_P * math.sqrt(2.0))))
     return {
         "feasible": not _infeasible,
+        "auto_order_suppressed": _dead,
+        "suppress_reason": ("one pack exceeds "
+                            f"{MAX_AUTO_ORDER_COVER_DAYS:.0f} days of cover -- "
+                            "special order or transfer, not replenishment")
+        if _dead else None,
         "forced_waste_units_per_cycle": max(0.0, S - (d * _sl)) if _sl else 0.0,
         "binding": ("shelf_life" if _infeasible else
                     "shelf_life_slack" if (_sl and abs(S - S_raw) > 1e-9) else "service"),

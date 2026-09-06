@@ -42,7 +42,7 @@ FIELDS = ["sku", "dept", "vendor", "d", "cost", "gp_unit", "price",
           "R", "R_source", "L", "sigma_L", "sigma_L_source", "z", "P",
           "cycle_units", "safety_units", "S_raw", "shelf_life", "S",
           "clamped", "on_hand", "Q", "cover_before", "cover_after",
-          "long_life", "feasible", "structurally_short", "below_protection", "amit_blocked",
+          "long_life", "suppressed", "feasible", "structurally_short", "below_protection", "amit_blocked",
           "mande_flagged", "order_kes", "excess_kes", "gp_year"]
 
 
@@ -113,6 +113,7 @@ def main(argv=None) -> int:
             S=round(S, 3), clamped=int(S < S_raw - 1e-9), on_hand=round(oh, 2),
             Q=round(Q, 3), cover_before=round(oh / d, 2), cover_after=round((oh + Q) / d, 2),
             long_life=int(ou.is_long_life(k)),
+            suppressed=int(bool(rec.get("auto_order_suppressed"))),
             feasible=int(bool(rec.get("feasible", True))),
             structurally_short=int(sl > 0 and S < cyc - 1e-9),
             below_protection=int(oh < cyc - 1e-9),
