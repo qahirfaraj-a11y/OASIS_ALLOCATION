@@ -53,6 +53,8 @@ from devkit import build_margin                                    # noqa: E402
 from devkit.amit_return import norm, strip_code, load_departments  # noqa: E402
 from oasis.logic import order_up_to as ou                          # noqa: E402
 
+keys_global = []
+
 ADS = ROOT / "oasis" / "data" / "corrected_ads_from_pos.json"
 STOCK = ROOT / "oasis" / "data" / "stock_snapshot_dept.json"
 AMIT = ROOT / "oasis" / "data" / "amit_enforcement.json"
@@ -94,13 +96,23 @@ def build():
     except (OSError, ValueError):
         snap = {}
     keys, rec = [], []
+    vendors_raw, depts_raw = [], []
     for k, m in mar.items():
         av = ads.get(k) or {}
         d = float(av.get("new_ads") or av.get("old_ads") or 0)
         if d <= 0:
             continue
         dept = " ".join(str(depts.get(k, "")).upper().split())
-        v = strip_code(m.get("vendor") or "")
+        # THE RAW VENDOR STRING, exactly as production sees it.
+        # This harness used to call strip_code() here and then reimplement S
+        # in numpy, so it never exercised order_up_to's own lookups. That made
+        # it structurally incapable of seeing the defect that mattered most:
+        # every supplier key in the engine missed on the code-prefixed form,
+        # 616 of 616, and R fell to the blanket 7 days for every line in
+        # production while this file reported LATA working perfectly. A
+        # harness that pre-cleans its inputs is testing a system nobody runs.
+        v_raw = " ".join(str(m.get("vendor") or "").upper().split())
+        v = strip_code(v_raw)
         pt = pats.get(v) or {}
         L = max(0.5, float(pt.get("lead_time_mean", pt.get("lead_time_days", 2)) or 2))
         keys.append(k)
@@ -116,12 +128,16 @@ def build():
             float(p.get("corrected_ads", d)) / d if p else 1.0,
             max(0.0, snap.get(k, float("nan"))),
         ))
+        vendors_raw.append(v_raw); depts_raw.append(dept)
     a = np.array(rec, dtype=np.float64)
+    global keys_global
+    keys_global = keys
     return keys, dict(
         d=a[:, 0], cost=a[:, 1], gp=a[:, 2], R_on=a[:, 3], R_off=a[:, 4],
         L=a[:, 5], sL_on=a[:, 6], sL_off=a[:, 7], shelf=a[:, 8],
         amit=a[:, 9] > 0.5, purge=a[:, 10] > 0.5, dharam=a[:, 11],
-        open_real=a[:, 12])
+        open_real=a[:, 12],
+        vendor_raw=np.array(vendors_raw), dept_raw=np.array(depts_raw))
 
 
 def simulate(f, cfg, seeds, days=DAYS, lead_mult=1.0, open_mult=1.0, rng_base=12345,
@@ -139,12 +155,29 @@ def simulate(f, cfg, seeds, days=DAYS, lead_mult=1.0, open_mult=1.0, rng_base=12
     # overdispersion, which is what counting arrivals in a window actually is.
     cvv = (np.array([ou.demand_cv(x) for x in f["d"]]) if cv_mode == "poisson"
            else np.full(f["d"].size, CV))
-    S = d_plan * P + z * np.sqrt(P * (cvv * d_plan) ** 2 + (d_plan * sL) ** 2)
-    if cfg["shelf"]:
-        # clamp, with the protection-interval floor: a ceiling below d*P does
-        # not avoid waste, it converts it into a certain stockout
-        cap = np.where(f["shelf"] > 0, d_plan * f["shelf"], np.inf)
-        S = np.maximum(np.minimum(S, cap), np.minimum(d_plan * P, S))
+    # S COMES FROM THE ENGINE, NOT FROM A COPY OF IT.
+    # One code path, called with the strings production passes, so a lookup
+    # that misses here misses there and this harness can no longer report a
+    # fix that never reached the engine.
+    sched = ou.load_review_schedule(str(ROOT))
+    pats = ou.default_patterns(str(ROOT))
+    S = np.empty(n); Rv = np.empty(n)
+    for i in range(n):
+        prod = {"avg_daily_sales": float(d_plan[i]),
+                "supplier_name": f["vendor_raw"][i],
+                "current_stock": 0.0,
+                "lead_time_days": float(L[i]),
+                "demand_cv": float(cvv[i])}
+        if not cfg["lata"]:
+            prod["_cadence"] = {}          # LATA off: no measured cadence
+        if cfg["shelf"]:
+            prod["department"] = f["dept_raw"][i]
+            prod["sku"] = keys_global[i]
+        r = ou.recommend(prod, schedule=sched,
+                         patterns=(pats if cfg["lata"] else {}))
+        S[i] = r.get("S", 0.0); Rv[i] = r.get("R", 7.0)
+    R = np.maximum(1.0, Rv)
+    P = R + L
     blocked = np.zeros(n, dtype=bool)
     if cfg["amit"]:
         blocked |= f["amit"]
