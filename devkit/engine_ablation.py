@@ -54,6 +54,7 @@ from devkit.amit_return import norm, strip_code, load_departments  # noqa: E402
 from oasis.logic import order_up_to as ou                          # noqa: E402
 
 ADS = ROOT / "oasis" / "data" / "corrected_ads_from_pos.json"
+STOCK = ROOT / "oasis" / "data" / "stock_snapshot_dept.json"
 AMIT = ROOT / "oasis" / "data" / "amit_enforcement.json"
 MANDE = ROOT / "oasis" / "data" / "mande_purge_report.json"
 DHARAM = ROOT / "oasis" / "data" / "dharam_demand_patch.json"
@@ -86,6 +87,11 @@ def build():
     except (OSError, ValueError):
         patch = {}
 
+    try:
+        snap = {norm(k): float(v.get("stock") or 0)
+                for k, v in json.loads(STOCK.read_text(encoding="utf-8")).items()}
+    except (OSError, ValueError):
+        snap = {}
     keys, rec = [], []
     for k, m in mar.items():
         av = ads.get(k) or {}
@@ -107,15 +113,18 @@ def build():
             1.0 if k in amit else 0.0,
             1.0 if v in purge else 0.0,
             float(p.get("corrected_ads", d)) / d if p else 1.0,
+            max(0.0, snap.get(k, float("nan"))),
         ))
     a = np.array(rec, dtype=np.float64)
     return keys, dict(
         d=a[:, 0], cost=a[:, 1], gp=a[:, 2], R_on=a[:, 3], R_off=a[:, 4],
         L=a[:, 5], sL_on=a[:, 6], sL_off=a[:, 7], shelf=a[:, 8],
-        amit=a[:, 9] > 0.5, purge=a[:, 10] > 0.5, dharam=a[:, 11])
+        amit=a[:, 9] > 0.5, purge=a[:, 10] > 0.5, dharam=a[:, 11],
+        open_real=a[:, 12])
 
 
-def simulate(f, cfg, seeds, days=DAYS, lead_mult=1.0, open_mult=1.0, rng_base=12345):
+def simulate(f, cfg, seeds, days=DAYS, lead_mult=1.0, open_mult=1.0, rng_base=12345,
+             real_open=False, warm=WARM):
     """One configuration. Returns the metric dict."""
     n = f["d"].size
     R = np.maximum(1.0, f["R_on"] if cfg["lata"] else f["R_off"])
@@ -143,7 +152,15 @@ def simulate(f, cfg, seeds, days=DAYS, lead_mult=1.0, open_mult=1.0, rng_base=12
     lost_lines = np.zeros(n)
     for s in range(seeds):
         rng = np.random.default_rng(rng_base + s)
-        on_hand = np.where(blocked, f["d"] * 3.0, S * open_mult) * rng.uniform(0.5, 1.0, n)
+        if real_open:
+            # THE REAL SHELF. Every seed starts from the same observed
+            # position; only demand differs. Nothing is discarded, so the
+            # transition from today's book to the policy's steady state is
+            # what the run measures.
+            base = np.where(np.isnan(f["open_real"]), S * open_mult, f["open_real"])
+            on_hand = base.copy()
+        else:
+            on_hand = np.where(blocked, f["d"] * 3.0, S * open_mult) * rng.uniform(0.5, 1.0, n)
         pipe = np.zeros((maxlead + 1, n))
         offset = rng.integers(0, Rint, n) if Rint.max() > 1 else np.zeros(n, dtype=int)
         for t in range(days):
@@ -152,14 +169,20 @@ def simulate(f, cfg, seeds, days=DAYS, lead_mult=1.0, open_mult=1.0, rng_base=12
             dem = np.maximum(0.0, rng.normal(f["d"], CV * f["d"]))
             sold = np.minimum(dem, on_hand)
             on_hand -= sold
-            # expiry: stock above shelf_life days of cover cannot be sold in time
-            if cfg["shelf"] or True:
-                keepmax = np.where(f["shelf"] > 0, f["d"] * f["shelf"], np.inf)
-                dead = np.maximum(0.0, on_hand - keepmax)
-                on_hand -= dead
-            else:
-                dead = 0.0
-            if t >= WARM:
+            # EXPIRY, and the rate matters.
+            # The first version wrote off the whole excess EVERY DAY. A line
+            # ordered to more cover than its shelf life then paid the excess
+            # 365 times a year instead of once per replenishment cycle, which
+            # inflated chain waste to KES 60m -- 40% of gross profit, which
+            # should have been the tell. Stock only dies after it has been
+            # held for shelf_life days, so the excess ages out over that
+            # window rather than instantly: the daily write-off is the excess
+            # divided by the shelf life.
+            keepmax = np.where(f["shelf"] > 0, f["d"] * f["shelf"], np.inf)
+            excess = np.maximum(0.0, on_hand - keepmax)
+            dead = np.where(f["shelf"] > 0, excess / np.maximum(f["shelf"], 1.0), 0.0)
+            on_hand -= dead
+            if t >= warm:
                 tot_dem += dem.sum(); tot_sold += sold.sum()
                 tot_waste += float(np.sum(dead * f["cost"])) if np.ndim(dead) else 0.0
                 stock_acc += on_hand * f["cost"]; nobs += 1
@@ -172,7 +195,7 @@ def simulate(f, cfg, seeds, days=DAYS, lead_mult=1.0, open_mult=1.0, rng_base=12
                 idx = np.nonzero(q > 0)[0]
                 if idx.size:
                     np.add.at(pipe, (lead[idx], idx), q[idx])
-    obs_days = days - WARM
+    obs_days = days - warm
     avg_stock = stock_acc.sum() / max(nobs, 1)
     gp_real = tot_sold / max(seeds * obs_days, 1)      # units/day chain-wide
     gp_year = float(np.sum(f["gp"] * f["d"])) * 365.0  # potential
@@ -208,6 +231,8 @@ def main(argv=None) -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--seeds", type=int, default=12)
     ap.add_argument("--sweep", action="store_true")
+    ap.add_argument("--real-open", action="store_true",
+                    help="start from the observed shelf, discard nothing")
     ap.add_argument("--out", default=str(ROOT / "devkit" / "engine_ablation_result.json"))
     a = ap.parse_args(argv)
 
@@ -228,7 +253,8 @@ def main(argv=None) -> int:
     base = None
     for name, cfg in CONFIGS.items():
         t0 = time.time()
-        m = simulate(f, cfg, a.seeds)
+        m = simulate(f, cfg, a.seeds, real_open=a.real_open,
+                     warm=(0 if a.real_open else WARM))
         res[name] = m
         if base is None:
             base = m

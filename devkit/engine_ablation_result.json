@@ -6,58 +6,58 @@
  "cv_assumed": 0.4,
  "configs": {
   "none (formula only)": {
-   "service": 0.9035809985559294,
-   "avg_stock_kes": 8958191.954601673,
-   "waste_kes_year": 59915523.17395184,
-   "gp_realised_year": 141815198.41316664,
-   "gmroi": 15.830783614802822,
+   "service": 0.9240097757526634,
+   "avg_stock_kes": 9103021.055894392,
+   "waste_kes_year": 46356903.260698125,
+   "gp_realised_year": 145021453.40981138,
+   "gmroi": 15.931134567233263,
    "lines_blocked": 0,
-   "stockout_line_days_pct": 3.3027791140600087
+   "stockout_line_days_pct": 2.88086480824266
   },
   "AMIT only": {
-   "service": 0.8711558078059195,
-   "avg_stock_kes": 8507847.759970691,
-   "waste_kes_year": 58035377.088962555,
-   "gp_realised_year": 136726130.72897848,
-   "gmroi": 16.070589717445706,
+   "service": 0.8908041675894591,
+   "avg_stock_kes": 8651077.707919322,
+   "waste_kes_year": 44709868.99560492,
+   "gp_realised_year": 139809900.80122343,
+   "gmroi": 16.160980807424654,
    "lines_blocked": 1707,
-   "stockout_line_days_pct": 13.593244849598493
+   "stockout_line_days_pct": 13.2181382411702
   },
   "LATA only": {
-   "service": 0.9752177813356125,
-   "avg_stock_kes": 8187835.718487861,
-   "waste_kes_year": 10709266.28931942,
-   "gp_realised_year": 153058445.64813253,
-   "gmroi": 18.693394800598117,
+   "service": 0.9770298267977625,
+   "avg_stock_kes": 8217114.623509889,
+   "waste_kes_year": 7309463.040558041,
+   "gp_realised_year": 153342842.49485594,
+   "gmroi": 18.661397524640652,
    "lines_blocked": 0,
-   "stockout_line_days_pct": 2.4054382820822875
+   "stockout_line_days_pct": 2.260125993765361
   },
   "DHARAM only": {
-   "service": 0.9035809985559294,
-   "avg_stock_kes": 8958191.954601673,
-   "waste_kes_year": 59915523.17395184,
-   "gp_realised_year": 141815198.41316664,
-   "gmroi": 15.830783614802822,
+   "service": 0.9240097757526634,
+   "avg_stock_kes": 9103021.055894392,
+   "waste_kes_year": 46356903.260698125,
+   "gp_realised_year": 145021453.40981138,
+   "gmroi": 15.931134567233263,
    "lines_blocked": 0,
-   "stockout_line_days_pct": 3.3027791140600087
+   "stockout_line_days_pct": 2.88086480824266
   },
   "MANDE only (enforcing)": {
-   "service": 0.7743754979791972,
-   "avg_stock_kes": 6725662.221209155,
-   "waste_kes_year": 58281813.67176938,
-   "gp_realised_year": 121536658.10560657,
-   "gmroi": 18.070586078846585,
+   "service": 0.794320688168344,
+   "avg_stock_kes": 6861817.955313251,
+   "waste_kes_year": 45417566.017473735,
+   "gp_realised_year": 124667015.1057899,
+   "gmroi": 18.168219547307807,
    "lines_blocked": 6131,
-   "stockout_line_days_pct": 40.90896102459734
+   "stockout_line_days_pct": 40.58784778215809
   },
   "MANDE report-only": {
-   "service": 0.9035809985559294,
-   "avg_stock_kes": 8958191.954601673,
-   "waste_kes_year": 59915523.17395184,
-   "gp_realised_year": 141815198.41316664,
-   "gmroi": 15.830783614802822,
+   "service": 0.9240097757526634,
+   "avg_stock_kes": 9103021.055894392,
+   "waste_kes_year": 46356903.260698125,
+   "gp_realised_year": 145021453.40981138,
+   "gmroi": 15.931134567233263,
    "lines_blocked": 0,
-   "stockout_line_days_pct": 3.3027791140600087
+   "stockout_line_days_pct": 2.88086480824266
   },
   "shelf-life clamp only": {
    "service": 0.885659754980434,
@@ -71,7 +71,7 @@
   "ALL ON (MANDE enforcing)": {
    "service": 0.7730053323716227,
    "avg_stock_kes": 5468947.792773655,
-   "waste_kes_year": 1.086192144825854e-13,
+   "waste_kes_year": 8.159870500483807e-14,
    "gp_realised_year": 121321613.40257761,
    "gmroi": 22.183721256744274,
    "lines_blocked": 7143,
@@ -80,94 +80,11 @@
   "ALL ON (MANDE reporting)": {
    "service": 0.8933298732736606,
    "avg_stock_kes": 7630832.240610261,
-   "waste_kes_year": 1.2454894539656999e-13,
+   "waste_kes_year": 9.366651971116591e-14,
    "gp_realised_year": 140206305.16708627,
    "gmroi": 18.373658435436074,
    "lines_blocked": 1707,
    "stockout_line_days_pct": 13.240926475566543
-  }
- },
- "sweep": {
-  "lead0.5_open0.5": {
-   "service": 0.9079830476158032,
-   "avg_stock_kes": 7394482.095550562,
-   "waste_kes_year": 2.189678343847467e-13,
-   "gp_realised_year": 142506091.05239674,
-   "gmroi": 19.27195024762398,
-   "lines_blocked": 1707,
-   "stockout_line_days_pct": 13.187971039486385
-  },
-  "lead0.5_open1.0": {
-   "service": 0.9079831137810426,
-   "avg_stock_kes": 7394509.5819750475,
-   "waste_kes_year": 2.189678343847467e-13,
-   "gp_realised_year": 142506101.43689638,
-   "gmroi": 19.271880015447017,
-   "lines_blocked": 1707,
-   "stockout_line_days_pct": 13.187914310523752
-  },
-  "lead0.5_open2.0": {
-   "service": 0.907982648238557,
-   "avg_stock_kes": 7394516.642737014,
-   "waste_kes_year": 2.189678343847467e-13,
-   "gp_realised_year": 142506028.37095094,
-   "gmroi": 19.271851732313312,
-   "lines_blocked": 1707,
-   "stockout_line_days_pct": 13.188021465230944
-  },
-  "lead1.0_open0.5": {
-   "service": 0.8926528790557767,
-   "avg_stock_kes": 7635290.011059246,
-   "waste_kes_year": 3.1587657687927514e-13,
-   "gp_realised_year": 140100052.30266437,
-   "gmroi": 18.34901517817111,
-   "lines_blocked": 1707,
-   "stockout_line_days_pct": 13.24088025196736
-  },
-  "lead1.0_open1.0": {
-   "service": 0.8926529619739236,
-   "avg_stock_kes": 7635305.918906694,
-   "waste_kes_year": 3.1587657687927514e-13,
-   "gp_realised_year": 140100065.31649876,
-   "gmroi": 18.3489786531775,
-   "lines_blocked": 1707,
-   "stockout_line_days_pct": 13.24082352300473
-  },
-  "lead1.0_open2.0": {
-   "service": 0.89265263831513,
-   "avg_stock_kes": 7635327.657693487,
-   "waste_kes_year": 3.1587657687927514e-13,
-   "gp_realised_year": 140100014.51890993,
-   "gmroi": 18.348919758242825,
-   "lines_blocked": 1707,
-   "stockout_line_days_pct": 13.2408928584035
-  },
-  "lead2.0_open0.5": {
-   "service": 0.8749620604055873,
-   "avg_stock_kes": 7874996.7718065195,
-   "waste_kes_year": 0.0,
-   "gp_realised_year": 137323514.32656986,
-   "gmroi": 17.437913729464036,
-   "lines_blocked": 1707,
-   "stockout_line_days_pct": 13.394073663944686
-  },
-  "lead2.0_open1.0": {
-   "service": 0.8749622481419855,
-   "avg_stock_kes": 7874659.679765964,
-   "waste_kes_year": 0.0,
-   "gp_realised_year": 137323543.7914154,
-   "gmroi": 17.43866393925187,
-   "lines_blocked": 1707,
-   "stockout_line_days_pct": 13.394357308757844
-  },
-  "lead2.0_open2.0": {
-   "service": 0.8749621901897114,
-   "avg_stock_kes": 7874896.765464911,
-   "waste_kes_year": 0.0,
-   "gp_realised_year": 137323534.69592392,
-   "gmroi": 17.43813776685322,
-   "lines_blocked": 1707,
-   "stockout_line_days_pct": 13.394111483253107
   }
  }
 }

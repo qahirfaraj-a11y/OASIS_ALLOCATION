@@ -1,0 +1,90 @@
+{
+ "skus": 15739,
+ "seeds": 12,
+ "days": 315,
+ "warmup": 63,
+ "cv_assumed": 0.4,
+ "configs": {
+  "none (formula only)": {
+   "service": 0.9207788058277275,
+   "avg_stock_kes": 18908018.821588546,
+   "waste_kes_year": 46486048.481539436,
+   "gp_realised_year": 144514359.25698608,
+   "gmroi": 7.643019642649414,
+   "lines_blocked": 0,
+   "stockout_line_days_pct": 2.88906235345018
+  },
+  "AMIT only": {
+   "service": 0.8926565704345437,
+   "avg_stock_kes": 18556926.098896336,
+   "waste_kes_year": 44853471.8158674,
+   "gp_realised_year": 140100631.65704778,
+   "gmroi": 7.549775803945256,
+   "lines_blocked": 1707,
+   "stockout_line_days_pct": 9.881929799967795
+  },
+  "LATA only": {
+   "service": 0.9749199649413581,
+   "avg_stock_kes": 18059693.179597985,
+   "waste_kes_year": 7841729.8365773875,
+   "gp_realised_year": 153011703.971283,
+   "gmroi": 8.472552797527044,
+   "lines_blocked": 0,
+   "stockout_line_days_pct": 2.4487733265292198
+  },
+  "DHARAM only": {
+   "service": 0.9207788058277275,
+   "avg_stock_kes": 18908018.821588546,
+   "waste_kes_year": 46486048.481539436,
+   "gp_realised_year": 144514359.25698608,
+   "gmroi": 7.643019642649414,
+   "lines_blocked": 0,
+   "stockout_line_days_pct": 2.88906235345018
+  },
+  "MANDE only (enforcing)": {
+   "service": 0.8117204618508026,
+   "avg_stock_kes": 16991404.471153937,
+   "waste_kes_year": 45557341.53251032,
+   "gp_realised_year": 127397874.166644,
+   "gmroi": 7.497783622473677,
+   "lines_blocked": 6131,
+   "stockout_line_days_pct": 29.925432089800857
+  },
+  "MANDE report-only": {
+   "service": 0.9207788058277275,
+   "avg_stock_kes": 18908018.821588546,
+   "waste_kes_year": 46486048.481539436,
+   "gp_realised_year": 144514359.25698608,
+   "gmroi": 7.643019642649414,
+   "lines_blocked": 0,
+   "stockout_line_days_pct": 2.88906235345018
+  },
+  "shelf-life clamp only": {
+   "service": 0.8829260672159772,
+   "avg_stock_kes": 18716012.85268175,
+   "waste_kes_year": 543949.3452587123,
+   "gp_realised_year": 138573448.98409835,
+   "gmroi": 7.404004799250962,
+   "lines_blocked": 0,
+   "stockout_line_days_pct": 3.5801589486702903
+  },
+  "ALL ON (MANDE enforcing)": {
+   "service": 0.7949288041143329,
+   "avg_stock_kes": 15710843.209671047,
+   "waste_kes_year": 544872.6319949381,
+   "gp_realised_year": 124762457.66564502,
+   "gmroi": 7.941168783916423,
+   "lines_blocked": 7143,
+   "stockout_line_days_pct": 34.38067100529773
+  },
+  "ALL ON (MANDE reporting)": {
+   "service": 0.8965506450135454,
+   "avg_stock_kes": 17573860.72643231,
+   "waste_kes_year": 544872.6319949381,
+   "gp_realised_year": 140711798.735527,
+   "gmroi": 8.006880270986027,
+   "lines_blocked": 1707,
+   "stockout_line_days_pct": 10.05302267040624
+  }
+ }
+}
