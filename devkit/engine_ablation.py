@@ -126,7 +126,7 @@ def build():
 
 def simulate(f, cfg, seeds, days=DAYS, lead_mult=1.0, open_mult=1.0, rng_base=12345,
              real_open=False, warm=WARM, cv_mode="poisson",
-             demand_law="poisson"):
+             demand_law="poisson", per_sku=False):
     """One configuration. Returns the metric dict."""
     n = f["d"].size
     R = np.maximum(1.0, f["R_on"] if cfg["lata"] else f["R_off"])
@@ -154,6 +154,7 @@ def simulate(f, cfg, seeds, days=DAYS, lead_mult=1.0, open_mult=1.0, rng_base=12
     maxlead = int(max(2, np.ceil(L.max() + 4 * sL.max()) + 2))
     tot_dem = tot_sold = tot_waste = 0.0
     stock_acc = np.zeros(n)
+    dem_acc = np.zeros(n); sold_acc = np.zeros(n); waste_acc = np.zeros(n)
     nobs = 0
     lost_lines = np.zeros(n)
     for s in range(seeds):
@@ -199,6 +200,8 @@ def simulate(f, cfg, seeds, days=DAYS, lead_mult=1.0, open_mult=1.0, rng_base=12
                 tot_dem += dem.sum(); tot_sold += sold.sum()
                 tot_waste += float(np.sum(dead * f["cost"])) if np.ndim(dead) else 0.0
                 stock_acc += on_hand * f["cost"]; nobs += 1
+                dem_acc += dem; sold_acc += sold
+                if np.ndim(dead): waste_acc += dead * f["cost"]
                 lost_lines += (dem > sold + 1e-9)
             due = ((t + offset) % Rint) == 0
             if due.any():
@@ -208,6 +211,9 @@ def simulate(f, cfg, seeds, days=DAYS, lead_mult=1.0, open_mult=1.0, rng_base=12
                 idx = np.nonzero(q > 0)[0]
                 if idx.size:
                     np.add.at(pipe, (lead[idx], idx), q[idx])
+    if per_sku:
+        dem_s = dem_acc / max(seeds, 1); sold_s = sold_acc / max(seeds, 1)
+        stock_s = stock_acc / max(nobs, 1)
     obs_days = days - warm
     avg_stock = stock_acc.sum() / max(nobs, 1)
     gp_real = tot_sold / max(seeds * obs_days, 1)      # units/day chain-wide
@@ -215,8 +221,24 @@ def simulate(f, cfg, seeds, days=DAYS, lead_mult=1.0, open_mult=1.0, rng_base=12
     realised_gp = (tot_sold / max(seeds, 1)) / obs_days
     # realised GP needs per-SKU weighting; recompute cheaply via fill-weighted GP
     fill = tot_sold / max(tot_dem, 1e-9)
-    gp_realised_year = gp_year * fill
+    # TRUE PER-SKU GROSS PROFIT.
+    # This used to be  potential_GP(pooled) * fill_rate(pooled)  -- which is
+    # only right if fill rate is uncorrelated with margin across SKUs, and it
+    # is emphatically not: the blocked and short-filled lines are fresh and
+    # high-margin while the well-filled ones are dry and thin. The pooled form
+    # understated the recommended configuration by 0.86% and OVERSTATED
+    # LATA-only by 2.99%, which was enough to rank LATA-only second when the
+    # true arithmetic puts it fourth, and to price the shelf-life clamp's
+    # marginal at +3.74m when it is +9.41m.
+    gp_realised_year = float(np.sum(sold_acc * f["gp"])) / max(seeds, 1) \
+        / max(obs_days, 1) * 365.0
+    out_sku = None
+    if per_sku:
+        out_sku = {"dem": dem_s, "sold": sold_s, "stock": stock_s,
+                   "waste": waste_acc / max(seeds, 1), "blocked": blocked,
+                   "S": S, "R": R, "sigma_L": sL, "cv": cvv}
     return {
+        "per_sku": out_sku,
         "service": fill,
         "avg_stock_kes": avg_stock,
         "waste_kes_year": tot_waste / max(seeds, 1) / obs_days * 365.0,
