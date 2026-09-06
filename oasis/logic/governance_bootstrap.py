@@ -5,7 +5,12 @@ Orchestrates the four canonical governance engines in dependency order to
 (re)generate the artifacts the OrderEngine reads:
 
     LATA  -> enriches supplier_patterns with lata_* (toxicity/variance)
-    AMIT  -> amit_enforcement.json   (dead-stock blacklist + dept GMROI caps)
+    AMIT  -> amit_enforcement.json        (GMROI/category-cap gatekeeper,
+                                           amit_gatekeeper.run_amit)
+          -> amit_dead_stock_block.json   (dead-stock policy,
+                                           amit_governance.activate_purchase_block)
+             TWO POLICIES, TWO FILES. They used to share one, and whichever
+             engine ran last blanked the other's One-In-One-Out data.
     MANDE -> mande_purge_report.json (suppliers flagged for delisting)
     DHARAM-> dharam_demand_patch.json(ghost-demand recovery patches)
 

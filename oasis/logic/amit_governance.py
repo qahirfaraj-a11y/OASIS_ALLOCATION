@@ -12,7 +12,7 @@ import os
 import json
 import logging
 import pandas as pd
-from datetime import datetime
+from datetime import datetime, timezone
 
 logger = logging.getLogger("OASIS.AMITGov")
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(name)s] %(levelname)s: %(message)s")
@@ -166,15 +166,31 @@ class AMITGovernance:
 
         blocked_items = self.negative_list['Item_Name'].tolist()
         
-        # BUG 2 FIX: Write to the correct path and schema for the OrderEngine to read
+        # 2026-09 FIX (see oasis/logic/amit_gatekeeper.py's module docstring
+        # and devkit/probe_amit_enforcement.py): this used to write to the
+        # SAME amit_enforcement.json the GMROI/category-cap gatekeeper
+        # writes, with 'lowest_gmroi_per_dept': {} as a permanent
+        # placeholder -- whichever of the two engines ran last silently
+        # blanked the other's One-In-One-Out data on disk (T2: stale
+        # duplicate shadowing). Dead-stock (days-of-stock vs perishability
+        # tier + capital floor) is a DIFFERENT policy from GMROI/category
+        # caps, so it gets its own namespaced file and schema; nothing here
+        # claims to be the gatekeeper's output. order_engine.py loads both,
+        # with roles, into separate blacklist sets.
         block_config = {
+            'source_engine': 'amit_governance.activate_purchase_block',
+            'policy': 'dead_stock (days-of-stock vs perishability tier + capital floor)',
             'blacklist': blocked_items,
-            'lowest_gmroi_per_dept': {},  # Placeholder for full AMIT engine parity
             'block_activated': datetime.now().isoformat(),
+            # Same staleness contract as the gatekeeper's file. A blacklist
+            # with no age is a blacklist nobody can refuse: order_engine's
+            # guard can only warn about a snapshot that says how old it is.
+            'generated_at': datetime.now(timezone.utc).isoformat(),
+            'max_age_days': 14,
             'total_blocked': len(blocked_items),
         }
 
-        block_path = config_path or os.path.join(self.data_dir, 'amit_enforcement.json')
+        block_path = config_path or os.path.join(self.data_dir, 'amit_dead_stock_block.json')
         with open(block_path, 'w') as f:
             json.dump(block_config, f, indent=2)
 

@@ -250,16 +250,30 @@ class ProcurementMixin:
             should_list = True
             reason_tag = ""
 
-            # === CHAPTER 11: AMIT Gatekeeper ===
+            # === CHAPTER 11: AMIT Gatekeeper (GMROI/category cap) ===
             # If AMIT engine is enabled, check if this SKU is blacklisted
-            # (exceeds department cap with low GMROI). O(1) set lookup.
+            # (exceeds department cap, lowest annual gross profit --
+            # amit_gatekeeper.py). O(1) set lookup.
             # FIX H4: Normalize product name for robust matching against NN node IDs.
             amit_blacklist = self.databases.get('amit_enforcement', set())
             if amit_blacklist:
                 p_name_upper = p_name.strip().upper()
                 if p_name in amit_blacklist or p_name_upper in amit_blacklist:
                     should_list = False
-                    reason_tag = "[AMIT: BLACKLISTED - Low GMROI, exceeds dept cap]"
+                    reason_tag = "[AMIT: BLACKLISTED - Exceeds dept category cap (lowest annual GP)]"
+
+            # === CHAPTER 11: AMIT Dead Stock (separate policy, separate file
+            # since 2026-09 -- see amit_governance.py / amit_dead_stock_block.json.
+            # This used to share amit_enforcement.json with the gatekeeper
+            # above and silently overwrite its One-In-One-Out data; it is now
+            # its own namespaced blacklist so BOTH engines are actually
+            # enforced instead of whichever ran last winning. ===
+            amit_dead_stock = self.databases.get('amit_dead_stock', set())
+            if should_list and amit_dead_stock:
+                p_name_upper = p_name.strip().upper()
+                if p_name in amit_dead_stock or p_name_upper in amit_dead_stock:
+                    should_list = False
+                    reason_tag = "[AMIT: DEAD STOCK - days-of-stock exceeds perishability threshold]"
 
             # === CHAPTER 11: MANDE Purge Enforcement ===
             supp = str(rec.get('supplier_name', 'UNKNOWN')).upper().strip()

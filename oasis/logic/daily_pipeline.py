@@ -140,7 +140,14 @@ class DailyPipeline:
             self._save_log()
             return self.run_log
 
-        # Step 2: AMIT Pre-Flight (if enabled)
+        # Step 2a: AMIT Dead-Stock Pre-Flight (if enabled)
+        # NOTE: this is the DEAD-STOCK policy (days-of-stock vs perishability
+        # tier + capital floor) -- amit_governance.py's activate_purchase_block()
+        # -- NOT the GMROI/category-cap gatekeeper. It writes its own
+        # oasis/data/amit_dead_stock_block.json and, since 2026-09, never
+        # touches the gatekeeper's amit_enforcement.json (that used to be a
+        # T2 stale-duplicate-shadowing bug: whichever of these two steps ran
+        # last silently blanked the other's One-In-One-Out data on disk).
         amit_blocked = []
         if self.config.get('amit_enabled', True):
             try:
@@ -149,11 +156,36 @@ class DailyPipeline:
                 neg_list = amit.generate_negative_list(scorecard_path)
                 amit.activate_purchase_block()
                 amit_blocked = neg_list['Item_Name'].tolist() if not neg_list.empty else []
-                self._log_step('AMIT_PREFLIGHT', 'OK', f'{len(amit_blocked)} items blocked')
+                self._log_step('AMIT_DEADSTOCK_PREFLIGHT', 'OK', f'{len(amit_blocked)} items blocked')
             except Exception as e:
-                self._log_step('AMIT_PREFLIGHT', 'WARNING', f'AMIT failed: {e}. Proceeding without blocks.')
+                self._log_step('AMIT_DEADSTOCK_PREFLIGHT', 'WARNING', f'AMIT dead-stock failed: {e}. Proceeding without blocks.')
         else:
-            self._log_step('AMIT_PREFLIGHT', 'SKIPPED', 'AMIT disabled in config')
+            self._log_step('AMIT_DEADSTOCK_PREFLIGHT', 'SKIPPED', 'AMIT disabled in config')
+
+        # Step 2b: AMIT Gatekeeper Pre-Flight (GMROI ranking + category caps +
+        # One-In-One-Out; oasis/logic/amit_gatekeeper.py). This used to run
+        # ONLY from the manual `entrypoint.py --mode bootstrap-governance`
+        # command (governance_bootstrap.py) -- the automatic daily pipeline
+        # never refreshed amit_enforcement.json at all, so whatever a human
+        # last ran by hand just sat there aging past AMIT_MAX_AGE_DAYS (see
+        # amit_gatekeeper.py and the staleness guard in order_engine.py).
+        # Running it here keeps it live on the same cadence as everything
+        # else in this pipeline; it is still a batch pre-filter against a
+        # point-in-time neutral_network_export snapshot, not a per-PO
+        # firewall (see amit_gatekeeper.py's module docstring).
+        if self.config.get('amit_enabled', True):
+            try:
+                from .amit_gatekeeper import run_amit
+                nn_path = self.config.get('nn_path')
+                if not nn_path:
+                    nn_path = os.path.abspath(os.path.join(self.data_dir, '..', '..', 'neutral_network_export'))
+                gk_result = run_amit(nn_path, self.data_dir)
+                gk_blocked = gk_result.get('stats', {}).get('total_blacklisted', 0)
+                self._log_step('AMIT_GATEKEEPER_PREFLIGHT', 'OK', f'{gk_blocked} SKUs over category cap')
+            except Exception as e:
+                self._log_step('AMIT_GATEKEEPER_PREFLIGHT', 'WARNING', f'AMIT gatekeeper failed: {e}. Category caps not refreshed.')
+        else:
+            self._log_step('AMIT_GATEKEEPER_PREFLIGHT', 'SKIPPED', 'AMIT disabled in config')
 
         # Step 3: LATA Pre-Flight (if enabled)
         if self.config.get('lata_enabled', True):

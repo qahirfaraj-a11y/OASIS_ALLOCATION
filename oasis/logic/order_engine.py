@@ -180,10 +180,57 @@ class OrderEngine(IntelligenceMixin, ProcurementMixin, MaintenanceMixin, DataMix
         """Check if a Chapter 11 engine is enabled via feature flags."""
         engines = self.engines_config.get('engines', {})
         return bool(engines.get(engine_name, {}).get('enabled', False))
+
+    def _check_amit_staleness(self, label: str, data: dict, generated_key: str = 'generated_at'):
+        """Loudly warn (never silently) when an AMIT enforcement file is
+        older than its own declared window. AMIT is a batch pre-filter keyed
+        to a point-in-time neutral_network_export snapshot, not a per-PO
+        firewall (see amit_gatekeeper.py's module docstring) -- so this is
+        the consumer's only way to know a decision it is about to apply
+        predates today's catalogue, possibly by months."""
+        from datetime import datetime, timezone
+        ts = data.get(generated_key)
+        if not ts:
+            logger.warning(f"[AMIT] {label}: no '{generated_key}' timestamp in its "
+                          "enforcement file -- cannot check staleness. Treat these "
+                          "decisions as of unknown age.")
+            return
+        try:
+            gen = datetime.fromisoformat(str(ts).replace('Z', '+00:00'))
+            if gen.tzinfo is None:
+                gen = gen.replace(tzinfo=timezone.utc)
+            age_days = (datetime.now(timezone.utc) - gen).total_seconds() / 86400.0
+        except Exception:
+            logger.warning(f"[AMIT] {label}: unparseable timestamp '{ts}' -- cannot check staleness.")
+            return
+        max_age = data.get('max_age_days', 14)
+        if age_days > max_age:
+            logger.warning(f"[AMIT] {label}: enforcement file is {age_days:.0f} days old "
+                          f"(> {max_age}-day staleness window: AMIT_MAX_AGE_DAYS). It is a "
+                          "BATCH pre-filter against a point-in-time snapshot, not a per-PO "
+                          "firewall -- these decisions may not reflect today's catalogue. "
+                          "Re-run the AMIT engine (entrypoint.py --mode bootstrap-governance, "
+                          "or let the daily pipeline's AMIT_GATEKEEPER_PREFLIGHT step run).")
+        graph_ts = data.get('graph_generated_at')
+        if graph_ts:
+            try:
+                g = datetime.fromisoformat(str(graph_ts).replace('Z', '+00:00'))
+                if g.tzinfo is None:
+                    g = g.replace(tzinfo=timezone.utc)
+                graph_age = (datetime.now(timezone.utc) - g).total_seconds() / 86400.0
+                if graph_age > max_age:
+                    logger.warning(f"[AMIT] {label}: the neutral_network_export graph it "
+                                  f"was computed from is {graph_age:.0f} days old.")
+            except Exception:
+                pass
     
     def _load_engine_caches(self):
         """Load pre-computed JSON caches for enabled Chapter 11 engines."""
-        # AMIT: Load blacklist
+        # AMIT: Load blacklist(s). TWO distinct engines write TWO distinct
+        # files as of 2026-09 (see amit_gatekeeper.py's and amit_governance.py's
+        # docstrings) -- they used to share one path and silently overwrite
+        # each other (T2). Both are loaded here, each with its role logged,
+        # and procurement_mixin.py checks both sets separately.
         if self.is_engine_enabled('amit'):
             amit_path = os.path.join(self.data_dir, 'amit_enforcement.json')
             if not os.path.exists(amit_path):
@@ -194,13 +241,34 @@ class OrderEngine(IntelligenceMixin, ProcurementMixin, MaintenanceMixin, DataMix
                         data = json.load(f)
                     self.databases['amit_enforcement'] = set(data.get('blacklist', []))
                     self.databases['amit_lowest_gmroi'] = data.get('lowest_gmroi_per_dept', {})
-                    logger.info(f"[AMIT] Loaded blacklist: {len(self.databases['amit_enforcement'])} SKUs blocked.")
+                    self.databases['amit_department_caps'] = data.get('department_caps_applied', {})
+                    logger.info(f"[AMIT] Loaded category-cap blacklist: {len(self.databases['amit_enforcement'])} "
+                              f"SKUs blocked (source={data.get('source_engine', 'unknown')}).")
+                    self._check_amit_staleness('AMIT gatekeeper (category cap)', data)
                 except Exception as e:
                     logger.warning(f"[AMIT] Failed to load cache: {e}")
                     self.databases['amit_enforcement'] = set()
             else:
                 logger.warning("[AMIT] Enabled but no amit_enforcement.json found. Run amit_gatekeeper.py first.")
                 self.databases['amit_enforcement'] = set()
+
+            deadstock_path = os.path.join(self.data_dir, 'amit_dead_stock_block.json')
+            if not os.path.exists(deadstock_path):
+                deadstock_path = os.path.join(os.path.dirname(__file__), '..', 'data', 'amit_dead_stock_block.json')
+            if os.path.exists(deadstock_path):
+                try:
+                    with open(deadstock_path, 'r', encoding='utf-8') as f:
+                        ds_data = json.load(f)
+                    self.databases['amit_dead_stock'] = set(ds_data.get('blacklist', []))
+                    logger.info(f"[AMIT] Loaded dead-stock blacklist: {len(self.databases['amit_dead_stock'])} "
+                              f"SKUs (source={ds_data.get('source_engine', 'unknown')}, "
+                              f"policy={ds_data.get('policy', 'unknown')}).")
+                    self._check_amit_staleness('AMIT dead-stock', ds_data, generated_key='block_activated')
+                except Exception as e:
+                    logger.warning(f"[AMIT] Failed to load dead-stock cache: {e}")
+                    self.databases['amit_dead_stock'] = set()
+            else:
+                self.databases['amit_dead_stock'] = set()
         
         # DHARAM: Load demand patches
         if self.is_engine_enabled('dharam'):

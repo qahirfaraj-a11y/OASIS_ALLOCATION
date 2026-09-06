@@ -1,0 +1,10 @@
+{
+  "source_engine": "amit_governance.activate_purchase_block",
+  "policy": "dead_stock (days-of-stock vs perishability tier + capital floor)",
+  "blacklist": [
+    "OMO POWDER 1KG",
+    "ARIELL POWDER 1KG"
+  ],
+  "block_activated": "2026-09-06T00:09:47.463414",
+  "total_blocked": 2
+}
