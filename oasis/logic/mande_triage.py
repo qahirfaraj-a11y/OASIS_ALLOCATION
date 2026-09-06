@@ -159,8 +159,25 @@ def calculate_supplier_efficiency_index(
     capital_release_potential = total_trapped_capital
 
     # Estimate days improvement = trapped_capital / (total_revenue / 365)
+    # DENOMINATOR SANITY. `max(daily_revenue, 1.0)` does not guard this
+    # division, it disguises it: with revenue at zero the floor of 1.0 makes
+    # the result equal the trapped capital and then labels the shillings
+    # "days". THE CHOICE OF E A LTD came out at 51,923.5 days -- 142 years --
+    # and 69.3% of the 300 purge candidates have revenue at or under 1,000
+    # KES, which is why the report's headline average is 5,070.9 days against
+    # a spec that talks about 12.
+    #
+    # A supplier with no revenue has no capital position to improve in days.
+    # That is not a big number, it is an undefined one, and it is now None
+    # with a flag rather than a fabricated one.
     daily_revenue = total_revenue / 365.0
-    days_improvement = capital_release_potential / max(daily_revenue, 1.0)
+    _MATERIAL_DAILY_REVENUE = 30.0      # KES/day; below this, revenue is noise
+    if daily_revenue < _MATERIAL_DAILY_REVENUE:
+        days_improvement = None
+        days_flag = "insufficient_revenue_to_express_in_days"
+    else:
+        days_improvement = capital_release_potential / daily_revenue
+        days_flag = None
 
     return {
         "supplier": supplier,
@@ -173,7 +190,9 @@ def calculate_supplier_efficiency_index(
         "weighted_margin_pct": round(weighted_margin, 2),
         "sei": round(sei, 4),
         "capital_release_potential_kes": round(capital_release_potential, 2),
-        "net_capital_position_improvement_days": round(days_improvement, 1),
+        "net_capital_position_improvement_days": (
+            round(days_improvement, 1) if days_improvement is not None else None),
+        "days_improvement_flag": days_flag,
         "delisting_risk": "HIGH" if sei < sei_high and avg_substitution > sub_high else (
             "MEDIUM" if sei < sei_med and avg_substitution > sub_med else "LOW"
         ),

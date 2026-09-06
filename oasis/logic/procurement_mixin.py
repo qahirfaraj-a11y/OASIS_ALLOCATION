@@ -1,3 +1,4 @@
+import os
 from .department_constants import ESSENTIAL_DEPARTMENTS, FRESH_DEPARTMENTS, FAST_FIVE_DEPARTMENTS
 from .allocation_strategies import AllocationConfig, GreenfieldPipeline
 import logging
@@ -278,12 +279,41 @@ class ProcurementMixin:
             # === CHAPTER 11: MANDE Purge Enforcement ===
             supp = str(rec.get('supplier_name', 'UNKNOWN')).upper().strip()
             if not supp or supp == 'NON': supp = 'UNKNOWN'
+            # MANDE IS A NEGOTIATION REPORT, NOT AN ORDERING VETO.
+            #
+            # 2026-09: a 12-seed ablation over all 15,739 SKUs with observed
+            # demand put MANDE alone at service -12.92pp, stock -24.9% and
+            # gross profit -20.3m KES/yr, blocking 6,131 live SKUs. Against a
+            # claimed 6.06m of ONE-OFF capital release. Annual against one-off:
+            # the position is -14.2m by the end of year one and never recovers.
+            #
+            # And the inputs are wrong. The purge list's own nodes.csv figures
+            # understate those suppliers' revenue by 69.5x against the
+            # POS-corrected ADS and the VAT-corrected margin book -- NAIROBI
+            # JAVA HOUSE reads total_revenue 0.0 while two of its coffee SKUs
+            # alone run ~1.1m KES/yr. The "high substitution edges" gate is
+            # degenerate: 95.1% of SKUs carry exactly 5 substitution edges by
+            # construction, so 96.2% of suppliers clear it and the term
+            # discriminates nothing.
+            #
+            # T6, hierarchy inversion: this blocked every SKU under a supplier
+            # for the supplier's aggregate score. Persil 3L, Dormans coffee,
+            # Mortein, Daawat rice -- 400-660k KES/yr each -- delisted for
+            # sharing a supplier code with slow movers.
+            #
+            # The spec calls MANDE "the hard data you take to the negotiation
+            # table". That is what it now is. Set OASIS_MANDE_ENFORCE=1 to
+            # restore the block, and note that it is still supplier-level and
+            # still wrong until the SEI is rebuilt on live revenue.
             mande_purge_list = self.databases.get('mande_purge_list', set())
             if should_list and supp in mande_purge_list:
-                # Unless it's an essential or staple, block it entirely
-                if not (is_staple or is_essential_dept):
+                if os.getenv('OASIS_MANDE_ENFORCE') and not (is_staple or is_essential_dept):
                     should_list = False
                     reason_tag = "[MANDE: PURGE CANDIDATE - CAPITAL TRAP]"
+                else:
+                    rec['mande_purge_flag'] = True
+                    rec['mande_note'] = ("MANDE flags this supplier for "
+                                         "renegotiation; not blocked")
 
 
             # v10.2: Align strict essentials-only filter to Micro-Duka threshold (200k KES)
