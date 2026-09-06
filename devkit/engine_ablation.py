@@ -141,8 +141,10 @@ def simulate(f, cfg, seeds, days=DAYS, lead_mult=1.0, open_mult=1.0, rng_base=12
            else np.full(f["d"].size, CV))
     S = d_plan * P + z * np.sqrt(P * (cvv * d_plan) ** 2 + (d_plan * sL) ** 2)
     if cfg["shelf"]:
+        # clamp, with the protection-interval floor: a ceiling below d*P does
+        # not avoid waste, it converts it into a certain stockout
         cap = np.where(f["shelf"] > 0, d_plan * f["shelf"], np.inf)
-        S = np.minimum(S, cap)
+        S = np.maximum(np.minimum(S, cap), np.minimum(d_plan * P, S))
     blocked = np.zeros(n, dtype=bool)
     if cfg["amit"]:
         blocked |= f["amit"]

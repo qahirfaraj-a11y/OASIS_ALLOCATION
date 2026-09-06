@@ -8,7 +8,33 @@ from typing import List, Dict, Optional, Any
 
 logger = logging.getLogger("OrderEngine.Procurement")
 
+
+def _read_engine_mode(data_dir, engine, default="report"):
+    """engines.<name>.mode from the central config: 'report' or 'enforce'.
+
+    An engine that can veto an order is a different thing from one that writes
+    a list, and until 2026-09 nothing in this system distinguished them. The
+    mode is config, not an environment variable, because it is a standing
+    policy decision and it should be visible in the file somebody reads.
+    """
+    try:
+        from .engines_config import load_engines_config
+        cfg = load_engines_config(data_dir) or {}
+        v = ((cfg.get("engines") or {}).get(engine) or {}).get("mode")
+        return str(v).strip().lower() if v else default
+    except Exception:
+        return default
+
+
 class ProcurementMixin:
+
+    def _engine_mode(self, engine, default="report"):
+        key = "_engine_mode_" + engine
+        v = getattr(self, key, None)
+        if v is None:
+            v = _read_engine_mode(getattr(self, "data_dir", None), engine, default)
+            setattr(self, key, v)
+        return v
     """
     ProcurementMixin handles the allocation of budget across products and suppliers,
     implementing multi-pass logic for greenfield scenarios and replenishment.
@@ -256,12 +282,24 @@ class ProcurementMixin:
             # (exceeds department cap, lowest annual gross profit --
             # amit_gatekeeper.py). O(1) set lookup.
             # FIX H4: Normalize product name for robust matching against NN node IDs.
+            # AMIT HAS A MODE NOW, AND IT DEFAULTS TO REPORT.
+            # A 12-seed sweep over 15,739 SKUs from the real shelf priced AMIT
+            # enforcement at -2.0m to -4.0m KES/yr of economic profit: the caps
+            # are 26 authored numbers against 245 real departments, so the
+            # blocking is mostly an accident of which departments somebody got
+            # round to. Flag the line, do not delete it. engines.amit.mode =
+            # "enforce" restores the block.
             amit_blacklist = self.databases.get('amit_enforcement', set())
             if amit_blacklist:
                 p_name_upper = p_name.strip().upper()
                 if p_name in amit_blacklist or p_name_upper in amit_blacklist:
-                    should_list = False
-                    reason_tag = "[AMIT: BLACKLISTED - Exceeds dept category cap (lowest annual GP)]"
+                    if self._engine_mode('amit') == 'enforce':
+                        should_list = False
+                        reason_tag = "[AMIT: BLACKLISTED - Exceeds dept category cap (lowest annual GP)]"
+                    else:
+                        rec['amit_flag'] = True
+                        rec['amit_note'] = ("AMIT: over department cap on annual "
+                                            "gross profit; flagged, not blocked")
 
             # === CHAPTER 11: AMIT Dead Stock (separate policy, separate file
             # since 2026-09 -- see amit_governance.py / amit_dead_stock_block.json.
@@ -307,7 +345,8 @@ class ProcurementMixin:
             # still wrong until the SEI is rebuilt on live revenue.
             mande_purge_list = self.databases.get('mande_purge_list', set())
             if should_list and supp in mande_purge_list:
-                if os.getenv('OASIS_MANDE_ENFORCE') and not (is_staple or is_essential_dept):
+                if (self._engine_mode('mande') == 'enforce'
+                        and not (is_staple or is_essential_dept)):
                     should_list = False
                     reason_tag = "[MANDE: PURGE CANDIDATE - CAPITAL TRAP]"
                 else:
