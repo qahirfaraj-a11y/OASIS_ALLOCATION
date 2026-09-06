@@ -88,7 +88,7 @@ def main(argv=None) -> int:
         cyc = d * P
         saf = z * math.sqrt(P * (CV * d) ** 2 + (d * sL) ** 2)
         S_raw = cyc + saf
-        sl = shelf.get(dept, 0.0)
+        sl = ou.shelf_life_for(dept, str(ROOT), sku=k)
         S = min(S_raw, d * sl) if sl > 0 else S_raw
         oh = max(0.0, float(sv["stock"]))
         Q = max(0.0, S - oh)

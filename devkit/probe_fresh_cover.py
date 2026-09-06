@@ -103,6 +103,18 @@ def derive_cadence(rebuild=False):
         gaps.sort()
         out[v] = {"deliveries": len(ds), "span_days": (ds[-1] - ds[0]).days,
                   "median_gap": st.median(gaps),
+                  # THE GAP IS AN UPPER BOUND, NOT A MEASUREMENT.
+                  # A delivery interval cannot be shorter than the interval at
+                  # which somebody ORDERED, so the median gap measures the
+                  # store's habit at least as much as the supplier's
+                  # capability. What the supplier has DEMONSTRATED is the
+                  # short end of the distribution: if it once turned an order
+                  # round in two days, it can do two days. With the cost of
+                  # raising an LPO at zero -- suppliers carry delivery here --
+                  # the demonstrated floor is the R the mathematics wants, not
+                  # the median.
+                  "p10_gap": gaps[max(0, int(0.10 * len(gaps)) - 1)],
+                  "p25_gap": gaps[max(0, int(0.25 * len(gaps)) - 1)],
                   "p90_gap": gaps[min(int(0.9 * len(gaps)), len(gaps) - 1)],
                   "first": ds[0].isoformat(), "last": ds[-1].isoformat(),
                   "provenance": "observed"}

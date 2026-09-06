@@ -426,9 +426,74 @@ def load_shelf_life(root: Optional[str] = None) -> Dict[str, float]:
     return _SHELF_CACHE
 
 
-def shelf_life_for(department: str, root: Optional[str] = None) -> float:
-    return load_shelf_life(root).get(
+PER_SKU_SHELF_FILE = "shelf_life_per_sku.json"
+_PER_SKU_SHELF: Optional[Dict[str, dict]] = None
+
+
+def load_shelf_life_per_sku(root: Optional[str] = None) -> Dict[str, dict]:
+    """Per-SKU effective shelf life, MEASURED where the book can measure it.
+
+    Receipt-to-expiry from the purchase-return book, joined to the GRN that
+    delivered the stock -- 8,311 dated returns over 2,095 SKUs. The department
+    table stays as the fallback, but it is asserted and it was wrong in both
+    directions: YOGHURT measured 7 days against 14 asserted, ICE-CREAM 45
+    against 90, BREAD 3 against 1.2. And it covered no dry goods at all, while
+    the returns show FLOUR at 26 days, BISCUITS 54, CRISPS 65.
+
+    Per-SKU is also the only form that survives a change of universe. The same
+    derivation in a pharmacy produces drug-level expiry without anyone
+    rewriting a department list.
+
+    Produced by devkit/derive_shelf_life.py --write.
+    """
+    global _PER_SKU_SHELF
+    if _PER_SKU_SHELF is not None:
+        return _PER_SKU_SHELF
+    base = root or os.path.abspath(
+        os.path.join(os.path.dirname(__file__), "..", ".."))
+    for cand in (os.path.join(base, "oasis", "data", PER_SKU_SHELF_FILE),
+                 os.path.join(base, "data", PER_SKU_SHELF_FILE)):
+        if os.path.exists(cand):
+            try:
+                with open(cand, encoding="utf-8") as f:
+                    data = json.load(f) or {}
+                _PER_SKU_SHELF = {" ".join(str(k).upper().split()): v
+                                  for k, v in data.items() if isinstance(v, dict)}
+                logger.info("shelf life: %d SKUs, %d of them measured",
+                            len(_PER_SKU_SHELF),
+                            sum(1 for v in _PER_SKU_SHELF.values()
+                                if str(v.get("provenance", "")).startswith("observed_return")))
+                return _PER_SKU_SHELF
+            except (OSError, ValueError, TypeError):
+                break
+    _PER_SKU_SHELF = {}
+    return _PER_SKU_SHELF
+
+
+def shelf_life_for(department: str, root: Optional[str] = None,
+                   sku: Optional[str] = None) -> float:
+    """Effective shelf life in days: the SKU's own where it is measured, else
+    its department's asserted number, else unclamped."""
+    # THE MEASURED FIGURE IS AN UPPER BOUND, NOT THE LIFE.
+    # It is days from receipt to WRITE-OFF, and a write-off is processed when
+    # somebody gets to it. FESTIVE 800G WHITE MILKY BREAD measures 16 days;
+    # bread does not live 16 days, the paperwork does. So where a department
+    # asserts a physical limit, the ceiling is the SMALLER of the two -- a
+    # ceiling that errs long is worse than one that errs short, because the
+    # first fills a shelf with stock that dies on it.
+    #
+    # Where no department figure exists -- FLOUR, BISCUITS, CRISPS, RICE, all
+    # of which the asserted table never covered and all of which the return
+    # book shows expiring -- the measured number stands alone. Some clamp
+    # beats none.
+    dept_v = load_shelf_life(root).get(
         " ".join(str(department or "").upper().split()), 0.0)
+    if sku:
+        v = load_shelf_life_per_sku(root).get(" ".join(str(sku).upper().split()))
+        sku_v = float(v.get("shelf_life_days") or 0) if v else 0.0
+        if sku_v > 0:
+            return min(sku_v, dept_v) if dept_v > 0 else sku_v
+    return dept_v
 
 
 #: Under on-demand ordering there is no cycle to wait for: the next chance to
@@ -847,7 +912,9 @@ def recommend(product: Dict[str, Any],
     S_raw = order_up_to_level(d, sigma_d, L, R, sL, zz)
     # A shelf life given on the line wins; otherwise the department's.
     _sl = float(product.get("shelf_life_days") or 0) \
-        or shelf_life_for(product.get("department") or "")
+        or shelf_life_for(product.get("department") or "",
+                          sku=product.get("sku") or product.get("id")
+                              or product.get("product_name"))
     S = clamp_level(S_raw, d,
                     shelf_life_days=_sl,
                     min_display=float(product.get("min_presentation_stock") or 0))
