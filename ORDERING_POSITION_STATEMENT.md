@@ -125,3 +125,81 @@ by making one measurement disagree with another and refusing to explain the
 gap away. The supplier-key defect in particular was invisible to every probe
 in devkit and visible immediately in a production run — which is the argument
 for keeping both, and for trusting the one that touches real orders.
+
+---
+
+# Addendum: state after the full-pipeline sweep
+
+**2026-09-06, commits `c7388b6` .. `ecfb16c`**
+
+## The engine at six real stock positions
+
+Every quantity from `ou.recommend()` with the raw vendor string, so the same
+code and the same joins production uses. Stock anchored on the real snapshot.
+
+| stock | lines ordering | order KES | suppressed | infeasible | below P | stranded above S | median cover after |
+|---|---|---|---|---|---|---|---|
+| 0.00x | 13,188 | 23,407,644 | 1,849 | 666 | 15,037 | 0 | 21.6 d |
+| 0.25x | 8,765 | 12,377,298 | 758 | 666 | 7,083 | 3,709,548 | 25.1 d |
+| 0.50x | 5,675 | 7,664,799 | 650 | 666 | 4,865 | 13,919,504 | 30.7 d |
+| **1.00x (today)** | **3,774** | **4,665,115** | **591** | **666** | **3,807** | **40,067,053** | **47.7 d** |
+| 1.50x | 3,269 | 3,842,782 | 564 | 666 | 3,492 | 68,084,792 | 69.1 d |
+| 2.00x | 3,035 | 3,461,946 | 564 | 666 | 3,353 | 96,492,740 | 92.2 d |
+
+Three things this establishes.
+
+**The engine behaves correctly across the whole cycle.** The buy falls
+monotonically as the shelf fills -- 23.4m at a cold start, 4.67m today (19.9%
+of it), 3.46m when overbought -- and floors rather than chasing a target it has
+met. `infeasible` is flat at 666 across every position, which is right: it is a
+property of shelf life against R + L, not of how much is on the shelf.
+
+**Today's book carries KES 40,067,053 above its own order-up-to level.** That
+is inherited, not generated: the engine cannot order it down, only wait it out.
+Median cover after ordering is 47.7 days against a policy position of 21.6.
+WINES 2.93m, SPIRITS 2.97m, CHOCOLATES 1.67m, COOKING OIL 1.30m.
+
+**Monday's order is 3,774 lines and KES 4,665,115**, concentrated in WINES
+270k, COOKING OIL 247k, SPIRITS 187k, BISCUITS 155k, EGGS 141k.
+
+## R now resolves on 89.8% of lines
+
+`{calendar 10,184 · cadence 6,574 · cadence_overrides_calendar 744 · default 1,984}`
+
+It was 0% three commits ago and nothing said so. The assertion in the sweep was
+rewritten to test the thing that matters -- the share of LINES that end up with
+a measured review period, not whether two dictionaries share spellings -- so
+this specific failure cannot recur silently.
+
+## Gap register
+
+| gap | status | size | owner |
+|---|---|---|---|
+| Supplier key missed on every line | **CLOSED** `c7388b6` | was 100% of lines | ordering |
+| Long-life rule unreachable | **CLOSED** `724799e` | 25 lines | ordering |
+| Substring token false positives (DESLY, MUESLI) | **CLOSED** `724799e` | 27 lines | ordering |
+| Fresh floor overruling the 2.0-day cap | **CLOSED** `ecfb16c` | 269 fresh lines | ordering |
+| Dead stock auto-ordering | **CLOSED** `ecfb16c` | 591 lines, 969k GP/yr | ordering |
+| Suppression reason discarded at q=0 | **CLOSED** `ecfb16c` | 591 lines | ordering |
+| Harness reimplemented the engine | **CLOSED** `84a35b0`, `724799e` | hid the above | devkit |
+| Flat z = 1.28 vs derived 2.20 | **OPEN** | 861k/yr carrying for the service it buys | ordering, one line |
+| Structurally short against the 2.0 cap | **OPEN, not ours** | 666 lines, GP at stake | procurement |
+| Discreteness on sub-1/day lines | **OPEN, not ours** | 12.0m capital | transfer |
+| Overdispersion functional form | **BLOCKED** | ~20% of fast-mover S | needs daily till timestamps |
+| Ghost demand / halo | **BLOCKED** | zero today | needs till baskets with timestamps |
+| One branch of 29 | **OPEN** | every KES figure | needs another store's data |
+
+Five gaps closed today, one open in ordering and it is a single line, three
+owned elsewhere, three blocked on data that does not exist.
+
+## What "optimal" honestly means here
+
+The engine is now correct on every term it computes, and every input it uses is
+measured rather than asserted except three: `phi = 0.40` (shape confirmed on
+real data, magnitude not), the department shelf-life ceilings, and `h = 14.38%`
+which is really a service-level choice wearing a cost's clothing. The one
+substantive tuning item left inside ordering is `z`.
+
+It is not optimal in the sense of nothing left to do. It is optimal in the sense
+that what remains is either a business decision, another module's, or waiting on
+data -- and each of those is named above with a number against it.
