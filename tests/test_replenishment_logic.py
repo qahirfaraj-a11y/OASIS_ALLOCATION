@@ -16,6 +16,25 @@ from oasis.logic.order_engine import OrderEngine
 from oasis.logic.simulation_bridge import SimulationOrderUtil, _supplier_phase_offset
 
 
+@pytest.fixture(autouse=True)
+def _pin_the_classic_path(monkeypatch):
+    """These are classic-path tests, so they must SAY so.
+
+    calculate_order_quantity forks on order_up_to.is_enabled(), which reads
+    OASIS_ORDER_MODEL and then the engines config — and the config it lands on
+    is the developer's own tuned file, which is untracked machine state. So
+    the result of this file depended on whose laptop ran it: the same commit
+    passed here and failed in CI once the derived model became the default.
+    A golden test that reads machine state is not golden.
+
+    Pinned per-test rather than per-module because monkeypatch is
+    function-scoped; a module-scoped autouse fixture cannot take it, and
+    reaching for os.environ directly is how a leaked variable ends up
+    steering a later file.
+    """
+    monkeypatch.setenv("OASIS_ORDER_MODEL", "classic")
+
+
 @pytest.fixture(scope="module")
 def util(tmp_path_factory):
     data_dir = tmp_path_factory.mktemp("data")

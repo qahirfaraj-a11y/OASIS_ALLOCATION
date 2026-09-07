@@ -292,21 +292,31 @@ class IntelligenceMixin:
                 sim_multiplier = 1.2
         
         target_days *= sim_multiplier
-        
-        # Apply Velocity-Based Depth Scaling (v10.0 authoritative)
-        if avg_sales > 10:
-            velocity_multiplier = 1.4  # Very high velocity
-        elif avg_sales > 5:
-            velocity_multiplier = 1.3  # High velocity  
-        elif avg_sales > 2:
-            velocity_multiplier = 1.2  # Medium-high velocity
-        elif avg_sales > 1:
-            velocity_multiplier = 1.0  # Medium velocity
-        else:
-            velocity_multiplier = 0.8  # Low velocity (reduce overstocking)
-        
-        target_days *= velocity_multiplier
-        
+
+        # VELOCITY-BASED DEPTH SCALING REMOVED — it was wrong twice over.
+        #
+        # It read: >10/day x1.4, >5 x1.3, >2 x1.2, >1 x1.0, else x0.8.
+        #
+        # Direction. Counting arrivals in a window is Poisson to first order,
+        # so sigma = sqrt(d) and cv = 1/sqrt(d): RELATIVE variability FALLS as
+        # velocity rises. A line selling 0.2/day carries cv 2.2; one selling
+        # 60/day carries 0.13. The table ran the other way, and 13,553 of
+        # 15,037 SKUs on this book sell a unit a day or less -- so 90% of the
+        # range was handed a 0.8 where the arithmetic asks for more, and the
+        # fast movers were inflated by 1.4 where it asks for less.
+        #
+        # Placement. Even with the sign corrected this is the wrong lever: it
+        # scaled `target_days`, which is cycle + lead + safety, so it moved
+        # CYCLE STOCK -- the demand that will certainly arrive over the
+        # protection interval, and not a risk quantity at all -- and then
+        # scaled safety a second time on top of the buffer that already
+        # carries it.
+        #
+        # Nothing replaces it here. Velocity belongs in the safety term via
+        # cv(d) = sqrt(1/d + phi^2), which the derived model applies in
+        # order_up_to.demand_cv; this path's velocity response is the
+        # safety_buffer above. No adjustment beats a backwards one.
+
         # 4. Strategic Guardrails & Department Caps
         if long_life:
             target_days = min(target_days, max(7.0, order_cycle + lead_time))

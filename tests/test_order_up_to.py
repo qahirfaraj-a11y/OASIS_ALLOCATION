@@ -18,9 +18,34 @@ from oasis.logic import order_up_to as ou
 
 class TestTheFlag:
 
-    def test_classic_is_the_default(self, monkeypatch):
-        """A new model that switches itself on is a change nobody chose."""
-        monkeypatch.delenv("OASIS_ORDER_MODEL", raising=False)
+    def test_the_shipped_default_selects_the_derived_model(self):
+        """This assertion is the reverse of the one it replaces, deliberately.
+
+        It used to read "classic is the default", on the reasoning that a new
+        model switching itself on is a change nobody chose. That was right
+        while the model was unmeasured. It has since been measured: over five
+        stores at 0.4x-2.0x of the observed book, 3 seeds, a full year, with
+        the demand fix in place, the derived model returns 90.28% service and
+        KES 583m EP against 87.03% and 312m for the classic path, on LESS
+        stock -- and the best GMROI and turns in the table, so it is not
+        buying a level with a rate.
+
+        The choice was made on that evidence. What must not happen is the
+        choice being made by a file that never ships: the tuned
+        oasis_engines_config.json is excluded from the release, so before this
+        the derived model was on for every developer and off for every
+        customer, silently.
+        """
+        import json
+        import pathlib
+        cfg = json.loads(
+            (pathlib.Path(__file__).parent.parent / "oasis" / "data" /
+             "oasis_engines_config.default.json").read_text(encoding="utf-8"))
+        assert (cfg.get("global_settings") or {}).get("order_model") == "order_up_to"
+
+    def test_an_operator_can_still_choose_the_classic_path(self, monkeypatch):
+        """A default is not a lock-in. The classic path remains reachable."""
+        monkeypatch.setenv("OASIS_ORDER_MODEL", "classic")
         assert ou.model_name() == "classic"
         assert not ou.is_enabled()
 
@@ -72,7 +97,19 @@ class TestReviewPeriod:
         assert ou.review_period("BROOKSIDE DAIRY", s) == 7.0
 
     def test_two_weekdays_halve_it(self, tmp_path):
-        root = self._sched(tmp_path, {"MONDAY": ["SX - ACME"], "THURSDAY": ["SX - ACME"]})
+        # The fixture used to say "SX - ACME", which is not a supplier code:
+        # the loader's _CODE guard requires digits, so the entry was rejected
+        # as a parse artefact, the schedule came back EMPTY, and review_period
+        # fell to the 7-day blanket default. The test was asserting the
+        # default while claiming to assert the halving.
+        #
+        # A bare "ACME" does not work either, and should not -- the calendar
+        # is parsed out of a rendered report full of "...AND 123 MORE"-shaped
+        # noise, and admitting code-less entries is what previously let 262
+        # non-suppliers in. Give it a real code shape instead.
+        root = self._sched(tmp_path,
+                           {"MONDAY": ["SX0001 - ACME"],
+                            "THURSDAY": ["SX0001 - ACME"]})
         s = ou.load_review_schedule(root)
         assert ou.review_period("ACME", s) == 3.5
 
@@ -98,10 +135,21 @@ class TestSigmaLead:
 
     def test_an_unmeasured_supplier_gets_the_chain_figure_not_zero(self):
         """Zero would say 'this supplier is never late', which deletes the
-        larger half of the safety term for every unmeasured vendor."""
-        assert ou.sigma_lead(None) == ou.DEFAULT_SIGMA_LEAD
-        assert ou.sigma_lead({}) == ou.DEFAULT_SIGMA_LEAD
-        assert ou.sigma_lead({"lead_time_stdev": "not a number"}) == ou.DEFAULT_SIGMA_LEAD
+        larger half of the safety term for every unmeasured vendor.
+
+        The chain figure is now DERIVED (p75 of the measured suppliers) rather
+        than the 2.22 constant, so this asserts against chain_sigma_lead()
+        instead of DEFAULT_SIGMA_LEAD. Pinning the constant would have meant
+        pinning the fallback the derivation was written to replace -- the test
+        would fail every time the receipt book improved the estimate, which is
+        the opposite of what it is for. The constant remains the floor when
+        nothing at all has been measured.
+        """
+        chain = ou.chain_sigma_lead()
+        assert chain > 0
+        assert ou.sigma_lead(None) == chain
+        assert ou.sigma_lead({}) == chain
+        assert ou.sigma_lead({"lead_time_stdev": "not a number"}) == chain
 
     def test_a_genuinely_reliable_supplier_may_measure_zero(self):
         assert ou.sigma_lead({"lead_time_stdev": 0.0}) == 0.0

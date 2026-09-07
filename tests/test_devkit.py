@@ -99,20 +99,44 @@ def _reaches_the_repo_root(tree):
         if not (isinstance(f.value, ast.Attribute) and f.value.attr == "path"):
             continue
         # the inserted expression, wherever it came from
-        inserted = ast.dump(node.args[1]) if len(node.args) > 1 else ""
-        if "__file__" in inserted and inserted.count("dirname") >= 2:
+        if len(node.args) < 2:
+            continue
+        arg = node.args[1]
+        if _derives_from_file(ast.dump(arg)):
             return True
-        # or a name bound earlier to that same expression, e.g. ROOT
-        if isinstance(node.args[1] if len(node.args) > 1 else None, ast.Name):
-            target = node.args[1].id
+        # ...or a name bound earlier to that expression, e.g. ROOT. Walk the
+        # inserted expression rather than requiring it to BE a bare Name: the
+        # prevailing spelling in devkit/ is `sys.path.insert(0, str(ROOT))`,
+        # and an isinstance check against ast.Name never sees through str().
+        for sub in ast.walk(arg):
+            if not isinstance(sub, ast.Name):
+                continue
             for assign in ast.walk(tree):
                 if isinstance(assign, ast.Assign) and any(
-                        isinstance(t, ast.Name) and t.id == target
+                        isinstance(t, ast.Name) and t.id == sub.id
                         for t in assign.targets):
-                    src = ast.dump(assign.value)
-                    if "__file__" in src and src.count("dirname") >= 2:
+                    if _derives_from_file(ast.dump(assign.value)):
                         return True
     return False
+
+
+def _derives_from_file(src: str) -> bool:
+    """Does this expression compute a path by going UP from __file__?
+
+    Two spellings, both correct and both in use here:
+
+        os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        Path(__file__).resolve().parents[1]
+
+    Only the first was recognised, so 31 scripts using the pathlib form were
+    reported as never putting the repo root on sys.path while doing exactly
+    that. This function's own docstring warned against precisely that error --
+    "behaviour, not spelling" -- and it was made anyway, one spelling later.
+    Judge the derivation, not the library.
+    """
+    if "__file__" not in src:
+        return False
+    return src.count("dirname") >= 2 or "parents" in src
 
 
 @pytest.mark.parametrize("script", _devkit_scripts())
