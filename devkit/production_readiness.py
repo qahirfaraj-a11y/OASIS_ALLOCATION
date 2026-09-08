@@ -106,6 +106,14 @@ def simulate(book, lv, shelf, dem, leads, mult, days, scale):
     stock_days = gp_earned = cogs = 0.0
     lost_by_dept = defaultdict(float)
     never_reviewed = 0
+    # Both service measures, because they are NOT the same number and this
+    # harness reported only the first. `service` here is a FILL RATE, units
+    # served over units demanded. z targets a CYCLE SERVICE LEVEL, the
+    # probability of surviving a review cycle without running out, and fill is
+    # structurally the higher of the two -- a cycle that empties on its last
+    # day still served nearly all its units. Quoting fill against a z-derived
+    # 90% target compares a rate to a probability.
+    cycles = cycles_ok = 0
 
     for i, p in enumerate(book):
         k = p["sku"]
@@ -127,6 +135,7 @@ def simulate(book, lv, shelf, dem, leads, mult, days, scale):
         batches = [[sl if sl > 0 else float("inf"),
                     p["current_stock"] * mult * scale]]
         pipeline = []
+        cyc_short = False
         for t in range(days):
             for arr, q in [x for x in pipeline if x[0] <= t]:
                 batches.append([t + sl if sl > 0 else float("inf"), q])
@@ -154,19 +163,26 @@ def simulate(book, lv, shelf, dem, leads, mult, days, scale):
             want_tot += w
             if w > took:
                 lost_by_dept[p["department"]] += (w - took) * gp
+                cyc_short = True
             gp_earned += took * gp
             cogs += took * cost
             stock_days += on_hand * cost
 
-            if not L_["suppressed"] and t % max(1, int(round(R))) == 0:
-                pos = on_hand + sum(q for _, q in pipeline)
-                if S - pos > 0:
-                    pipeline.append((t + leads[i, t], S - pos))
+            if t % max(1, int(round(R))) == 0:
+                if t > 0:
+                    cycles += 1
+                    cycles_ok += 0 if cyc_short else 1
+                    cyc_short = False
+                if not L_["suppressed"]:
+                    pos = on_hand + sum(q for _, q in pipeline)
+                    if S - pos > 0:
+                        pipeline.append((t + leads[i, t], S - pos))
 
     avg_stock = stock_days / days
     yr = days / 365.0
     return {
         "service": sold / want_tot if want_tot > 0 else 0.0,
+        "cycle": cycles_ok / cycles if cycles else 0.0,
         "stock": avg_stock, "gp": gp_earned / yr, "waste": waste / yr,
         "ep": gp_earned / yr - HOLDING_RATE * avg_stock - waste / yr,
         "gmroi": (gp_earned / yr) / avg_stock if avg_stock > 0 else 0.0,
@@ -217,11 +233,12 @@ def main(argv=None) -> int:
     print("\n" + "=" * 84)
     print("ACROSS THE STOCK RANGE — chain totals over %d stores" % len(mix))
     print("=" * 84)
-    print(f"  {'opening stock':>14}{'service':>10}{'stock KES':>15}"
-          f"{'GP/yr':>15}{'waste/yr':>14}{'EP/yr':>15}")
+    print(f"  {'opening stock':>14}{'fill rate':>11}{'cycle svc':>11}"
+          f"{'stock KES':>15}{'GP/yr':>15}{'waste/yr':>14}{'EP/yr':>15}")
     for mult in STOCK_POINTS:
         rs_ = grid[mult]
-        print(f"  {mult:>13.2f}x{100*statistics.mean(r['service'] for r in rs_):>9.2f}%"
+        print(f"  {mult:>13.2f}x{100*statistics.mean(r['service'] for r in rs_):>10.2f}%"
+              f"{100*statistics.mean(r['cycle'] for r in rs_):>10.2f}%"
               f"{sum(r['stock'] for r in rs_):>15,.0f}"
               f"{sum(r['gp'] for r in rs_):>15,.0f}"
               f"{sum(r['waste'] for r in rs_):>14,.0f}"
@@ -231,10 +248,15 @@ def main(argv=None) -> int:
     print("SERVICE BY STORE SIZE (at 1.00x opening stock)")
     print("=" * 84)
     at1 = grid[1.0]
-    print(f"  {'store':>8}{'scale':>8}{'service':>10}{'stock KES':>14}{'EP/yr':>15}")
+    print(f"  {'store':>8}{'scale':>8}{'fill rate':>11}{'cycle svc':>11}"
+          f"{'stock KES':>14}{'EP/yr':>15}   90% target")
     for i, (scale, r) in enumerate(zip(mix, at1)):
-        print(f"  {i+1:>8}{scale:>8.1f}{100*r['service']:>9.2f}%"
-              f"{r['stock']:>14,.0f}{r['ep']:>15,.0f}")
+        # The target z is set against is the CYCLE one, so that is the column
+        # the pass/fail has to be read from.
+        verdict = "met" if r["cycle"] >= 0.90 else "MISSED"
+        print(f"  {i+1:>8}{scale:>8.1f}{100*r['service']:>10.2f}%"
+              f"{100*r['cycle']:>10.2f}%"
+              f"{r['stock']:>14,.0f}{r['ep']:>15,.0f}   {verdict}")
 
     print("\n" + "=" * 84)
     print("WHERE THE LOST MARGIN IS (all stores, all stock points)")
