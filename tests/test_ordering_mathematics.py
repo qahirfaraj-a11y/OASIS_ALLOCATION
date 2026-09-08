@@ -87,6 +87,49 @@ class TestTheDemandCv:
             importlib.reload(ou)
 
 
+class TestSigmaDIsBuiltFromADailyCv:
+    """sigma_d is a DAILY standard deviation, so its cv must be daily too.
+
+    recommend() used to read `product['demand_cv'] or demand_cv(d)`, and the
+    field it preferred is written by enrichment as _calculate_cv over
+    sales_data['monthly_sales'] -- stdev/mean of MONTHLY TOTALS. Using it as
+    sigma_d = cv * d asserts that a day varies as little as a month, which is
+    the aggregation running backwards.
+
+    Measured on the live book: the monthly value won on 14,525 of 15,037 lines
+    (96.6%), was smaller on 99.3% of them, and left the safety term at 0.334x
+    of the formula's own answer. It also made the velocity model unreachable
+    on all but 512 lines -- which is why sweeping phi across its whole
+    plausible range moved not a single line of the order book.
+    """
+
+    def _line(self, **kw):
+        p = {"avg_daily_sales": 4.0, "supplier_name": "ACME",
+             "current_stock": 0.0, "lead_time_days": 2.0,
+             "department": "GENERAL", "sku": "CV-1", "pack_size": 1}
+        p.update(kw)
+        return ou.recommend(p, schedule={}, patterns={})
+
+    def test_a_monthly_cv_does_not_reach_the_safety_term(self):
+        """THE REGRESSION. A tiny monthly cv must not shrink daily sigma."""
+        assert self._line(demand_cv=0.05)["S"] == \
+            pytest.approx(self._line()["S"])
+
+    def test_the_daily_model_is_what_gets_used(self):
+        r = self._line()
+        assert r["sigma_d"] == pytest.approx(ou.demand_cv(4.0) * 4.0)
+
+    def test_a_genuinely_daily_measurement_still_wins(self):
+        """The fix is about the interval, not about distrusting callers."""
+        r = self._line(demand_cv_daily=1.5)
+        assert r["sigma_d"] == pytest.approx(1.5 * 4.0)
+
+    def test_the_daily_cv_is_the_larger_one_on_a_slow_line(self):
+        """The direction that made this matter: on the tail, where 90% of the
+        book lives, the daily figure is several times the monthly one."""
+        assert ou.demand_cv(0.5) > 4 * 0.35
+
+
 class TestDeadStockDoesNotOrderItself:
     """A line where one pack is months of cover is a special-order decision."""
 

@@ -1120,10 +1120,29 @@ def recommend(product: Dict[str, Any],
         return {"quantity": 0.0, "reason": "no measured sales rate"}
 
     supplier = supplier_key(product.get("supplier_name"))
-    # cv from the line if the caller measured one, else from velocity. A flat
-    # 0.4 for a SKU selling 60 a day and one selling 0.2 is one number doing
-    # two jobs.
-    cv = float(product.get("demand_cv") or 0) or demand_cv(d)
+    # sigma_d IS A DAILY STANDARD DEVIATION, so the cv that builds it must be
+    # a daily one.
+    #
+    # This used to read `product['demand_cv'] or demand_cv(d)`, and the field
+    # it preferred is written by enrichment as
+    # _calculate_cv(sales_data['monthly_sales']) -- stdev/mean over MONTHLY
+    # TOTALS. Feeding a monthly cv into sigma_d = cv * d states that a day
+    # varies as little as a month does, which is the aggregation working
+    # backwards: totals over 30 days are far steadier in relative terms than
+    # the days inside them.
+    #
+    # It was not a corner case. The supplied value won on 14,525 of 15,037
+    # lines (96.6%), was smaller on 99.3% of them (median ratio 0.244 against
+    # the daily figure), and left the safety term at 0.334x of what the
+    # formula asks for -- about a third. It also made the velocity model inert
+    # on all but 512 lines, which is why perturbing phi across its whole
+    # plausible range moved not one line of the order book.
+    #
+    # A genuinely DAILY measurement should still win when one exists; nothing
+    # produces one today, and the name has to say which interval it means.
+    # The monthly figure remains useful as a trend signal and is left where it
+    # is for the surfaces that read it -- it is simply not this input.
+    cv = float(product.get("demand_cv_daily") or 0) or demand_cv(d)
     sigma_d = cv * d
     L = max(1.0, float(product.get("lead_time_days")
                        or product.get("estimated_delivery_days") or 3))
