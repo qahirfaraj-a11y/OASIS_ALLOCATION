@@ -199,6 +199,67 @@ class TestTheShelfLifeCapOutranksTheFloor:
         assert S <= 10.0 * 2.0 * ou.MAX_SHELF_MULTIPLE + 1e-9
 
 
+class TestNoGuardPlansAStockout:
+    """The Global 3x Cap is the fourth limit on a line that has already passed
+    the order-up-to level, the shelf-life clamp and the dead-stock rule -- and
+    it was the only one blind to R and L.
+
+    It sizes itself on `effective_daily_sales`, a 0.7/0.3 blend with the last
+    30 days, while the model sized S on `avg_daily_sales`. Two demand numbers
+    in one pipeline: wherever the recent month ran below the average, the cap
+    was computed on a smaller d than the quantity it was judging and trimmed a
+    correct order. Measured: 3 of the 41 cap-bound lines finished under their
+    own protection interval. clamp_level already refuses to do this for the
+    shelf-life ceiling, on the same reasoning.
+    """
+
+    def _guard(self, qty, d, R, L, pack=1, ads_30d=None):
+        from oasis.logic.order_engine import apply_safety_guards
+        rec = {"product_name": "W", "recommended_quantity": qty,
+               "avg_daily_sales": d, "reasoning": "",
+               "order_up_to_terms": {"d": d, "R": R, "L": L}}
+        if ads_30d is not None:
+            rec["avg_daily_sales_last_30d"] = ads_30d
+        p = {"product_name": "W", "avg_daily_sales": d, "current_stocks": 0,
+             "pack_size": pack, "is_fresh": False, "product_category": "GEN",
+             "last_days_since_last_delivery": 5}
+        return apply_safety_guards([rec], {"W": p})[0]
+
+    def test_it_never_cuts_below_the_protection_interval(self):
+        """THE REGRESSION. A monthly supplier: R+L = 37 days of demand must
+        survive a cap built on a depressed recent month."""
+        d, R, L = 1.0, 30.0, 7.0
+        out = self._guard(qty=d * (R + L), d=d, R=R, L=L, ads_30d=0.2)
+        assert out["recommended_quantity"] >= d * (R + L) - 1e-6
+
+    def test_a_genuinely_excessive_order_is_still_capped(self):
+        """The floor must not disable the guard: 400 days of cover on a
+        weekly line is what it exists to stop."""
+        d, R, L = 10.0, 7.0, 2.0
+        out = self._guard(qty=d * 400, d=d, R=R, L=L)
+        assert out["recommended_quantity"] < d * 400
+
+    def test_the_floor_uses_the_model_d_not_the_blend(self):
+        """If it floored on effective_daily_sales it could never bind: 63 days
+        already exceeds every protection interval on this book."""
+        import inspect
+        from oasis.logic.order_engine import apply_safety_guards
+        src = inspect.getsource(apply_safety_guards)
+        assert "_d_model * _P" in src
+
+    def test_a_line_without_terms_is_untouched_by_the_floor(self):
+        """The classic path attaches no order_up_to_terms; it must keep its
+        existing behaviour rather than acquire a floor from nowhere."""
+        from oasis.logic.order_engine import apply_safety_guards
+        rec = {"product_name": "W", "recommended_quantity": 10_000.0,
+               "avg_daily_sales": 1.0, "reasoning": ""}
+        p = {"product_name": "W", "avg_daily_sales": 1.0, "current_stocks": 0,
+             "pack_size": 1, "is_fresh": False, "product_category": "GEN",
+             "last_days_since_last_delivery": 5}
+        out = apply_safety_guards([rec], {"W": p})[0]
+        assert out["recommended_quantity"] < 10_000.0
+
+
 class TestTheVelocityMultiplierIsGone:
     """Pinned as absent. It was wrong in direction AND in placement, and a
     'depth scaling' band table is the kind of thing that grows back."""

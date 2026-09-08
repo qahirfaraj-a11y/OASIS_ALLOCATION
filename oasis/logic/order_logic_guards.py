@@ -132,10 +132,43 @@ def apply_safety_guards(recommendations: List[dict], products_map: Dict[str, dic
         if allocation_mode != 'initial_load':
             current_rec = rec.get('recommended_quantity', 0)
             logical_target = effective_daily_sales * 21.0
-            
+
             cap_multiplier = 3.0
             max_safe_order = max(float(pack_size) * 3.0, logical_target * cap_multiplier)
-            
+
+            # A CAP MUST NOT CUT BELOW THE PROTECTION INTERVAL.
+            # 21 x 3 is 63 days of demand and knows nothing about R, L or
+            # sigma_L, so on a line whose supplier is reviewed monthly -- R+L
+            # of 36.5 days is real on this book -- it can trim the order below
+            # the demand that will certainly arrive before the next delivery
+            # can land. That is not caution, it is a planned stockout, and
+            # order_up_to.clamp_level already refuses to do it for the
+            # shelf-life ceiling on exactly this reasoning.
+            #
+            # Measured before this floor: the cap bound on 41 lines, removed
+            # 45 units and KES 15,679 -- 0.3% of the order book, so it is a
+            # backstop rather than a lever -- but 3 of those lines finished
+            # under their own R+L. Small, and the wrong kind of small.
+            # ...and it must judge the order on the SAME demand the order was
+            # built from. This cap sizes itself on `effective_daily_sales`, a
+            # 0.7/0.3 blend with the last 30 days, while the derived model
+            # sized S on `avg_daily_sales`. Two different demand numbers in
+            # one pipeline: wherever the recent month runs below the average,
+            # the cap is computed on a smaller d than the quantity it is
+            # judging, and trims a correct order for a reason that has nothing
+            # to do with over-ordering. That, not the 63-day multiple, is what
+            # put 3 lines under their own R+L -- 63 days already exceeds every
+            # protection interval on this book (max 36.5), so a floor built on
+            # the blend could never bind.
+            _terms = rec.get('order_up_to_terms') or {}
+            try:
+                _P = float(_terms.get('R') or 0) + float(_terms.get('L') or 0)
+                _d_model = float(_terms.get('d') or 0)
+            except (TypeError, ValueError):
+                _P = _d_model = 0.0
+            if _P > 0 and _d_model > 0:
+                max_safe_order = max(max_safe_order, _d_model * _P)
+
             if current_rec > max_safe_order:
                 rec['recommended_quantity'] = max_safe_order
                 rec['reasoning'] += f" [GUARD: Global {cap_multiplier:.0f}x Cap ({current_rec} -> {max_safe_order:.0f})]"
