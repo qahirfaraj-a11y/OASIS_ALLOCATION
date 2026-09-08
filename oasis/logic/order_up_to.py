@@ -1147,12 +1147,29 @@ def recommend(product: Dict[str, Any],
               else product.get("current_stocks") or 0)
     O = float(product.get("on_order_qty") or 0)
     Q = order_quantity(S, I, O, float(product.get("pack_size") or 1))
+    # TRIED AND REJECTED, on measurement: max(60, 2 * (R + L)) instead of the
+    # flat 60. The argument was good -- a line reviewed monthly is exposed 37
+    # days by construction, so a pack covering 70 of them is under two cycles
+    # rather than parked capital -- and it is why this cap makes the engine
+    # size-dependent at all, since the rule is in days but the PACK is
+    # absolute. It does not survive contact with the book: only 90 lines carry
+    # a measured cadence above 28 days, and they barely overlap the population
+    # the cap refuses. Perturbing the multiplier from 2 to 6 moved 13 lines at
+    # a 0.3x store against 19 at 2.5x -- it WIDENED the size gap by 6 lines,
+    # the opposite of its purpose.
+    #
+    # What does move that gap, measured the same way: the supplier MOT (+188
+    # lines at 0.3x), the per-SKU MOP (+144 fresh), and the service level
+    # (+72 at 0.95). Those are absolute shillings and an explicit target --
+    # policy, not this cap. Raising the cap itself to 365 gives +81/-54, so it
+    # is a real lever, but a blunt one that mostly just buys more stock.
     _dead = False
     if Q > 0 and d > 0 and (I + Q) / d > MAX_AUTO_ORDER_COVER_DAYS:
         _dead = True
         Q = 0.0
 
     P = R + L
+
     # A CLAMP BELOW THE PROTECTION INTERVAL IS NOT A POLICY, IT IS A PLANNED
     # STOCKOUT. If the product dies before the next delivery can arrive, no
     # order-up-to level exists that both respects the shelf life and covers

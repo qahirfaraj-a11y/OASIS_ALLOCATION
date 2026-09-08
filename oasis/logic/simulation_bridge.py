@@ -117,6 +117,10 @@ class SimulationOrderUtil:
             # Phase C: Minimum Order Threshold to prevent micro-orders
             'min_order_units': 10,
             'min_order_value_kes': 5000,
+            # Per-SKU value floors. Absolute shillings, so they bind harder
+            # the smaller the store — settable for exactly that reason.
+            'min_item_value_fresh_kes': 200.0,
+            'min_item_value_dry_kes': 100.0,
         }
         
     @staticmethod
@@ -708,7 +712,20 @@ class SimulationOrderUtil:
                 
             # Determine Item MOP (Minimum Order Price / Order Value)
             # Default fallback MOP: KES 200 for fresh, KES 100 for dry
-            item_mop = 200.0 if is_fresh else 100.0
+            #
+            # CONFIGURABLE, because it is a POLICY in shillings applied to
+            # every store regardless of size. min_order_units and
+            # min_order_value_kes below have always been settable; these two
+            # were literals, and being absolute they do not adapt: a small
+            # branch generates a smaller order from the same SKU and so fails
+            # a fixed floor more often. Measured across the book, this gate
+            # removed 239 lines at 0.3x against 65 at 2.5x.
+            #
+            # The defaults are unchanged, so nothing moves for an operator who
+            # does not set them.
+            item_mop = float(self.thresholds.get(
+                'min_item_value_fresh_kes', 200.0) if is_fresh
+                else self.thresholds.get('min_item_value_dry_kes', 100.0))
             
             # Evaluate individual item eligibility
             order_val = qty * cost_price
