@@ -209,6 +209,28 @@ path uses the measured lead-time cache. L differs on 797 lines, and since
 feasibility is `shelf_life < R + L` that alone moves the verdict. Any supplier
 conversation started from the 666 needs re-deriving.
 
+**`phi` cannot be estimated from what exists, and matters less than claimed.**
+It was called the single largest untested assumption. Both halves of that need
+correcting. Under i.i.d. days, `cv_M^2 = 1/(30d) + phi^2/30`, so monthly totals
+give `phi = sqrt(30 (cv_M^2 - 1/M_bar))` — a real estimator, run over the seven
+cash extracts on 10,554 SKUs present in five or more months. It returns a
+median of **1.939**, and it does not tighten: detrending gives 1.794, and
+restricting to the consecutive may–jun–jul run gives 4.314, worse. Detrending
+removing nothing says the variance is not a trend — it is month-to-month level
+shifts from promotion, availability and assortment. A phi of 1.8 would mean a
+25/day line with a daily standard deviation of 45 units, so the bound is not
+merely loose, it is uninformative: we know a priori the truth sits far below
+it. Monthly data cannot answer this. Daily timestamps remain the only route.
+
+Its *stakes* are also smaller than the register implied, now that it is
+reachable at all. Order value against the shipped 0.40: **phi 0.20 −1.9%,
+phi 0.80 +5.8%, phi 1.20 +12.9%** at a small store. Tripling the parameter
+moves the book about a tenth. The structure limits it — in `sqrt(1/d + phi^2)`
+the Poisson term dominates wherever `d` is small, and 90% of this book sells a
+unit a day or less, so phi only bites on the ~1% of lines above 10/day. Keep
+0.40; it is untestable and low-leverage, which is a different problem from
+untested and load-bearing.
+
 **Fill rate and cycle service are not the same number.** Every service figure
 quoted above and in the runs behind it is a FILL RATE (units served / units
 demanded). z targets a CYCLE SERVICE LEVEL (probability of surviving a cycle).
