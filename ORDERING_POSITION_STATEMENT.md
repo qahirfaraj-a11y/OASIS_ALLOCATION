@@ -85,7 +85,7 @@ discrete demand. Many of the 13,553 SKUs selling one a day or less want a
 |---|---|---|
 | Gaussian-tail understatement on slow movers | 6 - 10 M | ordering |
 | Lead-time shadow price on structurally-short lines | 2.1 - 3.9 M per 0.5-1.0 d | procurement |
-| Flat z = 1.28 against a derived z* of 2.20 | 0.55 - 1.0 M | ordering, one line |
+| ~~Flat z = 1.28 against a derived z* of 2.20~~ **MEASURED AND REJECTED** — raising z *costs* ~68 M/yr | — | closed |
 | `forced_waste_units_per_cycle` overstated ~400x | reporting only | ordering |
 | `order_book.csv` built without the clamp floor | audit artefact | devkit |
 | Overdispersion's functional form (i.i.d. vs persistent) | ~20% of fast-mover S | needs daily till timestamps |
@@ -182,8 +182,8 @@ this specific failure cannot recur silently.
 | Dead stock auto-ordering | **CLOSED** `ecfb16c` | 591 lines, 969k GP/yr | ordering |
 | Suppression reason discarded at q=0 | **CLOSED** `ecfb16c` | 591 lines | ordering |
 | Harness reimplemented the engine | **CLOSED** `84a35b0`, `724799e` | hid the above | devkit |
-| Flat z = 1.28 vs derived 2.20 | **OPEN** | 861k/yr carrying for the service it buys | ordering, one line |
-| Structurally short against the 2.0 cap | **OPEN, not ours** | 666 lines, GP at stake | procurement |
+| Flat z = 1.28 vs derived 2.20 | **CLOSED — measured, and the register had the sign wrong** | raising z costs ~68 M/yr | ordering |
+| Structurally short against the 2.0 cap | **OPEN, not ours — RESIZED to 147** | the 666 was a harness artefact | procurement |
 | Discreteness on sub-1/day lines | **OPEN, not ours** | 12.0m capital | transfer |
 | Overdispersion functional form | **BLOCKED** | ~20% of fast-mover S | needs daily till timestamps |
 | Ghost demand / halo | **BLOCKED** | zero today | needs till baskets with timestamps |
@@ -192,6 +192,32 @@ this specific failure cannot recur silently.
 Five gaps closed today, one open in ordering and it is a single line, three
 owned elsewhere, three blocked on data that does not exist.
 
+### Later corrections, from measuring what this table asserted
+
+**`z` is closed, and the register had the sign wrong.** It read as a thing to
+fix by RAISING z toward 2.20. Swept across the tabulated service levels on the
+full book, five stores, 180 days: measured cycle service tracks Phi(z) at the
+0.90 setting almost exactly (89.25% against 0.900), so z is calibrated and was
+never the defect. Above 1.28 service SATURATES — 89.25% to 90.07% to 90.91%
+while stock goes 177M to 186M to 203M — because the shelf-life clamp, pack
+rounding and dead-stock suppression bind before the safety term does. Raising z
+to 2.33 costs about 68 M/yr of EP to buy 1.66pp of cycle service. Keep 1.28.
+
+**The 666 structurally-short lines are 147.** The devkit sweeps build their
+inputs with `default_patterns` and a 2-day lead-time fallback; the production
+path uses the measured lead-time cache. L differs on 797 lines, and since
+feasibility is `shelf_life < R + L` that alone moves the verdict. Any supplier
+conversation started from the 666 needs re-deriving.
+
+**Fill rate and cycle service are not the same number.** Every service figure
+quoted above and in the runs behind it is a FILL RATE (units served / units
+demanded). z targets a CYCLE SERVICE LEVEL (probability of surviving a cycle).
+Fill is structurally the higher of the two, because a cycle that runs out on
+its last day still served nearly all its units. Reading 93.64% fill against a
+90% target and concluding the model over-serves compares a rate to a
+probability — a mistake made in this project once already, and the reason
+`devkit/z_calibration.py` now reports both.
+
 ## What "optimal" honestly means here
 
 The engine is now correct on every term it computes, and every input it uses is
@@ -199,6 +225,16 @@ measured rather than asserted except three: `phi = 0.40` (shape confirmed on
 real data, magnitude not), the department shelf-life ceilings, and `h = 14.38%`
 which is really a service-level choice wearing a cost's clothing. The one
 substantive tuning item left inside ordering is `z`.
+
+**Superseded.** `z` was swept and is calibrated; see the corrections above. And
+two of the three "measured, not asserted" inputs were not reaching the engine
+at all when this was written: `avg_daily_sales` was being overwritten from a
+static February file (29.1% below the POS-derived series), and `sigma_d` was
+being built from a cv of MONTHLY totals, leaving the safety term at 0.334x of
+what the formula asks for on 96.6% of lines. Both are fixed. That second one is
+also why sweeping `phi` moved nothing: `phi` only enters `demand_cv(d)`, which
+was unreachable on all but 512 lines — so "magnitude not confirmed" understated
+it. It was not being used.
 
 It is not optimal in the sense of nothing left to do. It is optimal in the sense
 that what remains is either a business decision, another module's, or waiting on
