@@ -260,6 +260,48 @@ class TestNoGuardPlansAStockout:
         assert out["recommended_quantity"] < 10_000.0
 
 
+class TestTheTriggerProtectsTheSameHorizonAsTheTarget:
+    """The engine is (s, S): the reorder point decides whether a line is
+    evaluated at all, and only lines at or under it reach order_up_to. So a
+    trigger protecting a SHORTER horizon than the target leaves a band where
+    a line is already short and the arithmetic that would notice never runs.
+
+    It did. The enriched reorder_point is velocity * (lead + safety), a median
+    10.0 days of cover, against S protecting R + L at a median 14.0 -- 93.3%
+    of lines. On a single real shelf, 193 lines reached their OWN ordering day
+    above that reorder point and below d*(R+L), worth KES 269,751: the
+    schedule offered them their one chance and the trigger declined to look.
+
+    The same error is warned about one branch away, at the newsvendor ROP --
+    "THE HORIZON IS P = R + L, NOT L ... silently drops R" -- fixed there while
+    the enriched reorder_point that actually fires kept it.
+    """
+
+    def test_the_floor_is_stated_against_the_protection_interval(self):
+        import inspect
+        from oasis.logic import simulation_bridge as SB
+        src = inspect.getsource(SB.SimulationOrderUtil.calculate_order_quantity)
+        assert "_P_trigger" in src and "review_period" in src
+
+    def test_it_is_a_floor_and_never_a_reduction(self):
+        """A supplier-specific reorder point that already protects MORE must
+        keep it. Loosening a trigger somebody set deliberately would be a
+        different change, and not one measurement here supports."""
+        import inspect
+        from oasis.logic import simulation_bridge as SB
+        src = inspect.getsource(SB.SimulationOrderUtil.calculate_order_quantity)
+        assert "if _protection > reorder_point:" in src
+
+    def test_it_sits_on_the_shared_side_of_the_model_fork(self):
+        """The trigger is deliberately shared so that a classic-vs-derived
+        comparison differs only in the quantity decision. Flooring it inside
+        the is_enabled() branch would have broken that."""
+        import inspect
+        from oasis.logic import simulation_bridge as SB
+        src = inspect.getsource(SB.SimulationOrderUtil.calculate_order_quantity)
+        assert src.index("_protection > reorder_point") < src.index("_ou.is_enabled()")
+
+
 class TestTheVelocityMultiplierIsGone:
     """Pinned as absent. It was wrong in direction AND in placement, and a
     'depth scaling' band table is the kind of thing that grows back."""

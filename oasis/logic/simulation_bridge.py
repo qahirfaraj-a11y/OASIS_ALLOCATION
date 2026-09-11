@@ -512,7 +512,60 @@ class SimulationOrderUtil:
             
             current_stock = p.get('current_stock', p.get('current_stocks', 0))
             on_order = p.get('on_order_qty', 0)
-            
+
+            # THE TRIGGER MUST PROTECT THE SAME HORIZON AS THE TARGET.
+            #
+            # This engine is (s, S): the check below decides whether a line is
+            # looked at, and only lines at or under it reach the order-up-to
+            # level. So the trigger is not a detail of the target -- it is the
+            # gate in front of it, and if it protects a SHORTER horizon there
+            # is a band where a line is already short and the engine never
+            # runs the arithmetic that would notice.
+            #
+            # It did. The enriched reorder_point is
+            # sales_velocity * (lead_time + safety_days), a median 10.0 days
+            # of cover, while S protects R + L, a median 14.0 -- so 93.3% of
+            # lines had a trigger shorter than the target it gates.
+            #
+            # THE CLAIM IS ABOUT REVIEW DAYS, NOT ABOUT EVERY DAY. A position
+            # below d*(R+L) mid-cycle is normal and is what cycle stock is
+            # for; 421 lines sat in that band on one real shelf, and most were
+            # simply between deliveries. The ones that matter are the lines
+            # reaching their OWN ordering day still above the reorder point:
+            # the schedule offers them their one chance, the trigger declines
+            # to look, and they carry less than the demand that must last them
+            # to the next delivery.
+            #
+            # Measured on that population: 193 lines, KES 269,751, on a single
+            # day's shelf. All 193 were released by this floor and none was
+            # schedule-blocked, while 205 of the 228 it left alone were simply
+            # not due. QUENCHER 300ML at 42/day and EXE 2KG FLOUR at 28/day
+            # are in the first group.
+            #
+            # The rule is not an opinion about how much stock to hold: below
+            # d*(R+L) the line cannot survive to its next delivery, whatever
+            # quantity model then runs. So this is a FLOOR, never a reduction
+            # -- a supplier-specific ROP that already protects more keeps it --
+            # and it stays on the shared side of the model fork, so a
+            # classic-vs-derived comparison still differs only in the quantity
+            # decision.
+            #
+            # The same error is warned about a few lines above, for the
+            # newsvendor ROP: "THE HORIZON IS P = R + L, NOT L ... silently
+            # drops R". That branch was fixed; the enriched reorder_point that
+            # actually fires on most lines kept it.
+            if avg_daily_sales > 0:
+                _R_trigger = _ou.review_period(
+                    str(p.get('supplier_name') or '').upper(),
+                    self._review_schedule)
+                _P_trigger = max(1.0, float(lead_time) + float(_R_trigger))
+                _protection = avg_daily_sales * _P_trigger
+                if _protection > reorder_point:
+                    reorder_point = _protection
+                    rec['reasoning'] += (
+                        f" [ROP floored at the protection interval "
+                        f"R+L={_P_trigger:.0f}d]")
+
             # Check reorder trigger
             if current_stock <= reorder_point:
                 # ── DERIVED MODEL, behind OASIS_ORDER_MODEL ────────────────

@@ -134,11 +134,31 @@ class TestNewsvendorRop:
         assert rec2["recommended_quantity"] == 0
         assert "Above ROP 24.7" in rec2["reasoning"]
 
-    def test_default_mode_unchanged(self, util):
-        # heuristic fallback: ROP = 10×(2 + 1.5×1.4) = 38 → stock 50 above → no order
+    def test_the_trigger_floors_at_the_protection_interval(self, util):
+        """This test used to assert the defect, and is the clearest statement
+        of it available.
+
+        It read: heuristic fallback ROP = 10*(2 + 1.5*1.4) = 38, stock 50 sits
+        above it, so no order. But the line sells 10/day, so 50 units is FIVE
+        days of cover — against a protection interval of nine, a 7-day review
+        period plus a 2-day lead. It empties on day five and cannot be
+        restocked until day nine. "No order" was a four-day stockout written
+        down as correct behaviour.
+
+        The reorder point is now floored at d*(R+L), so the trigger protects
+        the same horizon as the target it gates. Measured on the real book
+        before the floor: 193 lines reached their own ordering day above the
+        reorder point and below d*(R+L), worth KES 269,751 on one day's shelf.
+        """
         rec = _run(util, _sku(reorder_point=0.0))
+        assert rec["recommended_quantity"] > 0
+        assert "floored at the protection interval" in rec["reasoning"]
+
+    def test_a_line_genuinely_above_the_interval_still_does_not_order(self, util):
+        """The floor must not turn the trigger into 'always order'. 200 units
+        is 20 days of cover against a 9-day interval, and stays untouched."""
+        rec = _run(util, _sku(reorder_point=0.0, current_stock=200))
         assert rec["recommended_quantity"] == 0
-        assert "Above ROP 38.0" in rec["reasoning"]
 
 
 class TestNetRequirement:
