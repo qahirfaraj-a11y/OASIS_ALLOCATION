@@ -693,7 +693,23 @@ if LIVE_MODE:
     st.sidebar.caption("Tracks the mock POS stream — pull latest to advance. "
                        "Set OASIS_LIVE_FULL_DAY_BILLS to change the day length.")
     
-    auto_refresh = st.sidebar.checkbox("⏱ Auto-refresh (Live Streaming)", value=True)
+    # DEFAULTS OFF. On at a 10-second interval, this clears the whole data
+    # cache and reruns the script every tick. Any console view that takes
+    # longer than one tick to compute is therefore restarted from scratch
+    # before it can finish and never renders at all -- measured on a
+    # 39,728-SKU store: 27 full product re-enrichments in 25 seconds, and
+    # Smart Ordering never reached the line that caches its pipeline result.
+    # The ordering tab was unreachable on any real book for as long as this
+    # was the default.
+    #
+    # Opt-in instead: a buyer watching the sales feed still ticks the box, and
+    # a buyer running the ordering pipeline is no longer fighting it.
+    auto_refresh = st.sidebar.checkbox(
+        "⏱ Auto-refresh (Live Streaming)", value=False,
+        help="Re-reads the POS every few seconds. Leave OFF while generating "
+             "orders — each refresh clears the cache and restarts the page, "
+             "which on a large catalogue cancels the ordering pipeline before "
+             "it finishes.")
     st.session_state['auto_refresh'] = auto_refresh
 
     if auto_refresh:
