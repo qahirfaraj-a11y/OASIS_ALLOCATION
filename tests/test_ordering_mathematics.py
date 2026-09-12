@@ -57,10 +57,48 @@ class TestTheDemandCv:
         confined to the tail, where the evidence is."""
         assert ou.DEMAND_OVERDISPERSION == pytest.approx(0.40)
 
-    def test_it_is_capped(self):
-        """An unbounded cv on a line selling 0.001/day is a dead line being
-        described as a variable one, and it would size an order to match."""
-        assert ou.demand_cv(1e-9) == ou.CV_CAP
+    def test_the_cap_never_cuts_below_the_poisson_floor(self):
+        """REPLACES test_it_is_capped, which I wrote and which was wrong.
+
+        It asserted demand_cv(1e-9) == CV_CAP, on the rationale that an
+        unbounded cv "would size an order to match". That rationale does not
+        hold: this function's output has exactly one consumer, and it becomes
+        sigma_d = cv * d immediately. With the Poisson floor cv = 1/sqrt(d),
+        so sigma_d = sqrt(d), which VANISHES as d does -- the safety term on a
+        0.001/day line is 0.15 units, not a large order.
+
+        What the flat cap actually did was cut the variance BELOW the mean on
+        every line under 0.16/day. Var >= mean is a floor for a count, so that
+        described a distribution which cannot exist, and it under-built safety
+        stock across the slowest half of the book (0.71x the floor at the
+        median ordered line, 0.13x at 0.02/day).
+
+        The cap still does its real job -- bounding runaway overdispersion --
+        it just may no longer deny counting noise.
+        """
+        for d in (1e-9, 0.001, 0.02, 0.05, 0.114, 0.16, 0.3, 1.0, 60.0):
+            cv = ou.demand_cv(d)
+            var = (cv * d) ** 2
+            assert var >= d * (1.0 - 1e-9), (
+                f"d={d}: sigma_d^2={var:.3e} is below the Poisson floor {d:.3e}")
+
+    def test_the_cap_still_bounds_overdispersion(self):
+        """The half of the cap that was always sound.
+
+        phi is asserted, not fitted. A large one must not be free to inflate a
+        fast mover without limit, and there the Poisson floor is tiny so the
+        cap is what binds.
+        """
+        assert ou.demand_cv(100.0, phi=50.0) == ou.CV_CAP
+        assert ou.demand_cv(100.0, phi=50.0) < 50.0
+
+    def test_a_dead_line_still_gets_a_negligible_safety_term(self):
+        """The outcome the old test was reaching for, asserted on sigma_d --
+        which is what actually sizes an order -- instead of on the ratio."""
+        for d in (1e-9, 0.001, 0.01):
+            sigma_d = ou.demand_cv(d) * d
+            safety = 1.28 * ou.demand_sigma_over(14.0, d, sigma_d, 0.0)
+            assert safety < 0.5, f"d={d}: safety {safety:.3f} units"
 
     def test_zero_demand_does_not_divide_by_zero(self):
         """1/d is undefined at zero, so the function substitutes the d=1
