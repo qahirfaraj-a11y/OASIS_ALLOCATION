@@ -77,9 +77,24 @@ class NotificationService:
         self.read_alerts[username].add(alert_id)
         
     def _load_thresholds(self) -> dict:
+        """Operator-tuned alert thresholds from OASIS_SYSTEM_CONFIG.
+
+        load_system_config takes a FILE PATH and opens it with sqlite3. This
+        passed engine.url, a SQLAlchemy URL object, so sqlite3.connect raised
+        "expected str, bytes or os.PathLike object, not URL" on every call --
+        swallowed into {}, so every threshold silently fell back to its
+        hardcoded default and no tuning in OASIS_SYSTEM_CONFIG ever applied.
+        Invisible except as one ERROR line per refresh, which on a console
+        with 10-second auto-refresh is a steady scroll of them.
+
+        A non-SQLite store (MSSQL) still yields {} -- the same result as
+        before, minus the exception -- because there is no local file to open.
+        """
         try:
+            from oasis.logic.db import sqlite_path_from_url
             from oasis.logic.db_connector import load_system_config
-            return load_system_config(self.db_connector.engine.url)
+            path = sqlite_path_from_url(str(self.db_connector.engine.url))
+            return load_system_config(path) if path else {}
         except Exception:
             return {}
             
