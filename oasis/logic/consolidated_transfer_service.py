@@ -1617,11 +1617,17 @@ class ConsolidatedTransferService:
                     plan.adjusted_orders[org_cd] = []
                     
                 if decision.decision == "TRANSFER":
-                    # Full transfer → remove from PO entirely
-                    self._adjust_order(plan.adjusted_orders[org_cd], original_rec, 0.0,
-                                       f"[NETWORK: Fulfilled via transfer from {decision.donor_name}]")
-                    plan.total_orders_reduced += 1
-                    plan.estimated_savings_kes += decision.estimated_order_cost - decision.estimated_transfer_cost
+                    # Full transfer → remove from PO entirely. Count it only if
+                    # an order was actually found and zeroed: a rescued
+                    # shortfall has no PO line to reduce, so claiming a
+                    # reduction and a saving for it is a fiction.
+                    if self._adjust_order(
+                            plan.adjusted_orders[org_cd], original_rec, 0.0,
+                            f"[NETWORK: Fulfilled via transfer from {decision.donor_name}]"):
+                        plan.total_orders_reduced += 1
+                        plan.estimated_savings_kes += (
+                            decision.estimated_order_cost
+                            - decision.estimated_transfer_cost)
                 elif decision.decision == "BOTH":
                     # Partial transfer → keep full order for buffer
                     self._adjust_order_reasoning(
@@ -1710,25 +1716,52 @@ class ConsolidatedTransferService:
 
     @staticmethod
     def _adjust_order(order_list: List[dict], original_rec: dict,
-                      new_qty: float, reason_suffix: str):
-        """Find and adjust a specific order in the list."""
+                      new_qty: float, reason_suffix: str) -> bool:
+        """Find and adjust a specific order in the list. True if one matched.
+
+        RETURNS A RESULT BECAUSE THE CALLER WAS COUNTING ON FAITH. This used
+        to return None whether it adjusted an order or scanned the whole list
+        and found nothing, and the caller incremented total_orders_reduced and
+        estimated_savings_kes regardless.
+
+        That is not a hypothetical. Rescued shortfalls -- lines the PO engine
+        bypassed, gathered by the second pass in optimize_network -- carry an
+        original_rec stub of exactly {'department', 'reasoning'}: no
+        product_name, no itm_cd. Both lookups below match the empty string
+        against every record, find nothing, and fall out. Measured on the real
+        book: called 113 times, matched 0, and the plan reported "113 orders
+        reduced, est. savings KES -34,264".
+
+        Finding nothing is the CORRECT outcome for those lines -- the PO engine
+        never ordered them, so no order exists to reduce. The defect was only
+        ever in the claim, which is why this returns a fact instead of leaving
+        the caller to assume one.
+        """
         p_name = original_rec.get('product_name', '')
-        for rec in order_list:
-            if rec.get('product_name') == p_name:
-                rec['original_quantity'] = rec.get('recommended_quantity', 0)
-                rec['recommended_quantity'] = new_qty
-                rec['reasoning'] = rec.get('reasoning', '') + f" {reason_suffix}"
-                rec['network_adjusted'] = True
-                return
-        # If not found by name, try itm_cd
         itm = original_rec.get('itm_cd', original_rec.get('item_code', ''))
-        for rec in order_list:
-            if rec.get('itm_cd') == itm or rec.get('item_code') == itm:
-                rec['original_quantity'] = rec.get('recommended_quantity', 0)
-                rec['recommended_quantity'] = new_qty
-                rec['reasoning'] = rec.get('reasoning', '') + f" {reason_suffix}"
-                rec['network_adjusted'] = True
-                return
+        # An identity-less stub cannot match anything, and a blank must never
+        # be allowed to match a record that also happens to be blank.
+        if not p_name and not itm:
+            return False
+
+        if p_name:
+            for rec in order_list:
+                if rec.get('product_name') == p_name:
+                    rec['original_quantity'] = rec.get('recommended_quantity', 0)
+                    rec['recommended_quantity'] = new_qty
+                    rec['reasoning'] = rec.get('reasoning', '') + f" {reason_suffix}"
+                    rec['network_adjusted'] = True
+                    return True
+        # If not found by name, try itm_cd
+        if itm:
+            for rec in order_list:
+                if rec.get('itm_cd') == itm or rec.get('item_code') == itm:
+                    rec['original_quantity'] = rec.get('recommended_quantity', 0)
+                    rec['recommended_quantity'] = new_qty
+                    rec['reasoning'] = rec.get('reasoning', '') + f" {reason_suffix}"
+                    rec['network_adjusted'] = True
+                    return True
+        return False
 
     @staticmethod
     def _adjust_order_reasoning(order_list: List[dict], original_rec: dict,
