@@ -630,7 +630,14 @@ def render_lock_screen(st) -> None:
                                    key="_lock_report")
     with c:
         for m in KNOWN_MODULES:
-            st.markdown(f"- **{MODULE_LABELS[m]}**"
+            # .get with a fallback, as module_label() at the top of this file
+            # already does. A subscript here means any module added to
+            # KNOWN_MODULES without a matching label takes down the whole lock
+            # screen -- and the lock screen is the ONE surface that must never
+            # fail, because it is all a locked operator can see. store_allocation
+            # was added without a label and every console died on entry with a
+            # KeyError instead of saying which licence was missing.
+            st.markdown(f"- **{MODULE_LABELS.get(m, m.replace('_', ' ').title())}**"
                         + (" — mandatory base" if m == "core" else ""))
         st.markdown("**Bundles:** " + " · ".join(
             f"`{n}` ({len(ms)} modules)" for n, ms in BUNDLES.items()))
