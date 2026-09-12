@@ -35,6 +35,30 @@ logger = logging.getLogger(__name__)
 # Add project root
 sys.path.insert(0, os.getcwd())
 
+
+def load_env_local(env_path=".env"):
+    """Simple parser to load .env without external dependencies.
+
+    MUST RUN BEFORE THE LICENCE GATE. It used to sit 127 lines below it, so
+    every environment variable the gate reads -- OASIS_LICENSE_SALT above all
+    -- was still unset when the gate decided. An operator who put the salt in
+    .env, which is the documented place for it, got "OASIS_LICENSE_SALT not
+    configured" anyway and no way to tell why: the file was correct and was
+    read, just too late to matter. Nothing between here and the gate needs
+    anything this could shadow, so it is safe this early.
+    """
+    if os.path.exists(env_path):
+        with open(env_path, "r") as f:
+            for line in f:
+                line = line.strip()
+                if not line or line.startswith("#") or "=" not in line:
+                    continue
+                key, value = line.split("=", 1)
+                os.environ[key.strip()] = value.strip()
+
+
+load_env_local()
+
 from oasis.logic.db_connector import UniversalConnector, SchemaMapper, load_system_config, load_system_config_full, save_system_config, ensure_oasis_tables
 from oasis.logic.pos_erp_adapter import PosErpAdapter
 from oasis.logic.alert_monitor import (AlertMonitor, VELOCITY_MIN_ADS,
@@ -185,16 +209,9 @@ st.markdown("""
 # Data Loading & Production Paths
 # ─────────────────────────────────────────────────────────────────────
 
-def load_env_local(env_path=".env"):
-    """Simple parser to load .env without external dependencies."""
-    if os.path.exists(env_path):
-        with open(env_path, "r") as f:
-            for line in f:
-                line = line.strip()
-                if not line or line.startswith("#"): continue
-                key, value = line.split("=", 1)
-                os.environ[key.strip()] = value.strip()
-
+# load_env_local is defined and called at the top of this file, above the
+# licence gate -- see the note there. This call stays only to keep the
+# original ordering guarantee for anything below that expects it.
 load_env_local()
 
 DATA_DIR = os.getenv("DATA_DIR", os.path.join(os.getcwd(), "oasis", "data"))
