@@ -781,12 +781,34 @@ class FulfillmentDecider:
         if risk_scores is None:
             risk_scores = {}
             
-        # PROPORTIONAL ROUTING: Sort shortfalls by average daily sales (descending) 
-        # so high-velocity/critical branches receive priority on donor excess.
-        sorted_shortfalls = sorted(shortfalls, key=lambda x: x.get('avg_daily_sales', 0.0), reverse=True)
-            
-        decisions = []
-        for sf in sorted_shortfalls:
+        # PROPORTIONAL ROUTING: process shortfalls by average daily sales
+        # (descending) so high-velocity/critical branches receive priority on
+        # donor excess.
+        #
+        # PROCESS in that priority, but RETURN in the caller's order. This used
+        # to sort the list itself and return decisions in the sorted order,
+        # while `ConsolidatedTransferService.optimize_network` does
+        #
+        #     for sf, decision in zip(all_shortfalls, decisions)
+        #
+        # against the UNSORTED list — so every decision was attached to a
+        # different store's shortfall whenever the two orders disagreed, which
+        # is whenever the shortfalls did not arrive in descending-ADS order.
+        # The transfer record then took `to_org`/`itm_cd` from one shortfall
+        # and `donor_org`/`product_name`/`qty` from another's decision,
+        # `_adjust_order` reduced the wrong store's purchase order, and
+        # `donor_additions` compensated the wrong donor. It was visible as
+        # transfers whose from_org and to_org were the same store.
+        #
+        # Callers that only read fields off the decisions (the ops dashboard)
+        # are unaffected apart from display order.
+        order = sorted(range(len(shortfalls)),
+                       key=lambda i: shortfalls[i].get('avg_daily_sales', 0.0),
+                       reverse=True)
+
+        decisions: List[Optional[FulfillmentDecision]] = [None] * len(shortfalls)
+        for _idx in order:
+            sf = shortfalls[_idx]
             org_cd = sf['recipient_org']
             d = self.decide(
                 itm_cd=sf['itm_cd'],
@@ -827,8 +849,8 @@ class FulfillmentDecider:
                         donor_state.current_stock -= d.transfer_qty
                         donor_state.excess = max(0.0, donor_state.excess - d.transfer_qty)
                     
-            decisions.append(d)
-        return decisions
+            decisions[_idx] = d
+        return [d for d in decisions if d is not None]
 
 
 #: ``ProactiveRebalancer`` lived here. It moved cold stock to hot stores --
