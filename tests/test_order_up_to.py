@@ -242,9 +242,42 @@ class TestRecommend:
                      "cycle_stock", "safety_stock", "S", "quantity"):
             assert term in t
 
-    def test_cycle_plus_safety_reconstructs_the_level(self):
+    def test_cycle_plus_safety_reconstructs_the_level(self, monkeypatch):
+        """The identity of the normal form: S = d*P + z*sigma_P.
+
+        Pinned to that form explicitly. The default is now the exact discrete
+        quantile, where S is a quantile of the demand distribution rather than
+        a cycle term plus a safety multiple, so the sum does NOT reconstruct
+        it -- by construction, not by defect. The original assertion is kept
+        intact for the mode it describes instead of being relaxed to fit both.
+        """
+        monkeypatch.setenv("OASIS_DISCRETE_QUANTILE", "0")
         t = ou.recommend(self._p())
+        assert t["S_method"] == "normal"
         assert t["cycle_stock"] + t["safety_stock"] == pytest.approx(t["S_unclamped"])
+
+    def test_the_discrete_level_is_a_whole_count_and_says_which_method(
+            self, monkeypatch):
+        """On a SLOW line. This fixture sells 10/day over a 9-day protection
+        interval, so lambda = 90 -- past DISCRETE_QUANTILE_MAX_LAMBDA, where
+        the discrete path deliberately returns the normal form because the two
+        agree to under a third of a unit and walking a large distribution one
+        step at a time buys nothing. Asserting integrality there would pin the
+        wrong behaviour."""
+        monkeypatch.setenv("OASIS_DISCRETE_QUANTILE", "1")
+        t = ou.recommend(self._p(avg_daily_sales=0.5))
+        assert t["d"] * t["P"] < ou.DISCRETE_QUANTILE_MAX_LAMBDA
+        assert t["S_method"] == "discrete_quantile"
+        assert t["S_unclamped"] == float(int(t["S_unclamped"]))
+
+    def test_a_fast_line_falls_back_to_the_normal_form(self, monkeypatch):
+        """Same switch, opposite regime: lambda past the threshold keeps the
+        closed form, and S_method still reports which family was asked."""
+        monkeypatch.setenv("OASIS_DISCRETE_QUANTILE", "1")
+        t = ou.recommend(self._p())
+        assert t["d"] * t["P"] > ou.DISCRETE_QUANTILE_MAX_LAMBDA
+        assert t["cycle_stock"] + t["safety_stock"] == pytest.approx(
+            t["S_unclamped"])
 
     def test_a_line_with_no_sales_rate_is_refused_with_a_reason(self):
         t = ou.recommend(self._p(avg_daily_sales=0))
@@ -265,10 +298,33 @@ class TestRecommend:
         t = ou.recommend(self._p(shelf_life_days=2))
         assert t["clamped"] is True
 
-    def test_the_description_names_every_term(self):
+    def test_the_description_names_every_term(self, monkeypatch):
+        """The normal form's narration, which names the terms it sums."""
+        monkeypatch.setenv("OASIS_DISCRETE_QUANTILE", "0")
         text = ou.describe(ou.recommend(self._p()))
         for word in ("Reviewed every", "survive", "variability", "lead-time"):
             assert word in text
+
+    def test_the_discrete_description_does_not_narrate_a_sum(self, monkeypatch):
+        """It must not recite "X units plus Y for variability" against a level
+        that is neither -- that is a reconciliation the buyer cannot perform,
+        and the reasoning is the part of this product people rely on."""
+        monkeypatch.setenv("OASIS_DISCRETE_QUANTILE", "1")
+        text = ou.describe(ou.recommend(self._p()))
+        assert "Reviewed every" in text and "survive" in text
+        assert "smallest whole stock" in text
+        assert "variability" not in text
+
+    def test_the_position_is_reported_not_reconstructed(self, monkeypatch):
+        """describe() printed S - quantity as "on hand and on order", which
+        only equals the position when Q lands exactly on S. Q is rounded UP to
+        a pack, so it went NEGATIVE on any line whose pack overshot: "on hand
+        and on order come to -1"."""
+        for flag in ("0", "1"):
+            monkeypatch.setenv("OASIS_DISCRETE_QUANTILE", flag)
+            t = ou.recommend(self._p(current_stock=7, pack_size=25))
+            assert t["position"] == pytest.approx(7 + t["on_order"])
+            assert "come to -" not in ou.describe(t)
 
     def test_no_order_says_so_plainly(self):
         text = ou.describe(ou.recommend(self._p(current_stock=10_000)))

@@ -133,3 +133,45 @@ def test_empty_inputs_are_safe():
     s = bw.summarise([])
     assert s["lines"] == 0
     assert s["median_one_pack_days"] is None
+
+
+class TestTheTwoRefusalCausesStaySeparate:
+    """Two causes now arrive on one channel, and they are not the same advice.
+
+    "One pack is months of cover" is a pack-size problem: the line may be
+    worth stocking, just not on a replenishment rule. "Your service target is
+    met by holding nothing" is a velocity problem: at this rate the target
+    itself says no stock. Collapsing them would hand a buyer one undifferentiated
+    pile and lose the remedy.
+    """
+
+    def test_a_pack_cover_refusal_is_labelled_as_one(self):
+        rows = bw.build([_rec(suppress_reason=(
+            "one pack exceeds 60 days of cover -- special order or transfer, "
+            "not replenishment"))])
+        assert rows[0]["cause"] == bw.CAUSE_PACK_COVER
+
+    def test_a_velocity_refusal_is_labelled_as_one(self):
+        rows = bw.build([_rec(suppress_reason=(
+            "90% service needs no stock at this velocity: 0.005/day over 14 "
+            "days is 0.07 expected units -- stock it for presence, or delist"))])
+        assert rows[0]["cause"] == bw.CAUSE_TOO_SLOW
+
+    def test_an_unrecognised_reason_still_gets_a_label(self):
+        rows = bw.build([_rec(suppress_reason="something new appeared")])
+        assert rows[0]["cause"] == bw.CAUSE_OTHER
+
+    def test_the_summary_splits_by_cause(self):
+        rows = bw.build([
+            _rec(sku="A", suppress_reason="one pack exceeds 60 days of cover"),
+            _rec(sku="B", suppress_reason="one pack exceeds 60 days of cover"),
+            _rec(sku="C", suppress_reason="90% service needs no stock at this "
+                                          "velocity: 0.005/day"),
+        ])
+        by = bw.summarise(rows)["by_cause"]
+        assert by[bw.CAUSE_PACK_COVER] == 2
+        assert by[bw.CAUSE_TOO_SLOW] == 1
+        assert sum(by.values()) == len(rows)
+
+    def test_the_two_labels_are_distinguishable(self):
+        assert bw.CAUSE_PACK_COVER != bw.CAUSE_TOO_SLOW

@@ -1001,9 +1001,22 @@ DISCRETE_QUANTILE_MAX_LAMBDA = float(
     os.getenv("OASIS_DISCRETE_QUANTILE_MAX_LAMBDA", "40"))
 
 #: Whether S comes from the exact discrete quantile or from d*P + z*sigma_P.
-#: Off by default until the measurement that justifies flipping it.
-_DISCRETE_QUANTILE = (os.getenv("OASIS_DISCRETE_QUANTILE", "")
-                      .strip().lower() in ("1", "true", "yes", "on"))
+#:
+#: ON, on measurement. Against the normal form on the full book it gives a
+#: shorter short tail AND less capital -- 681 lines under target instead of
+#: 723, KES 5,208,382 of order value instead of 5,333,943 -- because it stops
+#: over-serving the median rather than by buying more. The usual
+#: service/capital trade does not apply here, because the normal form was not
+#: buying MORE service, it was buying service it had not been asked for:
+#: realised median cycle service was 0.935 against a chosen 0.900.
+#:
+#: Set OASIS_DISCRETE_QUANTILE=0 to return to d*P + z*sigma_P.
+_DISCRETE_QUANTILE_DEFAULT = True
+_DISCRETE_QUANTILE = (
+    os.getenv("OASIS_DISCRETE_QUANTILE", "").strip().lower()
+    in ("1", "true", "yes", "on")
+    if os.getenv("OASIS_DISCRETE_QUANTILE") is not None
+    else _DISCRETE_QUANTILE_DEFAULT)
 
 
 def use_discrete_quantile() -> bool:
@@ -1099,10 +1112,16 @@ def order_up_to_level(d: float, sigma_d: float, lead_days: float,
     if d <= 0:
         return 0.0
     P = max(0.0, float(review_days)) + max(0.0, float(lead_days))
-    if use_discrete_quantile():
+    cycle = float(d) * P
+    if use_discrete_quantile() and cycle <= DISCRETE_QUANTILE_MAX_LAMBDA:
+        # The threshold is applied HERE, not left to demand_quantile_over,
+        # so the fallback keeps the caller's own z. Delegating it meant the
+        # large-lambda path re-derived z from Phi(z) through the interpolated
+        # service table -- a round trip that returned 1.2786 for an input of
+        # 1.28 and put the answer a few hundredths of a unit off the closed
+        # form it was supposed to be reproducing exactly.
         service = 0.5 * (1.0 + math.erf(float(z) / math.sqrt(2.0)))
         return demand_quantile_over(P, d, sigma_d, sigma_lead_days, service)
-    cycle = float(d) * P
     safety = float(z) * demand_sigma_over(P, d, sigma_d, sigma_lead_days)
     return cycle + safety
 
@@ -1329,6 +1348,22 @@ def recommend(product: Dict[str, Any],
     # pack; refusing misses it by all of S. The second is strictly worse on
     # any loss function, and the cap is still honoured exactly -- the position
     # after this branch can never exceed MAX_AUTO_ORDER_COVER_DAYS.
+    # THE TARGET ITSELF CAN BE ZERO, AND THAT MUST NOT BE SILENT.
+    # The exact quantile returns 0 when the service target is already met by
+    # holding nothing: on a line selling a unit every 100+ days, the chance of
+    # ANY demand arriving inside a 14-day protection interval is under 10%, so
+    # 90% cycle service needs no stock at all. That is arithmetically correct
+    # and it is a real assortment statement -- but with S = 0 the quantity is
+    # 0, so the cover-cap branch below never fires and the line would read as
+    # "nothing needed", indistinguishable from a healthy, well-stocked one.
+    #
+    # Measured when the discrete quantile was switched on: 117 lines left the
+    # buyer worklist this way, carrying KES 95,389/yr of gross profit, none of
+    # them reaching a purchase order or the MOQ reject list. That is the same
+    # invisibility the worklist exists to end, so it is flagged on the same
+    # channel with its own reason -- the panel shows the reason per line.
+    _no_stock_justified = bool(d > 0 and S <= 0.0)
+
     _dead = False
     if Q > 0 and d > 0 and (I + Q) / d > MAX_AUTO_ORDER_COVER_DAYS:
         _pack = float(product.get("pack_size") or 1) or 1.0
@@ -1360,11 +1395,16 @@ def recommend(product: Dict[str, Any],
         _service = 0.5 * (1.0 + math.erf((S - _cycle) / (_sigma_P * math.sqrt(2.0))))
     return {
         "feasible": not _infeasible,
-        "auto_order_suppressed": _dead,
-        "suppress_reason": ("one pack exceeds "
-                            f"{MAX_AUTO_ORDER_COVER_DAYS:.0f} days of cover -- "
-                            "special order or transfer, not replenishment")
-        if _dead else None,
+        "auto_order_suppressed": bool(_dead or _no_stock_justified),
+        "suppress_reason": (
+            ("one pack exceeds "
+             f"{MAX_AUTO_ORDER_COVER_DAYS:.0f} days of cover -- "
+             "special order or transfer, not replenishment") if _dead else
+            (f"{100 * (0.5 * (1 + math.erf(zz / math.sqrt(2.0)))):.0f}% service "
+             f"needs no stock at this velocity: {d:.3f}/day over {P:.0f} days "
+             f"is {d * P:.2f} expected units -- stock it for presence, or "
+             f"delist") if _no_stock_justified else None),
+        "S_method": "discrete_quantile" if use_discrete_quantile() else "normal",
         "forced_waste_units_per_cycle": max(0.0, S - (d * _sl)) if _sl else 0.0,
         "binding": ("shelf_life" if _infeasible else
                     "shelf_life_slack" if (_sl and abs(S - S_raw) > 1e-9) else "service"),
@@ -1377,6 +1417,12 @@ def recommend(product: Dict[str, Any],
         "scheduled": bool(schedule and " ".join(supplier.split()) in schedule),
         "cycle_stock": d * P,
         "safety_stock": zz * demand_sigma_over(P, d, sigma_d, sL),
+        # The position, carried rather than reconstructed. describe() used to
+        # print S - Q as "on hand and on order", which is only equal to the
+        # position when Q lands exactly on S; Q is rounded UP to a pack, so the
+        # figure went negative on any line whose pack overshot -- "on hand and
+        # on order come to -1".
+        "on_hand": I, "on_order": O, "position": I + O,
         "clamped": abs(S - S_raw) > 1e-9, "shelf_life_days": _sl,
         "R_source": _r_source(supplier, schedule, product.get("_cadence")),
         "cover_days": ((I + Q) / d) if d > 0 else 0.0,
@@ -1386,7 +1432,26 @@ def recommend(product: Dict[str, Any],
 def describe(terms: Dict[str, Any]) -> str:
     """The order in words, term by term — for the review queue."""
     if not terms.get("quantity"):
+        if terms.get("suppress_reason"):
+            return f"No order: {terms['suppress_reason']}."
         return "No order: position already covers the protection interval."
+    if terms.get("S_method") == "discrete_quantile":
+        # THE SUM DOES NOT APPLY HERE, SO DO NOT NARRATE ONE. S is a quantile
+        # of the demand distribution, not cycle stock plus a safety multiple.
+        # Reciting "X units plus Y for variability" against a level that is
+        # neither would be a reconciliation the buyer cannot perform, and the
+        # reasoning is the part of this product people actually rely on.
+        return (
+            "Reviewed every {R:.0f}d, delivered in {L:.0f}d, so this line has "
+            "to survive {P:.0f} days. At {d:.2f}/day that is {cyc:.2f} units "
+            "expected, and demand over those {P:.0f} days is a count, not a "
+            "smooth flow: {S:.0f} units is the smallest whole stock that "
+            "covers it {svc:.0f}% of the time. On hand and on order come to "
+            "{have:.0f}."
+        ).format(R=terms["R"], L=terms["L"], P=terms["P"], d=terms["d"],
+                 cyc=terms["cycle_stock"], S=terms["S"],
+                 svc=100 * (0.5 * (1 + math.erf(terms["z"] / math.sqrt(2.0)))),
+                 have=terms.get("position", terms["S"] - terms["quantity"]))
     return (
         "Reviewed every {R:.0f}d, delivered in {L:.0f}d, so this line has to "
         "survive {P:.0f} days. At {d:.2f}/day that is {cyc:.0f} units, plus "
@@ -1396,4 +1461,4 @@ def describe(terms: Dict[str, Any]) -> str:
     ).format(R=terms["R"], L=terms["L"], P=terms["P"], d=terms["d"],
              cyc=terms["cycle_stock"], saf=terms["safety_stock"],
              z=terms["z"], sl=terms["sigma_lead"], S=terms["S"],
-             have=terms["S"] - terms["quantity"])
+             have=terms.get("position", terms["S"] - terms["quantity"]))

@@ -2226,15 +2226,20 @@ if "smart_ordering" in tab_map and _mod_ok("smart_ordering"):
                         f"KES {_bw.TRIVIAL_GP_PER_YEAR:,.0f}/yr (Click to review)",
                         expanded=False):
                     st.caption(
-                        "The engine is right to refuse these: one pack is more cover "
-                        "than a replenishment rule should buy. Whether to stock, "
-                        "special-order or delist a slow line is an assortment call, so "
+                        "The engine is right to refuse these, for one of two "
+                        "reasons — see 'Why refused'. Either one pack is more "
+                        "cover than a replenishment rule should buy, or the line is "
+                        "so slow that your service target is met by holding nothing "
+                        "at all. The first is a pack-size problem, the second a "
+                        "velocity one, and they point at different remedies. Whether "
+                        "to stock, special-order or delist is an assortment call, so "
                         "the engine hands over its working instead of deciding. "
                         f"Median cover in a single pack: "
                         f"{(_wl_sum['median_one_pack_days'] or 0):,.0f} days."
                     )
                     _wl_data = [{
                         "Product": w["product_name"],
+                        "Why refused": w.get("cause", "refused"),
                         "Supplier": w["supplier_name"] or "Unknown",
                         "Stock": f"{w['current_stock']:,.0f}",
                         "Sales/day": f"{w['avg_daily_sales']:.3f}",

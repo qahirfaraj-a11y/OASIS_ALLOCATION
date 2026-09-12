@@ -7,14 +7,28 @@ WHY THIS EXISTS
     day, where the smallest orderable quantity is 62 days of stock, is not a
     replenishment decision and a replenishment rule should not make it.
 
-    That is now the whole of the rule, but it was not when this list was
-    first built. The cap used to judge the rounded-up position, which also
-    caught 102 lines whose own order-up-to level was inside the cap and that
-    could have been served by one pack fewer -- refusing 61 days of cover by
-    buying 0 rather than 54. Those belong in a purchase order, not on a
-    buyer's desk, and order_up_to.py now rounds towards the cap instead of
-    refusing at it. What is left here is only the population for which no
-    orderable quantity exists.
+    That was the whole of the rule when this list was first built, and it is
+    no longer. Two corrections since, both recorded because the list's own
+    caption depends on them:
+
+    The cap used to judge the rounded-up position, which also caught 102 lines
+    whose own order-up-to level was inside the cap and that could have been
+    served by one pack fewer -- refusing 61 days of cover by buying 0 rather
+    than 54. Those belong in a purchase order, not on a buyer's desk, and
+    order_up_to.py now rounds towards the cap instead of refusing at it.
+
+    A SECOND CAUSE now arrives on the same channel: the exact discrete
+    quantile can return S = 0. On a line selling a unit every 100+ days the
+    chance of any demand inside a 14-day protection interval is under 10%, so
+    a 90% service target is met by holding nothing. That is arithmetically
+    correct and it is a real assortment statement -- but it produces Q = 0,
+    which makes the cover-cap branch unreachable, and 117 lines carrying
+    KES 95,389/yr went silent the moment the quantile was switched on. They
+    are flagged too, with their own reason, so the panel distinguishes "one
+    pack is too much cover" from "your service target needs no stock here".
+
+    Read the reason per line: the first is a lumpiness problem and the second
+    is a velocity problem, and they point at different remedies.
 
     What happened next was not correct. The engine set transfer_candidate and
     handed off to the transfer module, which cannot take sub-1/day lines: a
@@ -50,6 +64,22 @@ from typing import Any, Dict, List, Optional, Sequence
 #: Lines earning less than this a year are listed but flagged, because the
 #: decision is usually "delist" and a buyer's attention is the scarce thing.
 TRIVIAL_GP_PER_YEAR = 1_000.0
+
+#: Short labels for the two refusal causes, so the panel can show WHICH
+#: without rendering a sentence per row and without the UI parsing prose.
+#: They point at different remedies, so collapsing them would lose the point.
+CAUSE_PACK_COVER = "pack too big"        # one pack is months of cover
+CAUSE_TOO_SLOW = "too slow to stock"     # target met by holding nothing
+CAUSE_OTHER = "refused"
+
+
+def _cause(reason: str) -> str:
+    r = (reason or "").lower()
+    if "needs no stock" in r:
+        return CAUSE_TOO_SLOW
+    if "days of cover" in r or "one pack" in r:
+        return CAUSE_PACK_COVER
+    return CAUSE_OTHER
 
 
 def _f(rec: Dict[str, Any], *names: str, default: float = 0.0) -> float:
@@ -96,6 +126,7 @@ def build(recommendations: Sequence[Dict[str, Any]]) -> List[Dict[str, Any]]:
             "supplier_name": r.get("supplier_name") or "",
             "department": r.get("department") or r.get("product_category") or "",
             "reason": r.get("suppress_reason") or "",
+            "cause": _cause(r.get("suppress_reason") or ""),
             "avg_daily_sales": d,
             "current_stock": _f(r, "current_stock", "current_stocks"),
             "pack_size": pack,
@@ -124,6 +155,11 @@ def summarise(rows: Sequence[Dict[str, Any]]) -> Dict[str, Any]:
         "gp_per_year": sum(r["gp_per_year"] for r in rows),
         "capital_once": sum(r["capital_once"] for r in rows),
         "worth_reviewing": len(worth),
+        # Per cause, because the headline count hides the split and the two
+        # halves are different conversations with a buyer.
+        "by_cause": {c: sum(1 for r in rows if r.get("cause") == c)
+                     for c in sorted({r.get("cause", CAUSE_OTHER)
+                                      for r in rows})},
         "median_one_pack_days": _median(
             [r["one_pack_days"] for r in rows if r["one_pack_days"] != float("inf")]),
     }
