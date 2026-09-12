@@ -1182,10 +1182,35 @@ def recommend(product: Dict[str, Any],
     # (+72 at 0.95). Those are absolute shillings and an explicit target --
     # policy, not this cap. Raising the cap itself to 365 gives +81/-54, so it
     # is a real lever, but a blunt one that mostly just buys more stock.
+    #
+    # THE CAP JUDGES A ROUNDED NUMBER, SO ROUND TOWARDS IT, DON'T REFUSE.
+    # Measured on the whole book: on all 476 lines this rule fires, S/d is
+    # already INSIDE the cap. It never rejects the level the engine computed
+    # -- only that level rounded up to a whole sellable pack. Two cases hide
+    # inside that, and they deserve different answers:
+    #
+    #   374 lines  pack/d > cap. One pack IS more cover than the cap allows,
+    #              so NO orderable quantity satisfies it. Refusing is the only
+    #              option and the suppression message is true.
+    #
+    #   102 lines  pack/d <= cap. A quantity does fit -- one pack fewer -- and
+    #              the engine was ordering nothing instead. JW 145G TUNA:
+    #              d=0.147, pack=1, S=8.2 units (56 days, inside the cap);
+    #              ceil gives 9 units = 61 days, so it bought zero. Choosing
+    #              between 54 days and 61 days, it took 0.
+    #
+    # Ordering the largest whole pack that fits misses S by less than one
+    # pack; refusing misses it by all of S. The second is strictly worse on
+    # any loss function, and the cap is still honoured exactly -- the position
+    # after this branch can never exceed MAX_AUTO_ORDER_COVER_DAYS.
     _dead = False
     if Q > 0 and d > 0 and (I + Q) / d > MAX_AUTO_ORDER_COVER_DAYS:
-        _dead = True
-        Q = 0.0
+        _pack = float(product.get("pack_size") or 1) or 1.0
+        _room = MAX_AUTO_ORDER_COVER_DAYS * d - I
+        Q = math.floor(_room / _pack) * _pack if _room > 0 else 0.0
+        if Q <= 0:
+            _dead = True
+            Q = 0.0
 
     P = R + L
 

@@ -159,6 +159,51 @@ class TestDeadStockDoesNotOrderItself:
     def test_the_threshold_is_configurable(self):
         assert ou.MAX_AUTO_ORDER_COVER_DAYS > 0
 
+    def test_it_does_not_refuse_when_a_smaller_whole_pack_would_fit(self):
+        """JW 145G TUNA, reduced to its arithmetic.
+
+        S came to 8.2 units -- 56 days, inside the cap. Rounding up to a
+        whole sellable unit gave 9, which is 61 days, so the line bought
+        NOTHING. Offered 54 days or 61 days against a 60-day rule, the
+        engine took 0. Ordering the largest pack that fits misses S by
+        under one pack; refusing misses it by all of S.
+        """
+        r = self._line(avg_daily_sales=0.147, sku="TUNA-1", pack_size=1,
+                       lead_time_days=7.0)
+        cap_units = ou.MAX_AUTO_ORDER_COVER_DAYS * 0.147
+        assert r["auto_order_suppressed"] is False
+        assert 0 < r["quantity"] <= cap_units
+
+    def test_the_cap_is_still_honoured_exactly(self):
+        """Rounding towards the cap must never round through it."""
+        for d in (0.05, 0.147, 0.4, 1.3, 7.0):
+            for pack in (1, 6, 12):
+                r = self._line(avg_daily_sales=d, pack_size=pack, sku="X")
+                cover = (0.0 + r["quantity"]) / d
+                assert cover <= ou.MAX_AUTO_ORDER_COVER_DAYS + 1e-9
+
+    def test_a_pack_bigger_than_the_cap_is_still_refused(self):
+        """The 374 lines where the message is literally true: no orderable
+        quantity satisfies the cap, so there is nothing to round down to."""
+        r = self._line(avg_daily_sales=0.01, pack_size=24, sku="BULK-1")
+        assert r["auto_order_suppressed"] is True
+        assert r["quantity"] == 0
+
+    def test_suppression_now_means_what_it_says(self):
+        """Refusal is reachable ONLY when one pack exceeds the cap, so the
+        message stopped being an approximation of the real rule."""
+        for pack in (1, 3, 24, 100):
+            r = self._line(avg_daily_sales=0.02, pack_size=pack, sku="M")
+            if r["auto_order_suppressed"]:
+                assert pack / 0.02 > ou.MAX_AUTO_ORDER_COVER_DAYS
+
+    def test_on_hand_stock_counts_against_the_room(self):
+        """The cap bounds the POSITION, not the order, so what is already on
+        the shelf has to consume the allowance."""
+        r = self._line(avg_daily_sales=0.5, pack_size=1, current_stock=29.0,
+                       sku="PART-1")
+        assert (29.0 + r["quantity"]) / 0.5 <= ou.MAX_AUTO_ORDER_COVER_DAYS + 1e-9
+
 
 class TestTheShelfLifeCapOutranksTheFloor:
     """Where a merchandising ceiling and the protection floor disagree, the
