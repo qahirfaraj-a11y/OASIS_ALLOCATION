@@ -2043,6 +2043,18 @@ if "smart_ordering" in tab_map and _mod_ok("smart_ordering"):
                     except Exception as _moq_err:
                         logger.warning(f"MOQ failure store update failed: {_moq_err}")
 
+                    # The lines the engine REFUSED (one pack > MAX_AUTO_ORDER_
+                    # COVER_DAYS) never appear anywhere else: the MOQ gate skips
+                    # q <= 0, so they are not in transfer_recs either, and the
+                    # transfer engine cannot take a sub-1/day handoff. Built off
+                    # the pre-gate list for exactly that reason.
+                    try:
+                        from oasis.logic import buyer_worklist as _bw
+                        _worklist = _bw.build(network_adjusted_recs)
+                    except Exception as _bw_err:
+                        logger.warning(f"Buyer worklist build failed: {_bw_err}")
+                        _worklist = []
+
                     st.session_state[_so_key] = {
                         'generated_at': datetime.now().strftime("%H:%M:%S"),
                         'sim_util': sim_util,
@@ -2059,6 +2071,7 @@ if "smart_ordering" in tab_map and _mod_ok("smart_ordering"):
                         'po_recs': mot_result['po_recs'],
                         'dropped_recs': mot_result['transfer_recs'],
                         'supplier_summary': mot_result['supplier_summary'],
+                        'buyer_worklist': _worklist,
                     }
 
             _so = st.session_state[_so_key]
@@ -2075,6 +2088,9 @@ if "smart_ordering" in tab_map and _mod_ok("smart_ordering"):
             network_plan = _so['network_plan']
             po_recs = _so['po_recs']
             dropped_recs = _so['dropped_recs']
+            # .get, not [ ]: a session cached by an earlier build has no such key
+            # and a KeyError here would take down the whole tab.
+            buyer_worklist_rows = _so.get('buyer_worklist') or []
             final_recs = po_recs
 
             # ── G17 Fix: PO Dedup Check ──
@@ -2153,7 +2169,60 @@ if "smart_ordering" in tab_map and _mod_ok("smart_ordering"):
                             "Reason": d['reasoning'],
                         } for d in dropped_recs]
                         st.dataframe(pd.DataFrame(dropped_data), use_container_width=True, hide_index=True)
-            
+
+            # ── Buyer worklist: the lines no automated route replenishes ──
+            if buyer_worklist_rows:
+                from oasis.logic import buyer_worklist as _bw
+                _wl_sum = _bw.summarise(buyer_worklist_rows)
+                st.markdown("---")
+                st.markdown("### 📋 Buyer Worklist — lines no automatic route replenishes")
+                _wc1, _wc2, _wc3, _wc4 = st.columns(4)
+                _wc1.metric("Lines", f"{_wl_sum['lines']:,}",
+                            help="Refused by ordering because one pack exceeds the "
+                                 "auto-order cover limit, and too slow for the "
+                                 "transfer engine to reach.")
+                _wc2.metric("Already at zero", f"{_wl_sum['out_of_stock']:,}")
+                _wc3.metric("GP/yr at stake", f"KES {_wl_sum['gp_per_year']:,.0f}",
+                            help="What these lines earned WHEN STOCKED. Every empty "
+                                 "line's rate is historic, so read it as an order of "
+                                 "magnitude, not a forecast.")
+                _wc4.metric("Capital to stock once",
+                            f"KES {_wl_sum['capital_once']:,.0f}")
+                with st.expander(
+                        f"Review {_wl_sum['worth_reviewing']:,} lines worth more than "
+                        f"KES {_bw.TRIVIAL_GP_PER_YEAR:,.0f}/yr (Click to review)",
+                        expanded=False):
+                    st.caption(
+                        "The engine is right to refuse these: one pack is more cover "
+                        "than a replenishment rule should buy. Whether to stock, "
+                        "special-order or delist a slow line is an assortment call, so "
+                        "the engine hands over its working instead of deciding. "
+                        f"Median cover in a single pack: "
+                        f"{(_wl_sum['median_one_pack_days'] or 0):,.0f} days."
+                    )
+                    _wl_data = [{
+                        "Product": w["product_name"],
+                        "Supplier": w["supplier_name"] or "Unknown",
+                        "Stock": f"{w['current_stock']:,.0f}",
+                        "Sales/day": f"{w['avg_daily_sales']:.3f}",
+                        "1 pack lasts": (
+                            "—" if w["one_pack_days"] == float("inf")
+                            else f"{w['one_pack_days']:,.0f}d"),
+                        "GP/yr (KES)": f"{w['gp_per_year']:,.0f}",
+                        "Capital (KES)": f"{w['capital_once']:,.0f}",
+                        "Return on capital": (
+                            "—" if w["return_on_capital"] is None
+                            else f"{w['return_on_capital']:.2f}x"),
+                    } for w in buyer_worklist_rows if not w["trivial"]]
+                    if _wl_data:
+                        st.dataframe(pd.DataFrame(_wl_data),
+                                     use_container_width=True, hide_index=True)
+                    else:
+                        st.caption(
+                            f"Every refused line earns under KES "
+                            f"{_bw.TRIVIAL_GP_PER_YEAR:,.0f}/yr — nothing here is "
+                            f"worth a buyer's time this cycle.")
+
             st.markdown("---")
 
             # A scenario has to be priced through the same stages as the
