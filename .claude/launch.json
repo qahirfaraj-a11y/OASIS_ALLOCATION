@@ -14,6 +14,12 @@
       "port": 8611
     },
     {
+      "name": "command-center-offline",
+      "runtimeExecutable": ".oasis_venv/Scripts/python.exe",
+      "runtimeArgs": ["devkit/offline_console.py"],
+      "port": 8607
+    },
+    {
       "name": "site-selection-trial",
       "runtimeExecutable": ".oasis_venv/Scripts/python.exe",
       "runtimeArgs": ["devkit/site_selection_trial.py", "--port", "8551"],
