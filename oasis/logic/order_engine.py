@@ -417,6 +417,12 @@ class OrderEngine(IntelligenceMixin, ProcurementMixin, MaintenanceMixin, DataMix
             'product_department_map': 'product_department_map',
             'product_intelligence': 'sales_profitability_intelligence_2025',
             'sales_forecasting': 'sales_forecasting_2025',
+            # Same forecast rows, keyed by ITEM CODE instead of product
+            # name, so the code-then-barcode half of the matching
+            # methodology has something to match on. Built by
+            # devkit/rekey_forecast_by_barcode.py; absent is fine, the
+            # name-keyed file remains the fallback.
+            'sales_forecasting_by_code': 'sales_forecasting_by_barcode',
             'supplier_quality': 'supplier_quality_scores_2025',
             'sales_profitability': 'sales_profitability_intelligence_2025',
             'simulation_feedback': 'simulation_feedback'
@@ -479,6 +485,12 @@ class OrderEngine(IntelligenceMixin, ProcurementMixin, MaintenanceMixin, DataMix
             'product_department_map': 'product_department_map',
             'product_intelligence': 'sales_profitability_intelligence_2025',  # R16: Golden Parity
             'sales_forecasting': 'sales_forecasting_2025',
+            # Same forecast rows, keyed by ITEM CODE instead of product
+            # name, so the code-then-barcode half of the matching
+            # methodology has something to match on. Built by
+            # devkit/rekey_forecast_by_barcode.py; absent is fine, the
+            # name-keyed file remains the fallback.
+            'sales_forecasting_by_code': 'sales_forecasting_by_barcode',
             'supplier_quality': 'supplier_quality_scores_2025',
             'sales_profitability': 'sales_profitability_intelligence_2025',
             'simulation_feedback': 'simulation_feedback'

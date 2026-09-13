@@ -216,3 +216,10 @@ connectors/odoo/_live_view.json
 # The 2026-08-14 warning above was exactly right and arrived too late.
 # All of them still live on disk; none may re-enter the index.
 oasis_vault/System_Backups/
+
+# Derived at install time from the client's OWN catalogue: item codes come from
+# their ITEM_MST, so this file is machine state and not shippable content --
+# the same reason oasis_engines_config.json is excluded. Rebuild with
+# devkit/rekey_forecast_by_barcode.py --write. The name-keyed source remains
+# tracked and is the fallback when this is absent.
+oasis/data/sales_forecasting_by_barcode.json

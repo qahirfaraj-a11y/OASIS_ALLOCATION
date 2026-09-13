@@ -245,6 +245,30 @@ class SimulationOrderUtil:
             rec = p.copy()
             rec['recommended_quantity'] = 0
             rec['reasoning'] = ""
+
+            # NO DEMAND SIGNAL IS A FACT ABOUT THE LINE, NOT A QUIET ZERO.
+            # Set at the TOP of the loop because this line can leave by half a
+            # dozen exits -- not an ordering day, above the reorder point, dead
+            # stock, stale fresh -- and several of them ASSIGN to reasoning
+            # rather than append, so anything written into the string later is
+            # discarded. The flag lives on rec, which survives all of them.
+            #
+            # A line with no measured rate gets a reorder point of 0, so ANY
+            # stock puts it above the trigger and it never reaches the
+            # order-up-to branch at all: it lands on "[Above ROP 0.0]", which
+            # is true and tells a buyer nothing. That is where the expensive
+            # ones sit. Measured on the live store: 10,967 SKUs have no POS
+            # sales history (27.6% of the catalogue), and NONE is a join
+            # failure -- every SKU that has ever sold does resolve a
+            # POS-derived rate, so refusing to order them is correct. But
+            # 1,723 of them still hold stock: 17,966 units and KES 6,696,865
+            # of capital in lines that have never sold a unit at this store,
+            # described to the buyer as adequately covered.
+            #
+            # Not ordering them is right. Saying nothing about them is not.
+            if float(p.get('avg_daily_sales') or 0) <= 0:
+                rec['ads_missing'] = True
+                rec['ads_source'] = str(p.get('ads_source') or 'none')
             
             # --- CHAPTER 11 ENFORCEMENT ---
             p_name = p.get('product_name', 'Unknown')
@@ -406,7 +430,16 @@ class SimulationOrderUtil:
             is_critical = days_coverage < critical_thresh
             
             if not is_ordering_day and not is_critical:
-                 rec['reasoning'] = f" [Schedule: Gap {gap_days}d, Next: Day {current_day + (gap_days - current_day % gap_days)}]"
+                 # "Not due until day 259" is true and beside the point on a
+                 # line that has never sold: it will never be usefully due.
+                 # The more important fact leads, and this is the exit the
+                 # largest share of the book leaves by.
+                 if rec.get('ads_missing'):
+                     rec['reasoning'] = (
+                         f" [no demand signal: never sold here, "
+                         f"{current_stock:.0f} on hand — review or delist]")
+                 else:
+                     rec['reasoning'] = f" [Schedule: Gap {gap_days}d, Next: Day {current_day + (gap_days - current_day % gap_days)}]"
                  recommendations.append(rec)
                  continue
             
@@ -467,7 +500,7 @@ class SimulationOrderUtil:
             # But we might want to respect the STORE CONFIG for "Safety Days" if provided?
             
             avg_daily_sales = p.get('avg_daily_sales', 0)
-            
+
             # G3 Fix: ROP Fallback — if reorder_point is 0 or missing (no intelligence data),
             # calculate a dynamic fallback instead of treating 0 as real ROP.
             # F4: in newsvendor mode the fallback (or, in 'newsvendor-all', every
@@ -620,6 +653,21 @@ class SimulationOrderUtil:
                             rec['transfer_candidate'] = True
                             rec['reasoning'] += (
                                 f" [SUPPRESSED: {terms.get('suppress_reason')}]")
+                        elif terms.get('reason'):
+                            # A LINE WITH NO DEMAND SIGNAL IS NOT A COVERED
+                            # ONE. recommend() returns early on d <= 0 with
+                            # {"quantity": 0, "reason": "no measured sales
+                            # rate"} -- no S, no P, no terms at all -- and this
+                            # branch used to answer that with "position already
+                            # covers P". There is no P. The engine was reporting
+                            # a healthy, well-covered line on every SKU whose
+                            # demand it could not measure: 10,967 of them on the
+                            # live store, 27.6% of the catalogue.
+                            #
+                            # The reason it already computed is the true one, so
+                            # say that instead of inventing a reassurance.
+                            rec['ads_missing'] = True
+                            rec['reasoning'] += f" [no order: {terms['reason']}]"
                         else:
                             rec['reasoning'] += " [order-up-to: position already covers P]"
                     recommendations.append(rec)
@@ -694,7 +742,18 @@ class SimulationOrderUtil:
                 else:
                      rec['reasoning'] += " [Adequate Coverage]"
             else:
-                 rec['reasoning'] = f" [Above ROP {reorder_point:.1f}]"
+                 # "[Above ROP 0.0]" on a line with no measured demand is true
+                 # and useless: it reads as a healthy, well-stocked SKU when
+                 # the engine has no idea whether it should be stocked at all.
+                 # Say which it is. Note this branch ASSIGNS rather than
+                 # appends, so anything set earlier is discarded here -- the
+                 # flag above is on rec, not in the string, for that reason.
+                 if rec.get('ads_missing'):
+                     rec['reasoning'] = (
+                         f" [no demand signal: never sold here, "
+                         f"{current_stock:.0f} on hand — review or delist]")
+                 else:
+                     rec['reasoning'] = f" [Above ROP {reorder_point:.1f}]"
 
             recommendations.append(rec)
 

@@ -86,8 +86,36 @@ class IntelligenceMixin:
         stdev = statistics.stdev(values) if len(values) > 1 else 0.0
         return float(round(float(stdev / mean), 3))
 
-    def _find_lookalike_demand(self, product_name: str, sales_database: dict) -> float:
-        """Find lookalike SKU demand based on brand and category."""
+    def _find_lookalike_demand(self, product_name: str, sales_database: dict,
+                               department: Optional[str] = None) -> float:
+        """Median demand of same-brand SKUs IN THE SAME DEPARTMENT.
+
+        THE BRAND ALONE IS NOT A CATEGORY. The key is the first whitespace
+        token of the name, and pooling on it across the whole catalogue plans
+        a product at the velocity of whatever else happens to share that word:
+
+            Red Paw 5Kg Dog Food   <- median of 3 RED BULL 250ML CANS, 4.23/day
+                                      -> 76 units ordered, KES 142,500, on a
+                                         line that has never sold here
+            Vision Plus 65" TV     <- median of 2 VISION ELITE ballpoint pens
+            Magic Bullet blender   <- median of 19 MAGIC 300ML soft drinks
+
+        None of those pools is noisy -- RED is three tight SKUs between 2.3 and
+        8.6/day -- so the median was a CONFIDENT estimate of the wrong product.
+        A wider-pool guard would not have caught it either; the defect is
+        categorical, not statistical.
+
+        Restricting the pool to the same department fixes the kind of error
+        that matters. MIKA appliances inheriting from other MIKA appliances is
+        the case this was written for and it still works.
+
+        NO POOL MEANS NO INFERENCE. If the department is unknown, or no
+        same-brand SKU exists inside it, this returns 0.0 rather than falling
+        back to the cross-category pool -- because that fallback IS the bug.
+        A 0.0 leaves the line with no rate, which the caller records as
+        ads_source='none' and the bridge flags as ads_missing, so it surfaces
+        as unplanned instead of being ordered on a borrowed velocity.
+        """
         if not hasattr(self, '_brand_index_cache') or self._brand_index_cache is None:
              self._brand_index_cache = {}
              self._brand_index_source_id = None
@@ -97,20 +125,48 @@ class IntelligenceMixin:
              if not hasattr(self, '_brand_index_cache') or self._brand_index_cache is None:
                  self._brand_index_cache = {}
              self._brand_index_cache.clear()
+             # Keyed (BRAND, DEPARTMENT). The department comes from
+             # product_department_map, which covers 42,955 names against a
+             # 39,728-SKU catalogue, because sales_forecasting entries carry
+             # no category of their own.
+             _dept_map = {}
+             try:
+                 _dept_map = self.databases.get('product_department_map') or {}
+             except Exception:
+                 _dept_map = {}
+             _dept_norm = {}
+             for _k, _v in _dept_map.items():
+                 _dept_norm[str(_k).strip().upper()] = str(_v).strip().upper()
+             self._brand_dept_lookup = _dept_norm
              for name, data in sales_database.items():
-                 brand = name.split()[0].strip().upper()
-                 if brand:
-                     if brand not in self._brand_index_cache: self._brand_index_cache[brand] = []
-                     val = float(data.get('avg_daily_sales', 0.0))
-                     if val > 0: self._brand_index_cache[brand].append(val)
+                 toks = str(name).split()
+                 brand = toks[0].strip().upper() if toks else ''
+                 if not brand:
+                     continue
+                 dept = _dept_norm.get(str(name).strip().upper(), '')
+                 val = float(data.get('avg_daily_sales', 0.0) or 0.0)
+                 if val > 0:
+                     self._brand_index_cache.setdefault((brand, dept), []).append(val)
 
         # v10.9: Hardened safety for malformed names
         tokens = str(product_name).split()
         if not tokens:
             return 0.0
-            
+
         brand = tokens[0].strip().upper()
-        similar_sales = self._brand_index_cache.get(brand, [])
+        dept = str(department or '').strip().upper()
+        if not dept:
+            # Fall back to the catalogue's own mapping before giving up -- the
+            # caller does not always carry a department, but the map usually
+            # knows one for the name.
+            dept = getattr(self, '_brand_dept_lookup', {}).get(
+                str(product_name).strip().upper(), '')
+        if not dept:
+            # Unknown category: the cross-category pool is exactly the bug, so
+            # infer nothing rather than inherit from an unrelated aisle.
+            return 0.0
+
+        similar_sales = self._brand_index_cache.get((brand, dept), [])
         return float(statistics.median(similar_sales)) if similar_sales else 0.0
 
     _normalized_db_cache: Dict[int, Dict[str, str]] = {}  # {id(db): {normalized_name: original_key}}
@@ -482,15 +538,61 @@ class IntelligenceMixin:
                 p['exclude_from_allocation'] = False # Re-enable for fresh load
 
             # 3. Sales Forecasting
-            sales_data = sales_forecasting.get(p_name)
+            #
+            # ITEM CODE / BARCODE FIRST, NAME AS THE FALLBACK -- which is the
+            # stated methodology, and which this could not do until the
+            # forecast rows were re-keyed.
+            #
+            # find_best_match has implemented code -> barcode -> name all
+            # along, but against a NAME-KEYED file its first two branches have
+            # nothing to match on: sales_forecasting carries no item code and
+            # no barcode field, and the "codes" its matcher sees are the first
+            # whitespace token of a product name. Those 2,847 tokens overlap
+            # the catalogue's 39,728 item codes on ELEVEN entries, seven of
+            # which are wrong -- "Shopping Trolley Bag Red", item code RED,
+            # matching RED BULL 250ML CAN at 8.592/day.
+            #
+            # sales_forecasting_by_code holds the same rows against ITM_CD
+            # (identical to SCAN_ITM_CD on all 39,728 lines here), built by
+            # devkit/rekey_forecast_by_barcode.py, which DROPS a name that
+            # resolves to two SKUs rather than guess between them. 20,562 of
+            # 24,004 rows carry over; the 3,400 that do not are products this
+            # store does not stock, not join failures.
+            #
+            # Absent file is fine: the dict is empty and the name path below
+            # is exactly what ran before.
+            sales_data = None
+            _fc_by_code = self.databases.get('sales_forecasting_by_code') or {}
+            if _fc_by_code:
+                for _ident in (p_code, p_barcode):
+                    _k = str(_ident or '').strip()
+                    if _k and _k in _fc_by_code:
+                        sales_data = _fc_by_code[_k]
+                        p['forecast_match'] = 'item_code'
+                        break
+
+            if not sales_data:
+                sales_data = sales_forecasting.get(p_name)
+                if sales_data:
+                    p['forecast_match'] = 'exact_name'
             if not sales_data:
                 norm_name = self.normalize_product_name(p_name)
                 if not hasattr(self, '_sales_index_cache') or not self._sales_index_cache:
                     self._sales_index_cache = {self.normalize_product_name(k): k for k in sales_forecasting}
                 found_key = self._sales_index_cache.get(norm_name)
-                if found_key: sales_data = sales_forecasting[found_key]
-            
-            if not sales_data: sales_data = self.find_best_match(p_code, p_barcode, p_name, sales_forecasting)
+                if found_key:
+                    sales_data = sales_forecasting[found_key]
+                    p['forecast_match'] = 'normalised_name'
+
+            if not sales_data:
+                sales_data = self.find_best_match(p_code, p_barcode, p_name,
+                                                  sales_forecasting)
+                if sales_data:
+                    # Last resort, and the loosest: its final branch returns
+                    # the FIRST key sharing a two-token prefix. Recorded so a
+                    # rate obtained this way is distinguishable from one keyed
+                    # on an identity.
+                    p['forecast_match'] = 'fuzzy_name'
 
             if sales_data:
                 hist_ads = float(round(float(sales_data.get('avg_daily_sales', 0.1)), 3))
@@ -875,9 +977,37 @@ class IntelligenceMixin:
             else:
                 p['confidence_grn'] = 'LOW'
                 if float(p.get('avg_daily_sales', 0.0)) == 0.0:
-                    p['avg_daily_sales'] = self._find_lookalike_demand(p_name, sales_forecasting)
+                    # A SUBSTITUTED RATE IS NOT "NO SIGNAL", AND THE LOG MUST
+                    # SAY WHICH. ads_source was fixed as 'none' far above, when
+                    # the measured rate came back zero, and was never corrected
+                    # here -- so the provenance line reported "none 10,967
+                    # (27.6%)" on a live store while the planner was quietly
+                    # using a brand-median forecast for every one of them, and
+                    # ordering KES 5,343,893 against it.
+                    #
+                    # The substitution itself is defensible: a line with no
+                    # history is treated as NEW, seeded from its brand and
+                    # capped by new_item_aggression_cap. But "we inferred this"
+                    # and "we have nothing" are different claims, and only one
+                    # of them was being made.
+                    _look = self._find_lookalike_demand(
+                        p_name, sales_forecasting,
+                        department=p.get('department') or p.get('product_category'))
+                    p['avg_daily_sales'] = _look
                     p['is_lookalike_forecast'] = True
                     p['new_item_aggression_cap'] = 7 if is_fresh else 21
+                    if _look > 0:
+                        p['ads_source'] = 'lookalike_brand_median'
+                        # The pool it came from, so the estimate is auditable
+                        # rather than a bare number: the key is the first
+                        # whitespace token of the name, which on this catalogue
+                        # yields 121 numeric or <=2-character keys pooling
+                        # 2,050 SKUs, and spreads of up to 140x inside a single
+                        # pool. A buyer reviewing the order should be able to
+                        # see what it was inferred from.
+                        p['lookalike_brand'] = (
+                            str(p_name).split()[0].strip().upper()
+                            if str(p_name).split() else '')
 
             # 6. Profitability & Rank
             # GOLDEN PARITY: Fast-path lookup using _prof_index_cache (Regression #5)
@@ -1007,6 +1137,19 @@ class IntelligenceMixin:
                     "ADS provenance: %.1f%% of lines are priced on the static "
                     "forecast file rather than measured sales. Ordering is only "
                     "as current as that file.", 100.0 * _stale / _n)
+            # INFERRED DEMAND IS THE ONE WORTH SAYING OUT LOUD. These lines
+            # have no sales history at this store at all; they are planned on
+            # the median of other SKUs sharing the first word of their name,
+            # and they are treated as new items rather than as dead ones. On
+            # the live store that is a quarter of the catalogue driving more
+            # order value than the entire measured book.
+            _look = _src.get('lookalike_brand_median', 0)
+            if _look:
+                logger.warning(
+                    "ADS provenance: %s lines (%.1f%%) have NO sales history "
+                    "here and are planned on a brand-median lookalike. They "
+                    "are assumed NEW, not dead -- a long-dead line looks "
+                    "identical at this point.", f"{_look:,}", 100.0 * _look / _n)
         except Exception:      # provenance reporting must never break a scan
             pass
 
