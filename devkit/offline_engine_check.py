@@ -37,9 +37,35 @@ from oasis.logic.simulation_bridge import SimulationOrderUtil         # noqa: E4
 
 ORG = "RHAPTA"
 
+#: Every database URI opened during the run. The closing line used to be a
+#: bare print asserting nothing, and it duly printed "no POS connection was
+#: opened" through a change that opened one on every line of the book. A
+#: guarantee nothing checks is a comment with a full stop.
+_OPENED: list = []
+
+
+def _watch_connections():
+    """Record every UniversalConnector built, so the claim can be checked.
+
+    Wrapping the connector rather than sqlalchemy.create_engine: this is the
+    one door every POS and store connection in OASIS goes through, and it
+    records the URI, so a failure can say WHAT was opened instead of only that
+    something was.
+    """
+    from oasis.logic import db_connector
+
+    original = db_connector.UniversalConnector.__init__
+
+    def recording(self, connection_string, *a, **kw):
+        _OPENED.append(str(connection_string))
+        return original(self, connection_string, *a, **kw)
+
+    db_connector.UniversalConnector.__init__ = recording
+
 
 def main(argv) -> int:
     multi = "--multi" in argv
+    _watch_connections()
 
     print("=" * 70)
     # is_enabled() is the one to trust. model_name() reads ONLY the env var and
@@ -54,7 +80,21 @@ def main(argv) -> int:
     print("service level / z   :", ou.service_level(), "/", round(ou.z_score(), 3))
     print("=" * 70)
 
-    book = build_book()
+    # SNAPSHOT DEMAND, ON PURPOSE, AND SAID OUT LOUD.
+    #
+    # The other harnesses now measure against the pipeline's own ADS, because
+    # corrected_ads_from_pos.json is a different measurement of the same shop
+    # -- a window ending 2026-02 against the pipeline's seven 2025 cash
+    # extracts, agreeing on 3.9% of lines. This one cannot follow them: reading
+    # the pipeline's demand means opening the POS, and "does it run with no
+    # POS" is the only question this file asks.
+    #
+    # So the numbers below are NOT the shipped pipeline's. They answer "does
+    # every stage execute offline", not "what will we buy".
+    book = build_book("snapshot")
+    print("demand     : local snapshot (corrected_ads_from_pos.json) -- NOT "
+          "the pipeline's;\n             these counts prove the stages run, "
+          "not what to order")
     util = SimulationOrderUtil(DATA_DIR)
     enriched = util.prepare_sku_data(copy.deepcopy(book))
     # prepare_sku_data zeroes current_stock, which silently makes every stock
@@ -135,7 +175,20 @@ def main(argv) -> int:
           f"{s['worth_reviewing']:,} worth review, "
           f"KES {s['gp_per_year']:,.0f}/yr at stake")
     print("=" * 70)
-    print("no POS connection was opened at any point in the above")
+    if _OPENED:
+        print(f"OFFLINE GUARANTEE BROKEN: {len(_OPENED)} database connection(s) "
+              f"were opened:")
+        for uri in dict.fromkeys(_OPENED):
+            # Never print a URI whole -- a live POS one carries credentials.
+            scheme = uri.split("://", 1)[0] if "://" in uri else "?"
+            tail = uri.rsplit("/", 1)[-1] if "/" in uri else ""
+            print(f"    {scheme}://.../{tail}")
+        print("This check exists to prove ordering and transfer run on the "
+              "local snapshot\nalone. It cannot answer that question if it "
+              "reaches a database.")
+        return 1
+    print("no POS connection was opened at any point in the above (checked, "
+          "not claimed)")
     return 0
 
 

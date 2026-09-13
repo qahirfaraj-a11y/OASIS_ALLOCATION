@@ -225,7 +225,13 @@ def main(argv=None) -> int:
     ap.add_argument("--skus", type=int, default=0, help="0 = the whole book")
     a = ap.parse_args(argv)
 
-    book = build_book()
+    # The pipeline's own ADS. See order_model_compare.pipeline_ads: the
+    # snapshot file measures a different window of the same shop and the two
+    # agree on 3.9% of lines, so a multi-store run against it answers for a
+    # book nothing that ships reads.
+    book = build_book("pipeline")
+    print("demand     : the pipeline's (POS-weighted, as the shipped run "
+          "measures it)")
     if a.skus:
         book = sorted(book, key=lambda p: -p["avg_daily_sales"])[:a.skus]
     shelf = {}

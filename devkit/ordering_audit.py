@@ -68,7 +68,14 @@ def main(argv) -> int:
     out_csv = argv[argv.index("--csv") + 1] if "--csv" in argv else None
 
     from oasis.logic.simulation_bridge import SimulationOrderUtil
-    book = build_book()
+    # The pipeline's own ADS, not corrected_ads_from_pos.json. That file is a
+    # second measurement of the same shop -- a window ending 2026-02 against
+    # the seven 2025 cash extracts the pipeline derives from -- and the two
+    # agree on 3.9% of lines. Auditing the order book against demand nothing
+    # that ships reads makes the audit about the file, not the book.
+    book = build_book("pipeline")
+    print("demand     : the pipeline's (POS-weighted, as the shipped run "
+          "measures it)")
     util = SimulationOrderUtil(DATA_DIR)
     enriched = util.prepare_sku_data(copy.deepcopy(book))
     base = {p["sku"]: float(p.get("current_stock") or 0) for p in book}
