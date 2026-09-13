@@ -63,14 +63,85 @@ def band_of(d: float) -> str:
     return ">10/day"
 
 
-def build_book():
-    """The real shelf, priced and demanded. Same construction as the sweep."""
+def pipeline_ads():
+    """ADS exactly as the shipping pipeline measures it, by normalised name.
+
+    WHY THIS REPLACED corrected_ads_from_pos.json
+
+    That file is a different measurement of the same shop, and nothing said
+    so. Reconciled against the pipeline on the 15,037 SKUs they share: same
+    catalogue (100% of this book is in the POS catalogue), same shelf (98.4%
+    of stock agrees exactly), and demand agreeing on 3.9% of lines -- median
+    ratio 1.079, p10 0.830, p90 1.500. Aggregate within 6%, per line nowhere
+    near.
+
+    The cause is not a formula. They are different vintages over different
+    windows: the pipeline derives ADS from the seven 2025 cash extracts
+    (jan, mar, may, jun, jul, sep, oct) over a global 7 x 30.4 days, while
+    corrected_ads_from_pos.json is dated 2026-02-11 and divides each SKU's
+    units by its own months_active, capped at 6.
+
+    Which makes it more than stale. A run measuring AS OF 2025-12-09 that
+    takes demand from a window ending February 2026 is using information from
+    after the date it claims to stand on. The model verdict survived it --
+    both arms shared the same demand, so the classic-vs-derived delta was
+    still attributable to the quantity decision -- but every absolute figure
+    it printed belonged to a book nothing else in the repo reads.
+    """
+    # get_adapter is what generate_smart_orders calls, so this reads the store
+    # the pipeline reads, resolved the way the pipeline resolves it. The first
+    # version of this function rebuilt that resolution by hand and promptly
+    # diverged from it -- which is the whole failure this change exists to
+    # end. Point it with OASIS_POS_DB_URL, exactly as the shipped run is
+    # pointed.
+    from oasis.desktop.data import get_adapter
+    from oasis.logic.simulation_bridge import SimulationOrderUtil
+
+    adapter = get_adapter(str(ROOT))
+    orgs = adapter.fetch_all_organizations() or []
+    if not orgs:
+        raise SystemExit(
+            "the pipeline's adapter returned no organizations. It resolves the "
+            "POS the way the shipped run does, so set OASIS_POS_DB_URL to the "
+            "store you mean -- otherwise it reads whatever the install wizard "
+            "recorded, which on this machine is a SQL Server that needs pyodbc.")
+    org = orgs[0]["ORG_CD"]
+    util = SimulationOrderUtil(DATA_DIR)
+    out = {}
+    for p in util.prepare_sku_data(adapter.fetch_enriched_products(org)):
+        n = norm(p.get("product_name") or "")
+        # First row wins. 18 names carry more than one item code, which is the
+        # cost of joining on a name at all -- recorded, not hidden.
+        if n and n not in out:
+            out[n] = float(p.get("avg_daily_sales") or 0)
+    return out
+
+
+def build_book(demand: str = "snapshot"):
+    """The real shelf, priced and demanded. Same construction as the sweep.
+
+    `demand` defaults to the SNAPSHOT deliberately, even though the pipeline's
+    own measurement is the better basis and is what this module's own main()
+    asks for. multistore_run, ordering_audit and offline_engine_check all call
+    build_book() with no arguments, and the last of those ends by printing "no
+    POS connection was opened at any point in the above". Defaulting to
+    "pipeline" opens one -- so that line became false the moment the default
+    changed, and it is a bare print, not a check, so nothing caught it.
+
+    Those three still read corrected_ads_from_pos.json and so still measure a
+    different shop from the pipeline. That is worth fixing; it is not worth
+    fixing by falsifying an offline guarantee on the way past.
+    """
     stock = json.loads((ROOT / "oasis" / "data" / "stock_snapshot_dept.json")
                        .read_text(encoding="utf-8"))
     mar = {norm(k): v for k, v in build_margin.load_or_derive()[0].items()}
-    ads = {norm(k): v for k, v in json.loads(
-        (ROOT / "oasis" / "data" / "corrected_ads_from_pos.json")
-        .read_text(encoding="utf-8")).items()}
+    if demand == "pipeline":
+        _p = pipeline_ads()
+        ads = {k: {"new_ads": v} for k, v in _p.items()}
+    else:
+        ads = {norm(k): v for k, v in json.loads(
+            (ROOT / "oasis" / "data" / "corrected_ads_from_pos.json")
+            .read_text(encoding="utf-8")).items()}
 
     book = []
     for k, sv in stock.items():
@@ -134,10 +205,27 @@ def score(enriched, util, mult):
 
 
 def main(argv) -> int:
-    mults = [float(a) for a in argv[1:]] or [0.0, 0.5, 1.0, 2.0]
+    args = [a for a in argv[1:]]
+    # Default is the pipeline's own demand. The legacy file stays reachable
+    # for a deliberate cross-check, never by accident.
+    # THIS module measures against the pipeline. The shared build_book keeps
+    # the snapshot default for the callers that must stay offline.
+    demand = "snapshot" if "--demand=snapshot" in args else "pipeline"
+    mults = [float(a) for a in args if not a.startswith("--")] or [0.0, 0.5, 1.0, 2.0]
 
     print("Building the real book…")
-    book = build_book()
+    book = build_book(demand)
+    # SAY WHICH BOOK. Two measurements of one shop lived in this repo with
+    # nothing in either output naming the source, and the same silence over
+    # two POS databases cost an afternoon: identical log lines, a funnel that
+    # moved by 7,589 SKUs, and no way to tell which file produced which.
+    src = ("the pipeline (POS-weighted, as the shipped run measures it)"
+           if demand == "pipeline"
+           else "corrected_ads_from_pos.json (2026-02-11, months_active<=6)")
+    print(f"  demand from {src}")
+    if demand == "snapshot":
+        print("  !! that window ENDS AFTER a 2025-12-09 as-of date; absolute "
+              "figures below are not the shipped pipeline's")
     print(f"  {len(book):,} SKUs priced, demanded and on the shelf")
 
     from oasis.logic.simulation_bridge import SimulationOrderUtil
