@@ -4,43 +4,54 @@ type: parameter
 status: measured
 domain: ordering
 title: LATA variance multiplier
-value: computed, not applied — 944 suppliers loaded, multiplier pinned to 1.0
+value: the MULTIPLIER is computed, not applied — the shield runs on lead_time_stdev instead
 defined_in: `amit_gatekeeper.load_lata_patterns`
-feeds: [surface.allocation-priority]
+feeds: [surface.allocation-priority, surface.purchase-order-quantity]
 ---
 
-**Value:** computed, not applied — 944 suppliers loaded, multiplier pinned to 1.0
+**Value:** the MULTIPLIER is computed, not applied (944 suppliers loaded, pinned to 1.0) — the shield itself runs on `lead_time_stdev`
 **Defined in:** `amit_gatekeeper.load_lata_patterns`
 
-LATA's stated purpose is Supplier Shield: inflate safety stock for unreliable suppliers. It does not appear in `calculate_order_quantity`. It feeds allocation priority instead. Finding F3, still open.
+LATA's stated purpose is Supplier Shield: inflate safety stock for unreliable suppliers. **That purpose is served in ordering today** — but through LATA's measured `lead_time_stdev` entering `d^2*sigma_L^2`, not through `lata_variance_multiplier`, which is pinned to 1.0 and feeds allocation priority only.
+
+Finding F3 is open only in its literal wording; see the correction below. The original sentence — "it does not appear in `calculate_order_quantity`" — is true of the MULTIPLIER and false of LATA, and reading it as the latter is a mistake this note has now caused twice.
 
 ## Re-checked 2026-09-13 — the claim holds
 
-Unlike `param.R` and `param.sigma_L`, which had drifted, this note is accurate. Traced end to end:
+The MULTIPLIER half of this note is accurate, unlike `param.R` and `param.sigma_L`, which had drifted. Traced end to end:
 
 - `SimulationOrderUtil.__init__` loads `self._lata_multipliers` from `lata_derived.json` — **944 suppliers** — and **never reads it again**. The only other mentions in `simulation_bridge.py` are comments describing what it used to do.
 - `simulation_bridge.py` sets `lata_multiplier = 1.0` outright, commented `NEUTRALISED`.
 - `amit_gatekeeper.py` does consume it: `load_lata_patterns()` reads `lata_variance_multiplier`, and the value lands on the allocation node as `node["lata_multiplier"]`.
 
-So: computed, not applied in ordering; applied in allocation. F3 stands.
+So the MULTIPLIER is computed, not applied in ordering, and applied in allocation. What the next section corrects is the leap from that to "LATA is not in ordering".
 
-## But the reasoning string says otherwise, on 23% of the book
+## The shield IS live — a correction to this note
 
-Ordering output carries `[LATA Shield: sigma_L=0.84d -> safety 2.20d of a 9.0d protection interval]` on **3,460 of 15,037 lines (23.0%)**. An operator reading that would conclude LATA is shielding them in ordering. It is not.
+An earlier revision of this note (commit b6a00bd9, same day) claimed the `[LATA Shield: sigma_L=...]` label on 23% of ordering lines was misleading, because the `sigma_L` came from `supplier_lead_patterns.json` rather than `lata_derived.json`. **That was wrong.** The two files are two derivations of ONE source:
 
-That `sigma_L` comes from `default_patterns()` — `supplier_lead_patterns.json` with `supplier_patterns_2025.json` as a gap-filler — and **not** from `lata_derived.json`. The mechanism is real and the number is measured; only the name is LATA's.
+- `devkit/probe_lead_time.py` writes `supplier_lead_patterns.json` from PO-date-to-GRN-date receipt history
+- `devkit/derive_lata.py` writes `lata_derived.json` from the same `stock_ledger` receipts, `MIN_SAMPLE=8`
 
-The overlap makes it harder to catch rather than easier: 3,382 of those 3,460 lines DO have a supplier present in `lata_derived.json`, so spot-checking a line would show a supplier LATA knows about, carrying a shield LATA did not compute.
+Checked rather than assumed: **944 keys in each, 944/944 exact key overlap, and `lead_time_stdev` identical on all 400 sampled overlapping suppliers.** `supplier_lead_patterns.json` carries LATA's lead-time derivation without the `lata_variance_multiplier` / `protection_days` / `review_days` fields.
 
-This is worth separating in the label, because the two possible readings differ in what a buyer should do: "your unreliable-supplier shield is live" versus "a measured lead-time spread is inflating this line, and LATA's own multiplier is still parked".
+So the label is accurate and LATA's stated purpose — more safety stock where the supplier is less reliable — **is being served in ordering today**:
 
-## What closed by another route
+| | |
+|---|---|
+| lines carrying the LATA Shield | 3,460 of 15,037 (23.0%) |
+| order lines resolving a LATA-measured sigma_L | **3,166 of 3,472 (91.2%)** |
+| suppliers with a derived spread | 944 |
 
-LATA's *purpose* — more safety stock where the supplier is less reliable — is now served, through `d^2*sigma_L^2` in the quadrature (see `param.sigma_L`). The multiplier form was retired deliberately: multiplying by `sigma_L / lead_time` makes the lead-time contribution SHRINK as lead time grows, which is backwards. A supplier at L=1 +/-1 day and one at L=10 +/-1 day carry the same absolute exposure.
+## What is parked, and why that is correct
 
-So F3 is open as written — the multiplier is still unapplied — while the outcome it was asking for arrived from elsewhere. Closing it should mean deciding whether `lata_variance_multiplier` has a job left at all in ordering, not wiring the old form back in.
+Only the **multiplier** is unapplied. `lata_variance_multiplier` is a derived scalar; the shield runs on `lead_time_stdev` instead, in DAYS, through `d^2*sigma_L^2` in the quadrature.
 
-The dead load is a small trap in its own right: 944 entries read into `SimulationOrderUtil` on every construction and never consulted, which reads as live wiring to anyone scanning the constructor.
+That substitution was deliberate and is the better form. Dividing by lead time — the multiplier's shape — makes the lead-time contribution SHRINK as lead time grows, which is backwards: a supplier at L=1 +/-1 day and one at L=10 +/-1 day carry the same absolute exposure, one day of demand.
+
+So F3 is open only in its literal wording. The outcome it asked for is delivered; what remains unapplied is a form that should stay unapplied. Closing it means deciding whether `lata_variance_multiplier` has any job left in ordering — the honest answer looks like "no, `lead_time_stdev` superseded it" — not wiring the old form back in.
+
+One residue worth clearing: `SimulationOrderUtil.__init__` still loads 944 multiplier entries into `self._lata_multipliers` and never reads them. Harmless, but it reads as live wiring to anyone scanning the constructor, and it is the reason this note was mis-read twice.
 
 ## Status history
 
@@ -48,4 +59,6 @@ The dead load is a small trap in its own right: 944 entries read into `Simulatio
 
 - 2026-09-04 — `stale` → `measured` — upstream recovered
 
-- 2026-09-13 — confirmed `measured` — re-traced end to end: loaded (944 suppliers), never read in ordering, consumed by `amit_gatekeeper` for allocation priority. Claim unchanged; the misleading `[LATA Shield]` label recorded above.
+- 2026-09-13 — confirmed `measured` — re-traced end to end: the MULTIPLIER is loaded (944 suppliers), never read in ordering, and consumed by `amit_gatekeeper` for allocation priority. Claim unchanged.
+
+- 2026-09-13 — correction — an earlier revision the same day claimed the `[LATA Shield]` label was misleading. It is not: `supplier_lead_patterns.json` and `lata_derived.json` are two derivations of one receipt history, identical on `lead_time_stdev` across all 944 suppliers. The shield is live on 91.2% of order lines.

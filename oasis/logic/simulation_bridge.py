@@ -423,7 +423,22 @@ class SimulationOrderUtil:
             if gnn_multiplier > 1.0:
                  rec['reasoning'] += f" [GNN Risk Burst: +{(gnn_multiplier-1.0)*100:.0f}% Safety]"
             if sigma_L > 0.05:
-                 rec['reasoning'] += (f" [LATA Shield: sigma_L={sigma_L:.2f}d -> "
+                 # NAME THE ARTEFACT, NOT JUST THE ENGINE. "LATA Shield" alone
+                 # is accurate but under-specified, and the ambiguity has cost
+                 # real time: LATA publishes TWO things from one receipt
+                 # history -- lead_time_stdev (this, in days, entering
+                 # d^2*sigma_L^2) and lata_variance_multiplier (a scalar,
+                 # pinned to 1.0 in ordering and used only for allocation
+                 # priority). A reader who takes "LATA Shield" to mean the
+                 # multiplier concludes the multiplier is live. It is not.
+                 #
+                 # Saying which one removes the ambiguity at no cost: the
+                 # number shown is already the one being used.
+                 # The "[LATA Shield:" prefix is load-bearing -- devkit's
+                 # governance_sweep matches on it literally -- so the artefact
+                 # name goes AFTER the colon, not inside the bracket.
+                 rec['reasoning'] += (f" [LATA Shield: lead_time_stdev "
+                                      f"sigma_L={sigma_L:.2f}d -> "
                                       f"safety {safety_buffer:.2f}d of a {_P:.1f}d "
                                       f"protection interval]")
                  
