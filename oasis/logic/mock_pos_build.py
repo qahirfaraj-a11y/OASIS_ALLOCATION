@@ -14,6 +14,7 @@ from __future__ import annotations
 import os
 import sqlite3
 
+from . import clock as _clock
 from .demo_identity import DEMO_BRANCHES, DEMO_CITY, single_store_name
 from datetime import datetime
 from typing import List, Optional
@@ -54,7 +55,26 @@ def build_pos_db_from_catalog(rows: List[dict], db_path: str, org_cd: str = "ORG
     conn = b.conn
     conn.execute("PRAGMA journal_mode=WAL")
     b.org_codes = [org_cd]
+    # TWO DATES, AND THEY ARE NOT THE SAME KIND OF DATE.
+    #
+    # `today` stamps the price and cost records. Nothing reads those as a
+    # clock -- the adapter joins BASIC_SP_MST/BASIC_CP_MST with no effective-
+    # date filter -- so they are write timestamps and keep the wall clock,
+    # like a PO's created_at.
+    #
+    # `as_of_date` backs SM_LAST_RECV_DT, which IS read as a clock:
+    # days_since_delivery = as_of() - last_recv. Stamping the wall clock there
+    # while the engine measures as-of dates the shelf in the future and makes
+    # days_since_delivery NEGATIVE, so the stale-fresh and dead-stock gates
+    # cannot fire on those lines however old the stock really is. Measured on
+    # the anchor store's build before this: 22,514 of 39,728 lines (56.7%)
+    # carried a receipt 279 days ahead of the measurement date, and gates 11
+    # and 12 were choosing from 17,214 lines rather than the whole book.
+    #
+    # 90e0e167 put the demand seeder on the as-of clock and left this behind;
+    # same family, one file later.
     today = datetime.now().strftime("%Y-%m-%d")
+    as_of_date = _clock.as_of().strftime("%Y-%m-%d")
 
     try:
         conn.executescript(SCHEMA_SQL)
@@ -128,7 +148,7 @@ def build_pos_db_from_catalog(rows: List[dict], db_path: str, org_cd: str = "ORG
             # 39,728 SKUs one identical value, and days_since_delivery is then
             # a constant. The stale-fresh and dead-stock gates read that field
             # and so could never fire, on any SKU, ever.
-            recv = (recv_dates or {}).get(_norm_key(r.get("name"))) or today
+            recv = (recv_dates or {}).get(_norm_key(r.get("name"))) or as_of_date
             sp.append((org_cd, key, price, price, today))
             cp.append((org_cd, key, cost, today))
             sm.append((org_cd, key, "MAIN", qty, cost, recv))

@@ -310,11 +310,11 @@ def anchor_day_coverage(db_path: str, org: Optional[str] = None,
 
     WHY THIS EXISTS: DHARAM's stockout gate reads a `store_fill_rate` field
     off every SKU node, and on this install that field is 0.0 or blank for
-    all 23,511 nodes (rhapta_master_metrics.json stopped carrying
+    all 23,511 nodes (the master-metrics export stopped carrying
     `live_fill_rate` — see devkit/probe_dharam_halo.py). There is no stock or
     inventory feed anywhere in OASIS to replace it with. And every POS table
-    on this install (rhapta_pos.db, rhapta_multi_store.db, oasis_store.db,
-    mock_pos_erp*.db) carries BILL_DT as a DATE, never a timestamp — so the
+    on this install (the single-store and multi-store POS databases, the store
+    database, mock_pos_erp*.db) carries BILL_DT as a DATE, never a timestamp — so the
     spec's "sold out at 2pm" intra-day signature cannot be observed from any
     data this system has, real or synthetic. What CAN be observed: whether an
     item that normally sells every day went a full day with zero scans. That

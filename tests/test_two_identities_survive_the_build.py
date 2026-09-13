@@ -18,9 +18,11 @@ Two traps found while fixing it, both pinned below:
 """
 import os
 import sqlite3
+from datetime import datetime
 
 import pytest
 
+from oasis.logic import clock
 from oasis.logic.mock_pos_build import build_pos_db_from_catalog
 
 
@@ -117,6 +119,41 @@ class TestReceiptDatesVaryPerSku:
         _, stock, _, _ = _read(db)
         assert stock["5011417565452"] == "2025-03-04"
         assert stock["6009610256313"] not in (None, "")
+
+    def test_the_fallback_is_on_the_as_of_clock_not_the_wall_clock(
+            self, db, monkeypatch):
+        """SM_LAST_RECV_DT is read as a clock: days_since_delivery is
+        as_of() - last_recv. A wall-clock fallback dates the shelf in the
+        FUTURE of the measurement, days_since_delivery goes negative, and the
+        stale-fresh and dead-stock gates cannot fire on that line however old
+        the stock really is. Measured on the Rhapta build before this fix:
+        22,514 of 39,728 lines carried a receipt 279 days ahead of the as-of
+        date, so gates 11 and 12 were choosing from 17,214 lines, not 39,728.
+        """
+        monkeypatch.setenv(clock.AS_OF_ENV, "2025-12-09")
+        build_pos_db_from_catalog(_rows(), db, seed_password="x")
+        _, stock, _, _ = _read(db)
+        for code, got in stock.items():
+            assert got == "2025-12-09", (
+                f"{code} fell back to {got!r}, not the as-of date; any value "
+                f"after it makes days_since_delivery negative")
+
+    def test_the_price_stamp_still_uses_the_wall_clock(self, db, monkeypatch):
+        """The other direction of the same rule. BASIC_SP_MST.BSP_EFF_DATE is
+        a write timestamp -- the adapter joins prices with no effective-date
+        filter, so nothing reads it as a clock -- and pinning it would be the
+        mirror-image mistake."""
+        monkeypatch.setenv(clock.AS_OF_ENV, "2025-12-09")
+        build_pos_db_from_catalog(_rows(), db, seed_password="x")
+        c = sqlite3.connect(db)
+        try:
+            eff = {r[0] for r in c.execute(
+                "SELECT BSP_EFF_DATE FROM BASIC_SP_MST")}
+        finally:
+            c.close()
+        assert eff == {datetime.now().strftime("%Y-%m-%d")}, (
+            "a price record is stamped when it is written, whatever period is "
+            "under analysis")
 
     def test_no_receipt_history_still_builds(self, db):
         build_pos_db_from_catalog(_rows(), db, seed_password="x", recv_dates=None)

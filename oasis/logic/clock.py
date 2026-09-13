@@ -6,8 +6,8 @@ WHY THIS EXISTS
     demand windows fall, and which weekday the supplier calendar is checked
     against. That is correct against a live POS and wrong against an extract.
 
-    The Rhapta receipt history runs 2025-01-01 to 2025-12-09 -- 106,526
-    receipts, per-SKU, with real spread. Evaluated against a 2026 wall clock
+    The anchor store's receipt history runs 2025-01-01 to 2025-12-09 --
+    106,526 receipts, per-SKU, with real spread. Against a 2026 wall clock
     every line reads as 278 to 619 days since delivery, so the stale-fresh and
     dead-stock gates fire on everything or, once the mock builder writes one
     flat receipt date, on nothing. Neither is a fact about the shelf.
