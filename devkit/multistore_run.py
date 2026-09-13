@@ -34,8 +34,50 @@ WHAT IS ASSERTED RATHER THAN MEASURED
     store mix    five stores at 0.4x-2.0x of the observed book
     opening stock  seeded; there is no historical on-hand series to replay
 
+RUN IT WHOLE. A SAMPLE INVERTED THREE OF SEVEN METRICS.
+    --skus and --days exist for smoke tests and nothing else. Run at 400 SKUs
+    and 30 days against the full 16,880 x 364, the measured arms disagree on
+    the SIGN of three results, not on their size:
+
+        metric    reduced (400 x 30d)    full (16,880 x 364d)
+        service   derived better         derived better
+        GP        derived better         derived better
+        waste     derived better         derived better
+        EP        derived better         derived better
+        stock     derived better         derived WORSE      <- flipped
+        GMROI     derived better         derived WORSE      <- flipped
+        turns     derived better         derived WORSE      <- flipped
+
+    A 2.4% sample of the book is not a small version of the book. Thirty days
+    is also shorter than the protection interval of a slow line, so the
+    reduced run never observes the cover it is judging. Quoting it as
+    "derived wins on every axis" was wrong, and is corrected here.
+
+MEASURED, FULL BOOK, as of 2025-12-09, pipeline demand
+    16,880 SKUs x 5 stores x 3 seeds x 364 days, store mix 0.4x-2.0x
+
+    arm                 service     stock KES          GP/yr     waste/yr          EP/yr  GMROI  turns
+    static classic       80.56%   104,042,183    639,552,865  209,050,086    415,541,513   5.93  21.89
+    static derived       80.96%   120,629,126    649,473,566   92,676,408    539,450,690   5.27  19.24
+    measured classic     87.99%   123,412,250    769,944,638  377,621,620    374,576,336   5.99  21.90
+    measured derived     93.01%   140,605,029    806,500,200  151,633,138    634,648,059   5.48  20.15
+
+    THE TRADE, STATED HONESTLY. Derived does not win everywhere. Against
+    classic on the same measured demand it buys DEEPER and turns SLOWER --
+    17.2M more capital, GMROI 5.48 against 5.99, turns 20.15 against 21.90 --
+    and pays for that with 226M less waste (-60%), 5.02 points more service
+    and 36.6M more gross profit. Ranked on economic profit, which is the only
+    metric that prices holding cost and lost margin together, derived wins by
+    260M/yr.
+
+    That is the sentence for a buyer: more capital tied up, far less of it
+    thrown away. Not "better everywhere".
+
 USAGE
     python devkit/multistore_run.py [--stores 5] [--seeds 3] [--days 364]
+
+    Point it at the store the pipeline reads:
+        OASIS_POS_DB_URL=sqlite:///<pos.db> OASIS_AS_OF=YYYY-MM-DD
 """
 from __future__ import annotations
 
