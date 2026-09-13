@@ -113,8 +113,20 @@ Pitch_Mock_Ingestion/
 *.gguf
 kapa_*.json
 shadow_health.json
-supplier_rhythm_analysis.json
-supplier_weekly_schedule.json
+
+# ── Two of these are SOURCE for the golden contract, not ephemera ────────
+# supplier_weekly_schedule.json is where R comes from -- the declared order
+# weekday per supplier -- and supplier_rhythm_analysis.json carries the PO
+# rhythm. The 297 golden vectors are pinned against both. Ignored, a clean
+# checkout loaded zero suppliers into the review schedule, R fell back to its
+# default, and 221 of 297 vectors reported as drift when nothing had drifted:
+# the engine was answering a different question. A contract that cannot be
+# reproduced from a clean checkout is not a contract.
+#
+# Same trap as the Odoo access rules and the market matrix above: a pattern
+# written for bulk data swallowing something the build genuinely needs.
+!supplier_rhythm_analysis.json
+!supplier_weekly_schedule.json
 supplier_predictive_analysis.json
 supplier_schedule*.json
 rhapta_demo_preloaded.json

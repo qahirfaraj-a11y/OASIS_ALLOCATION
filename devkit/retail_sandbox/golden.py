@@ -116,6 +116,20 @@ def edge_cases():
             for label, why, fields in MATRIX]
 
 
+#: The derived inputs these vectors are pinned against. All three are
+#: regenerable and deliberately gitignored ("Ephemeral derived data"), so a
+#: clean checkout does not have them.
+REQUIRED_INPUTS = ("supplier_rhythm_analysis.json",
+                   "supplier_weekly_schedule.json",
+                   "Supplier_Order_Calendar_2026.xlsx")
+
+
+def missing_inputs():
+    """Which of REQUIRED_INPUTS this checkout does not have."""
+    return [f for f in REQUIRED_INPUTS
+            if not os.path.exists(os.path.join(REPO, f))]
+
+
 def temp_data_dir():
     tmp = tempfile.mkdtemp(prefix="oasis_golden_")
     parent = os.path.join(tmp, "parent")
@@ -123,11 +137,22 @@ def temp_data_dir():
     os.makedirs(data_dir, exist_ok=True)
     # data_dir/.. is the first place the calendar is looked for; without it the
     # calendar loads zero suppliers and every order-day check degrades.
-    for f in ("supplier_rhythm_analysis.json", "supplier_weekly_schedule.json",
-              "Supplier_Order_Calendar_2026.xlsx"):
-        src = os.path.join(REPO, f)
-        if os.path.exists(src):
-            shutil.copy2(src, os.path.join(parent, f))
+    #
+    # This used to copy each file `if os.path.exists(src)` and carry on when it
+    # did not -- the comment above described the damage and the code shrugged
+    # at it. Run in a clean checkout, the review schedule then loaded zero
+    # suppliers, R fell back to its default, and 221 of 297 vectors "moved".
+    # None of them had moved: the engine was answering a different question.
+    # A missing input is not drift, and it must not be able to look like it.
+    gone = missing_inputs()
+    if gone:
+        raise FileNotFoundError(
+            f"cannot generate golden vectors without {gone}. These are derived "
+            f"files, regenerable but gitignored, so a clean checkout lacks "
+            f"them. Without them the engine silently falls back to defaults "
+            f"and every vector below would be pinned to the wrong answer.")
+    for f in REQUIRED_INPUTS:
+        shutil.copy2(os.path.join(REPO, f), os.path.join(parent, f))
     return tmp, data_dir
 
 

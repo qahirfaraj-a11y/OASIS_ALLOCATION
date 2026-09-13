@@ -40,6 +40,13 @@ def mod():
     if SANDBOX not in sys.path:
         sys.path.insert(0, SANDBOX)
     import golden_transfer
+    # See test_golden_orders: these vectors are pinned against derived files
+    # that a clean checkout does not carry, and without them the engine
+    # answers a different question rather than the same one differently.
+    gone = golden_transfer.missing_inputs()
+    if gone:
+        pytest.skip("transfer vectors need derived inputs this checkout does "
+                    f"not have: {', '.join(gone)}")
     return golden_transfer
 
 

@@ -43,6 +43,17 @@ def golden_mod():
     if SANDBOX not in sys.path:
         sys.path.insert(0, SANDBOX)
     import golden
+    # The vectors are pinned against derived files that are regenerable and
+    # deliberately gitignored, so a clean checkout does not have them. Without
+    # them the review schedule loads zero suppliers, R falls back to its
+    # default, and 221 of 297 vectors report as "moved" when nothing moved at
+    # all -- the engine was answering a different question. Skip honestly
+    # rather than fail loudly about the wrong thing.
+    gone = golden.missing_inputs()
+    if gone:
+        pytest.skip("golden vectors need derived inputs this checkout does "
+                    f"not have: {', '.join(gone)}. They are gitignored as "
+                    "ephemeral; regenerate them before trusting a drift run.")
     return golden
 
 

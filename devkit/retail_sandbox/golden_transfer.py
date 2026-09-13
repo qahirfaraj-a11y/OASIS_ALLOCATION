@@ -136,16 +136,30 @@ def scenarios():
     return out
 
 
+#: See golden.REQUIRED_INPUTS. Derived, regenerable, gitignored -- and a
+#: checkout without them makes the engine answer a different question.
+REQUIRED_INPUTS = ("supplier_rhythm_analysis.json",
+                   "supplier_weekly_schedule.json",
+                   "Supplier_Order_Calendar_2026.xlsx")
+
+
+def missing_inputs():
+    return [f for f in REQUIRED_INPUTS
+            if not os.path.exists(os.path.join(REPO, f))]
+
+
 def temp_data_dir():
     tmp = tempfile.mkdtemp(prefix="oasis_xfer_")
     parent = os.path.join(tmp, "parent")
     data_dir = os.path.join(parent, "data")
     os.makedirs(data_dir, exist_ok=True)
-    for f in ("supplier_rhythm_analysis.json", "supplier_weekly_schedule.json",
-              "Supplier_Order_Calendar_2026.xlsx"):
-        src = os.path.join(REPO, f)
-        if os.path.exists(src):
-            shutil.copy2(src, os.path.join(parent, f))
+    gone = missing_inputs()
+    if gone:
+        raise FileNotFoundError(
+            f"cannot generate transfer vectors without {gone}: the engine "
+            f"would fall back to defaults and pin the wrong answers.")
+    for f in REQUIRED_INPUTS:
+        shutil.copy2(os.path.join(REPO, f), os.path.join(parent, f))
     return tmp, data_dir
 
 
