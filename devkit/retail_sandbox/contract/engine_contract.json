@@ -1,0 +1,262 @@
+{
+  "generated_utc": "2026-09-11T18:16:22Z",
+  "repo_relative": "devkit/retail_sandbox/contract",
+  "entry_points": {
+    "target_stock": {
+      "required_fields": [
+        "median_gap_days",
+        "product_name"
+      ],
+      "optional_fields": [
+        "avg_daily_sales",
+        "estimated_delivery_days",
+        "is_fresh",
+        "supplier_name"
+      ],
+      "optional_defaults": {
+        "avg_daily_sales": "0.0",
+        "estimated_delivery_days": "7",
+        "is_fresh": "False",
+        "supplier_name": "'UNKNOWN'"
+      },
+      "fields_the_engine_sets": []
+    },
+    "order_quantity": {
+      "required_fields": [
+        "_cadence",
+        "avg_daily_sales",
+        "current_stock",
+        "current_stocks",
+        "demand_cv_daily",
+        "department",
+        "estimated_delivery_days",
+        "id",
+        "lead_time_days",
+        "min_presentation_stock",
+        "on_order_qty",
+        "pack_size",
+        "product_name",
+        "shelf_life_days",
+        "sku",
+        "supplier_name"
+      ],
+      "optional_fields": [
+        "days_since_delivery",
+        "demand_cv",
+        "is_fresh",
+        "is_staple",
+        "is_top_sku",
+        "median_gap_days",
+        "reorder_point",
+        "sales_rank",
+        "total_units_sold_last_90d"
+      ],
+      "optional_defaults": {
+        "days_since_delivery": "0",
+        "demand_cv": "0.2",
+        "is_fresh": "False",
+        "is_staple": "False",
+        "is_top_sku": "False",
+        "median_gap_days": "7",
+        "reorder_point": "0",
+        "sales_rank": "999",
+        "total_units_sold_last_90d": "0"
+      },
+      "fields_the_engine_sets": [
+        "order_up_to_terms",
+        "reasoning",
+        "recommended_quantity",
+        "target_coverage_days"
+      ]
+    },
+    "order_pipeline": {
+      "required_fields": [
+        "_cadence",
+        "avg_daily_sales",
+        "current_stock",
+        "current_stocks",
+        "demand_cv_daily",
+        "department",
+        "estimated_delivery_days",
+        "id",
+        "lead_time_days",
+        "min_presentation_stock",
+        "on_order_qty",
+        "pack_size",
+        "product_name",
+        "shelf_life_days",
+        "sku",
+        "supplier_name"
+      ],
+      "optional_fields": [
+        "abc_rank",
+        "avg_daily_sales_last_30d",
+        "cost_price",
+        "days_since_delivery",
+        "demand_cv",
+        "is_fresh",
+        "is_key_sku",
+        "is_staple",
+        "is_top_sku",
+        "last_days_since_last_delivery",
+        "median_gap_days",
+        "moq_floor",
+        "product_category",
+        "reorder_point",
+        "sales_rank",
+        "sell_price",
+        "selling_price",
+        "total_units_sold_last_90d"
+      ],
+      "optional_defaults": {
+        "abc_rank": "'B'",
+        "avg_daily_sales_last_30d": "0.0",
+        "cost_price": "0",
+        "days_since_delivery": "0",
+        "demand_cv": "0.2",
+        "is_fresh": "False",
+        "is_key_sku": "False",
+        "is_staple": "False",
+        "is_top_sku": "False",
+        "last_days_since_last_delivery": "0",
+        "median_gap_days": "7",
+        "moq_floor": "0",
+        "product_category": "''",
+        "reorder_point": "0",
+        "sales_rank": "999",
+        "sell_price": "0",
+        "selling_price": "0",
+        "total_units_sold_last_90d": "0"
+      },
+      "fields_the_engine_sets": [
+        "fulfillment",
+        "order_up_to_terms",
+        "pack_rounding",
+        "reasoning",
+        "recommended_quantity",
+        "target_coverage_days"
+      ]
+    }
+  },
+  "observed_behaviour": [
+    {
+      "case": "daily fresh anchor",
+      "why": "hits the 1.2-day DAILY_FRESH_JIT branch",
+      "product_name": "BROOKSIDE 500ML DAIRY BEST (POUCH)",
+      "target_days": 6.0,
+      "recommended_quantity": 2220.0,
+      "reasoning": "[LATA Shield: sigma_L=0.56d -> safety 2.00d of a 2.0d protection interval] [ROP Fallback: intelligence data missing] [order-up-to: R=1d L=2d z=1.28 sigmaL=0.6d ",
+      "qty_raw": 2220.0,
+      "qty_finalized": 2220,
+      "ordered_quantity": 0,
+      "fulfillment": "TRANSFER_FIRST",
+      "pipeline_reasoning": "[LATA Shield: sigma_L=0.56d -> safety 2.00d of a 2.0d protection interval] [ROP Fallback: intelligence data missing] [order-up-to: R=1d L=2d z=1.28 sigmaL=0.6d S=3010] [Item MOQ/MOP Gate: value KES 0 < MOP KES 200 \u2014 rout"
+    },
+    {
+      "case": "long life, keyword present",
+      "why": "hits the UHT/ESL/LONG LIFE guardrail",
+      "product_name": "RAVINE GOLD 500ML ESL UHT MILK",
+      "target_days": 16.0,
+      "recommended_quantity": 132.0,
+      "reasoning": "[LATA Shield: sigma_L=1.93d -> safety 2.54d of a 5.0d protection interval] [ROP Fallback: intelligence data missing] [ROP floored at the protection interval R+L",
+      "qty_raw": 132.0,
+      "qty_finalized": 132,
+      "ordered_quantity": 0,
+      "fulfillment": "TRANSFER_FIRST",
+      "pipeline_reasoning": "[LATA Shield: sigma_L=1.93d -> safety 2.54d of a 5.0d protection interval] [ROP Fallback: intelligence data missing] [ROP floored at the protection interval R+L=8d] [order-up-to: R=7d L=2d z=1.28 sigmaL=1.9d S=170] [Item"
+    },
+    {
+      "case": "long life, keyword ABSENT",
+      "why": "the misclassification case",
+      "product_name": "TUZO 500ML WHOLE MILK (FINO PACK) 180DAYS",
+      "target_days": 6.0,
+      "recommended_quantity": 264.0,
+      "reasoning": "[LATA Shield: sigma_L=0.56d -> safety 2.00d of a 2.0d protection interval] [ROP Fallback: intelligence data missing] [order-up-to: R=1d L=2d z=1.28 sigmaL=0.6d ",
+      "qty_raw": 264.0,
+      "qty_finalized": 264,
+      "ordered_quantity": 0,
+      "fulfillment": "TRANSFER_FIRST",
+      "pipeline_reasoning": "[LATA Shield: sigma_L=0.56d -> safety 2.00d of a 2.0d protection interval] [ROP Fallback: intelligence data missing] [order-up-to: R=1d L=2d z=1.28 sigmaL=0.6d S=348] [Item MOQ/MOP Gate: value KES 0 < MOP KES 200 \u2014 route"
+    },
+    {
+      "case": "dry goods",
+      "why": "hits the cycle+lead+14 dynamic cap",
+      "product_name": "SOKO 2KG MAIZE MEAL",
+      "target_days": 10.0,
+      "recommended_quantity": 0,
+      "reasoning": "[Schedule: Gap 4d, Next: Day 4]",
+      "qty_raw": 0,
+      "qty_finalized": 0,
+      "ordered_quantity": 0,
+      "fulfillment": "NONE",
+      "pipeline_reasoning": "[Schedule: Gap 4d, Next: Day 4]"
+    },
+    {
+      "case": "slow mover",
+      "why": "hits the 0.8x low-velocity multiplier",
+      "product_name": "AMERICANO 90G ALMONDS SQUARE TIN",
+      "target_days": 31.0,
+      "recommended_quantity": 0,
+      "reasoning": "[Above ROP 3.2]",
+      "qty_raw": 0,
+      "qty_finalized": 0,
+      "ordered_quantity": 0,
+      "fulfillment": "NONE",
+      "pipeline_reasoning": "[Above ROP 3.2]"
+    },
+    {
+      "case": "zero velocity",
+      "why": "greenfield / lookalike path",
+      "product_name": "NEW LISTING NO HISTORY 1L",
+      "target_days": 0.0,
+      "recommended_quantity": 0,
+      "reasoning": "[LATA Shield: sigma_L=1.93d -> safety 2.50d of a 2.0d protection interval] [order-up-to: position already covers P]",
+      "qty_raw": 0,
+      "qty_finalized": 0,
+      "ordered_quantity": 0,
+      "fulfillment": "NONE",
+      "pipeline_reasoning": "[LATA Shield: sigma_L=1.93d -> safety 2.50d of a 2.0d protection interval] [order-up-to: position already covers P]"
+    },
+    {
+      "case": "minimal record",
+      "why": "what happens with almost nothing supplied",
+      "product_name": "BARE MINIMUM ITEM",
+      "target_days": 17.0,
+      "recommended_quantity": 68.0,
+      "reasoning": "[LATA Shield: sigma_L=1.93d -> safety 2.57d of a 8.0d protection interval] [ROP Fallback: intelligence data missing] [ROP floored at the protection interval R+L",
+      "qty_raw": 68.0,
+      "qty_finalized": 68,
+      "ordered_quantity": 0,
+      "fulfillment": "TRANSFER_FIRST",
+      "pipeline_reasoning": "[LATA Shield: sigma_L=1.93d -> safety 2.57d of a 8.0d protection interval] [ROP Fallback: intelligence data missing] [ROP floored at the protection interval R+L=8d] [order-up-to: R=7d L=3d z=1.28 sigmaL=1.9d S=67] [Item "
+    }
+  ],
+  "engines_config": {
+    "source": "oasis/data/oasis_engines_config.json",
+    "sha256": "3893900f57321bb4e862d04961cf50bc421aa326107f0bb6ac9f7b2d2197ed6f",
+    "bytes": 9261,
+    "active_engines": [
+      "amit",
+      "lata",
+      "mande",
+      "mop_up"
+    ],
+    "engine_sources": {
+      "files": {
+        "oasis/logic/order_engine.py": "196e8729b526091542d99e0808b8907f8797fa6e65b5f05f4225e9754230fc80",
+        "oasis/logic/intelligence_mixin.py": "d245d2d13ebff00828550693b1d30d3d71f18791633e57a7892b4c4b96473258",
+        "oasis/logic/simulation_bridge.py": "b437697f3fbc8dda5f0354170509163c169ae4a50a0fc9303d3c96d9128be996",
+        "oasis/logic/order_up_to.py": "5f367de004013f85baaae4ebc70ff61fb2fb5f4e5cc57e87381a9b4a2264023b",
+        "oasis/logic/order_logic_guards.py": "935ce14f687dd268a83775543358168dc243ef131c0ac09ad91f3ea4c7d09409",
+        "oasis/logic/rounding.py": "ce471d45e890be38ef3693d20dc5d8a725a5ae96a428645d1f57b251680ae8c7",
+        "oasis/logic/engines_config.py": "a571047e00dfb82c163bc9a6d2909807b26706ae8fbb0a32afbfa062dae10b52",
+        "oasis/logic/lata_shield.py": "2e65940526c7c9dd233d1c6985c129559a6ccc34b669cbf3f6cabda3ce6e996a",
+        "oasis/logic/residual_cover.py": "06083ea94a18de750a29e379d77893787dd0f1762f481fcb9c1f3ae37b079fd1",
+        "oasis/logic/consolidated_transfer_service.py": "937debb668c8da75007e1f0d2a77a319c8b5f66529b05a422058d4b657884043",
+        "oasis/logic/fulfillment_decider.py": "3d48b468747905694083fc064330c627464a6cccce7e2cad5e03503d2ee9068e",
+        "oasis/logic/transfer_state.py": "0cbbabea17fe0125f3f40bba9bd6cdc45213f425e6de288b62bba0045b60aa77"
+      },
+      "combined_sha256": "958c0e5805985d51f00cee8b72fca35f9e59860c180e518ddfdddf17f3391c78"
+    }
+  }
+}

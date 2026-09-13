@@ -1,0 +1,459 @@
+{
+ "engines_config_sha256": "3893900f57321bb4e862d04961cf50bc421aa326107f0bb6ac9f7b2d2197ed6f",
+ "current_day": 40,
+ "n_lines": 12,
+ "count": 9,
+ "vectors": [
+  {
+   "scenario": "balanced",
+   "why": "every store comfortable - the engine should decline",
+   "transfers": [],
+   "transfer_count": 0,
+   "units_transferred": 0.0,
+   "orders_reduced": 0,
+   "po_before": {
+    "ST1": 1260.0,
+    "ST2": 1260.0,
+    "ST3": 1260.0
+   },
+   "po_after": {
+    "ST1": 1260.0,
+    "ST2": 1260.0,
+    "ST3": 1260.0
+   },
+   "decisions": [
+    "ST1/S42:ORDER",
+    "ST1/S43:ORDER",
+    "ST1/S57:ORDER",
+    "ST2/S42:ORDER",
+    "ST2/S43:ORDER",
+    "ST2/S57:ORDER",
+    "ST3/S42:ORDER",
+    "ST3/S43:ORDER",
+    "ST3/S57:ORDER"
+   ],
+   "self_transfers": 0
+  },
+  {
+   "scenario": "empty vs 25d donors",
+   "why": "ST1 out, donors just BELOW the threshold",
+   "transfers": [],
+   "transfer_count": 0,
+   "units_transferred": 0.0,
+   "orders_reduced": 0,
+   "po_before": {
+    "ST1": 7638.0,
+    "ST2": 0.0,
+    "ST3": 0.0
+   },
+   "po_after": {
+    "ST1": 7638.0,
+    "ST2": 0.0,
+    "ST3": 0.0
+   },
+   "decisions": [
+    "ST1/S05:ORDER",
+    "ST1/S07:ORDER",
+    "ST1/S14:ORDER",
+    "ST1/S15:ORDER",
+    "ST1/S16:ORDER",
+    "ST1/S19:ORDER",
+    "ST1/S31:ORDER",
+    "ST1/S42:ORDER",
+    "ST1/S43:ORDER",
+    "ST1/S49:ORDER",
+    "ST1/S53:ORDER",
+    "ST1/S57:ORDER"
+   ],
+   "self_transfers": 0
+  },
+  {
+   "scenario": "empty vs 30d donors",
+   "why": "ST1 out, donors just AT the threshold",
+   "transfers": [
+    {
+     "from": "ST2",
+     "to": "ST1",
+     "itm": "S43",
+     "qty": 340.0,
+     "urgency": "HIGH"
+    }
+   ],
+   "transfer_count": 1,
+   "units_transferred": 340.0,
+   "orders_reduced": 0,
+   "po_before": {
+    "ST1": 7638.0,
+    "ST2": 0.0,
+    "ST3": 0.0
+   },
+   "po_after": {
+    "ST1": 7638.0,
+    "ST2": 0.0,
+    "ST3": 0.0
+   },
+   "decisions": [
+    "ST1/S05:ORDER",
+    "ST1/S07:ORDER",
+    "ST1/S14:ORDER",
+    "ST1/S15:ORDER",
+    "ST1/S16:ORDER",
+    "ST1/S19:ORDER",
+    "ST1/S31:ORDER",
+    "ST1/S42:ORDER",
+    "ST1/S43:BOTH",
+    "ST1/S49:ORDER",
+    "ST1/S53:ORDER",
+    "ST1/S57:ORDER"
+   ],
+   "self_transfers": 0
+  },
+  {
+   "scenario": "empty vs 40d donors",
+   "why": "ST1 out, donors comfortably above it",
+   "transfers": [
+    {
+     "from": "ST2",
+     "to": "ST1",
+     "itm": "S42",
+     "qty": 355.0,
+     "urgency": "HIGH"
+    },
+    {
+     "from": "ST2",
+     "to": "ST1",
+     "itm": "S43",
+     "qty": 340.0,
+     "urgency": "HIGH"
+    },
+    {
+     "from": "ST2",
+     "to": "ST1",
+     "itm": "S49",
+     "qty": 339.0,
+     "urgency": "HIGH"
+    },
+    {
+     "from": "ST2",
+     "to": "ST1",
+     "itm": "S57",
+     "qty": 380.0,
+     "urgency": "HIGH"
+    }
+   ],
+   "transfer_count": 4,
+   "units_transferred": 1414.0,
+   "orders_reduced": 0,
+   "po_before": {
+    "ST1": 7638.0,
+    "ST2": 0.0,
+    "ST3": 0.0
+   },
+   "po_after": {
+    "ST1": 7638.0,
+    "ST2": 0.0,
+    "ST3": 0.0
+   },
+   "decisions": [
+    "ST1/S05:ORDER",
+    "ST1/S07:ORDER",
+    "ST1/S14:ORDER",
+    "ST1/S15:ORDER",
+    "ST1/S16:ORDER",
+    "ST1/S19:ORDER",
+    "ST1/S31:ORDER",
+    "ST1/S42:BOTH",
+    "ST1/S43:BOTH",
+    "ST1/S49:BOTH",
+    "ST1/S53:ORDER",
+    "ST1/S57:BOTH"
+   ],
+   "self_transfers": 0
+  },
+  {
+   "scenario": "short not empty",
+   "why": "2 days left - tests gap_days, not stock-out",
+   "transfers": [
+    {
+     "from": "ST2",
+     "to": "ST1",
+     "itm": "S42",
+     "qty": 253.0,
+     "urgency": "HIGH"
+    },
+    {
+     "from": "ST2",
+     "to": "ST1",
+     "itm": "S43",
+     "qty": 243.0,
+     "urgency": "HIGH"
+    },
+    {
+     "from": "ST2",
+     "to": "ST1",
+     "itm": "S49",
+     "qty": 242.0,
+     "urgency": "HIGH"
+    },
+    {
+     "from": "ST2",
+     "to": "ST1",
+     "itm": "S57",
+     "qty": 271.0,
+     "urgency": "HIGH"
+    }
+   ],
+   "transfer_count": 4,
+   "units_transferred": 1009.0,
+   "orders_reduced": 0,
+   "po_before": {
+    "ST1": 4482.0,
+    "ST2": 0.0,
+    "ST3": 0.0
+   },
+   "po_after": {
+    "ST1": 4482.0,
+    "ST2": 0.0,
+    "ST3": 0.0
+   },
+   "decisions": [
+    "ST1/S05:ORDER",
+    "ST1/S07:ORDER",
+    "ST1/S14:ORDER",
+    "ST1/S15:ORDER",
+    "ST1/S16:ORDER",
+    "ST1/S19:ORDER",
+    "ST1/S31:ORDER",
+    "ST1/S42:BOTH",
+    "ST1/S43:BOTH",
+    "ST1/S49:BOTH",
+    "ST1/S53:ORDER",
+    "ST1/S57:BOTH"
+   ],
+   "self_transfers": 0
+  },
+  {
+   "scenario": "no donor has excess",
+   "why": "ST1 out, nobody has anything to give",
+   "transfers": [],
+   "transfer_count": 0,
+   "units_transferred": 0.0,
+   "orders_reduced": 0,
+   "po_before": {
+    "ST1": 7638.0,
+    "ST2": 2238.0,
+    "ST3": 2238.0
+   },
+   "po_after": {
+    "ST1": 7638.0,
+    "ST2": 2238.0,
+    "ST3": 2238.0
+   },
+   "decisions": [
+    "ST1/S05:ORDER",
+    "ST1/S07:ORDER",
+    "ST1/S14:ORDER",
+    "ST1/S15:ORDER",
+    "ST1/S16:ORDER",
+    "ST1/S19:ORDER",
+    "ST1/S31:ORDER",
+    "ST1/S42:ORDER",
+    "ST1/S43:ORDER",
+    "ST1/S49:ORDER",
+    "ST1/S53:ORDER",
+    "ST1/S57:ORDER",
+    "ST2/S42:ORDER",
+    "ST2/S43:ORDER",
+    "ST2/S49:ORDER",
+    "ST2/S57:ORDER",
+    "ST3/S42:ORDER",
+    "ST3/S43:ORDER",
+    "ST3/S49:ORDER",
+    "ST3/S57:ORDER"
+   ],
+   "self_transfers": 0
+  },
+  {
+   "scenario": "one long, two short",
+   "why": "one donor, two claimants - tests the priority",
+   "transfers": [
+    {
+     "from": "ST3",
+     "to": "ST1",
+     "itm": "S42",
+     "qty": 304.0,
+     "urgency": "HIGH"
+    },
+    {
+     "from": "ST3",
+     "to": "ST1",
+     "itm": "S43",
+     "qty": 292.0,
+     "urgency": "HIGH"
+    },
+    {
+     "from": "ST3",
+     "to": "ST1",
+     "itm": "S49",
+     "qty": 291.0,
+     "urgency": "HIGH"
+    },
+    {
+     "from": "ST3",
+     "to": "ST1",
+     "itm": "S57",
+     "qty": 326.0,
+     "urgency": "HIGH"
+    },
+    {
+     "from": "ST3",
+     "to": "ST2",
+     "itm": "S42",
+     "qty": 304.0,
+     "urgency": "HIGH"
+    },
+    {
+     "from": "ST3",
+     "to": "ST2",
+     "itm": "S43",
+     "qty": 292.0,
+     "urgency": "HIGH"
+    },
+    {
+     "from": "ST3",
+     "to": "ST2",
+     "itm": "S49",
+     "qty": 291.0,
+     "urgency": "HIGH"
+    },
+    {
+     "from": "ST3",
+     "to": "ST2",
+     "itm": "S57",
+     "qty": 326.0,
+     "urgency": "HIGH"
+    }
+   ],
+   "transfer_count": 8,
+   "units_transferred": 2426.0,
+   "orders_reduced": 0,
+   "po_before": {
+    "ST1": 6048.0,
+    "ST2": 6048.0,
+    "ST3": 0.0
+   },
+   "po_after": {
+    "ST1": 6048.0,
+    "ST2": 6048.0,
+    "ST3": 0.0
+   },
+   "decisions": [
+    "ST1/S05:ORDER",
+    "ST1/S07:ORDER",
+    "ST1/S14:ORDER",
+    "ST1/S15:ORDER",
+    "ST1/S16:ORDER",
+    "ST1/S19:ORDER",
+    "ST1/S31:ORDER",
+    "ST1/S42:BOTH",
+    "ST1/S43:BOTH",
+    "ST1/S49:BOTH",
+    "ST1/S53:ORDER",
+    "ST1/S57:BOTH",
+    "ST2/S05:ORDER",
+    "ST2/S07:ORDER",
+    "ST2/S14:ORDER",
+    "ST2/S15:ORDER",
+    "ST2/S16:ORDER",
+    "ST2/S19:ORDER",
+    "ST2/S31:ORDER",
+    "ST2/S42:BOTH",
+    "ST2/S43:BOTH",
+    "ST2/S49:BOTH",
+    "ST2/S53:ORDER",
+    "ST2/S57:BOTH"
+   ],
+   "self_transfers": 0
+  },
+  {
+   "scenario": "two stores",
+   "why": "smallest network that can transfer at all",
+   "transfers": [
+    {
+     "from": "ST2",
+     "to": "ST1",
+     "itm": "S42",
+     "qty": 355.0,
+     "urgency": "HIGH"
+    },
+    {
+     "from": "ST2",
+     "to": "ST1",
+     "itm": "S43",
+     "qty": 340.0,
+     "urgency": "HIGH"
+    },
+    {
+     "from": "ST2",
+     "to": "ST1",
+     "itm": "S49",
+     "qty": 339.0,
+     "urgency": "HIGH"
+    },
+    {
+     "from": "ST2",
+     "to": "ST1",
+     "itm": "S57",
+     "qty": 380.0,
+     "urgency": "HIGH"
+    }
+   ],
+   "transfer_count": 4,
+   "units_transferred": 1414.0,
+   "orders_reduced": 0,
+   "po_before": {
+    "ST1": 7638.0,
+    "ST2": 0.0
+   },
+   "po_after": {
+    "ST1": 7638.0,
+    "ST2": 0.0
+   },
+   "decisions": [
+    "ST1/S05:ORDER",
+    "ST1/S07:ORDER",
+    "ST1/S14:ORDER",
+    "ST1/S15:ORDER",
+    "ST1/S16:ORDER",
+    "ST1/S19:ORDER",
+    "ST1/S31:ORDER",
+    "ST1/S42:BOTH",
+    "ST1/S43:BOTH",
+    "ST1/S49:BOTH",
+    "ST1/S53:ORDER",
+    "ST1/S57:BOTH"
+   ],
+   "self_transfers": 0
+  },
+  {
+   "scenario": "deep overstock",
+   "why": "everyone long - PUSH has no hot node to push to",
+   "transfers": [],
+   "transfer_count": 0,
+   "units_transferred": 0.0,
+   "orders_reduced": 0,
+   "po_before": {
+    "ST1": 0.0,
+    "ST2": 0.0,
+    "ST3": 0.0
+   },
+   "po_after": {
+    "ST1": 0.0,
+    "ST2": 0.0,
+    "ST3": 0.0
+   },
+   "decisions": [],
+   "self_transfers": 0
+  }
+ ]
+}

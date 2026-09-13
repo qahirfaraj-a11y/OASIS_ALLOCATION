@@ -1,0 +1,12 @@
+{
+ "vectors": 290,
+ "agreeWithin10pct": 49,
+ "agreePct": 16.9,
+ "bothZero": 1,
+ "jsOnlyOrders": 84,
+ "realOnlyOrders": 0,
+ "medianRelGap": 0.4,
+ "meanCoverDaysJs": 12.23,
+ "meanCoverDaysReal": 11.24,
+ "configSha": "3893900f57321bb4e862d04961cf50bc421aa326107f0bb6ac9f7b2d2197ed6f"
+}
