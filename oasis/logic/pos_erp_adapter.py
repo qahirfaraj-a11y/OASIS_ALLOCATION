@@ -26,6 +26,7 @@ import pandas as pd
 from sqlalchemy import text
 
 from oasis.logic import erp_contract
+from .clock import as_of
 
 logger = logging.getLogger("PosErpAdapter")
 
@@ -129,7 +130,7 @@ class PosErpAdapter(erp_contract.ErpAdapter):
                 if row["SM_LAST_RECV_DT"]:
                     try:
                         last_recv = datetime.strptime(str(row["SM_LAST_RECV_DT"])[:10], "%Y-%m-%d")
-                        days_since_delivery = (datetime.now() - last_recv).days
+                        days_since_delivery = (as_of() - last_recv).days
                     except (ValueError, TypeError):
                         days_since_delivery = 0
 
@@ -210,7 +211,7 @@ class PosErpAdapter(erp_contract.ErpAdapter):
         Note there is no time-of-day anywhere in this schema — BILL_DT is a
         date — so nothing downstream can derive a real intra-day hour.
         """
-        cutoff = (datetime.now() - timedelta(days=days)).strftime("%Y-%m-%d")
+        cutoff = (as_of() - timedelta(days=days)).strftime("%Y-%m-%d")
 
         query = text("""
             SELECT
@@ -284,7 +285,7 @@ class PosErpAdapter(erp_contract.ErpAdapter):
             }
         }
         """
-        cutoff = (datetime.now() - timedelta(days=days)).strftime("%Y-%m-%d")
+        cutoff = (as_of() - timedelta(days=days)).strftime("%Y-%m-%d")
 
         # Year-month bucket, per dialect. This used to be a hardcoded
         # SUBSTR(d.BILL_DT, 1, 7), which is doubly SQLite-specific: SQL Server
@@ -570,7 +571,7 @@ class PosErpAdapter(erp_contract.ErpAdapter):
                     try:
                         # Ensure created string is long enough for slicing
                         created_dt = datetime.strptime(created[:10], "%Y-%m-%d") # type: ignore
-                        days_since = (datetime.now() - created_dt).days
+                        days_since = (as_of() - created_dt).days
                         eta_days = max(0, 3 - days_since)  # Assume 3-day default lead time
                     except (ValueError, TypeError):
                         eta_days = 3
@@ -690,7 +691,7 @@ class PosErpAdapter(erp_contract.ErpAdapter):
         Returns:
             {itm_cd: {"weighted_ads": float, "total_90d": int, "ads_30d": float, "ads_60d": float}}
         """
-        now = datetime.now()
+        now = as_of()
         cutoff_90 = (now - timedelta(days=90)).strftime("%Y-%m-%d")
         cutoff_60 = (now - timedelta(days=60)).strftime("%Y-%m-%d")
         cutoff_30 = (now - timedelta(days=30)).strftime("%Y-%m-%d")

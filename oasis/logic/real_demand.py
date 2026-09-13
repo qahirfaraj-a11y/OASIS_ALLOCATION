@@ -27,6 +27,8 @@ import sqlite3
 from datetime import datetime, timedelta
 from typing import Dict, Tuple
 
+from . import clock as _clock
+
 _CODE = re.compile(r"\b[A-Z]{2,5}[0-9]{2,6}\b")   # embedded short codes: AIR223, ELY1006, DZT1142
 
 
@@ -44,7 +46,14 @@ def _is_total_row(name: str) -> bool:
 
 
 def load_cash_file(path: str):
-    """Read one *_cash.xlsx into a {item, qty} frame, robust to layout/header row."""
+    """Read one *_cash.xlsx into an {item, code, qty} frame.
+
+    Robust to layout and header row. ``code`` is the cashier's own "Itm Code"
+    -- the till's article number -- and it was previously read and discarded.
+    That column is the only place the real POS identity appears, and dropping
+    it is why every downstream join had to fall back to the product name.
+    Empty string when a file has no such column, so callers can test it.
+    """
     import pandas as pd
     raw = pd.read_excel(path, header=None)
     hrow = None
@@ -54,14 +63,42 @@ def load_cash_file(path: str):
             hrow = i
             break
     if hrow is None:
-        return pd.DataFrame(columns=["item", "qty"])
+        return pd.DataFrame(columns=["item", "code", "qty"])
     hv = [str(x).strip().lower() for x in raw.iloc[hrow].tolist()]
     ii, iq = hv.index("item name"), hv.index("qty")
+    # Spelled a few ways across the ten exports; one file also carries a fifth
+    # column, so index by NAME rather than by position.
+    ic = next((hv.index(k) for k in ("itm code", "item code", "itm_cd", "code")
+               if k in hv), None)
     d = raw.iloc[hrow + 1:]
-    df = pd.DataFrame({"item": d.iloc[:, ii],
-                       "qty": pd.to_numeric(d.iloc[:, iq], errors="coerce")})
+    df = pd.DataFrame({
+        "item": d.iloc[:, ii],
+        "code": (d.iloc[:, ic].astype(str).str.strip()
+                 if ic is not None else ""),
+        "qty": pd.to_numeric(d.iloc[:, iq], errors="coerce"),
+    })
     df = df.dropna(subset=["item", "qty"])
     return df[~df["item"].map(_is_total_row)]
+
+
+def load_cash_codes(cash_dir: str, pattern: str = "*_cash.xlsx") -> Dict[str, str]:
+    """{normalised item name: cashier article code} across the monthly files.
+
+    The bridge from till identity to catalogue identity. The name is the only
+    field the two sides share, so it does the matching once, here, offline --
+    rather than every caller re-deriving it at runtime.
+    """
+    out: Dict[str, str] = {}
+    for f in sorted(glob.glob(os.path.join(cash_dir, pattern))):
+        df = load_cash_file(f)
+        if df.empty or "code" not in df:
+            continue
+        for it, cd in zip(df["item"], df["code"]):
+            n = normalise_name(it)
+            c = str(cd).strip()
+            if n and c and c.lower() != "nan":
+                out.setdefault(n, c)
+    return out
 
 
 def load_monthly_demand(cash_dir: str, pattern: str = "*_cash.xlsx"):
@@ -132,7 +169,12 @@ def seed_real_demand(db_path: str, ads_map: Dict[str, float], org: str = "ORG001
                     "SELECT i.ITM_CD, i.ITM_LONG_NAME, COALESCE(sp.BSP_SP, 100.0) "
                     "FROM ITEM_MST i LEFT JOIN BASIC_SP_MST sp "
                     "ON sp.BSP_ITEM_CD = i.ITM_CD AND sp.BSP_ORG_CD = ?", (org,))}
-        today = datetime.now().date()
+        # THE SAME CLOCK THE ADAPTER MEASURES WITH. Seeding off the wall
+        # clock while the adapter reads an as-of date puts every bill outside
+        # the window it was sized for -- and because the 30-day bucket has no
+        # upper bound, future-dated bills all collapse into it at 60% weight.
+        # Measured when these disagreed: median ADS 0.052 -> 1.185, max 12,682.
+        today = _clock.as_of().date()
         hdr_rows, dtl_rows = [], []
         hdr_cols = dtl_cols = None
         bills = lines = seq = 0

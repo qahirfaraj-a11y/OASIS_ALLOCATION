@@ -11,6 +11,7 @@ sys.path.append(os.getcwd())
 from oasis.logic.order_engine import OrderEngine, apply_safety_guards
 from oasis.data.supplier_calendar import SupplierCalendar
 from oasis.logic import order_up_to as _ou
+from oasis.logic import clock as _clock
 
 
 def _supplier_phase_offset(supplier: str, gap_days: int) -> int:
@@ -239,9 +240,13 @@ class SimulationOrderUtil:
                            instead of the simulation day counter. Use True for
                            dashboard/scheduler context, False for simulation.
         """
-        # G2 Fix: Map to real calendar day when in dashboard context
+        # G2 Fix: Map to real calendar day when in dashboard context.
+        # as_of() rather than today(): the supplier calendar is checked against
+        # a WEEKDAY, so measuring a 2025 extract on a 2026 clock asks whether
+        # each supplier delivers on the wrong day of the week. Unset, this is
+        # today and nothing changes.
         if use_real_date:
-            current_day = datetime.today().timetuple().tm_yday  # Day-of-year (1-366)
+            current_day = _clock.as_of().timetuple().tm_yday  # Day-of-year (1-366)
         
         # Load Chapter 11 Engine Caches for daily replenishment enforcement
         amit_enabled = self.engine.is_engine_enabled('amit')
