@@ -77,13 +77,27 @@ class SimulationOrderUtil:
         # suppliers (>30% LT variance) inflate the buffer up to 2.0x; rock-solid
         # ones trim it toward 0.8x. Missing file/entry → neutral 1.0.
         #
-        # RETAINED FOR TELEMETRY/COMPARISON ONLY as of the LATA wiring fix
-        # below -- it is no longer multiplied into `safety_buffer` (see
-        # `calculate_order_quantity`, "DOUBLE-COUNT FIX"). Sizing now reads
-        # sigma_L directly off `self._lead_patterns` and combines it with
-        # demand cv additively, once, instead of stacking this multiplier on
-        # top of a separate cv-driven factor.
-        self._lata_multipliers = self._load_lata_multipliers(data_dir)
+        # NOT LOADED. `_load_lata_multipliers` is still available below and
+        # still documented, but nothing in ordering reads it, so reading 944
+        # entries into an attribute on every construction bought nothing and
+        # cost something worse than the milliseconds: it read as live wiring.
+        #
+        # Two separate readers -- including one of mine -- concluded from this
+        # line that LATA's multiplier was feeding safety stock. It is not, and
+        # has not been since the DOUBLE-COUNT FIX in
+        # `calculate_order_quantity`: sizing reads sigma_L off
+        # `self._lead_patterns` and combines it with demand cv in quadrature,
+        # once, rather than stacking a multiplier on a separate cv factor.
+        #
+        # LATA itself IS live in ordering -- via lead_time_stdev, on 91.2% of
+        # order lines. It is only the MULTIPLIER form that is parked, and
+        # parked correctly: dividing by lead time shrinks the lead-time
+        # contribution as lead time grows, when L=1+/-1d and L=10+/-1d carry
+        # the same absolute exposure.
+        #
+        # Call `_load_lata_multipliers(data_dir)` directly for comparison
+        # tooling; OASIS_LATA_SOURCE=table still selects the old hand-tuned
+        # table there.
 
         # THE WIRING FIX (task A): `order_up_to.sigma_lead()` needs a dict
         # keyed by supplier with a `lead_time_stdev`-shaped field on it.
