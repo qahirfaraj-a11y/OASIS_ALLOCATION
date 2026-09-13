@@ -132,8 +132,24 @@ def temp_data_dir():
 
 
 def config_sha():
+    """Hash the CONFIGURATION, not the bytes that happen to encode it.
+
+    This hashed the raw file. `git archive` and a fresh clone apply the repo's
+    CRLF conversion, so the same config produced a different digest in a clean
+    checkout than in the working tree -- 245 line terminators, identical
+    values -- and the drift check failed on every Windows clone while claiming
+    the engines config had changed. A guard that cries wolf on a clean
+    checkout is one somebody eventually deletes.
+
+    Canonical JSON also makes it immune to a reformat that reorders keys or
+    changes indentation, while still catching any changed value.
+    """
     p = os.path.join(REPO, "oasis", "data", "oasis_engines_config.json")
-    return hashlib.sha256(open(p, "rb").read()).hexdigest() if os.path.exists(p) else None
+    if not os.path.exists(p):
+        return None
+    with open(p, encoding="utf-8") as f:
+        canonical = json.dumps(json.load(f), sort_keys=True, separators=(",", ":"))
+    return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
 
 
 def generate():

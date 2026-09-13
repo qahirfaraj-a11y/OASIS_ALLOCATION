@@ -150,8 +150,16 @@ def temp_data_dir():
 
 
 def config_sha():
+    """Hash the configuration, not its line terminators. See golden.config_sha
+    -- the raw-bytes version failed on every fresh Windows clone because
+    `git archive` applies CRLF conversion, reporting drift where the values
+    were identical."""
     p = os.path.join(REPO, "oasis", "data", "oasis_engines_config.json")
-    return hashlib.sha256(open(p, "rb").read()).hexdigest() if os.path.exists(p) else None
+    if not os.path.exists(p):
+        return None
+    with open(p, encoding="utf-8") as f:
+        canonical = json.dumps(json.load(f), sort_keys=True, separators=(",", ":"))
+    return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
 
 
 def generate():
