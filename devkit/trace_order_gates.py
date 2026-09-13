@@ -84,7 +84,7 @@ def _index(func):
 #: to stop. The presence counts printed below are what catch a wrong spelling.
 DECISION_INPUTS = ("avg_daily_sales", "current_stock", "median_gap_days",
                    "lead_time_days", "days_since_delivery", "reorder_point",
-                   "sales_90d", "is_fresh", "supplier_name")
+                   "total_units_sold_last_90d", "is_fresh", "supplier_name")
 
 
 def _fingerprint(enriched) -> str:
