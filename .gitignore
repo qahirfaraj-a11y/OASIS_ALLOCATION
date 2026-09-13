@@ -223,3 +223,10 @@ oasis_vault/System_Backups/
 # devkit/rekey_forecast_by_barcode.py --write. The name-keyed source remains
 # tracked and is the fallback when this is absent.
 oasis/data/sales_forecasting_by_barcode.json
+
+# FUSE orphans: when a file is deleted while a process still holds it open, the
+# filesystem renames it to .fuse_hidden<hex> instead of unlinking it. 116 of
+# these accumulated in oasis/data between 2026-09-04 and 09-06 -- one SQLite
+# page each, 3.7MB total, referenced by nothing -- and because they were not
+# ignored they appeared in every git status, burying the real uncommitted work.
+.fuse_hidden*
