@@ -602,6 +602,12 @@ class OdooAdapter(_contract.ErpAdapter):
                 "product_name": str(p.get("display_name") or ""),
                 "barcode": str(p.get("barcode") or ""),
                 "current_stocks": float(on_hand.get(pid, 0.0)),
+                # Carried at this site: stock is recorded here, or the product
+                # was received or sold here. A product with none of the three
+                # has never been at this store, and a missing quant must not
+                # read as a stock-out -- the transfer scan used to send such
+                # items to stores that do not range them.
+                "is_ranged": (pid in on_hand) or bool(last_recv) or units > 0,
                 "selling_price": float(p.get("list_price") or 0.0),
                 # Odoo's standard_price IS the cost — the field the hub cannot carry
                 "cost_price": float(p.get("standard_price") or 0.0),

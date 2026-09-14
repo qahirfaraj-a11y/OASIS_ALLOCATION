@@ -98,6 +98,7 @@ class PosErpAdapter(erp_contract.ErpAdapter):
                 i.UOM_DESC,
                 i.WEIGHT_FLAG,
                 i.SUPPLIER_CD,
+                s.SM_ITM_CD AS SM_ROW_ITM_CD,
                 s.SM_QTY,
                 s.SM_WAC,
                 s.SM_LAST_RECV_DT,
@@ -143,6 +144,12 @@ class PosErpAdapter(erp_contract.ErpAdapter):
                     "product_name": str(row["ITM_LONG_NAME"] or ""),
                     "barcode": str(row["SCAN_ITM_CD"] or ""),
                     "current_stocks": float(row["SM_QTY"] or 0.0),
+                    # Whether this store has a stock row for the item at all.
+                    # The LEFT JOIN returns NULL for "not carried here" and 0
+                    # for "sold out", and `or 0.0` above makes them identical
+                    # -- which is how the transfer scan came to send stock to
+                    # stores that have never ranged the item. Say which it was.
+                    "is_ranged": row["SM_ROW_ITM_CD"] is not None,
                     "selling_price": float(row["BSP_SP"] or 0.0),
                     "cost_price": float(row["BCP_CP"] or row["SM_WAC"] or 0.0),
                     "mrp": float(row["BSP_MRP"] or 0.0),

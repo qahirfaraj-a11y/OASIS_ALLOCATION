@@ -767,6 +767,19 @@ class ConsolidatedTransferService:
             'lead_days': float(p.get('estimated_delivery_days', 0) or 0),
             'uom': str(p.get('uom', 'EA')).upper(),
             'is_fresh': fresh,
+            # Does this store CARRY the item at all? Zero stock means two
+            # different things -- sold out, or never ranged here -- and only
+            # the first is a gap worth plugging. Every multi-store network the
+            # repo builds records "not carried" as a missing stock row
+            # (multi_store_build: "some stores carry a subset of the
+            # catalogue"; 68.8-78.8% row coverage across the three on disk), so
+            # the adapter reports whether the row exists.
+            #
+            # Defaults to True for callers that cannot tell -- test fixtures,
+            # devkit books, any adapter that has not been taught -- so the
+            # previous behaviour holds wherever the fact is unknown rather
+            # than silently switching zero-demand pulls off everywhere.
+            'is_ranged': bool(p.get('is_ranged', True)),
             # Stock already on a supplier order. Counted as supply only where
             # it lands before relief is needed — a pallet due in three weeks
             # does not help a store that runs out on Thursday, and treating it
@@ -957,7 +970,15 @@ class ConsolidatedTransferService:
 
                 pull_trigger = (
                     (ads > 0 and (days_cover < trigger_days or eff_stock <= rop))
-                    or (ads == 0 and eff_stock < 1.0)
+                    # Zero demand AND zero stock is a gap only where the store
+                    # carries the item. Without this gate the rule read every
+                    # item a store has never ranged as a stock-out: measured on
+                    # the 5-store network, 21 of 54 transfers (39%) went to
+                    # stores with no stock row and no sales ever, 13 of them
+                    # queueable without a human, each valued at KES 0 because
+                    # the store has no price for it. On the real catalogue one
+                    # store has 15,405 items meeting the ungated rule.
+                    or (ads == 0 and eff_stock < 1.0 and entry['is_ranged'])
                     or (itm in org_moq)
                 )
                 if pull_trigger:
