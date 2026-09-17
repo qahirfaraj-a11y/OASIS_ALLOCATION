@@ -203,8 +203,10 @@ def _build(limit=0, stores=None, log=print):
                 "on_order_eta_days": float(r.get("on_order_eta_days") or 0),
                 "is_fresh": bool(r.get("is_fresh")),
                 "pack_size": float(r.get("pack_size") or 0),
-                "supplier_min_units": min_units,
-                "supplier_min_value": min_value,
+                # An exempt line was admitted without the supplier minimum, so
+                # the approval guard must not re-impose it on its own basket.
+                "supplier_min_units": 0.0 if r.get("moq_exempt") else min_units,
+                "supplier_min_value": 0.0 if r.get("moq_exempt") else min_value,
                 "reason": reason_for(r, store_name),
             })
 

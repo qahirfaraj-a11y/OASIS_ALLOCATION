@@ -43,6 +43,10 @@ def _find_calendar_path(data_dir: str) -> str:
     return candidates[1]  # Fallback to cwd
 
 
+#: Departments whose lines bypass apply_minimum_order_gate (see there for why).
+MOQ_EXEMPT_DEPARTMENTS = ("BREAD",)
+
+
 class SimulationOrderUtil:
     """
     Bridge to use Oasis OrderEngine logic within a high-speed simulation.
@@ -136,6 +140,8 @@ class SimulationOrderUtil:
             # the smaller the store — settable for exactly that reason.
             'min_item_value_fresh_kes': 200.0,
             'min_item_value_dry_kes': 100.0,
+            # Departments that bypass the minimum-order gate entirely.
+            'moq_exempt_departments': list(MOQ_EXEMPT_DEPARTMENTS),
         }
         
     @staticmethod
@@ -829,6 +835,12 @@ class SimulationOrderUtil:
         products_map = {r['product_name']: r for r in recommendations}
         return apply_safety_guards(recommendations, products_map, allocation_mode="replenishment")
 
+    def is_moq_exempt(self, rec: Dict[str, Any]) -> bool:
+        """Whether this line bypasses the minimum-order gate (department list)."""
+        exempt = self.thresholds.get('moq_exempt_departments', MOQ_EXEMPT_DEPARTMENTS) or ()
+        dept = " ".join(str(rec.get('department') or '').upper().split())
+        return bool(dept) and dept in {" ".join(str(d).upper().split()) for d in exempt}
+
     def apply_minimum_order_gate(self, finalized_recs: List[Dict[str, Any]]) -> Dict[str, List[Dict[str, Any]]]:
         """
         Two-stage Minimum Order Gate.
@@ -857,11 +869,30 @@ class SimulationOrderUtil:
         transfer_recs = []
         
         # --- STAGE 1: SKU-level MOQ/MOP gate ---
+        exempt_recs = []
         for rec in finalized_recs:
             qty = rec.get('recommended_quantity', 0)
             if qty <= 0:
                 continue
-                
+
+            # BREAD IS BOUGHT IN SMALL DAILY LINES, AND THIS GATE DROPS THEM.
+            # A bread line is a few loaves from a bakery that delivers every
+            # day; the KES 200 per-line floor and the 10-unit / KES 5,000
+            # supplier floor were written for weekly dry-goods baskets.
+            # Replayed day by day over Apr-Sep 2026 against the bakeries' real
+            # deliveries (devkit/bread_backtest.py, two demand shapes, five
+            # seeds each), the gate cost KES 209-227k a year of lost bread
+            # sales and about KES 30k of store margin, and removing it was
+            # the only change that won on sales and margin in both shapes.
+            # Exempt lines still count towards their supplier's basket below:
+            # they travel on the same PO.
+            if self.is_moq_exempt(rec):
+                rec['fulfillment'] = 'SUPPLIER_PO'
+                rec['moq_exempt'] = True
+                rec['reasoning'] = rec.get('reasoning', '') + " [MOQ gate: department exempt]"
+                exempt_recs.append(rec)
+                continue
+
             is_fresh = rec.get('is_fresh', False)
             pack_size = max(1, int(rec.get('pack_size', 1)))
             cost_price = float(rec.get('cost_price', rec.get('sell_price', rec.get('selling_price', 0))))
@@ -916,20 +947,24 @@ class SimulationOrderUtil:
                 
         # --- STAGE 2: Supplier-level MOT gate ---
         supplier_groups: Dict[str, List[Dict[str, Any]]] = {}
+        exempt_by_supplier: Dict[str, List[Dict[str, Any]]] = {}
+        for rec in exempt_recs:
+            exempt_by_supplier.setdefault(rec.get('supplier_name', rec.get('supplier', 'UNKNOWN')), []).append(rec)
         for rec in po_candidate_recs:
             supplier = rec.get('supplier_name', rec.get('supplier', 'UNKNOWN'))
             if supplier not in supplier_groups:
                 supplier_groups[supplier] = []
             supplier_groups[supplier].append(rec)
             
-        po_recs = []
+        po_recs = list(exempt_recs)
         supplier_summary = {}
         
         for supplier, recs in supplier_groups.items():
-            total_units = sum(r.get('recommended_quantity', 0) for r in recs)
+            basket = recs + exempt_by_supplier.get(supplier, [])
+            total_units = sum(r.get('recommended_quantity', 0) for r in basket)
             total_value = sum(
                 r.get('recommended_quantity', 0) * r.get('cost_price', r.get('sell_price', r.get('selling_price', 0)))
-                for r in recs
+                for r in basket
             )
             
             meets_units = total_units >= min_units

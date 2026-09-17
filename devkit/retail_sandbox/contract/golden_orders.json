@@ -801,7 +801,7 @@
    "qty_finalized": 192.0,
    "ordered_quantity": 192.0,
    "fulfillment": "PO",
-   "reasoning": "[LATA Shield: lead_time_stdev sigma_L=1.93d -> safety 3.06d of a 8.0d protection interval] [order-up-to: R=1d L=1d z=1.28 sigmaL=0.4d S=190]"
+   "reasoning": "[LATA Shield: lead_time_stdev sigma_L=1.93d -> safety 3.06d of a 8.0d protection interval] [order-up-to: R=1d L=1d z=1.28 sigmaL=0.4d S=190] [MOQ gate: department exempt]"
   },
   {
    "case": "S14 @ 1d",
@@ -814,7 +814,7 @@
    "qty_finalized": 132.0,
    "ordered_quantity": 132.0,
    "fulfillment": "PO",
-   "reasoning": "[LATA Shield: lead_time_stdev sigma_L=1.93d -> safety 3.06d of a 8.0d protection interval] [order-up-to: R=1d L=1d z=1.28 sigmaL=0.4d S=190]"
+   "reasoning": "[LATA Shield: lead_time_stdev sigma_L=1.93d -> safety 3.06d of a 8.0d protection interval] [order-up-to: R=1d L=1d z=1.28 sigmaL=0.4d S=190] [MOQ gate: department exempt]"
   },
   {
    "case": "S14 @ 3d",
@@ -866,7 +866,7 @@
    "qty_finalized": 168.0,
    "ordered_quantity": 168.0,
    "fulfillment": "PO",
-   "reasoning": "[LATA Shield: lead_time_stdev sigma_L=1.93d -> safety 3.06d of a 8.0d protection interval] [order-up-to: R=1d L=1d z=1.28 sigmaL=0.4d S=163]"
+   "reasoning": "[LATA Shield: lead_time_stdev sigma_L=1.93d -> safety 3.06d of a 8.0d protection interval] [order-up-to: R=1d L=1d z=1.28 sigmaL=0.4d S=163] [MOQ gate: department exempt]"
   },
   {
    "case": "S16 @ 1d",
@@ -879,7 +879,7 @@
    "qty_finalized": 108.0,
    "ordered_quantity": 108.0,
    "fulfillment": "PO",
-   "reasoning": "[LATA Shield: lead_time_stdev sigma_L=1.93d -> safety 3.06d of a 8.0d protection interval] [order-up-to: R=1d L=1d z=1.28 sigmaL=0.4d S=163]"
+   "reasoning": "[LATA Shield: lead_time_stdev sigma_L=1.93d -> safety 3.06d of a 8.0d protection interval] [order-up-to: R=1d L=1d z=1.28 sigmaL=0.4d S=163] [MOQ gate: department exempt]"
   },
   {
    "case": "S16 @ 3d",
@@ -931,7 +931,7 @@
    "qty_finalized": 168.0,
    "ordered_quantity": 168.0,
    "fulfillment": "PO",
-   "reasoning": "[LATA Shield: lead_time_stdev sigma_L=1.93d -> safety 3.06d of a 8.0d protection interval] [order-up-to: R=1d L=1d z=1.28 sigmaL=0.4d S=160]"
+   "reasoning": "[LATA Shield: lead_time_stdev sigma_L=1.93d -> safety 3.06d of a 8.0d protection interval] [order-up-to: R=1d L=1d z=1.28 sigmaL=0.4d S=160] [MOQ gate: department exempt]"
   },
   {
    "case": "S15 @ 1d",
@@ -944,7 +944,7 @@
    "qty_finalized": 108.0,
    "ordered_quantity": 108.0,
    "fulfillment": "PO",
-   "reasoning": "[LATA Shield: lead_time_stdev sigma_L=1.93d -> safety 3.06d of a 8.0d protection interval] [order-up-to: R=1d L=1d z=1.28 sigmaL=0.4d S=160]"
+   "reasoning": "[LATA Shield: lead_time_stdev sigma_L=1.93d -> safety 3.06d of a 8.0d protection interval] [order-up-to: R=1d L=1d z=1.28 sigmaL=0.4d S=160] [MOQ gate: department exempt]"
   },
   {
    "case": "S15 @ 3d",
@@ -996,7 +996,7 @@
    "qty_finalized": 156.0,
    "ordered_quantity": 156.0,
    "fulfillment": "PO",
-   "reasoning": "[LATA Shield: lead_time_stdev sigma_L=1.93d -> safety 3.06d of a 8.0d protection interval] [order-up-to: R=1d L=1d z=1.28 sigmaL=0.4d S=156]"
+   "reasoning": "[LATA Shield: lead_time_stdev sigma_L=1.93d -> safety 3.06d of a 8.0d protection interval] [order-up-to: R=1d L=1d z=1.28 sigmaL=0.4d S=156] [MOQ gate: department exempt]"
   },
   {
    "case": "S31 @ 1d",
@@ -1009,7 +1009,7 @@
    "qty_finalized": 108.0,
    "ordered_quantity": 108.0,
    "fulfillment": "PO",
-   "reasoning": "[LATA Shield: lead_time_stdev sigma_L=1.93d -> safety 3.06d of a 8.0d protection interval] [order-up-to: R=1d L=1d z=1.28 sigmaL=0.4d S=156]"
+   "reasoning": "[LATA Shield: lead_time_stdev sigma_L=1.93d -> safety 3.06d of a 8.0d protection interval] [order-up-to: R=1d L=1d z=1.28 sigmaL=0.4d S=156] [MOQ gate: department exempt]"
   },
   {
    "case": "S31 @ 3d",
