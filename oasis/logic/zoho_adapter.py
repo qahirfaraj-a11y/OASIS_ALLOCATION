@@ -43,6 +43,7 @@ from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional
 
 from oasis.logic import erp_contract as _contract
+from oasis.logic.department_constants import is_fresh_department
 
 logger = logging.getLogger("ZohoAdapter")
 
@@ -454,7 +455,7 @@ class ZohoAdapter(_contract.ErpAdapter):
                 "category": dept,
                 "sub_category": dept,
                 "uom": it.get("unit") or "EA",
-                "is_fresh": any(f in dept for f in FRESH_DEPARTMENTS),
+                "is_fresh": is_fresh_department(dept),
                 "supplier_cd": vid,
                 "supplier_name": vendors.get(vid, {}).get("name", "Unknown"),
                 "estimated_delivery_days": 7,

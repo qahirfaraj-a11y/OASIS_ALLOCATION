@@ -27,6 +27,8 @@ from sqlalchemy import text
 
 from oasis.logic import erp_contract
 from .clock import as_of
+from . import demand_rate as _dr
+from .department_constants import is_fresh_department
 
 logger = logging.getLogger("PosErpAdapter")
 
@@ -135,9 +137,8 @@ class PosErpAdapter(erp_contract.ErpAdapter):
                     except (ValueError, TypeError):
                         days_since_delivery = 0
 
-                # Determine freshness from department
-                dept = str(row["DEPARTMENT"] or "").upper()
-                is_fresh = dept in ("DAIRY", "FRESH PRODUCE", "BUTCHERY", "BAKERY")
+                # One fresh rule for every adapter (department_constants)
+                is_fresh = is_fresh_department(row["DEPARTMENT"])
 
                 product = {
                     "item_code": str(row["ITM_CD"] or ""),
@@ -728,19 +729,17 @@ class PosErpAdapter(erp_contract.ErpAdapter):
                     "SELECT MIN(BILL_DT) FROM POS_SALES_DTL "
                     "WHERE ORG_CD = :org_cd AND VOID_FLAG = 'F'"),
                     {"org_cd": org_cd}).fetchone()
-                days_obs = 90.0
+                first = None
                 if min_row and min_row[0]:
                     try:
                         first = datetime.strptime(str(min_row[0])[:10], "%Y-%m-%d")
-                        days_obs = float(max(1, (now - first).days + 1))
                     except ValueError:
-                        pass
-                d30 = min(30.0, days_obs)
-                d3060 = min(30.0, max(0.0, days_obs - 30.0))
-                d6090 = min(30.0, max(0.0, days_obs - 60.0))
-                # Renormalise the 60/30/10 weights over the buckets actually observed
-                wsum = sum(wt for wt, dd in ((0.60, d30), (0.30, d3060), (0.10, d6090))
-                           if dd > 0) or 1.0
+                        first = None
+                # ONE DEFINITION OF d. The bucket arithmetic lives in
+                # demand_rate so the Odoo adapter computes the same rate from
+                # the same history -- see that module for why it moved.
+                days_obs = _dr.observed_days(first, now)
+                d30, d3060, _d6090 = _dr.bucket_days(days_obs)
 
                 rows = conn.execute(query, {
                     "org_cd": org_cd, "c30": cutoff_30, "c60": cutoff_60, "c90": cutoff_90
@@ -753,14 +752,9 @@ class PosErpAdapter(erp_contract.ErpAdapter):
                     q60_90 = float(row["qty_60_90d"] or 0)
                     total = float(row["qty_total"] or 0)
 
-                    # Weighted ADS: 60% recent + 30% mid + 10% old, each bucket
-                    # divided by its observed days, weights renormalised
                     ads_30 = q30 / d30 if d30 > 0 else 0
                     ads_30_60 = q30_60 / d3060 if d3060 > 0 else 0
-                    ads_60_90 = q60_90 / d6090 if d6090 > 0 else 0
-
-                    weighted = ((ads_30 * 0.60) + (ads_30_60 * 0.30)
-                                + (ads_60_90 * 0.10)) / wsum
+                    weighted = _dr.weighted_daily_rate(q30, q30_60, q60_90, days_obs)
 
                     result[itm_cd] = {
                         "weighted_ads": round(weighted, 4),

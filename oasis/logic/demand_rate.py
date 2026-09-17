@@ -1,0 +1,63 @@
+"""The one daily demand rate every ERP adapter hands the engine.
+
+WHY THIS IS ITS OWN MODULE
+    The order-up-to level starts from d, the average daily sales. Two adapters
+    computed d two different ways from the same kind of sales history:
+
+      PosErpAdapter  recency-weighted -- 60% last 30 days, 30% days 30-60,
+                     10% days 60-90 -- on the as-of clock, with an
+                     observed-window guard for a store younger than 90 days
+      OdooAdapter    units / 90, on the wall clock
+
+    Same shop, same till, two different demand rates, and every S, reorder
+    point and transfer horizon downstream inherited the difference. The engine
+    was one methodology; its input was not. This function is the single
+    definition both adapters call, so a store that moves from its POS database
+    to Odoo keeps the same d.
+
+THE GUARD
+    A bucket is divided by the days it actually observed, and the weights are
+    renormalised over the buckets that exist. A store with 40 days of history
+    has a full last-30 bucket, 10 days in the next, and none in the last: its
+    rate is (0.6 * q30/30 + 0.3 * q30_60/10) / 0.9, not a figure that treats 50
+    days of silence as zero sales.
+
+    It assumes sales are recorded DAILY. History loaded as one bill per month
+    lands a month of units on a single date and inflates whichever bucket holds
+    it (measured on a seeded demo store: 20,843/day against a real 8,624).
+"""
+from __future__ import annotations
+
+from datetime import datetime
+from typing import Optional, Tuple
+
+#: (bucket length in days, weight), most recent first
+BUCKETS: Tuple[Tuple[int, float], ...] = ((30, 0.60), (30, 0.30), (30, 0.10))
+WINDOW_DAYS = sum(n for n, _ in BUCKETS)
+
+
+def observed_days(first_sale: Optional[datetime], as_of_dt: datetime) -> float:
+    """Days of history the store has, capped at the window."""
+    if first_sale is None:
+        return float(WINDOW_DAYS)
+    return float(min(WINDOW_DAYS, max(1, (as_of_dt - first_sale).days + 1)))
+
+
+def bucket_days(days_obs: float) -> Tuple[float, float, float]:
+    """How many observed days fall in each bucket."""
+    out, left = [], float(days_obs)
+    for n, _ in BUCKETS:
+        take = min(float(n), max(0.0, left))
+        out.append(take)
+        left -= n
+    return tuple(out)  # type: ignore[return-value]
+
+
+def weighted_daily_rate(q30: float, q30_60: float, q60_90: float,
+                        days_obs: float = WINDOW_DAYS) -> float:
+    """Recency-weighted units a day from the three 30-day buckets."""
+    d = bucket_days(days_obs)
+    q = (float(q30 or 0), float(q30_60 or 0), float(q60_90 or 0))
+    wsum = sum(w for (_, w), dd in zip(BUCKETS, d) if dd > 0) or 1.0
+    total = sum(w * (qq / dd) for (_, w), qq, dd in zip(BUCKETS, q, d) if dd > 0)
+    return total / wsum

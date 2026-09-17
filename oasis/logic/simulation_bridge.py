@@ -254,6 +254,17 @@ class SimulationOrderUtil:
         
         mande_enabled = self.engine.is_engine_enabled('mande')
         mande_purge = self.engine.databases.get('mande_purge_list', set()) if mande_enabled else set()
+
+        # ONE POLICY FOR BOTH ORDER PATHS. engines.<name>.mode is read by the
+        # same function the classic path (procurement_mixin) uses: "report"
+        # flags the line, only "enforce" blocks it. This path used to block
+        # whenever the engine was enabled, so the shipped order-up-to model
+        # vetoed 2,084 selling SKUs under MANDE and 1,103 under AMIT on a
+        # store whose config said report -- the classic path's own ablation
+        # prices MANDE enforcement at -12.9pp service and -20.3m KES/yr GP.
+        from .procurement_mixin import _read_engine_mode
+        amit_enforce = _read_engine_mode(self.data_dir, 'amit') == 'enforce'
+        mande_enforce = _read_engine_mode(self.data_dir, 'mande') == 'enforce' 
         
         halo_list = self.engine.databases.get('halo_protection_list', set())
         
@@ -305,10 +316,14 @@ class SimulationOrderUtil:
 
             # AMIT Blacklist Check (Low GMROI delisting)
             if amit_enabled and p_name_norm in amit_blacklist:
-                rec['recommended_quantity'] = 0
-                rec['reasoning'] = "Blocked: AMIT Blacklist (Low GMROI / Stranded Capital)"
-                recommendations.append(rec)
-                continue
+                if amit_enforce:
+                    rec['recommended_quantity'] = 0
+                    rec['reasoning'] = "Blocked: AMIT Blacklist (Low GMROI / Stranded Capital)"
+                    recommendations.append(rec)
+                    continue
+                rec['amit_flag'] = True
+                rec['amit_note'] = ("AMIT: over department cap on annual "
+                                    "gross profit; flagged, not blocked")
                 
             # MANDE Supplier Purge Check (Delisted Supplier Capital Trap)
             supplier_upper = str(p.get('supplier_name', '')).upper().strip()
@@ -316,10 +331,13 @@ class SimulationOrderUtil:
             is_essential = p.get('is_fresh', False) or any(x in p_name_norm for x in ['SUGAR', 'SALT', 'FLOUR', 'RICE', 'COOKING OIL', 'FRESH MILK', 'BREAD', 'EGGS'])
             
             if mande_enabled and supplier_upper in mande_purge and not (is_staple or is_essential):
-                rec['recommended_quantity'] = 0
-                rec['reasoning'] = "Blocked: MANDE Supplier Purge (Delisted Capital Trap)"
-                recommendations.append(rec)
-                continue
+                if mande_enforce:
+                    rec['recommended_quantity'] = 0
+                    rec['reasoning'] = "Blocked: MANDE Supplier Purge (Delisted Capital Trap)"
+                    recommendations.append(rec)
+                    continue
+                rec['mande_flag'] = True
+                rec['mande_note'] = "MANDE: supplier on the purge report; flagged, not blocked"
 
             # 1. DETERMINE IF WE CAN ORDER TODAY
             supplier = p.get('supplier_name', 'Unknown')

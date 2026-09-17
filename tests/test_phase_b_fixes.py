@@ -37,10 +37,13 @@ class TestG12WeightedADS(unittest.TestCase):
         self.assertIn("weighted_ads", source)
         self.assertIn("total_90d", source)
         self.assertIn("ads_30d", source)
-        # Check weight constants
-        self.assertIn("0.60", source, "Should use 60% weight for last 30 days")
-        self.assertIn("0.30", source, "Should use 30% weight for 30-60 days")
-        self.assertIn("0.10", source, "Should use 10% weight for 60-90 days")
+        # The weights live in demand_rate, the one definition both the POS and
+        # the Odoo adapter call (tests/test_one_ordering_methodology.py).
+        self.assertIn("weighted_daily_rate", source,
+                      "_calc_weighted_ads should use the shared demand_rate")
+        from oasis.logic import demand_rate
+        self.assertEqual([w for _, w in demand_rate.BUCKETS], [0.60, 0.30, 0.10],
+                         "60% last 30 days, 30% days 30-60, 10% days 60-90")
 
 
 class TestG3ROPFallback(unittest.TestCase):

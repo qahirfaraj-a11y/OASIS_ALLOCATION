@@ -51,11 +51,16 @@ from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional
 
 from oasis.logic import erp_contract as _contract
+from oasis.logic import demand_rate as _dr
+from oasis.logic.clock import as_of
+from oasis.logic.department_constants import ADAPTER_FRESH_DEPARTMENTS, is_fresh_department
 
 logger = logging.getLogger("OdooAdapter")
 
-#: departments treated as perishable, mirroring PosErpAdapter's rule
-FRESH_DEPARTMENTS = ("DAIRY", "FRESH PRODUCE", "BUTCHERY", "BAKERY", "FRESH")
+#: kept for callers that read the name; the RULE is is_fresh_department (exact
+#: match), shared with PosErpAdapter. The substring test that used to live here
+#: marked AIR FRESHNERS perishable.
+FRESH_DEPARTMENTS = tuple(ADAPTER_FRESH_DEPARTMENTS)
 
 
 def _name_of(m2o) -> str:
@@ -406,7 +411,9 @@ class OdooAdapter(_contract.ErpAdapter):
         return out, oldest, truncated
 
     def _sales_by_product(self, days: int = 90,
-                          org_cd: Optional[str] = None) -> Dict[int, Dict[str, float]]:
+                          org_cd: Optional[str] = None,
+                          since: Optional[datetime] = None,
+                          until: Optional[datetime] = None) -> Dict[int, Dict[str, float]]:
         """product_id -> {units, revenue} of goods sold in the window.
 
         Two sources, unioned, because Odoo installs differ in how they sell:
@@ -420,7 +427,11 @@ class OdooAdapter(_contract.ErpAdapter):
         through Sales or eCommerce — the engine would then see a live catalogue
         with no velocity and behave as if nothing moves.
         """
-        since = (datetime.now() - timedelta(days=days)).strftime("%Y-%m-%d %H:%M:%S")
+        # The as-of clock, as PosErpAdapter uses: a window on the wall clock
+        # made every OASIS_AS_OF backtest read a different period on Odoo.
+        since_dt = since or (as_of() - timedelta(days=days))
+        since = since_dt.strftime("%Y-%m-%d %H:%M:%S")
+        until_s = until.strftime("%Y-%m-%d %H:%M:%S") if until else None
         agg: Dict[int, Dict[str, float]] = defaultdict(
             lambda: {"units": 0.0, "revenue": 0.0})
 
@@ -429,7 +440,8 @@ class OdooAdapter(_contract.ErpAdapter):
         pos_counted = False
         try:
             rows = self._ex("pos.order.line", "search_read",
-                            [[["order_id.date_order", ">=", since]]],
+                            [[["order_id.date_order", ">=", since]]
+                             + ([["order_id.date_order", "<", until_s]] if until_s else [])],
                             {"fields": ["product_id", "qty", "price_subtotal_incl"],
                              "limit": self.POS_LINE_READ_LIMIT}) or []
             pos_counted = True
@@ -449,6 +461,8 @@ class OdooAdapter(_contract.ErpAdapter):
         try:
             dom = [["state", "=", "done"], ["date", ">=", since],
                    ["location_dest_id.usage", "=", "customer"]]
+            if until_s:
+                dom.append(["date", "<", until_s])
             scope = self._warehouse_scope(org_cd)
             if scope:        # goods that left THIS site
                 dom.append(["location_id", "child_of", scope])
@@ -502,6 +516,34 @@ class OdooAdapter(_contract.ErpAdapter):
 
         return dict(agg)
 
+    def _first_sale_date(self, org_cd: Optional[str] = None) -> Optional[datetime]:
+        """The store's earliest recorded sale -- the observed-window guard's input.
+
+        PosErpAdapter takes MIN(BILL_DT). Here: the earlier of the first POS
+        order and the first done move to a customer location from this site.
+        None (treated as a full 90-day history) when neither is readable.
+        """
+        found = []
+        try:
+            r = self._ex("pos.order", "search_read", [[]],
+                         {"fields": ["date_order"], "order": "date_order asc", "limit": 1}) or []
+            if r and r[0].get("date_order"):
+                found.append(datetime.strptime(str(r[0]["date_order"])[:19], "%Y-%m-%d %H:%M:%S"))
+        except Exception:
+            pass
+        try:
+            dom = [["state", "=", "done"], ["location_dest_id.usage", "=", "customer"]]
+            scope = self._warehouse_scope(org_cd)
+            if scope:
+                dom.append(["location_id", "child_of", scope])
+            r = self._ex("stock.move", "search_read", [dom],
+                         {"fields": ["date"], "order": "date asc", "limit": 1}) or []
+            if r and r[0].get("date"):
+                found.append(datetime.strptime(str(r[0]["date"])[:19], "%Y-%m-%d %H:%M:%S"))
+        except Exception:
+            pass
+        return min(found) if found else None
+
     def _supplier_of(self, product_ids: List[int]) -> Dict[int, dict]:
         """product_id -> {code, name, lead_time} from the first supplierinfo."""
         out: Dict[int, dict] = {}
@@ -546,7 +588,22 @@ class OdooAdapter(_contract.ErpAdapter):
 
         on_hand = self._on_hand(org_cd)
         receipts, receipts_from, receipts_truncated = self._last_receipt(org_cd)
-        sales = self._sales_by_product(sales_days, org_cd)
+        # ONE DEFINITION OF d (demand_rate): the same 60/30/10 recency
+        # weighting and observed-window guard PosErpAdapter applies. This read
+        # used to divide 90 days of units by 90 on the wall clock, so the same
+        # shop got a different demand rate through Odoo than through its POS
+        # database -- and every order-up-to level inherited it.
+        now = as_of()
+        edges = [now - timedelta(days=30), now - timedelta(days=60), now - timedelta(days=90)]
+        s30 = self._sales_by_product(org_cd=org_cd, since=edges[0])
+        s60 = self._sales_by_product(org_cd=org_cd, since=edges[1], until=edges[0])
+        s90 = self._sales_by_product(org_cd=org_cd, since=edges[2], until=edges[1])
+        days_obs = _dr.observed_days(self._first_sale_date(org_cd), now)
+        sales: Dict[int, Dict[str, float]] = {}
+        for pid in set(s30) | set(s60) | set(s90):
+            q = [float((s.get(pid) or {}).get("units") or 0.0) for s in (s30, s60, s90)]
+            sales[pid] = {"units": sum(q),
+                          "ads": _dr.weighted_daily_rate(q[0], q[1], q[2], days_obs)}
         suppliers = self._supplier_of([p["id"] for p in prods])
         # Stock already bought and on its way. This used to be hardcoded to
         # zero here while fetch_pending_po_by_sku sat unused by this path, so
@@ -561,7 +618,6 @@ class OdooAdapter(_contract.ErpAdapter):
                            "reads 0, so inbound stock is invisible to ordering "
                            "and transfers", org_cd, str(e)[:120])
             on_order = {}
-        now = datetime.now()
 
         out: List[dict] = []
         for p in prods:
@@ -622,7 +678,7 @@ class OdooAdapter(_contract.ErpAdapter):
                 "sub_category": h["sub_category"],
                 "department_path": h["department_path"],
                 "uom": _name_of(p.get("uom_id")) or "EA",
-                "is_fresh": any(f in dept.upper() for f in FRESH_DEPARTMENTS),
+                "is_fresh": is_fresh_department(dept),
                 "last_days_since_last_delivery": days_since,
                 "days_since_delivery": days_since,
                 #: True when no receipt was found and the age is a LOWER BOUND
@@ -634,9 +690,11 @@ class OdooAdapter(_contract.ErpAdapter):
                 "estimated_delivery_days": int(sup.get("lead") or 7),
                 "supplier_reliability": 0.9,
                 "supplier_frequency": "weekly",
-                "avg_daily_sales": round(units / max(1, sales_days), 4),
+                "avg_daily_sales": round(float(s.get("ads") or 0.0), 4),
+                "flat_ads": round(units / max(1, sales_days), 4),
+                "ads_source": "odoo_weighted" if units > 0 else "none",
                 "total_units_sold_last_90d": units,
-                "estimated_daily_sales": round(units / max(1, sales_days), 4),
+                "estimated_daily_sales": round(float(s.get("ads") or 0.0), 4),
                 "units_sold_last_month": round(units / max(1, sales_days) * 30, 2),
                 "on_order_qty": float(
                     on_order.get(str(p.get("default_code") or pid), {}).get("qty", 0.0)),
