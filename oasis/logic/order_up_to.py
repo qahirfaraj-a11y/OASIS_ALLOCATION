@@ -540,13 +540,26 @@ def is_long_life(sku: Any, root: Optional[str] = None) -> bool:
     positive -- and misses that the shortest token fires inside ordinary
     words. Both are the same failure and a boundary fixes both.
     """
-    k = " ".join(str(sku or "").upper().split())
+    prods, toks = load_long_life(root)
+    return long_life_match(sku, prods, toks)
+
+
+def long_life_match(name: Any, products, tokens) -> bool:
+    """THE matching rule for "is this named line in this list?", on its own.
+
+    Exact product names first, then tokens on a WORD BOUNDARY. Kept apart from
+    the config loading so every caller -- this module, and the enrichment,
+    which reads its own engines_config -- applies one rule to whichever list it
+    holds. The enrichment used a substring test here, which found ESL inside
+    MUESLI, RIESLING and PRESLICED and gave 65 dry lines the long-life cap.
+    """
+    k = " ".join(str(name or "").upper().split())
     if not k:
         return False
-    prods, toks = load_long_life(root)
-    if k in prods:
+    if k in {" ".join(str(p).upper().split()) for p in (products or ())}:
         return True
-    for t in toks:
+    for t in tokens or ():
+        t = " ".join(str(t).upper().split())
         if t and re.search(r"(?<![A-Z0-9])" + re.escape(t) + r"(?![A-Z0-9])", k):
             return True
     return False

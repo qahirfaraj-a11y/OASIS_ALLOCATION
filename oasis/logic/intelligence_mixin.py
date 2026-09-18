@@ -256,12 +256,36 @@ class IntelligenceMixin:
         broadened because packaging markings are only reliable on a milk line -
         'VARTA LONGLIFE POWER BATT' is a battery.
         """
-        name = (p_name_upper or "").strip()
-        if name in self._long_life_names():
-            return True
+        from .order_up_to import long_life_match
         cfg = (getattr(self, "engines_config", None) or {}).get("long_life") or {}
         tokens = cfg.get("name_tokens") or self._LONG_LIFE_TOKENS
-        return any(str(tok).upper() in name for tok in tokens)
+        # ONE RULE WITH THE ORDER-UP-TO ENGINE: exact names, then tokens on a
+        # word boundary. This was `tok in name`, which found ESL inside MUESLI,
+        # RIESLING and PRESLICED and put 65 dry lines under the long-life cap.
+        return long_life_match(p_name_upper, self._long_life_names(), tokens)
+
+    #: Fallback pack formats if the config carries none (see
+    #: long_life.shelf_stable_pack_tokens).
+    _SHELF_STABLE_PACK_TOKENS = ("TETRA", "LONGLIFE")
+
+    def _is_shelf_stable_pack(self, p_name_upper: str) -> bool:
+        """Is this line shelf-stable, so never daily-fresh whatever the name says?
+
+        A wider question than _is_long_life, and deliberately answered apart
+        from it. A long-life line also takes the long-life cover cap, which is
+        TIGHTER than dry goods'; a pack format (a tetra juice, a tetra wine, a
+        LONGLIFE-marked battery) should only switch freshness off. So the
+        freshness override reads long-life OR a shelf-stable pack format, from
+        long_life.shelf_stable_pack_tokens, on the same word-boundary rule --
+        it used to carry its own hardcoded substring list, in which TETRA also
+        matched a toy called TETRAD.
+        """
+        from .order_up_to import long_life_match
+        if self._is_long_life(p_name_upper):
+            return True
+        cfg = (getattr(self, "engines_config", None) or {}).get("long_life") or {}
+        packs = cfg.get("shelf_stable_pack_tokens") or self._SHELF_STABLE_PACK_TOKENS
+        return long_life_match(p_name_upper, (), packs)
 
     def supplier_pattern_for(self, supplier_name: Any, patterns: Optional[dict] = None) -> dict:
         """The supplier's rhythm record, found the ONE way this engine spells a
@@ -549,7 +573,7 @@ class IntelligenceMixin:
             p['is_fresh'] = p.get('is_fresh', False) or has_fresh_keywords or is_fresh_dept
             
             # UHT/Long Life exclusion overrides both supplier AND keyword freshness
-            if any(x in p_upper for x in ["UHT", "LONG LIFE", "LONGLIFE", "ESL", "TETRA"]):
+            if self._is_shelf_stable_pack(p_upper):
                  p['is_fresh'] = False
                  # Golden logic: revert daily to weekly for UHT
                  if p.get('supplier_frequency') == 'daily':
@@ -817,13 +841,13 @@ class IntelligenceMixin:
             # A long-life line in a fresh department (breadcrumbs in BREAD, UHT
             # in FRESH MILK) keeps like dry goods: the fresh default of 7 would
             # be read by recommend() before the engine's own long-life rule.
-            _keeps = _ou_sl.is_long_life(p.get('product_name') or '')
+            _keeps = self._is_long_life(p_upper)
             p['shelf_life_days'] = _label_life if _label_life > 0 else (7 if is_fresh and not _keeps else 365)
             if is_fresh and p.get('supplier_frequency') == 'daily':
                 p['upper_coverage_days'] = 1.2
             elif is_fresh:
                 p['upper_coverage_days'] = 3.0
-            elif any(x in p_upper for x in ['UHT', 'ESL', 'LONG LIFE']):
+            elif self._is_long_life(p_upper):
                 p['upper_coverage_days'] = 7.0
             else:
                 p['upper_coverage_days'] = 45.0
@@ -987,7 +1011,7 @@ class IntelligenceMixin:
                     p['target_coverage_days'] = effective_cap
                     p['cap_applied'] = True
                     p['cap_reason'] = f'Fresh Ceiling ({effective_cap:.1f}d)'
-            elif any(x in p_upper for x in ['UHT', 'ESL', 'LONG LIFE']):
+            elif self._is_long_life(p_upper):
                 effective_cap = _ceiling(7.0)
                 p['target_coverage_days'] = min(target_days, effective_cap)
                 if effective_cap > 7.0:

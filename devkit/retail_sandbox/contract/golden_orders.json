@@ -1,5 +1,5 @@
 {
- "engines_config_sha256": "8abc92d548b92698cc84923499b284b8e601d2c78abd4d7116944315f2e0c2f1",
+ "engines_config_sha256": "8573f6159fbfa09e39cf09cc1180a760922937b2c7f4d49c558f370ea31c9f49",
  "current_day": 40,
  "cover_positions": [
   0.0,
@@ -1316,12 +1316,12 @@
    "cover_days": 0.0,
    "product_name": "BROOKSIDE 500ML DAIRY BEST (POUCH)",
    "target_days": 6.0,
-   "reorder_point": 2327.36,
-   "qty_raw": 2076.0,
-   "qty_finalized": 2076.0,
-   "ordered_quantity": 2076.0,
+   "reorder_point": 7273.0,
+   "qty_raw": 6924.0,
+   "qty_finalized": 6924.0,
+   "ordered_quantity": 6924.0,
    "fulfillment": "PO",
-   "reasoning": "[LATA Shield: lead_time_stdev sigma_L=0.34d -> safety 2.00d of a 8.0d protection interval] [order-up-to: R=1d L=1d z=1.28 sigmaL=0.3d S=2072]"
+   "reasoning": "[LATA Shield: lead_time_stdev sigma_L=0.34d -> safety 2.43d of a 14.0d protection interval] [order-up-to: R=1d L=7d z=1.28 sigmaL=0.3d S=6923]"
   },
   {
    "case": "S05 @ 1d",
@@ -1329,12 +1329,12 @@
    "cover_days": 1.0,
    "product_name": "BROOKSIDE 500ML DAIRY BEST (POUCH)",
    "target_days": 6.0,
-   "reorder_point": 2327.36,
-   "qty_raw": 1356.0,
-   "qty_finalized": 1356.0,
-   "ordered_quantity": 1356.0,
+   "reorder_point": 7273.0,
+   "qty_raw": 6204.0,
+   "qty_finalized": 6204.0,
+   "ordered_quantity": 6204.0,
    "fulfillment": "PO",
-   "reasoning": "[LATA Shield: lead_time_stdev sigma_L=0.34d -> safety 2.00d of a 8.0d protection interval] [order-up-to: R=1d L=1d z=1.28 sigmaL=0.3d S=2072]"
+   "reasoning": "[LATA Shield: lead_time_stdev sigma_L=0.34d -> safety 2.43d of a 14.0d protection interval] [order-up-to: R=1d L=7d z=1.28 sigmaL=0.3d S=6923]"
   },
   {
    "case": "S05 @ 3d",
@@ -1342,12 +1342,12 @@
    "cover_days": 3.0,
    "product_name": "BROOKSIDE 500ML DAIRY BEST (POUCH)",
    "target_days": 6.0,
-   "reorder_point": 2327.36,
-   "qty_raw": 0.0,
-   "qty_finalized": 0.0,
-   "ordered_quantity": 0.0,
-   "fulfillment": "NONE",
-   "reasoning": "[LATA Shield: lead_time_stdev sigma_L=0.34d -> safety 2.00d of a 8.0d protection interval] [order-up-to: position already covers P]"
+   "reorder_point": 7273.0,
+   "qty_raw": 4752.0,
+   "qty_finalized": 4752.0,
+   "ordered_quantity": 4752.0,
+   "fulfillment": "PO",
+   "reasoning": "[LATA Shield: lead_time_stdev sigma_L=0.34d -> safety 2.43d of a 14.0d protection interval] [order-up-to: R=1d L=7d z=1.28 sigmaL=0.3d S=6923]"
   },
   {
    "case": "S05 @ 7d",
@@ -1355,12 +1355,12 @@
    "cover_days": 7.0,
    "product_name": "BROOKSIDE 500ML DAIRY BEST (POUCH)",
    "target_days": 6.0,
-   "reorder_point": 2327.36,
-   "qty_raw": 0.0,
-   "qty_finalized": 0.0,
-   "ordered_quantity": 0.0,
-   "fulfillment": "NONE",
-   "reasoning": "[Above ROP 2327.4]"
+   "reorder_point": 7273.0,
+   "qty_raw": 1836.0,
+   "qty_finalized": 1836.0,
+   "ordered_quantity": 1836.0,
+   "fulfillment": "PO",
+   "reasoning": "[LATA Shield: lead_time_stdev sigma_L=0.34d -> safety 2.43d of a 14.0d protection interval] [order-up-to: R=1d L=7d z=1.28 sigmaL=0.3d S=6923]"
   },
   {
    "case": "S05 @ 21d",
@@ -1368,12 +1368,12 @@
    "cover_days": 21.0,
    "product_name": "BROOKSIDE 500ML DAIRY BEST (POUCH)",
    "target_days": 6.0,
-   "reorder_point": 2327.36,
+   "reorder_point": 7273.0,
    "qty_raw": 0.0,
    "qty_finalized": 0.0,
    "ordered_quantity": 0.0,
    "fulfillment": "NONE",
-   "reasoning": "[Above ROP 2327.4]"
+   "reasoning": "[Above ROP 7273.0]"
   },
   {
    "case": "S19 @ 0d",
@@ -3786,12 +3786,12 @@
    "cover_days": null,
    "product_name": "BROOKSIDE 500ML DAIRY BEST (POUCH)",
    "target_days": 6.0,
-   "reorder_point": 2327.36,
-   "qty_raw": 1284.0,
-   "qty_finalized": 1284.0,
+   "reorder_point": 7273.0,
+   "qty_raw": 6132.0,
+   "qty_finalized": 6132.0,
    "ordered_quantity": 0.0,
    "fulfillment": "TRANSFER_FIRST",
-   "reasoning": "[LATA Shield: lead_time_stdev sigma_L=0.34d -> safety 2.00d of a 8.0d protection interval] [order-up-to: R=1d L=1d z=1.28 sigmaL=0.3d S=2072] [Item MOQ/MOP Gate: value KES 0 < MOP KES 200 \u2014 routed to transfer]"
+   "reasoning": "[LATA Shield: lead_time_stdev sigma_L=0.34d -> safety 2.43d of a 14.0d protection interval] [order-up-to: R=1d L=7d z=1.28 sigmaL=0.3d S=6923] [Item MOQ/MOP Gate: value KES 0 < MOP KES 100 \u2014 routed to transfer]"
   },
   {
    "case": "edge: long life, keyword present",
@@ -3812,12 +3812,12 @@
    "cover_days": null,
    "product_name": "TUZO 500ML WHOLE MILK (FINO PACK) 180DAYS",
    "target_days": 6.0,
-   "reorder_point": 267.2,
-   "qty_raw": 156.0,
-   "qty_finalized": 156.0,
+   "reorder_point": 835.0,
+   "qty_raw": 720.0,
+   "qty_finalized": 720.0,
    "ordered_quantity": 0.0,
    "fulfillment": "TRANSFER_FIRST",
-   "reasoning": "[LATA Shield: lead_time_stdev sigma_L=0.34d -> safety 2.00d of a 8.0d protection interval] [order-up-to: R=1d L=1d z=1.28 sigmaL=0.3d S=240] [Item MOQ/MOP Gate: value KES 0 < MOP KES 200 \u2014 routed to transfer]"
+   "reasoning": "[LATA Shield: lead_time_stdev sigma_L=0.34d -> safety 2.43d of a 14.0d protection interval] [order-up-to: R=1d L=7d z=1.28 sigmaL=0.3d S=799] [Item MOQ/MOP Gate: value KES 0 < MOP KES 100 \u2014 routed to transfer]"
   },
   {
    "case": "edge: dry goods",

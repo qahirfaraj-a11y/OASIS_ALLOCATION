@@ -1,5 +1,5 @@
 {
- "engines_config_sha256": "8abc92d548b92698cc84923499b284b8e601d2c78abd4d7116944315f2e0c2f1",
+ "engines_config_sha256": "8573f6159fbfa09e39cf09cc1180a760922937b2c7f4d49c558f370ea31c9f49",
  "current_day": 40,
  "n_lines": 12,
  "count": 9,
@@ -42,12 +42,12 @@
    "units_transferred": 0.0,
    "orders_reduced": 0,
    "po_before": {
-    "ST1": 7146.0,
+    "ST1": 11994.0,
     "ST2": 0.0,
     "ST3": 0.0
    },
    "po_after": {
-    "ST1": 7146.0,
+    "ST1": 11994.0,
     "ST2": 0.0,
     "ST3": 0.0
    },
@@ -83,12 +83,12 @@
    "units_transferred": 340.0,
    "orders_reduced": 0,
    "po_before": {
-    "ST1": 7146.0,
+    "ST1": 11994.0,
     "ST2": 0.0,
     "ST3": 0.0
    },
    "po_after": {
-    "ST1": 7146.0,
+    "ST1": 11994.0,
     "ST2": 0.0,
     "ST3": 0.0
    },
@@ -145,12 +145,12 @@
    "units_transferred": 1414.0,
    "orders_reduced": 0,
    "po_before": {
-    "ST1": 7146.0,
+    "ST1": 11994.0,
     "ST2": 0.0,
     "ST3": 0.0
    },
    "po_after": {
-    "ST1": 7146.0,
+    "ST1": 11994.0,
     "ST2": 0.0,
     "ST3": 0.0
    },
@@ -207,12 +207,12 @@
    "units_transferred": 1009.0,
    "orders_reduced": 0,
    "po_before": {
-    "ST1": 4032.0,
+    "ST1": 8880.0,
     "ST2": 0.0,
     "ST3": 0.0
    },
    "po_after": {
-    "ST1": 4032.0,
+    "ST1": 8880.0,
     "ST2": 0.0,
     "ST3": 0.0
    },
@@ -236,14 +236,14 @@
    "units_transferred": 0.0,
    "orders_reduced": 0,
    "po_before": {
-    "ST1": 7146.0,
-    "ST2": 2232.0,
-    "ST3": 2232.0
+    "ST1": 11994.0,
+    "ST2": 4800.0,
+    "ST3": 4800.0
    },
    "po_after": {
-    "ST1": 7146.0,
-    "ST2": 2232.0,
-    "ST3": 2232.0
+    "ST1": 11994.0,
+    "ST2": 4800.0,
+    "ST3": 4800.0
    },
    "decisions": [
     "ST1/S05:ORDER",
@@ -258,10 +258,12 @@
     "ST1/S49:ORDER",
     "ST1/S53:ORDER",
     "ST1/S57:ORDER",
+    "ST2/S05:ORDER",
     "ST2/S42:ORDER",
     "ST2/S43:ORDER",
     "ST2/S49:ORDER",
     "ST2/S57:ORDER",
+    "ST3/S05:ORDER",
     "ST3/S42:ORDER",
     "ST3/S43:ORDER",
     "ST3/S49:ORDER",
@@ -334,13 +336,13 @@
    "units_transferred": 2426.0,
    "orders_reduced": 0,
    "po_before": {
-    "ST1": 5574.0,
-    "ST2": 5574.0,
+    "ST1": 10422.0,
+    "ST2": 10422.0,
     "ST3": 0.0
    },
    "po_after": {
-    "ST1": 5574.0,
-    "ST2": 5574.0,
+    "ST1": 10422.0,
+    "ST2": 10422.0,
     "ST3": 0.0
    },
    "decisions": [
@@ -408,11 +410,11 @@
    "units_transferred": 1414.0,
    "orders_reduced": 0,
    "po_before": {
-    "ST1": 7146.0,
+    "ST1": 11994.0,
     "ST2": 0.0
    },
    "po_after": {
-    "ST1": 7146.0,
+    "ST1": 11994.0,
     "ST2": 0.0
    },
    "decisions": [
