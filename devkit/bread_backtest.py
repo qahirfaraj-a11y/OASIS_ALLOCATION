@@ -68,6 +68,20 @@ THE ARMS
                        raw sales, a line the engine stops ordering sells nothing,
                        its rate decays to zero, and it is never reordered: 13% of
                        SKU-days on the shipped arm, 27% once orders shrink
+    selling-day horizon, added once the label data was known (bread is baked
+    and delivered the same day, best-before 5 days after, pulled a day early:
+    4 selling days on the shelf):
+      overnight        for fresh lines the horizon counts SELLING days: an
+                       order placed after close is on the shelf before the
+                       next opening, so the lead adds none and P = R (1 day
+                       for daily bread) instead of R + L (2). S is the same
+                       order-up-to level on that P, capped at d x sellable
+                       life; a line whose d x life is under one unit holds one
+      sigmaL0          lead-time spread set to 0. LATA's bakery sigma_L is
+                       measured PO-to-GRN, and Sunday deliveries posted on
+                       Monday inflate it
+    --life Loaves=4,Buns, rolls, scones=4 fixes a family's shelf life (selling
+    days from delivery); only the hidden-demand uplift is then calibrated.
     Arms combine with "+", e.g. gate_off+censor_fix+velocity_cap.
 
 NOTHING HERE WRITES TO oasis/data. The source files are read-only inputs.
@@ -100,7 +114,7 @@ SUPPLIER_NAMES = {"SD0029": "DPL FESTIVE LIMITED", "SM0202": "MINI BAKERIES NBI 
 SHORT = {"DPL FESTIVE LIMITED": "DPL Festive", "MINI BAKERIES NBI LTD": "Mini Bakeries",
          "KENAFRIC BAKERY LTD": "Kenafric", "BROADWAYS BAKERY LTD": "Broadways"}
 LONG_LIFE = {"Cookies": 30, "Crumbs": 30, "Wraps": 30}
-TUNINGS = {"measured_life", "velocity_cap", "weekday", "cakes_fresh", "slow_presence", "service_bands"}
+TUNINGS = {"measured_life", "velocity_cap", "weekday", "cakes_fresh", "slow_presence", "service_bands", "overnight", "sigmaL0"}
 ALL_TUNINGS = {"measured_life", "cakes_fresh", "slow_presence", "service_bands"}
 STRUCTURAL = {"gate_off", "censor_fix"}
 FIXED = "gate_off+censor_fix"
@@ -257,13 +271,14 @@ def replay_actual(skus, rate, deliveries, draws, lives):
         if not dl:
             continue
         sh = Shelf(life_for(s["family"], lives), rate[n][4])
-        acc = np.zeros(4)                          # demand, sold, expired, delivered
+        acc = np.zeros(5)                          # demand, sold, expired, delivered, morning stock
         for day in range(NDAYS):
             ex = sh.expire(day)
             q = dl.get(day, 0.0); sh.receive(day, q)
+            morning = sh.stock
             want = draws[n][day]; got = sh.sell(want)
             if day >= BURN_IN:
-                acc += (want, got, ex, q)
+                acc += (want, got, ex, q, morning)
         res[n] = acc
     return res
 
@@ -272,10 +287,13 @@ GRID = {"Loaves": [3, 4, 5, 6, 7], "Buns, rolls, scones": [3, 4, 5, 6, 7], "Cake
 UPLIFTS = [1.00, 1.03, 1.06, 1.10, 1.15, 1.20]
 
 
-def calibrate(skus, rate, deliveries, shape, seeds=(11, 12)):
+def calibrate(skus, rate, deliveries, shape, seeds=(11, 12), fixed_lives=None):
     """Joint fit of (shelf life, demand uplift) per family to observed waste AND sell-through."""
     lives, uplift, fit = {}, {}, {}
+    fixed_lives = fixed_lives or {}
     for fam, grid in GRID.items():
+        if fam in fixed_lives:
+            grid = [int(fixed_lives[fam])]
         fs = {n: s for n, s in skus.items() if s["family"] == fam}
         recv = sum(sum(deliveries[n].values()) for n in fs)
         t_w = sum(s["expired"] for s in fs.values()) / recv
@@ -353,6 +371,14 @@ def patch_recommend(policy: set, meta: dict):
                 sl -= 0.05
             z = ou.z_score(sl)
         terms = original(p, schedule=schedule, patterns=patterns, z=z, mode=mode)
+        if "overnight" in policy and m.get("fresh") and d > 0 and "S" in terms:
+            sL = 0.0 if "sigmaL0" in policy else terms["sigma_lead"]
+            S = ou.order_up_to_level(d, terms["sigma_d"], 0.0, terms["R"], sL, terms["z"])
+            life = float(m.get("life", 4))
+            S = min(S, d * life) if d * life >= 1.0 else 1.0
+            terms = dict(terms)
+            terms["S"] = S
+            terms["quantity"] = ou.order_quantity(S, terms["on_hand"], terms["on_order"], float(p.get("pack_size") or 1))
         if "velocity_cap" in policy and m.get("fresh") and d > 0 and "S" in terms:
             h = 1.25 if d >= 10 else 1.15 if d >= 2 else 1.0
             cap = d * (1.0 + (terms["P"] - 1.0) * h)
@@ -385,7 +411,7 @@ def run_engine_arm(arm, util, base, skus, rate, draws, lives, supplier_of):
     pipeline = defaultdict(lambda: defaultdict(float))     # arrival day -> sku -> qty
     hist = {n: [rate[n][4]] * 90 for n in base}             # pre-period at April's rate
     instock = {n: [True] * 90 for n in base}
-    acc = {n: np.zeros(4) for n in base}
+    acc = {n: np.zeros(5) for n in base}
     blocked = defaultdict(int)
     reasons = defaultdict(float)
     try:
@@ -399,12 +425,13 @@ def run_engine_arm(arm, util, base, skus, rate, draws, lives, supplier_of):
             # the day's trading, then the end-of-day order
             for n, sh in shelves.items():
                 want = draws[n][day]
-                had = sh.stock > 1e-9
+                morning = sh.stock
+                had = morning > 1e-9
                 got = sh.sell(want)
                 hist[n].append(got); hist[n] = hist[n][-90:]
                 instock[n].append(had and got >= want - 1e-9); instock[n] = instock[n][-90:]
                 if day >= BURN_IN:
-                    acc[n] += (want, got, ex[n], arrivals.get(n, 0.0))
+                    acc[n] += (want, got, ex[n], arrivals.get(n, 0.0), morning)
             on_order = defaultdict(float)
             for a_day, lines in pipeline.items():
                 for n, q in lines.items():
@@ -470,18 +497,19 @@ def run_engine_arm(arm, util, base, skus, rate, draws, lives, supplier_of):
 def score(acc, skus, ndays):
     year = 365.0 / ndays
     rows = []
-    for n, (dem, sold, exp, dlv) in acc.items():
+    for n, (dem, sold, exp, dlv, morning) in acc.items():
         s = skus[n]
         rows.append({"name": n, "supplier": s["supplier"], "family": s["family"], "ads": s["ads"],
-                     "demand": dem, "sold": sold, "lost": dem - sold, "expired": exp, "delivered": dlv,
+                     "demand": dem, "sold": sold, "lost": dem - sold, "expired": exp, "delivered": dlv, "morning_stock": morning,
                      "lost_sales_kes": (dem - sold) * s["unit_price"] * year, "expiry_kes": exp * s["unit_cost"] * year,
                      "gp_kes": sold * s["gp_per_unit"] * year})
     return pd.DataFrame(rows)
 
 
 def summarise(df):
-    t = df[["demand", "sold", "lost", "expired", "delivered", "lost_sales_kes", "expiry_kes", "gp_kes"]].sum()
+    t = df[["demand", "sold", "lost", "expired", "delivered", "morning_stock", "lost_sales_kes", "expiry_kes", "gp_kes"]].sum()
     return {"fill": t.sold / t.demand, "waste_of_delivered": t.expired / t.delivered if t.delivered else None,
+            "morning_cover_days": t.morning_stock / t.demand if t.demand else None,
             "lost_units_day": t.lost / (NDAYS - BURN_IN), "expired_units_day": t.expired / (NDAYS - BURN_IN),
             "delivered_units_day": t.delivered / (NDAYS - BURN_IN),
             "lost_sales_kes_year": t.lost_sales_kes, "expiry_kes_year": t.expiry_kes, "gp_kes_year": t.gp_kes}
@@ -495,6 +523,7 @@ def main(argv=None):
     ap.add_argument("--seeds", type=int, default=5)
     ap.add_argument("--arms", default=",".join(ARMS))
     ap.add_argument("--shape", default="rhythm", choices=["rhythm", "flat"])
+    ap.add_argument("--life", default="", help='fix shelf life per family, e.g. "Loaves=4;Buns, rolls, scones=4"')
     a = ap.parse_args(argv)
     os.makedirs(a.out, exist_ok=True)
     import logging
@@ -503,7 +532,8 @@ def main(argv=None):
     skus, rate, deliveries, supplier_of = load_inputs(a.data, a.report_json)
     skus = {n: s for n, s in skus.items() if n in supplier_of}
     shape = demand_shape(skus, rate, deliveries, a.shape)
-    lives, uplift, fit = calibrate(skus, rate, deliveries, shape)
+    fixed = {k.strip(): int(v) for k, v in (x.split("=") for x in a.life.split(";") if "=" in x)}
+    lives, uplift, fit = calibrate(skus, rate, deliveries, shape, fixed_lives=fixed)
     shape = {n: v * uplift.get(skus[n]["family"], 1.0) for n, v in shape.items()}
     print("[calibrate] shelf life by family:", json.dumps(fit), flush=True)
     util, base = build_engine(skus, supplier_of, lives)
@@ -536,10 +566,10 @@ def main(argv=None):
     for arm, dfs in per_sku.items():
         full = pd.concat(dfs)
         g = full.groupby(["name", "supplier", "family", "ads"], as_index=False)[
-            ["demand", "sold", "lost", "expired", "delivered", "lost_sales_kes", "expiry_kes", "gp_kes"]].mean()
+            ["demand", "sold", "lost", "expired", "delivered", "morning_stock", "lost_sales_kes", "expiry_kes", "gp_kes"]].mean()
         g.to_csv(os.path.join(a.out, f"sku_{arm}.csv"), index=False)
         g["vel"] = pd.cut(g.ads, [0, 1, 2, 5, 10, 30, 1e9], labels=["under 1", "1–2", "2–5", "5–10", "10–30", "30+"], right=False).astype(str)
-        breakdown[arm] = {by: json.loads(g.groupby(by)[["demand", "sold", "lost", "expired", "delivered", "lost_sales_kes", "expiry_kes", "gp_kes"]].apply(lambda x: pd.Series(summarise(x))).reset_index().to_json(orient="records"))
+        breakdown[arm] = {by: json.loads(g.groupby(by)[["demand", "sold", "lost", "expired", "delivered", "morning_stock", "lost_sales_kes", "expiry_kes", "gp_kes"]].apply(lambda x: pd.Series(summarise(x))).reset_index().to_json(orient="records"))
                           for by in ("supplier", "family", "vel")}
     reasons_mean = {arm: {k: float(np.mean([r.get(k, 0) for r in rs])) for k in set().union(*rs)}
                     for arm, rs in per_reason.items() if rs and rs[0]}
@@ -550,7 +580,7 @@ def main(argv=None):
         tot = sum(v for k, v in rs.items() if k != "dropped by minimum-order gate") or 1
         print(f"  {arm:<14} " + " | ".join(f"{k} {100*v/tot:.1f}%" for k, v in sorted(rs.items(), key=lambda x: -x[1])[:7]))
     print("\nMEAN OVER SEEDS")
-    print(pd.DataFrame(summary).T[["fill", "waste_of_delivered", "lost_units_day", "expired_units_day", "delivered_units_day",
+    print(pd.DataFrame(summary).T[["fill", "waste_of_delivered", "morning_cover_days", "lost_units_day", "expired_units_day", "delivered_units_day",
                                    "lost_sales_kes_year", "expiry_kes_year", "gp_kes_year", "moq_gate_drops"]].round(4).to_string())
     return 0
 

@@ -1,5 +1,5 @@
 {
-  "generated_utc": "2026-09-11T18:16:22Z",
+  "generated_utc": "2026-09-18T01:53:50Z",
   "repo_relative": "devkit/retail_sandbox/contract",
   "entry_points": {
     "target_stock": {
@@ -63,6 +63,8 @@
         "total_units_sold_last_90d": "0"
       },
       "fields_the_engine_sets": [
+        "ads_missing",
+        "ads_source",
         "order_up_to_terms",
         "reasoning",
         "recommended_quantity",
@@ -129,6 +131,8 @@
         "total_units_sold_last_90d": "0"
       },
       "fields_the_engine_sets": [
+        "ads_missing",
+        "ads_source",
         "fulfillment",
         "order_up_to_terms",
         "pack_rounding",
@@ -144,13 +148,13 @@
       "why": "hits the 1.2-day DAILY_FRESH_JIT branch",
       "product_name": "BROOKSIDE 500ML DAIRY BEST (POUCH)",
       "target_days": 6.0,
-      "recommended_quantity": 2220.0,
-      "reasoning": "[LATA Shield: sigma_L=0.56d -> safety 2.00d of a 2.0d protection interval] [ROP Fallback: intelligence data missing] [order-up-to: R=1d L=2d z=1.28 sigmaL=0.6d ",
-      "qty_raw": 2220.0,
-      "qty_finalized": 2220,
+      "recommended_quantity": 2112.0,
+      "reasoning": "[LATA Shield: lead_time_stdev sigma_L=0.34d -> safety 2.00d of a 2.0d protection interval] [ROP Fallback: intelligence data missing] [order-up-to: R=1d L=2d z=1",
+      "qty_raw": 2112.0,
+      "qty_finalized": 2112,
       "ordered_quantity": 0,
       "fulfillment": "TRANSFER_FIRST",
-      "pipeline_reasoning": "[LATA Shield: sigma_L=0.56d -> safety 2.00d of a 2.0d protection interval] [ROP Fallback: intelligence data missing] [order-up-to: R=1d L=2d z=1.28 sigmaL=0.6d S=3010] [Item MOQ/MOP Gate: value KES 0 < MOP KES 200 \u2014 rout"
+      "pipeline_reasoning": "[LATA Shield: lead_time_stdev sigma_L=0.34d -> safety 2.00d of a 2.0d protection interval] [ROP Fallback: intelligence data missing] [order-up-to: R=1d L=2d z=1.28 sigmaL=0.3d S=2904] [Item MOQ/MOP Gate: value KES 0 < MO"
     },
     {
       "case": "long life, keyword present",
@@ -158,25 +162,25 @@
       "product_name": "RAVINE GOLD 500ML ESL UHT MILK",
       "target_days": 16.0,
       "recommended_quantity": 132.0,
-      "reasoning": "[LATA Shield: sigma_L=1.93d -> safety 2.54d of a 5.0d protection interval] [ROP Fallback: intelligence data missing] [ROP floored at the protection interval R+L",
+      "reasoning": "[LATA Shield: lead_time_stdev sigma_L=1.93d -> safety 2.53d of a 5.0d protection interval] [ROP Fallback: intelligence data missing] [ROP floored at the protect",
       "qty_raw": 132.0,
       "qty_finalized": 132,
       "ordered_quantity": 0,
       "fulfillment": "TRANSFER_FIRST",
-      "pipeline_reasoning": "[LATA Shield: sigma_L=1.93d -> safety 2.54d of a 5.0d protection interval] [ROP Fallback: intelligence data missing] [ROP floored at the protection interval R+L=8d] [order-up-to: R=7d L=2d z=1.28 sigmaL=1.9d S=170] [Item"
+      "pipeline_reasoning": "[LATA Shield: lead_time_stdev sigma_L=1.93d -> safety 2.53d of a 5.0d protection interval] [ROP Fallback: intelligence data missing] [ROP floored at the protection interval R+L=9d] [order-up-to: R=7d L=2d z=1.28 sigmaL=1"
     },
     {
       "case": "long life, keyword ABSENT",
       "why": "the misclassification case",
       "product_name": "TUZO 500ML WHOLE MILK (FINO PACK) 180DAYS",
       "target_days": 6.0,
-      "recommended_quantity": 264.0,
-      "reasoning": "[LATA Shield: sigma_L=0.56d -> safety 2.00d of a 2.0d protection interval] [ROP Fallback: intelligence data missing] [order-up-to: R=1d L=2d z=1.28 sigmaL=0.6d ",
-      "qty_raw": 264.0,
-      "qty_finalized": 264,
+      "recommended_quantity": 252.0,
+      "reasoning": "[LATA Shield: lead_time_stdev sigma_L=0.34d -> safety 2.00d of a 2.0d protection interval] [ROP Fallback: intelligence data missing] [order-up-to: R=1d L=2d z=1",
+      "qty_raw": 252.0,
+      "qty_finalized": 252,
       "ordered_quantity": 0,
       "fulfillment": "TRANSFER_FIRST",
-      "pipeline_reasoning": "[LATA Shield: sigma_L=0.56d -> safety 2.00d of a 2.0d protection interval] [ROP Fallback: intelligence data missing] [order-up-to: R=1d L=2d z=1.28 sigmaL=0.6d S=348] [Item MOQ/MOP Gate: value KES 0 < MOP KES 200 \u2014 route"
+      "pipeline_reasoning": "[LATA Shield: lead_time_stdev sigma_L=0.34d -> safety 2.00d of a 2.0d protection interval] [ROP Fallback: intelligence data missing] [order-up-to: R=1d L=2d z=1.28 sigmaL=0.3d S=336] [Item MOQ/MOP Gate: value KES 0 < MOP"
     },
     {
       "case": "dry goods",
@@ -197,12 +201,12 @@
       "product_name": "AMERICANO 90G ALMONDS SQUARE TIN",
       "target_days": 31.0,
       "recommended_quantity": 0,
-      "reasoning": "[Above ROP 3.2]",
+      "reasoning": "[Above ROP 5.6]",
       "qty_raw": 0,
       "qty_finalized": 0,
       "ordered_quantity": 0,
       "fulfillment": "NONE",
-      "pipeline_reasoning": "[Above ROP 3.2]"
+      "pipeline_reasoning": "[Above ROP 5.6]"
     },
     {
       "case": "zero velocity",
@@ -210,12 +214,12 @@
       "product_name": "NEW LISTING NO HISTORY 1L",
       "target_days": 0.0,
       "recommended_quantity": 0,
-      "reasoning": "[LATA Shield: sigma_L=1.93d -> safety 2.50d of a 2.0d protection interval] [order-up-to: position already covers P]",
+      "reasoning": "[LATA Shield: lead_time_stdev sigma_L=1.93d -> safety 2.49d of a 2.0d protection interval] [no order: no measured sales rate]",
       "qty_raw": 0,
       "qty_finalized": 0,
       "ordered_quantity": 0,
       "fulfillment": "NONE",
-      "pipeline_reasoning": "[LATA Shield: sigma_L=1.93d -> safety 2.50d of a 2.0d protection interval] [order-up-to: position already covers P]"
+      "pipeline_reasoning": "[LATA Shield: lead_time_stdev sigma_L=1.93d -> safety 2.49d of a 2.0d protection interval] [no order: no measured sales rate]"
     },
     {
       "case": "minimal record",
@@ -223,18 +227,18 @@
       "product_name": "BARE MINIMUM ITEM",
       "target_days": 17.0,
       "recommended_quantity": 68.0,
-      "reasoning": "[LATA Shield: sigma_L=1.93d -> safety 2.57d of a 8.0d protection interval] [ROP Fallback: intelligence data missing] [ROP floored at the protection interval R+L",
+      "reasoning": "[LATA Shield: lead_time_stdev sigma_L=1.93d -> safety 2.57d of a 8.0d protection interval] [ROP Fallback: intelligence data missing] [ROP floored at the protect",
       "qty_raw": 68.0,
       "qty_finalized": 68,
       "ordered_quantity": 0,
       "fulfillment": "TRANSFER_FIRST",
-      "pipeline_reasoning": "[LATA Shield: sigma_L=1.93d -> safety 2.57d of a 8.0d protection interval] [ROP Fallback: intelligence data missing] [ROP floored at the protection interval R+L=8d] [order-up-to: R=7d L=3d z=1.28 sigmaL=1.9d S=67] [Item "
+      "pipeline_reasoning": "[LATA Shield: lead_time_stdev sigma_L=1.93d -> safety 2.57d of a 8.0d protection interval] [ROP Fallback: intelligence data missing] [ROP floored at the protection interval R+L=10d] [order-up-to: R=7d L=3d z=1.28 sigmaL="
     }
   ],
   "engines_config": {
     "source": "oasis/data/oasis_engines_config.json",
-    "sha256": "3893900f57321bb4e862d04961cf50bc421aa326107f0bb6ac9f7b2d2197ed6f",
-    "bytes": 9261,
+    "sha256": "213d757556fe805581602608bb31632fd666fc64a35f2d807753eb7e15f943fc",
+    "bytes": 10266,
     "active_engines": [
       "amit",
       "lata",
@@ -243,20 +247,20 @@
     ],
     "engine_sources": {
       "files": {
-        "oasis/logic/order_engine.py": "196e8729b526091542d99e0808b8907f8797fa6e65b5f05f4225e9754230fc80",
-        "oasis/logic/intelligence_mixin.py": "d245d2d13ebff00828550693b1d30d3d71f18791633e57a7892b4c4b96473258",
-        "oasis/logic/simulation_bridge.py": "b437697f3fbc8dda5f0354170509163c169ae4a50a0fc9303d3c96d9128be996",
-        "oasis/logic/order_up_to.py": "5f367de004013f85baaae4ebc70ff61fb2fb5f4e5cc57e87381a9b4a2264023b",
+        "oasis/logic/order_engine.py": "001a767a8734d013d0b8a32a19fc78e2f0af3768ecb2af183f456f300c13fdbe",
+        "oasis/logic/intelligence_mixin.py": "cb7441e2020b5ee24e9aef6aa930ed64e6fda97680a27463b21493983e4fd8cb",
+        "oasis/logic/simulation_bridge.py": "d07286acefc52216a2f350ccd09186e1019e2d287f31f3339bf2033a70772e77",
+        "oasis/logic/order_up_to.py": "e2a0a3f639ff330ce5f43404902baa76497dada9b53a5c6b4cb01b3de07d7701",
         "oasis/logic/order_logic_guards.py": "935ce14f687dd268a83775543358168dc243ef131c0ac09ad91f3ea4c7d09409",
         "oasis/logic/rounding.py": "ce471d45e890be38ef3693d20dc5d8a725a5ae96a428645d1f57b251680ae8c7",
         "oasis/logic/engines_config.py": "a571047e00dfb82c163bc9a6d2909807b26706ae8fbb0a32afbfa062dae10b52",
         "oasis/logic/lata_shield.py": "2e65940526c7c9dd233d1c6985c129559a6ccc34b669cbf3f6cabda3ce6e996a",
         "oasis/logic/residual_cover.py": "06083ea94a18de750a29e379d77893787dd0f1762f481fcb9c1f3ae37b079fd1",
-        "oasis/logic/consolidated_transfer_service.py": "937debb668c8da75007e1f0d2a77a319c8b5f66529b05a422058d4b657884043",
+        "oasis/logic/consolidated_transfer_service.py": "ccbcc40adbf6df38baa6d3f1b375e8d3a9088b58de103311a39499237abf71db",
         "oasis/logic/fulfillment_decider.py": "3d48b468747905694083fc064330c627464a6cccce7e2cad5e03503d2ee9068e",
         "oasis/logic/transfer_state.py": "0cbbabea17fe0125f3f40bba9bd6cdc45213f425e6de288b62bba0045b60aa77"
       },
-      "combined_sha256": "958c0e5805985d51f00cee8b72fca35f9e59860c180e518ddfdddf17f3391c78"
+      "combined_sha256": "b39fba213915687063b800782c26afdbb8db3e950fe0a08dd6341dc4438285f1"
     }
   }
 }

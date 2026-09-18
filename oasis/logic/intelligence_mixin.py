@@ -763,7 +763,14 @@ class IntelligenceMixin:
             p['moq_floor'] = 0
             p['min_presentation_stock'] = 0
             p['is_key_sku'] = p.get('is_top_sku', False)
-            p['shelf_life_days'] = 7 if is_fresh else 365
+            # The label's sellable life where one is configured (fresh_cycle in
+            # the engine config); the old defaults only where nothing is known.
+            # A hardcoded 7 here overrode every measured and asserted shelf life
+            # downstream -- recommend() takes the line's value first.
+            from . import order_up_to as _ou_sl
+            _label_life = _ou_sl.sellable_life_for(p.get('department') or '',
+                                                   p.get('product_name') or '')
+            p['shelf_life_days'] = _label_life if _label_life > 0 else (7 if is_fresh else 365)
             if is_fresh and p.get('supplier_frequency') == 'daily':
                 p['upper_coverage_days'] = 1.2
             elif is_fresh:

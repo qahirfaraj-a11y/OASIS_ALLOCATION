@@ -649,7 +649,10 @@ class SimulationOrderUtil:
                 _R_trigger = _ou.review_period(
                     str(p.get('supplier_name') or '').upper(),
                     self._review_schedule)
-                _P_trigger = max(1.0, float(lead_time) + float(_R_trigger))
+                # the same selling-day lead recommend() uses, so the trigger and
+                # the target protect one horizon
+                _L_trigger = _ou.effective_lead_days(p, self._lead_patterns)[0]
+                _P_trigger = max(1.0, float(_L_trigger) + float(_R_trigger))
                 _protection = avg_daily_sales * _P_trigger
                 if _protection > reorder_point:
                     reorder_point = _protection

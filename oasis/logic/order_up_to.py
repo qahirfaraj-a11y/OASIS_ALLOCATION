@@ -552,6 +552,96 @@ def is_long_life(sku: Any, root: Optional[str] = None) -> bool:
     return False
 
 
+FRESH_CYCLE_KEY = "fresh_cycle"
+_FRESH_CYCLE: Optional[dict] = None
+
+
+def _norm(s: Any) -> str:
+    return " ".join(str(s or "").upper().split())
+
+
+def fresh_cycle() -> dict:
+    """The daily fresh cycle, from ``fresh_cycle`` in the central engine config.
+
+    ONE DEFINITION, READ BY EVERY PATH. recommend(), the bridge's reorder
+    trigger and enrichment's shelf_life_days all take the overnight-lead rule
+    and the sellable life from here, so the offline POS path, the Odoo review
+    queue, AMIT's scoring and the classic path cannot disagree about bread.
+
+      overnight_delivery_departments  lines whose supplier delivers before the
+                                      next opening: an order placed after close
+                                      adds no selling days of exposure
+      overnight_max_lead_days         the measured lead at or under which that
+                                      holds (default 1.0)
+      sellable_life_days              department -> selling days on the shelf,
+                                      from the LABEL: best-before - manufacture
+                                      - the day it is pulled early. Bread baked
+                                      and delivered the same day with a 5-day
+                                      best-before, pulled a day early: 4
+      sellable_life_per_sku           SKU name -> selling days; beats the
+                                      department when real code dates exist
+    """
+    global _FRESH_CYCLE
+    if _FRESH_CYCLE is None:
+        try:
+            from .engines_config import load_engines_config
+            cfg = (load_engines_config(None) or {}).get(FRESH_CYCLE_KEY) or {}
+        except Exception:
+            cfg = {}
+        num = lambda d: {_norm(k): float(v) for k, v in (d or {}).items()
+                         if isinstance(v, (int, float)) and float(v) > 0}
+        _FRESH_CYCLE = {
+            "overnight": frozenset(_norm(x) for x in cfg.get("overnight_delivery_departments") or []),
+            "overnight_max_lead": float(cfg.get("overnight_max_lead_days", 1.0)),
+            "life_dept": num(cfg.get("sellable_life_days")),
+            "life_sku": num(cfg.get("sellable_life_per_sku")),
+        }
+    return _FRESH_CYCLE
+
+
+def reset_fresh_cycle() -> None:
+    """Drop the cached fresh-cycle config (tests, and after a config edit)."""
+    global _FRESH_CYCLE
+    _FRESH_CYCLE = None
+
+
+def sellable_life_for(department: str, sku: Optional[str] = None) -> float:
+    """Selling days from the label (SKU first, then department); 0 when unknown."""
+    fc = fresh_cycle()
+    if sku:
+        v = fc["life_sku"].get(_norm(sku))
+        if v:
+            return v
+    return fc["life_dept"].get(_norm(department), 0.0)
+
+
+def effective_lead_days(product: Dict[str, Any],
+                        patterns: Optional[Dict[str, dict]] = None) -> Tuple[float, str]:
+    """Lead time in the unit the horizon needs: SELLING days of exposure.
+
+    WHY BREAD WAS HELD AT THREE DAYS. S covers P = R + L, and L was a calendar
+    day floored at 1. For a bakery that takes the order after close and
+    delivers before the next opening, that day contains no trading: P came to
+    2 where 1 is exposed, and the order-up-to level landed at ~3 days of cover
+    against the 1.2-1.5 the bakeries' own daily drops run. Replayed over Apr-Sep
+    2026 at the label's 4 selling days (devkit/bread_backtest.py), counting
+    selling days cut loaf expiry by about 78% in both demand shapes, matching
+    the suppliers' availability.
+
+    The lead is the supplier's MEASURED one where LATA has it, so an overnight
+    department served by a slow supplier keeps its calendar lead.
+    """
+    raw = float(product.get("lead_time_days") or product.get("estimated_delivery_days") or 3)
+    fc = fresh_cycle()
+    if _norm(product.get("department")) in fc["overnight"]:
+        pats = default_patterns() if patterns is None else patterns
+        measured = (pats.get(supplier_key(product.get("supplier_name"))) or {}).get("lead_time_days")
+        lead = float(measured) if measured is not None else raw
+        if lead <= fc["overnight_max_lead"]:
+            return 0.0, "selling days: delivered before the next opening"
+    return max(1.0, raw), "calendar days"
+
+
 def shelf_life_for(department: str, root: Optional[str] = None,
                    sku: Optional[str] = None) -> float:
     """Effective shelf life in days: the SKU's own where it is measured, else
@@ -579,6 +669,13 @@ def shelf_life_for(department: str, root: Optional[str] = None,
     # and a third days of cover.
     if not dept and v:
         dept = " ".join(str(v.get("department") or "").upper().split())
+    # THE LABEL OUTRANKS EVERYTHING BELOW IT. The measured figure is the age
+    # at which the return paperwork was processed -- and bakeries swap stale
+    # bread at the next delivery, so for bread it measures the swap, not the
+    # expiry. A code-date sellable life is the physical fact.
+    label = sellable_life_for(dept, sku)
+    if label > 0:
+        return label
     # LONG LIFE OUTRANKS THE DEPARTMENT.
     # A department ceiling is an assertion about the typical product in that
     # aisle. An ESL or UHT pouch in the fresh-milk chiller is the exception the
@@ -1289,11 +1386,10 @@ def recommend(product: Dict[str, Any],
     # is for the surfaces that read it -- it is simply not this input.
     cv = float(product.get("demand_cv_daily") or 0) or demand_cv(d)
     sigma_d = cv * d
-    L = max(1.0, float(product.get("lead_time_days")
-                       or product.get("estimated_delivery_days") or 3))
+    pats = default_patterns() if patterns is None else patterns
+    L, L_basis = effective_lead_days(product, pats)
     R = review_period(supplier, schedule, mode=mode,
                       cadence=product.get("_cadence"))
-    pats = default_patterns() if patterns is None else patterns
     sL = sigma_lead(pats.get(supplier))
     zz = z_score() if z is None else z
 
@@ -1411,7 +1507,7 @@ def recommend(product: Dict[str, Any],
         "implied_service": _service,
         "min_feasible_cover_days": P,
         "quantity": Q, "S": S, "S_unclamped": S_raw,
-        "R": R, "L": L, "P": P, "d": d, "sigma_d": sigma_d,
+        "R": R, "L": L, "L_basis": L_basis, "P": P, "d": d, "sigma_d": sigma_d,
         "sigma_lead": sL, "z": zz,
         "mode": (mode or ordering_mode()),
         "scheduled": bool(schedule and " ".join(supplier.split()) in schedule),

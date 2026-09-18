@@ -1,5 +1,5 @@
 {
- "engines_config_sha256": "eabb385c3a947bfbcfa6dc46f1bddb59fc68d85404d0a495124f81a5d163ba51",
+ "engines_config_sha256": "c111afb75fc146ba187a01dc19f46d1cb61a843698ca0ff19a73f7bd43953254",
  "current_day": 40,
  "cover_positions": [
   0.0,
@@ -21,7 +21,7 @@
    "qty_finalized": 936.0,
    "ordered_quantity": 936.0,
    "fulfillment": "PO",
-   "reasoning": "[LATA Shield: lead_time_stdev sigma_L=2.71d -> safety 4.22d of a 14.0d protection interval] [CRITICAL OVERRIDE: Schedule Bypass] [ROP floored at the protection interval R+L=14d] [order-up-to: R=7d L=7d z=1.28 sigmaL=2.7d S=915]"
+   "reasoning": "[LATA Shield: lead_time_stdev sigma_L=2.73d -> safety 4.23d of a 14.0d protection interval] [CRITICAL OVERRIDE: Schedule Bypass] [ROP floored at the protection interval R+L=14d] [order-up-to: R=7d L=7d z=1.28 sigmaL=2.7d S=915]"
   },
   {
    "case": "S42 @ 1d",
@@ -30,11 +30,11 @@
    "product_name": "QUENCHER 300ML DRINKING WATER",
    "target_days": 12.0,
    "reorder_point": 507.5,
-   "qty_raw": 864.0,
-   "qty_finalized": 864.0,
-   "ordered_quantity": 864.0,
+   "qty_raw": 888.0,
+   "qty_finalized": 888.0,
+   "ordered_quantity": 888.0,
    "fulfillment": "PO",
-   "reasoning": "[LATA Shield: lead_time_stdev sigma_L=2.71d -> safety 4.22d of a 14.0d protection interval] [CRITICAL OVERRIDE: Schedule Bypass] [ROP floored at the protection interval R+L=14d] [order-up-to: R=7d L=7d z=1.28 sigmaL=2.7d S=915]"
+   "reasoning": "[LATA Shield: lead_time_stdev sigma_L=2.73d -> safety 4.23d of a 14.0d protection interval] [CRITICAL OVERRIDE: Schedule Bypass] [ROP floored at the protection interval R+L=14d] [order-up-to: R=7d L=7d z=1.28 sigmaL=2.7d S=915]"
   },
   {
    "case": "S42 @ 3d",
@@ -47,7 +47,7 @@
    "qty_finalized": 768.0,
    "ordered_quantity": 768.0,
    "fulfillment": "PO",
-   "reasoning": "[LATA Shield: lead_time_stdev sigma_L=2.71d -> safety 4.22d of a 14.0d protection interval] [CRITICAL OVERRIDE: Schedule Bypass] [ROP floored at the protection interval R+L=14d] [order-up-to: R=7d L=7d z=1.28 sigmaL=2.7d S=915]"
+   "reasoning": "[LATA Shield: lead_time_stdev sigma_L=2.73d -> safety 4.23d of a 14.0d protection interval] [CRITICAL OVERRIDE: Schedule Bypass] [ROP floored at the protection interval R+L=14d] [order-up-to: R=7d L=7d z=1.28 sigmaL=2.7d S=915]"
   },
   {
    "case": "S42 @ 7d",
@@ -60,7 +60,7 @@
    "qty_finalized": 576.0,
    "ordered_quantity": 576.0,
    "fulfillment": "PO",
-   "reasoning": "[LATA Shield: lead_time_stdev sigma_L=2.71d -> safety 4.22d of a 14.0d protection interval] [CRITICAL OVERRIDE: Schedule Bypass] [ROP floored at the protection interval R+L=14d] [order-up-to: R=7d L=7d z=1.28 sigmaL=2.7d S=915]"
+   "reasoning": "[LATA Shield: lead_time_stdev sigma_L=2.73d -> safety 4.23d of a 14.0d protection interval] [CRITICAL OVERRIDE: Schedule Bypass] [ROP floored at the protection interval R+L=14d] [order-up-to: R=7d L=7d z=1.28 sigmaL=2.7d S=915]"
   },
   {
    "case": "S42 @ 21d",
@@ -86,7 +86,7 @@
    "qty_finalized": 888.0,
    "ordered_quantity": 888.0,
    "fulfillment": "PO",
-   "reasoning": "[LATA Shield: lead_time_stdev sigma_L=2.71d -> safety 4.22d of a 14.0d protection interval] [CRITICAL OVERRIDE: Schedule Bypass] [ROP floored at the protection interval R+L=14d] [order-up-to: R=7d L=7d z=1.28 sigmaL=2.7d S=878]"
+   "reasoning": "[LATA Shield: lead_time_stdev sigma_L=2.73d -> safety 4.23d of a 14.0d protection interval] [CRITICAL OVERRIDE: Schedule Bypass] [ROP floored at the protection interval R+L=14d] [order-up-to: R=7d L=7d z=1.28 sigmaL=2.7d S=878]"
   },
   {
    "case": "S43 @ 1d",
@@ -99,7 +99,7 @@
    "qty_finalized": 840.0,
    "ordered_quantity": 840.0,
    "fulfillment": "PO",
-   "reasoning": "[LATA Shield: lead_time_stdev sigma_L=2.71d -> safety 4.22d of a 14.0d protection interval] [CRITICAL OVERRIDE: Schedule Bypass] [ROP floored at the protection interval R+L=14d] [order-up-to: R=7d L=7d z=1.28 sigmaL=2.7d S=878]"
+   "reasoning": "[LATA Shield: lead_time_stdev sigma_L=2.73d -> safety 4.23d of a 14.0d protection interval] [CRITICAL OVERRIDE: Schedule Bypass] [ROP floored at the protection interval R+L=14d] [order-up-to: R=7d L=7d z=1.28 sigmaL=2.7d S=878]"
   },
   {
    "case": "S43 @ 3d",
@@ -112,7 +112,7 @@
    "qty_finalized": 744.0,
    "ordered_quantity": 744.0,
    "fulfillment": "PO",
-   "reasoning": "[LATA Shield: lead_time_stdev sigma_L=2.71d -> safety 4.22d of a 14.0d protection interval] [CRITICAL OVERRIDE: Schedule Bypass] [ROP floored at the protection interval R+L=14d] [order-up-to: R=7d L=7d z=1.28 sigmaL=2.7d S=878]"
+   "reasoning": "[LATA Shield: lead_time_stdev sigma_L=2.73d -> safety 4.23d of a 14.0d protection interval] [CRITICAL OVERRIDE: Schedule Bypass] [ROP floored at the protection interval R+L=14d] [order-up-to: R=7d L=7d z=1.28 sigmaL=2.7d S=878]"
   },
   {
    "case": "S43 @ 7d",
@@ -125,7 +125,7 @@
    "qty_finalized": 552.0,
    "ordered_quantity": 552.0,
    "fulfillment": "PO",
-   "reasoning": "[LATA Shield: lead_time_stdev sigma_L=2.71d -> safety 4.22d of a 14.0d protection interval] [CRITICAL OVERRIDE: Schedule Bypass] [ROP floored at the protection interval R+L=14d] [order-up-to: R=7d L=7d z=1.28 sigmaL=2.7d S=878]"
+   "reasoning": "[LATA Shield: lead_time_stdev sigma_L=2.73d -> safety 4.23d of a 14.0d protection interval] [CRITICAL OVERRIDE: Schedule Bypass] [ROP floored at the protection interval R+L=14d] [order-up-to: R=7d L=7d z=1.28 sigmaL=2.7d S=878]"
   },
   {
    "case": "S43 @ 21d",
@@ -151,7 +151,7 @@
    "qty_finalized": 624.0,
    "ordered_quantity": 624.0,
    "fulfillment": "PO",
-   "reasoning": "[LATA Shield: lead_time_stdev sigma_L=0.77d -> safety 2.59d of a 14.0d protection interval] [CRITICAL OVERRIDE: Schedule Bypass] [ROP floored at the protection interval R+L=11d] [order-up-to: R=4d L=7d z=1.28 sigmaL=0.8d S=611]"
+   "reasoning": "[LATA Shield: lead_time_stdev sigma_L=0.74d -> safety 2.58d of a 14.0d protection interval] [CRITICAL OVERRIDE: Schedule Bypass] [ROP floored at the protection interval R+L=11d] [order-up-to: R=4d L=7d z=1.28 sigmaL=0.7d S=611]"
   },
   {
    "case": "S01 @ 1d",
@@ -164,7 +164,7 @@
    "qty_finalized": 576.0,
    "ordered_quantity": 576.0,
    "fulfillment": "PO",
-   "reasoning": "[LATA Shield: lead_time_stdev sigma_L=0.77d -> safety 2.59d of a 14.0d protection interval] [CRITICAL OVERRIDE: Schedule Bypass] [ROP floored at the protection interval R+L=11d] [order-up-to: R=4d L=7d z=1.28 sigmaL=0.8d S=611]"
+   "reasoning": "[LATA Shield: lead_time_stdev sigma_L=0.74d -> safety 2.58d of a 14.0d protection interval] [CRITICAL OVERRIDE: Schedule Bypass] [ROP floored at the protection interval R+L=11d] [order-up-to: R=4d L=7d z=1.28 sigmaL=0.7d S=611]"
   },
   {
    "case": "S01 @ 3d",
@@ -177,7 +177,7 @@
    "qty_finalized": 480.0,
    "ordered_quantity": 480.0,
    "fulfillment": "PO",
-   "reasoning": "[LATA Shield: lead_time_stdev sigma_L=0.77d -> safety 2.59d of a 14.0d protection interval] [CRITICAL OVERRIDE: Schedule Bypass] [ROP floored at the protection interval R+L=11d] [order-up-to: R=4d L=7d z=1.28 sigmaL=0.8d S=611]"
+   "reasoning": "[LATA Shield: lead_time_stdev sigma_L=0.74d -> safety 2.58d of a 14.0d protection interval] [CRITICAL OVERRIDE: Schedule Bypass] [ROP floored at the protection interval R+L=11d] [order-up-to: R=4d L=7d z=1.28 sigmaL=0.7d S=611]"
   },
   {
    "case": "S01 @ 7d",
@@ -190,7 +190,7 @@
    "qty_finalized": 288.0,
    "ordered_quantity": 288.0,
    "fulfillment": "PO",
-   "reasoning": "[LATA Shield: lead_time_stdev sigma_L=0.77d -> safety 2.59d of a 14.0d protection interval] [CRITICAL OVERRIDE: Schedule Bypass] [ROP floored at the protection interval R+L=11d] [order-up-to: R=4d L=7d z=1.28 sigmaL=0.8d S=611]"
+   "reasoning": "[LATA Shield: lead_time_stdev sigma_L=0.74d -> safety 2.58d of a 14.0d protection interval] [CRITICAL OVERRIDE: Schedule Bypass] [ROP floored at the protection interval R+L=11d] [order-up-to: R=4d L=7d z=1.28 sigmaL=0.7d S=611]"
   },
   {
    "case": "S01 @ 21d",
@@ -216,7 +216,7 @@
    "qty_finalized": 816.0,
    "ordered_quantity": 816.0,
    "fulfillment": "PO",
-   "reasoning": "[LATA Shield: lead_time_stdev sigma_L=2.71d -> safety 4.22d of a 14.0d protection interval] [CRITICAL OVERRIDE: Schedule Bypass] [ROP floored at the protection interval R+L=14d] [order-up-to: R=7d L=7d z=1.28 sigmaL=2.7d S=809]"
+   "reasoning": "[LATA Shield: lead_time_stdev sigma_L=2.73d -> safety 4.23d of a 14.0d protection interval] [CRITICAL OVERRIDE: Schedule Bypass] [ROP floored at the protection interval R+L=14d] [order-up-to: R=7d L=7d z=1.28 sigmaL=2.7d S=810]"
   },
   {
    "case": "S41 @ 1d",
@@ -229,7 +229,7 @@
    "qty_finalized": 768.0,
    "ordered_quantity": 768.0,
    "fulfillment": "PO",
-   "reasoning": "[LATA Shield: lead_time_stdev sigma_L=2.71d -> safety 4.22d of a 14.0d protection interval] [CRITICAL OVERRIDE: Schedule Bypass] [ROP floored at the protection interval R+L=14d] [order-up-to: R=7d L=7d z=1.28 sigmaL=2.7d S=809]"
+   "reasoning": "[LATA Shield: lead_time_stdev sigma_L=2.73d -> safety 4.23d of a 14.0d protection interval] [CRITICAL OVERRIDE: Schedule Bypass] [ROP floored at the protection interval R+L=14d] [order-up-to: R=7d L=7d z=1.28 sigmaL=2.7d S=810]"
   },
   {
    "case": "S41 @ 3d",
@@ -242,7 +242,7 @@
    "qty_finalized": 684.0,
    "ordered_quantity": 684.0,
    "fulfillment": "PO",
-   "reasoning": "[LATA Shield: lead_time_stdev sigma_L=2.71d -> safety 4.22d of a 14.0d protection interval] [CRITICAL OVERRIDE: Schedule Bypass] [ROP floored at the protection interval R+L=14d] [order-up-to: R=7d L=7d z=1.28 sigmaL=2.7d S=809]"
+   "reasoning": "[LATA Shield: lead_time_stdev sigma_L=2.73d -> safety 4.23d of a 14.0d protection interval] [CRITICAL OVERRIDE: Schedule Bypass] [ROP floored at the protection interval R+L=14d] [order-up-to: R=7d L=7d z=1.28 sigmaL=2.7d S=810]"
   },
   {
    "case": "S41 @ 7d",
@@ -255,7 +255,7 @@
    "qty_finalized": 504.0,
    "ordered_quantity": 504.0,
    "fulfillment": "PO",
-   "reasoning": "[LATA Shield: lead_time_stdev sigma_L=2.71d -> safety 4.22d of a 14.0d protection interval] [CRITICAL OVERRIDE: Schedule Bypass] [ROP floored at the protection interval R+L=14d] [order-up-to: R=7d L=7d z=1.28 sigmaL=2.7d S=809]"
+   "reasoning": "[LATA Shield: lead_time_stdev sigma_L=2.73d -> safety 4.23d of a 14.0d protection interval] [CRITICAL OVERRIDE: Schedule Bypass] [ROP floored at the protection interval R+L=14d] [order-up-to: R=7d L=7d z=1.28 sigmaL=2.7d S=810]"
   },
   {
    "case": "S41 @ 21d",
@@ -281,7 +281,7 @@
    "qty_finalized": 480.0,
    "ordered_quantity": 480.0,
    "fulfillment": "PO",
-   "reasoning": "[LATA Shield: lead_time_stdev sigma_L=0.78d -> safety 2.60d of a 14.0d protection interval] [CRITICAL OVERRIDE: Schedule Bypass] [ROP floored at the protection interval R+L=10d] [order-up-to: R=3d L=7d z=1.28 sigmaL=0.8d S=472]"
+   "reasoning": "[LATA Shield: lead_time_stdev sigma_L=0.67d -> safety 2.54d of a 14.0d protection interval] [CRITICAL OVERRIDE: Schedule Bypass] [ROP floored at the protection interval R+L=10d] [order-up-to: R=3d L=7d z=1.28 sigmaL=0.7d S=469]"
   },
   {
    "case": "S08 @ 1d",
@@ -290,11 +290,11 @@
    "product_name": "COKE PET 350ML",
    "target_days": 9.0,
    "reorder_point": 392.7,
-   "qty_raw": 444.0,
-   "qty_finalized": 444.0,
-   "ordered_quantity": 444.0,
+   "qty_raw": 432.0,
+   "qty_finalized": 432.0,
+   "ordered_quantity": 432.0,
    "fulfillment": "PO",
-   "reasoning": "[LATA Shield: lead_time_stdev sigma_L=0.78d -> safety 2.60d of a 14.0d protection interval] [CRITICAL OVERRIDE: Schedule Bypass] [ROP floored at the protection interval R+L=10d] [order-up-to: R=3d L=7d z=1.28 sigmaL=0.8d S=472]"
+   "reasoning": "[LATA Shield: lead_time_stdev sigma_L=0.67d -> safety 2.54d of a 14.0d protection interval] [CRITICAL OVERRIDE: Schedule Bypass] [ROP floored at the protection interval R+L=10d] [order-up-to: R=3d L=7d z=1.28 sigmaL=0.7d S=469]"
   },
   {
    "case": "S08 @ 3d",
@@ -307,7 +307,7 @@
    "qty_finalized": 360.0,
    "ordered_quantity": 360.0,
    "fulfillment": "PO",
-   "reasoning": "[LATA Shield: lead_time_stdev sigma_L=0.78d -> safety 2.60d of a 14.0d protection interval] [CRITICAL OVERRIDE: Schedule Bypass] [ROP floored at the protection interval R+L=10d] [order-up-to: R=3d L=7d z=1.28 sigmaL=0.8d S=472]"
+   "reasoning": "[LATA Shield: lead_time_stdev sigma_L=0.67d -> safety 2.54d of a 14.0d protection interval] [CRITICAL OVERRIDE: Schedule Bypass] [ROP floored at the protection interval R+L=10d] [order-up-to: R=3d L=7d z=1.28 sigmaL=0.7d S=469]"
   },
   {
    "case": "S08 @ 7d",
@@ -320,7 +320,7 @@
    "qty_finalized": 204.0,
    "ordered_quantity": 204.0,
    "fulfillment": "PO",
-   "reasoning": "[LATA Shield: lead_time_stdev sigma_L=0.78d -> safety 2.60d of a 14.0d protection interval] [CRITICAL OVERRIDE: Schedule Bypass] [ROP floored at the protection interval R+L=10d] [order-up-to: R=3d L=7d z=1.28 sigmaL=0.8d S=472]"
+   "reasoning": "[LATA Shield: lead_time_stdev sigma_L=0.67d -> safety 2.54d of a 14.0d protection interval] [CRITICAL OVERRIDE: Schedule Bypass] [ROP floored at the protection interval R+L=10d] [order-up-to: R=3d L=7d z=1.28 sigmaL=0.7d S=469]"
   },
   {
    "case": "S08 @ 21d",
@@ -346,7 +346,7 @@
    "qty_finalized": 384.0,
    "ordered_quantity": 384.0,
    "fulfillment": "PO",
-   "reasoning": "[LATA Shield: lead_time_stdev sigma_L=0.78d -> safety 2.60d of a 14.0d protection interval] [CRITICAL OVERRIDE: Schedule Bypass] [order-up-to: R=3d L=7d z=1.28 sigmaL=0.8d S=382]"
+   "reasoning": "[LATA Shield: lead_time_stdev sigma_L=0.67d -> safety 2.54d of a 14.0d protection interval] [CRITICAL OVERRIDE: Schedule Bypass] [order-up-to: R=3d L=7d z=1.28 sigmaL=0.7d S=380]"
   },
   {
    "case": "S10 @ 1d",
@@ -359,7 +359,7 @@
    "qty_finalized": 360.0,
    "ordered_quantity": 360.0,
    "fulfillment": "PO",
-   "reasoning": "[LATA Shield: lead_time_stdev sigma_L=0.78d -> safety 2.60d of a 14.0d protection interval] [CRITICAL OVERRIDE: Schedule Bypass] [order-up-to: R=3d L=7d z=1.28 sigmaL=0.8d S=382]"
+   "reasoning": "[LATA Shield: lead_time_stdev sigma_L=0.67d -> safety 2.54d of a 14.0d protection interval] [CRITICAL OVERRIDE: Schedule Bypass] [order-up-to: R=3d L=7d z=1.28 sigmaL=0.7d S=380]"
   },
   {
    "case": "S10 @ 3d",
@@ -372,7 +372,7 @@
    "qty_finalized": 288.0,
    "ordered_quantity": 288.0,
    "fulfillment": "PO",
-   "reasoning": "[LATA Shield: lead_time_stdev sigma_L=0.78d -> safety 2.60d of a 14.0d protection interval] [CRITICAL OVERRIDE: Schedule Bypass] [order-up-to: R=3d L=7d z=1.28 sigmaL=0.8d S=382]"
+   "reasoning": "[LATA Shield: lead_time_stdev sigma_L=0.67d -> safety 2.54d of a 14.0d protection interval] [CRITICAL OVERRIDE: Schedule Bypass] [order-up-to: R=3d L=7d z=1.28 sigmaL=0.7d S=380]"
   },
   {
    "case": "S10 @ 7d",
@@ -385,7 +385,7 @@
    "qty_finalized": 168.0,
    "ordered_quantity": 168.0,
    "fulfillment": "PO",
-   "reasoning": "[LATA Shield: lead_time_stdev sigma_L=0.78d -> safety 2.60d of a 14.0d protection interval] [CRITICAL OVERRIDE: Schedule Bypass] [order-up-to: R=3d L=7d z=1.28 sigmaL=0.8d S=382]"
+   "reasoning": "[LATA Shield: lead_time_stdev sigma_L=0.67d -> safety 2.54d of a 14.0d protection interval] [CRITICAL OVERRIDE: Schedule Bypass] [order-up-to: R=3d L=7d z=1.28 sigmaL=0.7d S=380]"
   },
   {
    "case": "S10 @ 21d",
@@ -411,7 +411,7 @@
    "qty_finalized": 372.0,
    "ordered_quantity": 372.0,
    "fulfillment": "PO",
-   "reasoning": "[LATA Shield: lead_time_stdev sigma_L=0.78d -> safety 2.60d of a 14.0d protection interval] [CRITICAL OVERRIDE: Schedule Bypass] [order-up-to: R=3d L=7d z=1.28 sigmaL=0.8d S=368]"
+   "reasoning": "[LATA Shield: lead_time_stdev sigma_L=0.67d -> safety 2.54d of a 14.0d protection interval] [CRITICAL OVERRIDE: Schedule Bypass] [order-up-to: R=3d L=7d z=1.28 sigmaL=0.7d S=366]"
   },
   {
    "case": "S09 @ 1d",
@@ -420,11 +420,11 @@
    "product_name": "COKE PET 500ML",
    "target_days": 9.0,
    "reorder_point": 305.9,
-   "qty_raw": 348.0,
-   "qty_finalized": 348.0,
-   "ordered_quantity": 348.0,
+   "qty_raw": 336.0,
+   "qty_finalized": 336.0,
+   "ordered_quantity": 336.0,
    "fulfillment": "PO",
-   "reasoning": "[LATA Shield: lead_time_stdev sigma_L=0.78d -> safety 2.60d of a 14.0d protection interval] [CRITICAL OVERRIDE: Schedule Bypass] [order-up-to: R=3d L=7d z=1.28 sigmaL=0.8d S=368]"
+   "reasoning": "[LATA Shield: lead_time_stdev sigma_L=0.67d -> safety 2.54d of a 14.0d protection interval] [CRITICAL OVERRIDE: Schedule Bypass] [order-up-to: R=3d L=7d z=1.28 sigmaL=0.7d S=366]"
   },
   {
    "case": "S09 @ 3d",
@@ -433,11 +433,11 @@
    "product_name": "COKE PET 500ML",
    "target_days": 9.0,
    "reorder_point": 305.9,
-   "qty_raw": 288.0,
-   "qty_finalized": 288.0,
-   "ordered_quantity": 288.0,
+   "qty_raw": 276.0,
+   "qty_finalized": 276.0,
+   "ordered_quantity": 276.0,
    "fulfillment": "PO",
-   "reasoning": "[LATA Shield: lead_time_stdev sigma_L=0.78d -> safety 2.60d of a 14.0d protection interval] [CRITICAL OVERRIDE: Schedule Bypass] [order-up-to: R=3d L=7d z=1.28 sigmaL=0.8d S=368]"
+   "reasoning": "[LATA Shield: lead_time_stdev sigma_L=0.67d -> safety 2.54d of a 14.0d protection interval] [CRITICAL OVERRIDE: Schedule Bypass] [order-up-to: R=3d L=7d z=1.28 sigmaL=0.7d S=366]"
   },
   {
    "case": "S09 @ 7d",
@@ -450,7 +450,7 @@
    "qty_finalized": 156.0,
    "ordered_quantity": 156.0,
    "fulfillment": "PO",
-   "reasoning": "[LATA Shield: lead_time_stdev sigma_L=0.78d -> safety 2.60d of a 14.0d protection interval] [CRITICAL OVERRIDE: Schedule Bypass] [order-up-to: R=3d L=7d z=1.28 sigmaL=0.8d S=368]"
+   "reasoning": "[LATA Shield: lead_time_stdev sigma_L=0.67d -> safety 2.54d of a 14.0d protection interval] [CRITICAL OVERRIDE: Schedule Bypass] [order-up-to: R=3d L=7d z=1.28 sigmaL=0.7d S=366]"
   },
   {
    "case": "S09 @ 21d",
@@ -472,11 +472,11 @@
    "product_name": "SCHWEPPES TONIC WATER 500ML PET",
    "target_days": 9.0,
    "reorder_point": 248.9,
-   "qty_raw": 312.0,
-   "qty_finalized": 312.0,
-   "ordered_quantity": 312.0,
+   "qty_raw": 300.0,
+   "qty_finalized": 300.0,
+   "ordered_quantity": 300.0,
    "fulfillment": "PO",
-   "reasoning": "[LATA Shield: lead_time_stdev sigma_L=0.78d -> safety 2.60d of a 14.0d protection interval] [CRITICAL OVERRIDE: Schedule Bypass] [order-up-to: R=3d L=7d z=1.28 sigmaL=0.8d S=300]"
+   "reasoning": "[LATA Shield: lead_time_stdev sigma_L=0.67d -> safety 2.54d of a 14.0d protection interval] [CRITICAL OVERRIDE: Schedule Bypass] [order-up-to: R=3d L=7d z=1.28 sigmaL=0.7d S=299]"
   },
   {
    "case": "S46 @ 1d",
@@ -489,7 +489,7 @@
    "qty_finalized": 276.0,
    "ordered_quantity": 276.0,
    "fulfillment": "PO",
-   "reasoning": "[LATA Shield: lead_time_stdev sigma_L=0.78d -> safety 2.60d of a 14.0d protection interval] [CRITICAL OVERRIDE: Schedule Bypass] [order-up-to: R=3d L=7d z=1.28 sigmaL=0.8d S=300]"
+   "reasoning": "[LATA Shield: lead_time_stdev sigma_L=0.67d -> safety 2.54d of a 14.0d protection interval] [CRITICAL OVERRIDE: Schedule Bypass] [order-up-to: R=3d L=7d z=1.28 sigmaL=0.7d S=299]"
   },
   {
    "case": "S46 @ 3d",
@@ -502,7 +502,7 @@
    "qty_finalized": 228.0,
    "ordered_quantity": 228.0,
    "fulfillment": "PO",
-   "reasoning": "[LATA Shield: lead_time_stdev sigma_L=0.78d -> safety 2.60d of a 14.0d protection interval] [CRITICAL OVERRIDE: Schedule Bypass] [order-up-to: R=3d L=7d z=1.28 sigmaL=0.8d S=300]"
+   "reasoning": "[LATA Shield: lead_time_stdev sigma_L=0.67d -> safety 2.54d of a 14.0d protection interval] [CRITICAL OVERRIDE: Schedule Bypass] [order-up-to: R=3d L=7d z=1.28 sigmaL=0.7d S=299]"
   },
   {
    "case": "S46 @ 7d",
@@ -515,7 +515,7 @@
    "qty_finalized": 132.0,
    "ordered_quantity": 132.0,
    "fulfillment": "PO",
-   "reasoning": "[LATA Shield: lead_time_stdev sigma_L=0.78d -> safety 2.60d of a 14.0d protection interval] [CRITICAL OVERRIDE: Schedule Bypass] [order-up-to: R=3d L=7d z=1.28 sigmaL=0.8d S=300]"
+   "reasoning": "[LATA Shield: lead_time_stdev sigma_L=0.67d -> safety 2.54d of a 14.0d protection interval] [CRITICAL OVERRIDE: Schedule Bypass] [order-up-to: R=3d L=7d z=1.28 sigmaL=0.7d S=299]"
   },
   {
    "case": "S46 @ 21d",
@@ -797,11 +797,11 @@
    "product_name": "FESTIVE 400G MILKY WHITE SLICED",
    "target_days": 1.2,
    "reorder_point": 207.33,
-   "qty_raw": 192.0,
-   "qty_finalized": 192.0,
-   "ordered_quantity": 192.0,
+   "qty_raw": 108.0,
+   "qty_finalized": 108.0,
+   "ordered_quantity": 108.0,
    "fulfillment": "PO",
-   "reasoning": "[LATA Shield: lead_time_stdev sigma_L=1.93d -> safety 3.06d of a 8.0d protection interval] [order-up-to: R=1d L=1d z=1.28 sigmaL=0.4d S=190] [MOQ gate: department exempt]"
+   "reasoning": "[LATA Shield: lead_time_stdev sigma_L=1.93d -> safety 3.06d of a 8.0d protection interval] [order-up-to: R=1d L=0d z=1.28 sigmaL=0.2d S=104] [MOQ gate: department exempt]"
   },
   {
    "case": "S14 @ 1d",
@@ -810,11 +810,11 @@
    "product_name": "FESTIVE 400G MILKY WHITE SLICED",
    "target_days": 1.2,
    "reorder_point": 207.33,
-   "qty_raw": 132.0,
-   "qty_finalized": 132.0,
-   "ordered_quantity": 132.0,
+   "qty_raw": 48.0,
+   "qty_finalized": 48.0,
+   "ordered_quantity": 48.0,
    "fulfillment": "PO",
-   "reasoning": "[LATA Shield: lead_time_stdev sigma_L=1.93d -> safety 3.06d of a 8.0d protection interval] [order-up-to: R=1d L=1d z=1.28 sigmaL=0.4d S=190] [MOQ gate: department exempt]"
+   "reasoning": "[LATA Shield: lead_time_stdev sigma_L=1.93d -> safety 3.06d of a 8.0d protection interval] [order-up-to: R=1d L=0d z=1.28 sigmaL=0.2d S=104] [MOQ gate: department exempt]"
   },
   {
    "case": "S14 @ 3d",
@@ -862,11 +862,11 @@
    "product_name": "FESTIVE 800G WHITE MILKY BREAD",
    "target_days": 1.2,
    "reorder_point": 177.92,
-   "qty_raw": 168.0,
-   "qty_finalized": 168.0,
-   "ordered_quantity": 168.0,
+   "qty_raw": 90.0,
+   "qty_finalized": 90.0,
+   "ordered_quantity": 90.0,
    "fulfillment": "PO",
-   "reasoning": "[LATA Shield: lead_time_stdev sigma_L=1.93d -> safety 3.06d of a 8.0d protection interval] [order-up-to: R=1d L=1d z=1.28 sigmaL=0.4d S=163] [MOQ gate: department exempt]"
+   "reasoning": "[LATA Shield: lead_time_stdev sigma_L=1.93d -> safety 3.06d of a 8.0d protection interval] [order-up-to: R=1d L=0d z=1.28 sigmaL=0.2d S=89] [MOQ gate: department exempt]"
   },
   {
    "case": "S16 @ 1d",
@@ -875,11 +875,11 @@
    "product_name": "FESTIVE 800G WHITE MILKY BREAD",
    "target_days": 1.2,
    "reorder_point": 177.92,
-   "qty_raw": 108.0,
-   "qty_finalized": 108.0,
-   "ordered_quantity": 108.0,
+   "qty_raw": 36.0,
+   "qty_finalized": 36.0,
+   "ordered_quantity": 36.0,
    "fulfillment": "PO",
-   "reasoning": "[LATA Shield: lead_time_stdev sigma_L=1.93d -> safety 3.06d of a 8.0d protection interval] [order-up-to: R=1d L=1d z=1.28 sigmaL=0.4d S=163] [MOQ gate: department exempt]"
+   "reasoning": "[LATA Shield: lead_time_stdev sigma_L=1.93d -> safety 3.06d of a 8.0d protection interval] [order-up-to: R=1d L=0d z=1.28 sigmaL=0.2d S=89] [MOQ gate: department exempt]"
   },
   {
    "case": "S16 @ 3d",
@@ -927,11 +927,11 @@
    "product_name": "FESTIVE 600G FAMILY WHITE BREAD",
    "target_days": 1.2,
    "reorder_point": 174.18,
-   "qty_raw": 168.0,
-   "qty_finalized": 168.0,
-   "ordered_quantity": 168.0,
+   "qty_raw": 96.0,
+   "qty_finalized": 96.0,
+   "ordered_quantity": 96.0,
    "fulfillment": "PO",
-   "reasoning": "[LATA Shield: lead_time_stdev sigma_L=1.93d -> safety 3.06d of a 8.0d protection interval] [order-up-to: R=1d L=1d z=1.28 sigmaL=0.4d S=160] [MOQ gate: department exempt]"
+   "reasoning": "[LATA Shield: lead_time_stdev sigma_L=1.93d -> safety 3.06d of a 8.0d protection interval] [order-up-to: R=1d L=0d z=1.28 sigmaL=0.2d S=88] [MOQ gate: department exempt]"
   },
   {
    "case": "S15 @ 1d",
@@ -940,11 +940,11 @@
    "product_name": "FESTIVE 600G FAMILY WHITE BREAD",
    "target_days": 1.2,
    "reorder_point": 174.18,
-   "qty_raw": 108.0,
-   "qty_finalized": 108.0,
-   "ordered_quantity": 108.0,
+   "qty_raw": 36.0,
+   "qty_finalized": 36.0,
+   "ordered_quantity": 36.0,
    "fulfillment": "PO",
-   "reasoning": "[LATA Shield: lead_time_stdev sigma_L=1.93d -> safety 3.06d of a 8.0d protection interval] [order-up-to: R=1d L=1d z=1.28 sigmaL=0.4d S=160] [MOQ gate: department exempt]"
+   "reasoning": "[LATA Shield: lead_time_stdev sigma_L=1.93d -> safety 3.06d of a 8.0d protection interval] [order-up-to: R=1d L=0d z=1.28 sigmaL=0.2d S=88] [MOQ gate: department exempt]"
   },
   {
    "case": "S15 @ 3d",
@@ -992,11 +992,11 @@
    "product_name": "NATURES 400G GOLD WHITE",
    "target_days": 1.2,
    "reorder_point": 169.57,
-   "qty_raw": 156.0,
-   "qty_finalized": 156.0,
-   "ordered_quantity": 156.0,
+   "qty_raw": 96.0,
+   "qty_finalized": 96.0,
+   "ordered_quantity": 96.0,
    "fulfillment": "PO",
-   "reasoning": "[LATA Shield: lead_time_stdev sigma_L=1.93d -> safety 3.06d of a 8.0d protection interval] [order-up-to: R=1d L=1d z=1.28 sigmaL=0.4d S=156] [MOQ gate: department exempt]"
+   "reasoning": "[LATA Shield: lead_time_stdev sigma_L=1.93d -> safety 3.06d of a 8.0d protection interval] [order-up-to: R=1d L=0d z=1.28 sigmaL=0.2d S=85] [MOQ gate: department exempt]"
   },
   {
    "case": "S31 @ 1d",
@@ -1005,11 +1005,11 @@
    "product_name": "NATURES 400G GOLD WHITE",
    "target_days": 1.2,
    "reorder_point": 169.57,
-   "qty_raw": 108.0,
-   "qty_finalized": 108.0,
-   "ordered_quantity": 108.0,
+   "qty_raw": 36.0,
+   "qty_finalized": 36.0,
+   "ordered_quantity": 36.0,
    "fulfillment": "PO",
-   "reasoning": "[LATA Shield: lead_time_stdev sigma_L=1.93d -> safety 3.06d of a 8.0d protection interval] [order-up-to: R=1d L=1d z=1.28 sigmaL=0.4d S=156] [MOQ gate: department exempt]"
+   "reasoning": "[LATA Shield: lead_time_stdev sigma_L=1.93d -> safety 3.06d of a 8.0d protection interval] [order-up-to: R=1d L=0d z=1.28 sigmaL=0.2d S=85] [MOQ gate: department exempt]"
   },
   {
    "case": "S31 @ 3d",
@@ -1057,11 +1057,11 @@
    "product_name": "ISINYA 6S EGGS",
    "target_days": 7.2,
    "reorder_point": 69.31,
-   "qty_raw": 144.0,
-   "qty_finalized": 144.0,
-   "ordered_quantity": 144.0,
+   "qty_raw": 138.0,
+   "qty_finalized": 138.0,
+   "ordered_quantity": 138.0,
    "fulfillment": "PO",
-   "reasoning": "[LATA Shield: lead_time_stdev sigma_L=0.54d -> safety 2.00d of a 8.0d protection interval] [CRITICAL OVERRIDE: Schedule Bypass] [ROP floored at the protection interval R+L=5d] [order-up-to: R=4d L=1d z=1.28 sigmaL=0.5d S=140]"
+   "reasoning": "[LATA Shield: lead_time_stdev sigma_L=0.30d -> safety 2.00d of a 8.0d protection interval] [CRITICAL OVERRIDE: Schedule Bypass] [ROP floored at the protection interval R+L=5d] [order-up-to: R=4d L=1d z=1.28 sigmaL=0.3d S=138]"
   },
   {
    "case": "S23 @ 1d",
@@ -1074,7 +1074,7 @@
    "qty_finalized": 120.0,
    "ordered_quantity": 120.0,
    "fulfillment": "PO",
-   "reasoning": "[LATA Shield: lead_time_stdev sigma_L=0.54d -> safety 2.00d of a 8.0d protection interval] [CRITICAL OVERRIDE: Schedule Bypass] [ROP floored at the protection interval R+L=5d] [order-up-to: R=4d L=1d z=1.28 sigmaL=0.5d S=140]"
+   "reasoning": "[LATA Shield: lead_time_stdev sigma_L=0.30d -> safety 2.00d of a 8.0d protection interval] [CRITICAL OVERRIDE: Schedule Bypass] [ROP floored at the protection interval R+L=5d] [order-up-to: R=4d L=1d z=1.28 sigmaL=0.3d S=138]"
   },
   {
    "case": "S23 @ 3d",
@@ -1122,11 +1122,11 @@
    "product_name": "ISINYA 30S EGGS",
    "target_days": 7.2,
    "reorder_point": 53.89,
-   "qty_raw": 112.0,
-   "qty_finalized": 112.0,
-   "ordered_quantity": 112.0,
+   "qty_raw": 108.0,
+   "qty_finalized": 108.0,
+   "ordered_quantity": 108.0,
    "fulfillment": "PO",
-   "reasoning": "[LATA Shield: lead_time_stdev sigma_L=0.54d -> safety 2.00d of a 8.0d protection interval] [CRITICAL OVERRIDE: Schedule Bypass] [ROP floored at the protection interval R+L=5d] [order-up-to: R=4d L=1d z=1.28 sigmaL=0.5d S=110]"
+   "reasoning": "[LATA Shield: lead_time_stdev sigma_L=0.30d -> safety 2.00d of a 8.0d protection interval] [CRITICAL OVERRIDE: Schedule Bypass] [ROP floored at the protection interval R+L=5d] [order-up-to: R=4d L=1d z=1.28 sigmaL=0.3d S=108]"
   },
   {
    "case": "S22 @ 1d",
@@ -1135,11 +1135,11 @@
    "product_name": "ISINYA 30S EGGS",
    "target_days": 7.2,
    "reorder_point": 53.89,
-   "qty_raw": 96.0,
-   "qty_finalized": 96.0,
-   "ordered_quantity": 96.0,
+   "qty_raw": 92.0,
+   "qty_finalized": 92.0,
+   "ordered_quantity": 92.0,
    "fulfillment": "PO",
-   "reasoning": "[LATA Shield: lead_time_stdev sigma_L=0.54d -> safety 2.00d of a 8.0d protection interval] [CRITICAL OVERRIDE: Schedule Bypass] [ROP floored at the protection interval R+L=5d] [order-up-to: R=4d L=1d z=1.28 sigmaL=0.5d S=110]"
+   "reasoning": "[LATA Shield: lead_time_stdev sigma_L=0.30d -> safety 2.00d of a 8.0d protection interval] [CRITICAL OVERRIDE: Schedule Bypass] [ROP floored at the protection interval R+L=5d] [order-up-to: R=4d L=1d z=1.28 sigmaL=0.3d S=108]"
   },
   {
    "case": "S22 @ 3d",
@@ -1191,7 +1191,7 @@
    "qty_finalized": 108.0,
    "ordered_quantity": 108.0,
    "fulfillment": "PO",
-   "reasoning": "[LATA Shield: lead_time_stdev sigma_L=0.54d -> safety 2.00d of a 8.0d protection interval] [CRITICAL OVERRIDE: Schedule Bypass] [ROP floored at the protection interval R+L=5d] [order-up-to: R=4d L=1d z=1.28 sigmaL=0.5d S=105]"
+   "reasoning": "[LATA Shield: lead_time_stdev sigma_L=0.30d -> safety 2.00d of a 8.0d protection interval] [CRITICAL OVERRIDE: Schedule Bypass] [ROP floored at the protection interval R+L=5d] [order-up-to: R=4d L=1d z=1.28 sigmaL=0.3d S=104]"
   },
   {
    "case": "S21 @ 1d",
@@ -1204,7 +1204,7 @@
    "qty_finalized": 90.0,
    "ordered_quantity": 90.0,
    "fulfillment": "PO",
-   "reasoning": "[LATA Shield: lead_time_stdev sigma_L=0.54d -> safety 2.00d of a 8.0d protection interval] [CRITICAL OVERRIDE: Schedule Bypass] [ROP floored at the protection interval R+L=5d] [order-up-to: R=4d L=1d z=1.28 sigmaL=0.5d S=105]"
+   "reasoning": "[LATA Shield: lead_time_stdev sigma_L=0.30d -> safety 2.00d of a 8.0d protection interval] [CRITICAL OVERRIDE: Schedule Bypass] [ROP floored at the protection interval R+L=5d] [order-up-to: R=4d L=1d z=1.28 sigmaL=0.3d S=104]"
   },
   {
    "case": "S21 @ 3d",
@@ -1256,7 +1256,7 @@
    "qty_finalized": 66.0,
    "ordered_quantity": 66.0,
    "fulfillment": "PO",
-   "reasoning": "[LATA Shield: lead_time_stdev sigma_L=0.54d -> safety 2.00d of a 8.0d protection interval] [CRITICAL OVERRIDE: Schedule Bypass] [ROP floored at the protection interval R+L=5d] [order-up-to: R=4d L=1d z=1.28 sigmaL=0.5d S=62]"
+   "reasoning": "[LATA Shield: lead_time_stdev sigma_L=0.30d -> safety 2.00d of a 8.0d protection interval] [CRITICAL OVERRIDE: Schedule Bypass] [ROP floored at the protection interval R+L=5d] [order-up-to: R=4d L=1d z=1.28 sigmaL=0.3d S=61]"
   },
   {
    "case": "S20 @ 1d",
@@ -1269,7 +1269,7 @@
    "qty_finalized": 54.0,
    "ordered_quantity": 54.0,
    "fulfillment": "PO",
-   "reasoning": "[LATA Shield: lead_time_stdev sigma_L=0.54d -> safety 2.00d of a 8.0d protection interval] [CRITICAL OVERRIDE: Schedule Bypass] [ROP floored at the protection interval R+L=5d] [order-up-to: R=4d L=1d z=1.28 sigmaL=0.5d S=62]"
+   "reasoning": "[LATA Shield: lead_time_stdev sigma_L=0.30d -> safety 2.00d of a 8.0d protection interval] [CRITICAL OVERRIDE: Schedule Bypass] [ROP floored at the protection interval R+L=5d] [order-up-to: R=4d L=1d z=1.28 sigmaL=0.3d S=61]"
   },
   {
    "case": "S20 @ 3d",
@@ -1317,11 +1317,11 @@
    "product_name": "BROOKSIDE 500ML DAIRY BEST (POUCH)",
    "target_days": 6.0,
    "reorder_point": 2327.36,
-   "qty_raw": 2196.0,
-   "qty_finalized": 2196.0,
-   "ordered_quantity": 2196.0,
+   "qty_raw": 2076.0,
+   "qty_finalized": 2076.0,
+   "ordered_quantity": 2076.0,
    "fulfillment": "PO",
-   "reasoning": "[LATA Shield: lead_time_stdev sigma_L=0.56d -> safety 2.00d of a 8.0d protection interval] [order-up-to: R=1d L=1d z=1.28 sigmaL=0.6d S=2194]"
+   "reasoning": "[LATA Shield: lead_time_stdev sigma_L=0.34d -> safety 2.00d of a 8.0d protection interval] [order-up-to: R=1d L=1d z=1.28 sigmaL=0.3d S=2072]"
   },
   {
    "case": "S05 @ 1d",
@@ -1330,11 +1330,11 @@
    "product_name": "BROOKSIDE 500ML DAIRY BEST (POUCH)",
    "target_days": 6.0,
    "reorder_point": 2327.36,
-   "qty_raw": 1476.0,
-   "qty_finalized": 1476.0,
-   "ordered_quantity": 1476.0,
+   "qty_raw": 1356.0,
+   "qty_finalized": 1356.0,
+   "ordered_quantity": 1356.0,
    "fulfillment": "PO",
-   "reasoning": "[LATA Shield: lead_time_stdev sigma_L=0.56d -> safety 2.00d of a 8.0d protection interval] [order-up-to: R=1d L=1d z=1.28 sigmaL=0.6d S=2194]"
+   "reasoning": "[LATA Shield: lead_time_stdev sigma_L=0.34d -> safety 2.00d of a 8.0d protection interval] [order-up-to: R=1d L=1d z=1.28 sigmaL=0.3d S=2072]"
   },
   {
    "case": "S05 @ 3d",
@@ -1343,11 +1343,11 @@
    "product_name": "BROOKSIDE 500ML DAIRY BEST (POUCH)",
    "target_days": 6.0,
    "reorder_point": 2327.36,
-   "qty_raw": 24.0,
-   "qty_finalized": 24.0,
-   "ordered_quantity": 24.0,
-   "fulfillment": "PO",
-   "reasoning": "[LATA Shield: lead_time_stdev sigma_L=0.56d -> safety 2.00d of a 8.0d protection interval] [order-up-to: R=1d L=1d z=1.28 sigmaL=0.6d S=2194]"
+   "qty_raw": 0.0,
+   "qty_finalized": 0.0,
+   "ordered_quantity": 0.0,
+   "fulfillment": "NONE",
+   "reasoning": "[LATA Shield: lead_time_stdev sigma_L=0.34d -> safety 2.00d of a 8.0d protection interval] [order-up-to: position already covers P]"
   },
   {
    "case": "S05 @ 7d",
@@ -1382,11 +1382,11 @@
    "product_name": "ILARA FRESH MILK 500ML SATCHET",
    "target_days": 1.2,
    "reorder_point": 668.26,
-   "qty_raw": 636.0,
-   "qty_finalized": 636.0,
-   "ordered_quantity": 636.0,
+   "qty_raw": 600.0,
+   "qty_finalized": 600.0,
+   "ordered_quantity": 600.0,
    "fulfillment": "PO",
-   "reasoning": "[LATA Shield: lead_time_stdev sigma_L=0.56d -> safety 2.00d of a 8.0d protection interval] [order-up-to: R=1d L=1d z=1.28 sigmaL=0.6d S=631]"
+   "reasoning": "[LATA Shield: lead_time_stdev sigma_L=0.34d -> safety 2.00d of a 8.0d protection interval] [order-up-to: R=1d L=1d z=1.28 sigmaL=0.3d S=596]"
   },
   {
    "case": "S19 @ 1d",
@@ -1395,11 +1395,11 @@
    "product_name": "ILARA FRESH MILK 500ML SATCHET",
    "target_days": 1.2,
    "reorder_point": 668.26,
-   "qty_raw": 432.0,
-   "qty_finalized": 432.0,
-   "ordered_quantity": 432.0,
+   "qty_raw": 396.0,
+   "qty_finalized": 396.0,
+   "ordered_quantity": 396.0,
    "fulfillment": "PO",
-   "reasoning": "[LATA Shield: lead_time_stdev sigma_L=0.56d -> safety 2.00d of a 8.0d protection interval] [order-up-to: R=1d L=1d z=1.28 sigmaL=0.6d S=631]"
+   "reasoning": "[LATA Shield: lead_time_stdev sigma_L=0.34d -> safety 2.00d of a 8.0d protection interval] [order-up-to: R=1d L=1d z=1.28 sigmaL=0.3d S=596]"
   },
   {
    "case": "S19 @ 3d",
@@ -1408,11 +1408,11 @@
    "product_name": "ILARA FRESH MILK 500ML SATCHET",
    "target_days": 1.2,
    "reorder_point": 668.26,
-   "qty_raw": 12.0,
-   "qty_finalized": 12.0,
-   "ordered_quantity": 12.0,
-   "fulfillment": "PO",
-   "reasoning": "[LATA Shield: lead_time_stdev sigma_L=0.56d -> safety 2.00d of a 8.0d protection interval] [order-up-to: R=1d L=1d z=1.28 sigmaL=0.6d S=631]"
+   "qty_raw": 0.0,
+   "qty_finalized": 0.0,
+   "ordered_quantity": 0.0,
+   "fulfillment": "NONE",
+   "reasoning": "[LATA Shield: lead_time_stdev sigma_L=0.34d -> safety 2.00d of a 8.0d protection interval] [order-up-to: position already covers P]"
   },
   {
    "case": "S19 @ 7d",
@@ -1447,11 +1447,11 @@
    "product_name": "TUZO 500ML FRESH MILK (POUCH)",
    "target_days": 1.2,
    "reorder_point": 348.35,
-   "qty_raw": 336.0,
-   "qty_finalized": 336.0,
-   "ordered_quantity": 336.0,
+   "qty_raw": 312.0,
+   "qty_finalized": 312.0,
+   "ordered_quantity": 312.0,
    "fulfillment": "PO",
-   "reasoning": "[LATA Shield: lead_time_stdev sigma_L=0.56d -> safety 2.00d of a 8.0d protection interval] [order-up-to: R=1d L=1d z=1.28 sigmaL=0.6d S=330]"
+   "reasoning": "[LATA Shield: lead_time_stdev sigma_L=0.34d -> safety 2.00d of a 8.0d protection interval] [order-up-to: R=1d L=1d z=1.28 sigmaL=0.3d S=312]"
   },
   {
    "case": "S53 @ 1d",
@@ -1460,11 +1460,11 @@
    "product_name": "TUZO 500ML FRESH MILK (POUCH)",
    "target_days": 1.2,
    "reorder_point": 348.35,
-   "qty_raw": 228.0,
-   "qty_finalized": 228.0,
-   "ordered_quantity": 228.0,
+   "qty_raw": 204.0,
+   "qty_finalized": 204.0,
+   "ordered_quantity": 204.0,
    "fulfillment": "PO",
-   "reasoning": "[LATA Shield: lead_time_stdev sigma_L=0.56d -> safety 2.00d of a 8.0d protection interval] [order-up-to: R=1d L=1d z=1.28 sigmaL=0.6d S=330]"
+   "reasoning": "[LATA Shield: lead_time_stdev sigma_L=0.34d -> safety 2.00d of a 8.0d protection interval] [order-up-to: R=1d L=1d z=1.28 sigmaL=0.3d S=312]"
   },
   {
    "case": "S53 @ 3d",
@@ -1473,11 +1473,11 @@
    "product_name": "TUZO 500ML FRESH MILK (POUCH)",
    "target_days": 1.2,
    "reorder_point": 348.35,
-   "qty_raw": 12.0,
-   "qty_finalized": 12.0,
-   "ordered_quantity": 12.0,
-   "fulfillment": "PO",
-   "reasoning": "[LATA Shield: lead_time_stdev sigma_L=0.56d -> safety 2.00d of a 8.0d protection interval] [order-up-to: R=1d L=1d z=1.28 sigmaL=0.6d S=330]"
+   "qty_raw": 0.0,
+   "qty_finalized": 0.0,
+   "ordered_quantity": 0.0,
+   "fulfillment": "NONE",
+   "reasoning": "[LATA Shield: lead_time_stdev sigma_L=0.34d -> safety 2.00d of a 8.0d protection interval] [order-up-to: position already covers P]"
   },
   {
    "case": "S53 @ 7d",
@@ -1512,11 +1512,11 @@
    "product_name": "BROOKSIDE 500ML TR FRESH MILK",
    "target_days": 1.2,
    "reorder_point": 337.22,
-   "qty_raw": 324.0,
-   "qty_finalized": 324.0,
-   "ordered_quantity": 324.0,
+   "qty_raw": 312.0,
+   "qty_finalized": 312.0,
+   "ordered_quantity": 312.0,
    "fulfillment": "PO",
-   "reasoning": "[LATA Shield: lead_time_stdev sigma_L=0.56d -> safety 2.00d of a 8.0d protection interval] [order-up-to: R=1d L=1d z=1.28 sigmaL=0.6d S=319]"
+   "reasoning": "[LATA Shield: lead_time_stdev sigma_L=0.34d -> safety 2.00d of a 8.0d protection interval] [order-up-to: R=1d L=1d z=1.28 sigmaL=0.3d S=302]"
   },
   {
    "case": "S07 @ 1d",
@@ -1525,11 +1525,11 @@
    "product_name": "BROOKSIDE 500ML TR FRESH MILK",
    "target_days": 1.2,
    "reorder_point": 337.22,
-   "qty_raw": 216.0,
-   "qty_finalized": 216.0,
-   "ordered_quantity": 216.0,
+   "qty_raw": 204.0,
+   "qty_finalized": 204.0,
+   "ordered_quantity": 204.0,
    "fulfillment": "PO",
-   "reasoning": "[LATA Shield: lead_time_stdev sigma_L=0.56d -> safety 2.00d of a 8.0d protection interval] [order-up-to: R=1d L=1d z=1.28 sigmaL=0.6d S=319]"
+   "reasoning": "[LATA Shield: lead_time_stdev sigma_L=0.34d -> safety 2.00d of a 8.0d protection interval] [order-up-to: R=1d L=1d z=1.28 sigmaL=0.3d S=302]"
   },
   {
    "case": "S07 @ 3d",
@@ -1538,11 +1538,11 @@
    "product_name": "BROOKSIDE 500ML TR FRESH MILK",
    "target_days": 1.2,
    "reorder_point": 337.22,
-   "qty_raw": 12.0,
-   "qty_finalized": 12.0,
-   "ordered_quantity": 12.0,
-   "fulfillment": "PO",
-   "reasoning": "[LATA Shield: lead_time_stdev sigma_L=0.56d -> safety 2.00d of a 8.0d protection interval] [order-up-to: R=1d L=1d z=1.28 sigmaL=0.6d S=319]"
+   "qty_raw": 0.0,
+   "qty_finalized": 0.0,
+   "ordered_quantity": 0.0,
+   "fulfillment": "NONE",
+   "reasoning": "[LATA Shield: lead_time_stdev sigma_L=0.34d -> safety 2.00d of a 8.0d protection interval] [order-up-to: position already covers P]"
   },
   {
    "case": "S07 @ 7d",
@@ -1577,11 +1577,11 @@
    "product_name": "BIO 200ML GREEK STYLE NATURE PLAIN YOG",
    "target_days": 1.2,
    "reorder_point": 113.73,
-   "qty_raw": 114.0,
-   "qty_finalized": 114.0,
-   "ordered_quantity": 114.0,
+   "qty_raw": 108.0,
+   "qty_finalized": 108.0,
+   "ordered_quantity": 108.0,
    "fulfillment": "PO",
-   "reasoning": "[LATA Shield: lead_time_stdev sigma_L=0.60d -> safety 2.00d of a 8.0d protection interval] [order-up-to: R=1d L=1d z=1.28 sigmaL=0.6d S=110]"
+   "reasoning": "[LATA Shield: lead_time_stdev sigma_L=0.44d -> safety 2.00d of a 8.0d protection interval] [order-up-to: R=1d L=1d z=1.28 sigmaL=0.4d S=105]"
   },
   {
    "case": "S04 @ 1d",
@@ -1590,11 +1590,11 @@
    "product_name": "BIO 200ML GREEK STYLE NATURE PLAIN YOG",
    "target_days": 1.2,
    "reorder_point": 113.73,
-   "qty_raw": 78.0,
-   "qty_finalized": 78.0,
-   "ordered_quantity": 78.0,
+   "qty_raw": 72.0,
+   "qty_finalized": 72.0,
+   "ordered_quantity": 72.0,
    "fulfillment": "PO",
-   "reasoning": "[LATA Shield: lead_time_stdev sigma_L=0.60d -> safety 2.00d of a 8.0d protection interval] [order-up-to: R=1d L=1d z=1.28 sigmaL=0.6d S=110]"
+   "reasoning": "[LATA Shield: lead_time_stdev sigma_L=0.44d -> safety 2.00d of a 8.0d protection interval] [order-up-to: R=1d L=1d z=1.28 sigmaL=0.4d S=105]"
   },
   {
    "case": "S04 @ 3d",
@@ -1603,11 +1603,11 @@
    "product_name": "BIO 200ML GREEK STYLE NATURE PLAIN YOG",
    "target_days": 1.2,
    "reorder_point": 113.73,
-   "qty_raw": 6.0,
-   "qty_finalized": 6.0,
+   "qty_raw": 0.0,
+   "qty_finalized": 0.0,
    "ordered_quantity": 0.0,
-   "fulfillment": "TRANSFER_FIRST",
-   "reasoning": "[LATA Shield: lead_time_stdev sigma_L=0.60d -> safety 2.00d of a 8.0d protection interval] [order-up-to: R=1d L=1d z=1.28 sigmaL=0.6d S=110] [Below MOT: 6 units / KES 859 \u2014 threshold 10 units or KES 5,000 \u2014 routed to transfer]"
+   "fulfillment": "NONE",
+   "reasoning": "[LATA Shield: lead_time_stdev sigma_L=0.44d -> safety 2.00d of a 8.0d protection interval] [order-up-to: position already covers P]"
   },
   {
    "case": "S04 @ 7d",
@@ -1646,7 +1646,7 @@
    "qty_finalized": 72.0,
    "ordered_quantity": 72.0,
    "fulfillment": "PO",
-   "reasoning": "[LATA Shield: lead_time_stdev sigma_L=0.56d -> safety 2.00d of a 8.0d protection interval] [order-up-to: R=1d L=1d z=1.28 sigmaL=0.6d S=64]"
+   "reasoning": "[LATA Shield: lead_time_stdev sigma_L=0.34d -> safety 2.00d of a 8.0d protection interval] [order-up-to: R=1d L=1d z=1.28 sigmaL=0.3d S=61]"
   },
   {
    "case": "S06 @ 1d",
@@ -1659,7 +1659,7 @@
    "qty_finalized": 48.0,
    "ordered_quantity": 48.0,
    "fulfillment": "PO",
-   "reasoning": "[LATA Shield: lead_time_stdev sigma_L=0.56d -> safety 2.00d of a 8.0d protection interval] [order-up-to: R=1d L=1d z=1.28 sigmaL=0.6d S=64]"
+   "reasoning": "[LATA Shield: lead_time_stdev sigma_L=0.34d -> safety 2.00d of a 8.0d protection interval] [order-up-to: R=1d L=1d z=1.28 sigmaL=0.3d S=61]"
   },
   {
    "case": "S06 @ 3d",
@@ -1668,11 +1668,11 @@
    "product_name": "BROOKSIDE 500ML NATURAL LALA BOTTLE",
    "target_days": 1.2,
    "reorder_point": 66.4,
-   "qty_raw": 12.0,
-   "qty_finalized": 12.0,
-   "ordered_quantity": 12.0,
-   "fulfillment": "PO",
-   "reasoning": "[LATA Shield: lead_time_stdev sigma_L=0.56d -> safety 2.00d of a 8.0d protection interval] [order-up-to: R=1d L=1d z=1.28 sigmaL=0.6d S=64]"
+   "qty_raw": 0.0,
+   "qty_finalized": 0.0,
+   "ordered_quantity": 0.0,
+   "fulfillment": "NONE",
+   "reasoning": "[LATA Shield: lead_time_stdev sigma_L=0.34d -> safety 2.00d of a 8.0d protection interval] [order-up-to: position already covers P]"
   },
   {
    "case": "S06 @ 7d",
@@ -1707,11 +1707,11 @@
    "product_name": "BIO 150ML VANILLA YOGHURT",
    "target_days": 1.2,
    "reorder_point": 63.42,
-   "qty_raw": 72.0,
-   "qty_finalized": 72.0,
-   "ordered_quantity": 72.0,
+   "qty_raw": 60.0,
+   "qty_finalized": 60.0,
+   "ordered_quantity": 60.0,
    "fulfillment": "PO",
-   "reasoning": "[LATA Shield: lead_time_stdev sigma_L=0.60d -> safety 2.00d of a 8.0d protection interval] [order-up-to: R=1d L=1d z=1.28 sigmaL=0.6d S=63]"
+   "reasoning": "[LATA Shield: lead_time_stdev sigma_L=0.44d -> safety 2.00d of a 8.0d protection interval] [order-up-to: R=1d L=1d z=1.28 sigmaL=0.4d S=60]"
   },
   {
    "case": "S03 @ 1d",
@@ -1724,7 +1724,7 @@
    "qty_finalized": 48.0,
    "ordered_quantity": 48.0,
    "fulfillment": "PO",
-   "reasoning": "[LATA Shield: lead_time_stdev sigma_L=0.60d -> safety 2.00d of a 8.0d protection interval] [order-up-to: R=1d L=1d z=1.28 sigmaL=0.6d S=63]"
+   "reasoning": "[LATA Shield: lead_time_stdev sigma_L=0.44d -> safety 2.00d of a 8.0d protection interval] [order-up-to: R=1d L=1d z=1.28 sigmaL=0.4d S=60]"
   },
   {
    "case": "S03 @ 3d",
@@ -1737,7 +1737,7 @@
    "qty_finalized": 12.0,
    "ordered_quantity": 12.0,
    "fulfillment": "PO",
-   "reasoning": "[LATA Shield: lead_time_stdev sigma_L=0.60d -> safety 2.00d of a 8.0d protection interval] [order-up-to: R=1d L=1d z=1.28 sigmaL=0.6d S=63]"
+   "reasoning": "[LATA Shield: lead_time_stdev sigma_L=0.44d -> safety 2.00d of a 8.0d protection interval] [order-up-to: R=1d L=1d z=1.28 sigmaL=0.4d S=60]"
   },
   {
    "case": "S03 @ 7d",
@@ -1772,11 +1772,11 @@
    "product_name": "ILARA 500ML MAZIWA LALA",
    "target_days": 1.2,
    "reorder_point": 50.34,
-   "qty_raw": 60.0,
-   "qty_finalized": 60.0,
-   "ordered_quantity": 60.0,
+   "qty_raw": 48.0,
+   "qty_finalized": 48.0,
+   "ordered_quantity": 48.0,
    "fulfillment": "PO",
-   "reasoning": "[LATA Shield: lead_time_stdev sigma_L=0.56d -> safety 2.00d of a 8.0d protection interval] [order-up-to: R=1d L=1d z=1.28 sigmaL=0.6d S=50]"
+   "reasoning": "[LATA Shield: lead_time_stdev sigma_L=0.34d -> safety 2.00d of a 8.0d protection interval] [order-up-to: R=1d L=1d z=1.28 sigmaL=0.3d S=47]"
   },
   {
    "case": "S18 @ 1d",
@@ -1789,7 +1789,7 @@
    "qty_finalized": 36.0,
    "ordered_quantity": 36.0,
    "fulfillment": "PO",
-   "reasoning": "[LATA Shield: lead_time_stdev sigma_L=0.56d -> safety 2.00d of a 8.0d protection interval] [order-up-to: R=1d L=1d z=1.28 sigmaL=0.6d S=50]"
+   "reasoning": "[LATA Shield: lead_time_stdev sigma_L=0.34d -> safety 2.00d of a 8.0d protection interval] [order-up-to: R=1d L=1d z=1.28 sigmaL=0.3d S=47]"
   },
   {
    "case": "S18 @ 3d",
@@ -1798,11 +1798,11 @@
    "product_name": "ILARA 500ML MAZIWA LALA",
    "target_days": 1.2,
    "reorder_point": 50.34,
-   "qty_raw": 12.0,
-   "qty_finalized": 12.0,
-   "ordered_quantity": 12.0,
-   "fulfillment": "PO",
-   "reasoning": "[LATA Shield: lead_time_stdev sigma_L=0.56d -> safety 2.00d of a 8.0d protection interval] [order-up-to: R=1d L=1d z=1.28 sigmaL=0.6d S=50]"
+   "qty_raw": 0.0,
+   "qty_finalized": 0.0,
+   "ordered_quantity": 0.0,
+   "fulfillment": "NONE",
+   "reasoning": "[LATA Shield: lead_time_stdev sigma_L=0.34d -> safety 2.00d of a 8.0d protection interval] [order-up-to: position already covers P]"
   },
   {
    "case": "S18 @ 7d",
@@ -2751,7 +2751,7 @@
    "qty_finalized": 372.0,
    "ordered_quantity": 372.0,
    "fulfillment": "PO",
-   "reasoning": "[LATA Shield: lead_time_stdev sigma_L=0.80d -> safety 2.60d of a 14.0d protection interval] [ROP floored at the protection interval R+L=14d] [order-up-to: R=7d L=7d z=1.28 sigmaL=0.8d S=370]"
+   "reasoning": "[LATA Shield: lead_time_stdev sigma_L=0.80d -> safety 2.61d of a 14.0d protection interval] [ROP floored at the protection interval R+L=14d] [order-up-to: R=7d L=7d z=1.28 sigmaL=0.8d S=370]"
   },
   {
    "case": "S12 @ 1d",
@@ -2764,7 +2764,7 @@
    "qty_finalized": 348.0,
    "ordered_quantity": 348.0,
    "fulfillment": "PO",
-   "reasoning": "[LATA Shield: lead_time_stdev sigma_L=0.80d -> safety 2.60d of a 14.0d protection interval] [ROP floored at the protection interval R+L=14d] [order-up-to: R=7d L=7d z=1.28 sigmaL=0.8d S=370]"
+   "reasoning": "[LATA Shield: lead_time_stdev sigma_L=0.80d -> safety 2.61d of a 14.0d protection interval] [ROP floored at the protection interval R+L=14d] [order-up-to: R=7d L=7d z=1.28 sigmaL=0.8d S=370]"
   },
   {
    "case": "S12 @ 3d",
@@ -2777,7 +2777,7 @@
    "qty_finalized": 312.0,
    "ordered_quantity": 312.0,
    "fulfillment": "PO",
-   "reasoning": "[LATA Shield: lead_time_stdev sigma_L=0.80d -> safety 2.60d of a 14.0d protection interval] [ROP floored at the protection interval R+L=14d] [order-up-to: R=7d L=7d z=1.28 sigmaL=0.8d S=370]"
+   "reasoning": "[LATA Shield: lead_time_stdev sigma_L=0.80d -> safety 2.61d of a 14.0d protection interval] [ROP floored at the protection interval R+L=14d] [order-up-to: R=7d L=7d z=1.28 sigmaL=0.8d S=370]"
   },
   {
    "case": "S12 @ 7d",
@@ -2790,7 +2790,7 @@
    "qty_finalized": 216.0,
    "ordered_quantity": 216.0,
    "fulfillment": "PO",
-   "reasoning": "[LATA Shield: lead_time_stdev sigma_L=0.80d -> safety 2.60d of a 14.0d protection interval] [ROP floored at the protection interval R+L=14d] [order-up-to: R=7d L=7d z=1.28 sigmaL=0.8d S=370]"
+   "reasoning": "[LATA Shield: lead_time_stdev sigma_L=0.80d -> safety 2.61d of a 14.0d protection interval] [ROP floored at the protection interval R+L=14d] [order-up-to: R=7d L=7d z=1.28 sigmaL=0.8d S=370]"
   },
   {
    "case": "S12 @ 21d",
@@ -3267,11 +3267,11 @@
    "product_name": "SOKO 2KG MAIZE MEAL",
    "target_days": 9.0,
    "reorder_point": 485.5,
-   "qty_raw": 648.0,
-   "qty_finalized": 648.0,
-   "ordered_quantity": 648.0,
+   "qty_raw": 642.0,
+   "qty_finalized": 642.0,
+   "ordered_quantity": 642.0,
    "fulfillment": "PO",
-   "reasoning": "[LATA Shield: lead_time_stdev sigma_L=1.04d -> safety 2.74d of a 14.0d protection interval] [CRITICAL OVERRIDE: Schedule Bypass] [ROP floored at the protection interval R+L=11d] [order-up-to: R=4d L=7d z=1.28 sigmaL=1.0d S=643]"
+   "reasoning": "[LATA Shield: lead_time_stdev sigma_L=0.93d -> safety 2.68d of a 14.0d protection interval] [CRITICAL OVERRIDE: Schedule Bypass] [ROP floored at the protection interval R+L=11d] [order-up-to: R=4d L=7d z=1.28 sigmaL=0.9d S=639]"
   },
   {
    "case": "S49 @ 1d",
@@ -3280,11 +3280,11 @@
    "product_name": "SOKO 2KG MAIZE MEAL",
    "target_days": 9.0,
    "reorder_point": 485.5,
-   "qty_raw": 600.0,
-   "qty_finalized": 600.0,
-   "ordered_quantity": 600.0,
+   "qty_raw": 594.0,
+   "qty_finalized": 594.0,
+   "ordered_quantity": 594.0,
    "fulfillment": "PO",
-   "reasoning": "[LATA Shield: lead_time_stdev sigma_L=1.04d -> safety 2.74d of a 14.0d protection interval] [CRITICAL OVERRIDE: Schedule Bypass] [ROP floored at the protection interval R+L=11d] [order-up-to: R=4d L=7d z=1.28 sigmaL=1.0d S=643]"
+   "reasoning": "[LATA Shield: lead_time_stdev sigma_L=0.93d -> safety 2.68d of a 14.0d protection interval] [CRITICAL OVERRIDE: Schedule Bypass] [ROP floored at the protection interval R+L=11d] [order-up-to: R=4d L=7d z=1.28 sigmaL=0.9d S=639]"
   },
   {
    "case": "S49 @ 3d",
@@ -3297,7 +3297,7 @@
    "qty_finalized": 498.0,
    "ordered_quantity": 498.0,
    "fulfillment": "PO",
-   "reasoning": "[LATA Shield: lead_time_stdev sigma_L=1.04d -> safety 2.74d of a 14.0d protection interval] [CRITICAL OVERRIDE: Schedule Bypass] [ROP floored at the protection interval R+L=11d] [order-up-to: R=4d L=7d z=1.28 sigmaL=1.0d S=643]"
+   "reasoning": "[LATA Shield: lead_time_stdev sigma_L=0.93d -> safety 2.68d of a 14.0d protection interval] [CRITICAL OVERRIDE: Schedule Bypass] [ROP floored at the protection interval R+L=11d] [order-up-to: R=4d L=7d z=1.28 sigmaL=0.9d S=639]"
   },
   {
    "case": "S49 @ 7d",
@@ -3306,11 +3306,11 @@
    "product_name": "SOKO 2KG MAIZE MEAL",
    "target_days": 9.0,
    "reorder_point": 485.5,
-   "qty_raw": 306.0,
-   "qty_finalized": 306.0,
-   "ordered_quantity": 306.0,
+   "qty_raw": 300.0,
+   "qty_finalized": 300.0,
+   "ordered_quantity": 300.0,
    "fulfillment": "PO",
-   "reasoning": "[LATA Shield: lead_time_stdev sigma_L=1.04d -> safety 2.74d of a 14.0d protection interval] [CRITICAL OVERRIDE: Schedule Bypass] [ROP floored at the protection interval R+L=11d] [order-up-to: R=4d L=7d z=1.28 sigmaL=1.0d S=643]"
+   "reasoning": "[LATA Shield: lead_time_stdev sigma_L=0.93d -> safety 2.68d of a 14.0d protection interval] [CRITICAL OVERRIDE: Schedule Bypass] [ROP floored at the protection interval R+L=11d] [order-up-to: R=4d L=7d z=1.28 sigmaL=0.9d S=639]"
   },
   {
    "case": "S49 @ 21d",
@@ -3336,7 +3336,7 @@
    "qty_finalized": 792.0,
    "ordered_quantity": 792.0,
    "fulfillment": "PO",
-   "reasoning": "[LATA Shield: lead_time_stdev sigma_L=1.01d -> safety 2.72d of a 14.0d protection interval] [ROP floored at the protection interval R+L=14d] [order-up-to: R=7d L=7d z=1.28 sigmaL=1.0d S=789]"
+   "reasoning": "[LATA Shield: lead_time_stdev sigma_L=0.92d -> safety 2.67d of a 14.0d protection interval] [ROP floored at the protection interval R+L=14d] [order-up-to: R=7d L=7d z=1.28 sigmaL=0.9d S=786]"
   },
   {
    "case": "S00 @ 1d",
@@ -3349,7 +3349,7 @@
    "qty_finalized": 744.0,
    "ordered_quantity": 744.0,
    "fulfillment": "PO",
-   "reasoning": "[LATA Shield: lead_time_stdev sigma_L=1.01d -> safety 2.72d of a 14.0d protection interval] [ROP floored at the protection interval R+L=14d] [order-up-to: R=7d L=7d z=1.28 sigmaL=1.0d S=789]"
+   "reasoning": "[LATA Shield: lead_time_stdev sigma_L=0.92d -> safety 2.67d of a 14.0d protection interval] [ROP floored at the protection interval R+L=14d] [order-up-to: R=7d L=7d z=1.28 sigmaL=0.9d S=786]"
   },
   {
    "case": "S00 @ 3d",
@@ -3362,7 +3362,7 @@
    "qty_finalized": 648.0,
    "ordered_quantity": 648.0,
    "fulfillment": "PO",
-   "reasoning": "[LATA Shield: lead_time_stdev sigma_L=1.01d -> safety 2.72d of a 14.0d protection interval] [ROP floored at the protection interval R+L=14d] [order-up-to: R=7d L=7d z=1.28 sigmaL=1.0d S=789]"
+   "reasoning": "[LATA Shield: lead_time_stdev sigma_L=0.92d -> safety 2.67d of a 14.0d protection interval] [ROP floored at the protection interval R+L=14d] [order-up-to: R=7d L=7d z=1.28 sigmaL=0.9d S=786]"
   },
   {
    "case": "S00 @ 7d",
@@ -3371,11 +3371,11 @@
    "product_name": "AJAB 2KG HOME BAKING FLOUR",
    "target_days": 16.0,
    "reorder_point": 480.9,
-   "qty_raw": 456.0,
-   "qty_finalized": 456.0,
-   "ordered_quantity": 456.0,
+   "qty_raw": 450.0,
+   "qty_finalized": 450.0,
+   "ordered_quantity": 450.0,
    "fulfillment": "PO",
-   "reasoning": "[LATA Shield: lead_time_stdev sigma_L=1.01d -> safety 2.72d of a 14.0d protection interval] [ROP floored at the protection interval R+L=14d] [order-up-to: R=7d L=7d z=1.28 sigmaL=1.0d S=789]"
+   "reasoning": "[LATA Shield: lead_time_stdev sigma_L=0.92d -> safety 2.67d of a 14.0d protection interval] [ROP floored at the protection interval R+L=14d] [order-up-to: R=7d L=7d z=1.28 sigmaL=0.9d S=786]"
   },
   {
    "case": "S00 @ 21d",
@@ -3401,7 +3401,7 @@
    "qty_finalized": 792.0,
    "ordered_quantity": 792.0,
    "fulfillment": "PO",
-   "reasoning": "[LATA Shield: lead_time_stdev sigma_L=2.54d -> safety 4.03d of a 14.0d protection interval] [ROP floored at the protection interval R+L=18d] [order-up-to: R=11d L=7d z=1.28 sigmaL=2.5d S=791]"
+   "reasoning": "[LATA Shield: lead_time_stdev sigma_L=2.55d -> safety 4.04d of a 14.0d protection interval] [ROP floored at the protection interval R+L=18d] [order-up-to: R=11d L=7d z=1.28 sigmaL=2.5d S=791]"
   },
   {
    "case": "S13 @ 1d",
@@ -3414,7 +3414,7 @@
    "qty_finalized": 756.0,
    "ordered_quantity": 756.0,
    "fulfillment": "PO",
-   "reasoning": "[LATA Shield: lead_time_stdev sigma_L=2.54d -> safety 4.03d of a 14.0d protection interval] [ROP floored at the protection interval R+L=18d] [order-up-to: R=11d L=7d z=1.28 sigmaL=2.5d S=791]"
+   "reasoning": "[LATA Shield: lead_time_stdev sigma_L=2.55d -> safety 4.04d of a 14.0d protection interval] [ROP floored at the protection interval R+L=18d] [order-up-to: R=11d L=7d z=1.28 sigmaL=2.5d S=791]"
   },
   {
    "case": "S13 @ 3d",
@@ -3427,7 +3427,7 @@
    "qty_finalized": 684.0,
    "ordered_quantity": 684.0,
    "fulfillment": "PO",
-   "reasoning": "[LATA Shield: lead_time_stdev sigma_L=2.54d -> safety 4.03d of a 14.0d protection interval] [ROP floored at the protection interval R+L=18d] [order-up-to: R=11d L=7d z=1.28 sigmaL=2.5d S=791]"
+   "reasoning": "[LATA Shield: lead_time_stdev sigma_L=2.55d -> safety 4.04d of a 14.0d protection interval] [ROP floored at the protection interval R+L=18d] [order-up-to: R=11d L=7d z=1.28 sigmaL=2.5d S=791]"
   },
   {
    "case": "S13 @ 7d",
@@ -3440,7 +3440,7 @@
    "qty_finalized": 540.0,
    "ordered_quantity": 540.0,
    "fulfillment": "PO",
-   "reasoning": "[LATA Shield: lead_time_stdev sigma_L=2.54d -> safety 4.03d of a 14.0d protection interval] [ROP floored at the protection interval R+L=18d] [order-up-to: R=11d L=7d z=1.28 sigmaL=2.5d S=791]"
+   "reasoning": "[LATA Shield: lead_time_stdev sigma_L=2.55d -> safety 4.04d of a 14.0d protection interval] [ROP floored at the protection interval R+L=18d] [order-up-to: R=11d L=7d z=1.28 sigmaL=2.5d S=791]"
   },
   {
    "case": "S13 @ 21d",
@@ -3466,7 +3466,7 @@
    "qty_finalized": 576.0,
    "ordered_quantity": 576.0,
    "fulfillment": "PO",
-   "reasoning": "[LATA Shield: lead_time_stdev sigma_L=2.54d -> safety 4.03d of a 14.0d protection interval] [ROP floored at the protection interval R+L=18d] [order-up-to: R=11d L=7d z=1.28 sigmaL=2.5d S=576]"
+   "reasoning": "[LATA Shield: lead_time_stdev sigma_L=2.55d -> safety 4.04d of a 14.0d protection interval] [ROP floored at the protection interval R+L=18d] [order-up-to: R=11d L=7d z=1.28 sigmaL=2.5d S=576]"
   },
   {
    "case": "S24 @ 1d",
@@ -3479,7 +3479,7 @@
    "qty_finalized": 552.0,
    "ordered_quantity": 552.0,
    "fulfillment": "PO",
-   "reasoning": "[LATA Shield: lead_time_stdev sigma_L=2.54d -> safety 4.03d of a 14.0d protection interval] [ROP floored at the protection interval R+L=18d] [order-up-to: R=11d L=7d z=1.28 sigmaL=2.5d S=576]"
+   "reasoning": "[LATA Shield: lead_time_stdev sigma_L=2.55d -> safety 4.04d of a 14.0d protection interval] [ROP floored at the protection interval R+L=18d] [order-up-to: R=11d L=7d z=1.28 sigmaL=2.5d S=576]"
   },
   {
    "case": "S24 @ 3d",
@@ -3492,7 +3492,7 @@
    "qty_finalized": 498.0,
    "ordered_quantity": 498.0,
    "fulfillment": "PO",
-   "reasoning": "[LATA Shield: lead_time_stdev sigma_L=2.54d -> safety 4.03d of a 14.0d protection interval] [ROP floored at the protection interval R+L=18d] [order-up-to: R=11d L=7d z=1.28 sigmaL=2.5d S=576]"
+   "reasoning": "[LATA Shield: lead_time_stdev sigma_L=2.55d -> safety 4.04d of a 14.0d protection interval] [ROP floored at the protection interval R+L=18d] [order-up-to: R=11d L=7d z=1.28 sigmaL=2.5d S=576]"
   },
   {
    "case": "S24 @ 7d",
@@ -3505,7 +3505,7 @@
    "qty_finalized": 396.0,
    "ordered_quantity": 396.0,
    "fulfillment": "PO",
-   "reasoning": "[LATA Shield: lead_time_stdev sigma_L=2.54d -> safety 4.03d of a 14.0d protection interval] [ROP floored at the protection interval R+L=18d] [order-up-to: R=11d L=7d z=1.28 sigmaL=2.5d S=576]"
+   "reasoning": "[LATA Shield: lead_time_stdev sigma_L=2.55d -> safety 4.04d of a 14.0d protection interval] [ROP floored at the protection interval R+L=18d] [order-up-to: R=11d L=7d z=1.28 sigmaL=2.5d S=576]"
   },
   {
    "case": "S24 @ 21d",
@@ -3787,11 +3787,11 @@
    "product_name": "BROOKSIDE 500ML DAIRY BEST (POUCH)",
    "target_days": 6.0,
    "reorder_point": 2327.36,
-   "qty_raw": 1404.0,
-   "qty_finalized": 1404.0,
+   "qty_raw": 1284.0,
+   "qty_finalized": 1284.0,
    "ordered_quantity": 0.0,
    "fulfillment": "TRANSFER_FIRST",
-   "reasoning": "[LATA Shield: lead_time_stdev sigma_L=0.56d -> safety 2.00d of a 8.0d protection interval] [order-up-to: R=1d L=1d z=1.28 sigmaL=0.6d S=2194] [Item MOQ/MOP Gate: value KES 0 < MOP KES 200 \u2014 routed to transfer]"
+   "reasoning": "[LATA Shield: lead_time_stdev sigma_L=0.34d -> safety 2.00d of a 8.0d protection interval] [order-up-to: R=1d L=1d z=1.28 sigmaL=0.3d S=2072] [Item MOQ/MOP Gate: value KES 0 < MOP KES 200 \u2014 routed to transfer]"
   },
   {
    "case": "edge: long life, keyword present",
@@ -3813,11 +3813,11 @@
    "product_name": "TUZO 500ML WHOLE MILK (FINO PACK) 180DAYS",
    "target_days": 6.0,
    "reorder_point": 267.2,
-   "qty_raw": 168.0,
-   "qty_finalized": 168.0,
+   "qty_raw": 156.0,
+   "qty_finalized": 156.0,
    "ordered_quantity": 0.0,
    "fulfillment": "TRANSFER_FIRST",
-   "reasoning": "[LATA Shield: lead_time_stdev sigma_L=0.56d -> safety 2.00d of a 8.0d protection interval] [order-up-to: R=1d L=1d z=1.28 sigmaL=0.6d S=253] [Item MOQ/MOP Gate: value KES 0 < MOP KES 200 \u2014 routed to transfer]"
+   "reasoning": "[LATA Shield: lead_time_stdev sigma_L=0.34d -> safety 2.00d of a 8.0d protection interval] [order-up-to: R=1d L=1d z=1.28 sigmaL=0.3d S=240] [Item MOQ/MOP Gate: value KES 0 < MOP KES 200 \u2014 routed to transfer]"
   },
   {
    "case": "edge: dry goods",
@@ -3826,11 +3826,11 @@
    "product_name": "SOKO 2KG MAIZE MEAL",
    "target_days": 10.0,
    "reorder_point": 486.0,
-   "qty_raw": 348.0,
-   "qty_finalized": 348.0,
+   "qty_raw": 342.0,
+   "qty_finalized": 342.0,
    "ordered_quantity": 0.0,
    "fulfillment": "TRANSFER_FIRST",
-   "reasoning": "[LATA Shield: lead_time_stdev sigma_L=1.04d -> safety 2.74d of a 14.0d protection interval] [CRITICAL OVERRIDE: Schedule Bypass] [ROP floored at the protection interval R+L=11d] [order-up-to: R=4d L=7d z=1.28 sigmaL=1.0d S=644] [Item MOQ/MOP Gate: value KES 0 < MOP KES 100 \u2014 routed to transfer]"
+   "reasoning": "[LATA Shield: lead_time_stdev sigma_L=0.93d -> safety 2.68d of a 14.0d protection interval] [CRITICAL OVERRIDE: Schedule Bypass] [ROP floored at the protection interval R+L=11d] [order-up-to: R=4d L=7d z=1.28 sigmaL=0.9d S=640] [Item MOQ/MOP Gate: value KES 0 < MOP KES 100 \u2014 routed to transfer]"
   },
   {
    "case": "edge: slow mover",

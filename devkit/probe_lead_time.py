@@ -42,6 +42,25 @@ MIN_SAMPLE = 8          # below this a "spread" is noise wearing a number
 MAX_SANE_LEAD = 120.0
 
 
+def correct_sunday_postings(raw, no_sunday_posting: bool):
+    """{vendor: [(lead, GRN weekday)]} -> ({vendor: [lead]}, {vendor: corrections}).
+
+    A Monday receipt on an overnight supplier's Saturday order is a SUNDAY
+    delivery posted on Monday, not a 2-day lead. Applied only when the book
+    has no Sunday postings at all, and only to suppliers whose typical lead is
+    a day or less -- a weekly supplier's Saturday order may really land Monday.
+    """
+    per, corrected = defaultdict(list), defaultdict(int)
+    for vendor, xs in raw.items():
+        overnight = st.median([x for x, _ in xs]) <= 1.0
+        for lead, wd in xs:
+            if no_sunday_posting and overnight and wd == 0 and lead >= 2:
+                lead -= 1.0
+                corrected[vendor] += 1
+            per[vendor].append(lead)
+    return per, corrected
+
+
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--xlsx", default=None)
@@ -51,11 +70,29 @@ def main(argv=None) -> int:
 
     led = SL.load(local_copy=Path(a.xlsx) if a.xlsx else None)
 
-    per = defaultdict(list)
+    raw = defaultdict(list)                     # vendor -> [(lead, GRN weekday)]
+    all_days = 0
+    sundays = 0
     for rs in led.receipts.values():
         for r in rs:
+            if r.date is not None:
+                all_days += 1
+                sundays += r.date.weekday() == 6
             if r.lead_days is not None and 0 <= r.lead_days <= MAX_SANE_LEAD:
-                per[r.vendor].append(float(r.lead_days))
+                raw[r.vendor].append((float(r.lead_days), r.date.weekday() if r.date else None))
+
+    # SUNDAY DELIVERIES ARE POSTED ON MONDAY.
+    # Fresh suppliers deliver on Sundays, but this store never dates a GRN on a
+    # Sunday (0 of 106,526 receipts): Sunday's deliveries are posted Monday.
+    # For an overnight supplier a Saturday PO then reads as a 2-day lead when
+    # the bread was on the shelf the next morning -- which inflated the
+    # bakeries' sigma_L by up to 2x (DPL Festive 0.43d -> 0.22d once
+    # corrected) and, through sigma_L, their safety stock. The correction is
+    # applied only when the book really has no Sunday postings, and only to
+    # suppliers whose typical lead is a day or less: a weekly supplier's
+    # Saturday order may genuinely land on Monday.
+    no_sunday_posting = all_days > 0 and sundays / all_days < 0.001
+    per, corrected = correct_sunday_postings(raw, no_sunday_posting)
 
     checks = [
         non_circular("lead time from receipts",
@@ -82,6 +119,7 @@ def main(argv=None) -> int:
             "lead_time_mean": round(st.mean(xs), 3),
             "lead_time_stdev": round(st.pstdev(xs), 3),
             "samples": len(xs),
+            "sunday_posting_corrected": corrected.get(vendor, 0),
             "provenance": "observed",
             "vendor": vendor,
         }

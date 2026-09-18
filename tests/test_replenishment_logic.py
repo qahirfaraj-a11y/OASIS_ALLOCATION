@@ -301,15 +301,18 @@ class TestNetRequirement:
 
             safety = z * sqrt(P*cv^2 + sigma_L^2),  P = gap + lead = 9
 
-        z = 1.28 (service level 0.90) and sigma_L = 1.93d, the chain-wide p75
+        z = 1.28 (service level 0.90) and sigma_L = 1.928d, the chain-wide p75
         across every measured supplier -- which is why
         supplier_lead_patterns.json has to be tracked for this to reproduce.
+        It was 1.93 until the Sunday-posting correction in
+        devkit/probe_lead_time.py: this store posts Sunday's receipts on
+        Monday, which read as an extra day of lead on 62 overnight suppliers.
 
-            1.28 * sqrt(9*0.2^2 + 1.93^2) = 2.587  ->  floor 11.587d
-            Net = 10*11.587 - 50 = 65.87
+            1.28 * sqrt(9*0.2^2 + 1.928^2) = 2.585  ->  floor 11.585d
+            Net = 10*11.585 - 50 = 65.85
         """
         rec = _run(util, _sku(target_coverage_days=3.0))
-        assert rec["recommended_quantity"] == pytest.approx(65.87, abs=0.01)
+        assert rec["recommended_quantity"] == pytest.approx(65.85, abs=0.01)
 
     def test_rop_fallback_when_missing(self, util):
         # reorder_point=0 + ADS>0 → fallback ROP = 10×(2 + 1.5×1.4) = 41.
@@ -353,17 +356,17 @@ class TestRiskBuffering:
         """Five times the demand spread must buy a deeper floor.
 
         Same derivation as test_cycle_stock_floor_stretches_target, cv 0.2
-        -> 1.0:  1.28 * sqrt(9*1.0^2 + 1.93^2) = 4.566  ->  floor 13.566d,
-        Net = 10*13.566 - 50 = 85.66.
+        -> 1.0:  1.28 * sqrt(9*1.0^2 + 1.928^2) = 4.565  ->  floor 13.565d,
+        Net = 10*13.565 - 50 = 85.65.
 
         Note what the quadrature does that the old 1.5*(1 + 2*cv) could not:
-        at cv 0.2 the supplier's 1.93d lead-time spread DOMINATES the demand
+        at cv 0.2 the supplier's 1.928d lead-time spread DOMINATES the demand
         term (3.72 against 0.36 under the root), and at cv 1.0 demand takes
         over (9.00 against 3.72). One derivation covers both regimes; the
         linear heuristic charged them as if only demand existed.
         """
         rec = _run(util, _sku(target_coverage_days=3.0, demand_cv=1.0))
-        assert rec["recommended_quantity"] == pytest.approx(85.66, abs=0.01)
+        assert rec["recommended_quantity"] == pytest.approx(85.65, abs=0.01)
         base = _run(util, _sku(target_coverage_days=3.0, demand_cv=0.2))
         assert rec["recommended_quantity"] > base["recommended_quantity"]
 
