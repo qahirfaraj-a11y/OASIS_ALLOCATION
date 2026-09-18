@@ -5,6 +5,13 @@ written for weekly dry-goods baskets. Bread is a few loaves a day from a bakery
 that delivers daily, and a day-by-day replay of Apr-Sep 2026 against the
 bakeries' real deliveries (devkit/bread_backtest.py) priced the gate at KES
 209-227k a year of lost bread sales. So BREAD is exempt, by department.
+
+CAKES joined once the supplier-pattern lookup was fixed: planned at the bakery's
+real 1-day lead, cakes are ordered about 3 days deep instead of 11, and those
+shallower lines fell under the per-line floor -- gate drops on the bread shelf
+went 396 -> 1,548 and fill 98.1% -> 96.5%. Exempting CAKES brings drops back to
+113 and fill to 98.1%. Mixed departments (BISCUITS) stay gated: exempting a
+department exempts every supplier in it.
 """
 import pytest
 
@@ -23,6 +30,17 @@ def _line(sku, dept, qty, cost, supplier="BAKERY LTD", fresh=True):
 
 def test_bread_is_the_default_exemption():
     assert "BREAD" in MOQ_EXEMPT_DEPARTMENTS
+
+
+def test_cakes_are_exempt_and_biscuits_are_not():
+    assert "CAKES" in MOQ_EXEMPT_DEPARTMENTS
+    assert "BISCUITS" not in MOQ_EXEMPT_DEPARTMENTS
+
+
+def test_a_small_cake_line_is_ordered(util):
+    out = util.apply_minimum_order_gate([_line("POUNDCAKE", "CAKES", 2, 60.0)])   # KES 120
+    assert [r["sku"] for r in out["po_recs"]] == ["POUNDCAKE"]
+    assert out["po_recs"][0]["moq_exempt"] is True
 
 
 def test_a_small_bread_line_is_ordered(util):
@@ -44,15 +62,15 @@ def test_department_match_is_normalised(util):
 
 
 def test_bread_counts_towards_its_suppliers_basket(util):
-    # a cake line that clears its own item floor but not the supplier minimum
+    # a gated line that clears its own item floor but not the supplier minimum
     # alone is carried by the bread on the same PO
-    recs = [_line("LOAF", "BREAD", 60, 90.0), _line("CAKE", "CAKES", 5, 60.0, fresh=True)]
+    recs = [_line("LOAF", "BREAD", 60, 90.0), _line("COOKIES", "BISCUITS", 5, 60.0, fresh=False)]
     out = util.apply_minimum_order_gate(recs)
-    assert {r["sku"] for r in out["po_recs"]} == {"LOAF", "CAKE"}
+    assert {r["sku"] for r in out["po_recs"]} == {"LOAF", "COOKIES"}
 
 
-def test_a_non_bread_basket_below_the_minimum_is_still_dropped(util):
-    recs = [_line("CAKE", "CAKES", 5, 60.0, supplier="CAKES ONLY LTD")]       # 5 units, KES 300
+def test_a_gated_basket_below_the_minimum_is_still_dropped(util):
+    recs = [_line("COOKIES", "BISCUITS", 5, 60.0, supplier="BISCUITS ONLY LTD", fresh=False)]   # 5 units, KES 300
     out = util.apply_minimum_order_gate(recs)
     assert out["po_recs"] == []
 

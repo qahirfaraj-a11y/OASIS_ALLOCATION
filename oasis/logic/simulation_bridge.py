@@ -44,7 +44,12 @@ def _find_calendar_path(data_dir: str) -> str:
 
 
 #: Departments whose lines bypass apply_minimum_order_gate (see there for why).
-MOQ_EXEMPT_DEPARTMENTS = ("BREAD",)
+#: CAKES joined once the supplier-pattern lookup stopped planning bakery cakes
+#: at a 7-day lead: ordered 3 days deep instead of 11, their lines fell under
+#: the per-line floor and the gate's drops on the bread shelf went 396 -> 1,548.
+#: Mixed departments such as BISCUITS stay gated -- exempting a department
+#: exempts every supplier in it, and most of those are weekly dry goods.
+MOQ_EXEMPT_DEPARTMENTS = ("BREAD", "CAKES")
 
 
 class SimulationOrderUtil:
