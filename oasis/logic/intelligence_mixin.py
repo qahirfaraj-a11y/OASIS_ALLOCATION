@@ -263,6 +263,47 @@ class IntelligenceMixin:
         tokens = cfg.get("name_tokens") or self._LONG_LIFE_TOKENS
         return any(str(tok).upper() in name for tok in tokens)
 
+    def supplier_pattern_for(self, supplier_name: Any, patterns: Optional[dict] = None) -> dict:
+        """The supplier's rhythm record, found the ONE way this engine spells a
+        supplier: order_up_to.supplier_key -- upper-cased, whitespace collapsed,
+        vendor code stripped.
+
+        WHY THIS IS NOT A PLAIN dict.get. The GRN export that built
+        supplier_patterns_2025.json writes 'DPL FESTIVE  LIMITED' with two
+        spaces, while the product's vendor field carries one. An exact-key
+        lookup therefore missed 42 vendors covering 2,555 SKUs -- 8% of the
+        shelf -- and every one of them fell through to the no-pattern defaults
+        below: estimated_delivery_days 7 where LATA had MEASURED 1 from 5,634
+        receipts, and no daily rhythm, which then handed the line a 365-day
+        shelf life and no cover ceiling. order_up_to resolved the same supplier
+        correctly for sigma_L, so a single order line paired a measured spread
+        with a fabricated mean: fresh bakery cakes planned at a 7-day lead and
+        a one-year shelf life, ordered 10-13 days deep against a supplier who
+        delivers every morning.
+
+        The exact key is still tried first, so nothing that already resolved
+        can change spelling underneath it.
+        """
+        from .order_up_to import supplier_key as _sk
+        src = self.databases.get('supplier_patterns', {}) if patterns is None else patterns
+        src = src or {}
+        hit = src.get(supplier_name)
+        if isinstance(hit, dict):
+            return hit
+        cached = getattr(self, '_supplier_pattern_idx', None)
+        if not (cached and cached[0] is src and cached[1] == len(src)):
+            idx = {}
+            for k, v in src.items():
+                if not isinstance(v, dict):
+                    continue
+                nk = _sk(k)
+                # a key already in canonical spelling wins any tie
+                if nk not in idx or k == nk:
+                    idx[nk] = v
+            cached = (src, len(src), idx)
+            self._supplier_pattern_idx = cached
+        return cached[2].get(_sk(supplier_name)) or {}
+
     def calculate_replenishment_target_stock(self, product: dict, tier_profile: dict) -> float:
         """
         v9.5 PRECISION ALLOCATION: Smart Greenfield & Replenishment Logic.
@@ -331,8 +372,7 @@ class IntelligenceMixin:
             # Apply LATA Variance Multiplier
             lata_multiplier = 1.0
             if getattr(self, 'is_engine_enabled', lambda x: False)('lata'):
-                supplier_patterns = self.databases.get('supplier_patterns', {})
-                sp = supplier_patterns.get(supplier_name, {})
+                sp = self.supplier_pattern_for(supplier_name)
                 lata_multiplier = float(sp.get('lata_variance_multiplier', 1.0))
             
             safety_buffer = base_safety * lata_multiplier
@@ -445,7 +485,11 @@ class IntelligenceMixin:
             p['is_consignment'] = (supplier in self.no_grn_suppliers) or ("PLU" in p_upper)
 
             # 2. Timing & Rhythm
-            pattern = supplier_patterns.get(supplier) or supplier_patterns.get(self.normalize_product_name(supplier))
+            # exact, then the old normalised spelling, then the one spelling
+            # order_up_to uses -- precedence unchanged, reach extended
+            pattern = (supplier_patterns.get(supplier)
+                       or supplier_patterns.get(self.normalize_product_name(supplier))
+                       or self.supplier_pattern_for(supplier, supplier_patterns))
             if pattern:
                 p['estimated_delivery_days'] = float(pattern.get('estimated_delivery_days', 4))
                 p['supplier_reliability'] = float(pattern.get('reliability_score', 0.8))
@@ -695,7 +739,7 @@ class IntelligenceMixin:
 
             # Last Order Date (from PO patterns)
             p['days_since_last_order'] = 999
-            if supplier in supplier_patterns:
+            if self.supplier_pattern_for(supplier, supplier_patterns):
                 po_history = getattr(self, '_po_history_dates', {})
                 if supplier in po_history:
                     last_date = max(po_history[supplier])
