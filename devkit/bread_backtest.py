@@ -103,6 +103,7 @@ from datetime import datetime, timedelta
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
 
+import math                 # noqa: E402
 import numpy as np          # noqa: E402
 import pandas as pd         # noqa: E402
 
@@ -115,6 +116,7 @@ SHORT = {"DPL FESTIVE LIMITED": "DPL Festive", "MINI BAKERIES NBI LTD": "Mini Ba
          "KENAFRIC BAKERY LTD": "Kenafric", "BROADWAYS BAKERY LTD": "Broadways"}
 LONG_LIFE = {"Cookies": 30, "Crumbs": 30, "Wraps": 30}
 TUNINGS = {"measured_life", "velocity_cap", "weekday", "cakes_fresh", "slow_presence", "service_bands", "overnight", "sigmaL0"}
+PHI_ARM = "phi"          # e.g. "engine+phi0.20": the engine plans on cv = sqrt(1/d + 0.20^2)
 ALL_TUNINGS = {"measured_life", "cakes_fresh", "slow_presence", "service_bands"}
 STRUCTURAL = {"gate_off", "censor_fix"}
 FIXED = "gate_off+censor_fix"
@@ -254,9 +256,28 @@ def demand_shape(skus, rate, deliveries, mode: str = "rhythm"):
     return shape
 
 
-def demand_draws(shape, seed: int):
+WORLD_PHI = 0.0          # set from --world-phi; the dispersion of the simulated world
+
+
+def demand_draws(shape, seed: int, phi: float = None):
+    """Daily demand draws. phi=0 is Poisson; phi>0 adds overdispersion so that
+    Var = lam + phi^2 lam^2 -- the same law the engine's cv assumes, which is
+    what makes an engine-phi and a world-phi comparable. Measured on the
+    bakeries' own daily drops (scratchpad bread_phi.py), bread runs phi ~ 0.20
+    against the engine's global 0.40."""
+    phi = WORLD_PHI if phi is None else float(phi)
     rng = np.random.default_rng(seed)
-    return {n: rng.poisson(np.maximum(shape[n], 0.0)).astype(float) for n in sorted(shape)}
+    out = {}
+    for n in sorted(shape):
+        lam = np.maximum(shape[n], 0.0)
+        if phi <= 0:
+            out[n] = rng.poisson(lam).astype(float)
+            continue
+        r = 1.0 / (phi * phi)                       # NB: mean lam, var lam + lam^2/r
+        with np.errstate(divide="ignore", invalid="ignore"):
+            pr = np.where(lam > 0, r / (r + lam), 1.0)
+        out[n] = np.where(lam > 0, rng.negative_binomial(r, pr), 0).astype(float)
+    return out
 
 
 # ── calibration ───────────────────────────────────────────────────────────
@@ -349,7 +370,7 @@ def make_policy(arm: str):
     parts = set(arm.split("+")) - {"engine"}
     if "all_tunings" in parts:
         parts = (parts - {"all_tunings"}) | ALL_TUNINGS
-    unknown = parts - TUNINGS - STRUCTURAL
+    unknown = {x for x in parts - TUNINGS - STRUCTURAL if not x.startswith(PHI_ARM)}
     assert not unknown, f"unknown arm parts: {unknown}"
     return parts
 
@@ -365,6 +386,10 @@ def patch_recommend(policy: set, meta: dict):
         m = meta.get(n, {})
         p = dict(product)
         d = float(p.get("avg_daily_sales") or 0)
+        _phi = [x for x in policy if x.startswith(PHI_ARM) and x != PHI_ARM]
+        if _phi and d > 0:
+            f = float(_phi[0][len(PHI_ARM):])
+            p["demand_cv_daily"] = math.sqrt(1.0 / d + f * f)
         if "service_bands" in policy and d > 0:
             sl = 0.95 if d >= 10 else 0.90 if d >= 2 else 0.85
             if m.get("brown"):
@@ -523,6 +548,8 @@ def main(argv=None):
     ap.add_argument("--seeds", type=int, default=5)
     ap.add_argument("--arms", default=",".join(ARMS))
     ap.add_argument("--shape", default="rhythm", choices=["rhythm", "flat"])
+    ap.add_argument("--world-phi", type=float, default=0.0,
+                    help="overdispersion of the SIMULATED demand (0 = Poisson; bread measures ~0.20)")
     ap.add_argument("--life", default="", help='fix shelf life per family, e.g. "Loaves=4;Buns, rolls, scones=4"')
     a = ap.parse_args(argv)
     os.makedirs(a.out, exist_ok=True)
@@ -532,6 +559,7 @@ def main(argv=None):
     skus, rate, deliveries, supplier_of = load_inputs(a.data, a.report_json)
     skus = {n: s for n, s in skus.items() if n in supplier_of}
     shape = demand_shape(skus, rate, deliveries, a.shape)
+    globals()["WORLD_PHI"] = a.world_phi
     fixed = {k.strip(): int(v) for k, v in (x.split("=") for x in a.life.split(";") if "=" in x)}
     lives, uplift, fit = calibrate(skus, rate, deliveries, shape, fixed_lives=fixed)
     shape = {n: v * uplift.get(skus[n]["family"], 1.0) for n, v in shape.items()}
