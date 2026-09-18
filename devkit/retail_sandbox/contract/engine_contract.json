@@ -1,5 +1,5 @@
 {
-  "generated_utc": "2026-09-18T01:53:50Z",
+  "generated_utc": "2026-09-18T14:58:57Z",
   "repo_relative": "devkit/retail_sandbox/contract",
   "entry_points": {
     "target_stock": {
@@ -237,8 +237,8 @@
   ],
   "engines_config": {
     "source": "oasis/data/oasis_engines_config.json",
-    "sha256": "213d757556fe805581602608bb31632fd666fc64a35f2d807753eb7e15f943fc",
-    "bytes": 10266,
+    "sha256": "8a12c6198bba9e5d3e8b3e7822a1732b2adaaf540f0fb831880385e89f5a7586",
+    "bytes": 10493,
     "active_engines": [
       "amit",
       "lata",
@@ -248,9 +248,9 @@
     "engine_sources": {
       "files": {
         "oasis/logic/order_engine.py": "001a767a8734d013d0b8a32a19fc78e2f0af3768ecb2af183f456f300c13fdbe",
-        "oasis/logic/intelligence_mixin.py": "cb7441e2020b5ee24e9aef6aa930ed64e6fda97680a27463b21493983e4fd8cb",
-        "oasis/logic/simulation_bridge.py": "d07286acefc52216a2f350ccd09186e1019e2d287f31f3339bf2033a70772e77",
-        "oasis/logic/order_up_to.py": "e2a0a3f639ff330ce5f43404902baa76497dada9b53a5c6b4cb01b3de07d7701",
+        "oasis/logic/intelligence_mixin.py": "c6f443fde75b49f94b362f6709443aeaff4fd55ee1cf7d6090fc96a2154d2369",
+        "oasis/logic/simulation_bridge.py": "bebb0debe3c10fb21b3412752ff97ebc364b1f63fe1294e0add0284389f3883b",
+        "oasis/logic/order_up_to.py": "88cbdb10213ca6c158b0841c0aefa18b969c0efb7753eb187fb5fe73d06c087d",
         "oasis/logic/order_logic_guards.py": "935ce14f687dd268a83775543358168dc243ef131c0ac09ad91f3ea4c7d09409",
         "oasis/logic/rounding.py": "ce471d45e890be38ef3693d20dc5d8a725a5ae96a428645d1f57b251680ae8c7",
         "oasis/logic/engines_config.py": "a571047e00dfb82c163bc9a6d2909807b26706ae8fbb0a32afbfa062dae10b52",
@@ -260,7 +260,7 @@
         "oasis/logic/fulfillment_decider.py": "3d48b468747905694083fc064330c627464a6cccce7e2cad5e03503d2ee9068e",
         "oasis/logic/transfer_state.py": "0cbbabea17fe0125f3f40bba9bd6cdc45213f425e6de288b62bba0045b60aa77"
       },
-      "combined_sha256": "b39fba213915687063b800782c26afdbb8db3e950fe0a08dd6341dc4438285f1"
+      "combined_sha256": "b168b6dc6ad80b3e845159417594e0116e93d6216c9ccfd181db04652eecff2b"
     }
   }
 }

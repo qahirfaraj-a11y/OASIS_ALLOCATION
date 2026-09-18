@@ -576,8 +576,8 @@ def fresh_cycle() -> dict:
       sellable_life_days              department -> selling days on the shelf,
                                       from the LABEL: best-before - manufacture
                                       - the day it is pulled early. Bread baked
-                                      and delivered the same day with a 5-day
-                                      best-before, pulled a day early: 4
+                                      and delivered the same day with a 6-day
+                                      best-before, pulled a day early: 5
       sellable_life_per_sku           SKU name -> selling days; beats the
                                       department when real code dates exist
     """

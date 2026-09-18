@@ -1,7 +1,8 @@
 """The daily fresh cycle: one definition, read by every ordering path.
 
-Bread is baked and delivered the same day, carries a 5-day best-before and is
-pulled a day early -- 4 selling days on the shelf. The order goes in after
+Bread is baked and delivered the same day, carries a 6-day best-before on most
+lines and is pulled a day early -- 5 selling days on the shelf. The store keeps
+bread fresh, so that fifth day should only ever bind on slow sellers. The order goes in after
 close and is on the shelf before the next opening, so the lead adds no selling
 days: the horizon is R, not R + L. The engine was planning R + L with L floored
 at 1 and holding ~3 days of cover on lines the bakeries themselves drop at
@@ -30,10 +31,10 @@ def line(dept="BREAD", lead=1.0, supplier=FEST, stock=0.0, sku="FESTIVE 400G MIL
 
 
 class TestTheConfigIsTheSource:
-    def test_bread_is_an_overnight_department_with_a_four_day_life(self):
+    def test_bread_is_an_overnight_department_with_a_five_day_life(self):
         fc = ou.fresh_cycle()
         assert "BREAD" in fc["overnight"]
-        assert ou.sellable_life_for("BREAD") == 4.0
+        assert ou.sellable_life_for("BREAD") == 5.0
 
     def test_a_per_sku_code_date_beats_the_department(self, monkeypatch):
         monkeypatch.setattr(ou, "_FRESH_CYCLE", {"overnight": frozenset({"BREAD"}), "overnight_max_lead": 1.0,
@@ -43,7 +44,7 @@ class TestTheConfigIsTheSource:
 
     def test_the_label_beats_the_return_measured_shelf_life(self):
         # the returns book measures the SWAP age for bread, not the expiry
-        assert ou.shelf_life_for("BREAD", sku="FESTIVE 400G MILKY WHITE SLICED") == 4.0
+        assert ou.shelf_life_for("BREAD", sku="FESTIVE 400G MILKY WHITE SLICED") == 5.0
 
 
 class TestSellingDayHorizon:
@@ -114,3 +115,21 @@ class TestSundayPostingCorrection:
         fest = pats["DPL FESTIVE LIMITED"]
         assert fest["sunday_posting_corrected"] > 0
         assert fest["lead_time_stdev"] < 0.3        # was 0.427 before the correction
+
+
+class TestTheLongerLifeOnlyReachesSlowSellers:
+    """Fresh bread stays fresh: the label's extra day moves slow lines only."""
+
+    def _S(self, d, life, monkeypatch):
+        monkeypatch.setattr(ou, "_FRESH_CYCLE", {"overnight": frozenset({"BREAD"}), "overnight_max_lead": 1.0,
+                                                 "life_dept": {"BREAD": float(life)}, "life_sku": {}})
+        p = dict(line(), avg_daily_sales=d)
+        return ou.recommend(p)["S"]
+
+    def test_a_fast_loaf_is_held_by_the_horizon_not_the_label(self, monkeypatch):
+        assert self._S(D, 4, monkeypatch) == self._S(D, 5, monkeypatch)
+
+    def test_a_slow_line_gets_the_extra_day(self, monkeypatch):
+        slow = 0.3
+        assert self._S(slow, 5, monkeypatch) >= self._S(slow, 4, monkeypatch)
+        assert self._S(slow, 5, monkeypatch) <= slow * 5 + 1.0 + 1e-9
