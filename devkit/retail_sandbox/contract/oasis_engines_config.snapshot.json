@@ -1,7 +1,7 @@
 {
   "source": "oasis/data/oasis_engines_config.json",
-  "sha256": "8a12c6198bba9e5d3e8b3e7822a1732b2adaaf540f0fb831880385e89f5a7586",
-  "bytes": 10493,
+  "sha256": "7aefb59511ffa397a9e6718c93dd15d5607ad00c9dac9e02d12e1155791ccf85",
+  "bytes": 10957,
   "active_engines": [
     "amit",
     "lata",
@@ -11,9 +11,9 @@
   "engine_sources": {
     "files": {
       "oasis/logic/order_engine.py": "001a767a8734d013d0b8a32a19fc78e2f0af3768ecb2af183f456f300c13fdbe",
-      "oasis/logic/intelligence_mixin.py": "c6f443fde75b49f94b362f6709443aeaff4fd55ee1cf7d6090fc96a2154d2369",
+      "oasis/logic/intelligence_mixin.py": "34e8391d635916a342d533f12bcd1592834b4def85bb2590afcd9d139e21d6f5",
       "oasis/logic/simulation_bridge.py": "bebb0debe3c10fb21b3412752ff97ebc364b1f63fe1294e0add0284389f3883b",
-      "oasis/logic/order_up_to.py": "88cbdb10213ca6c158b0841c0aefa18b969c0efb7753eb187fb5fe73d06c087d",
+      "oasis/logic/order_up_to.py": "bcc8d4ffc7679267c3f32f05a8c903fce2b8344dcdf4637a7fa9fe50f902c0a5",
       "oasis/logic/order_logic_guards.py": "935ce14f687dd268a83775543358168dc243ef131c0ac09ad91f3ea4c7d09409",
       "oasis/logic/rounding.py": "ce471d45e890be38ef3693d20dc5d8a725a5ae96a428645d1f57b251680ae8c7",
       "oasis/logic/engines_config.py": "a571047e00dfb82c163bc9a6d2909807b26706ae8fbb0a32afbfa062dae10b52",
@@ -23,7 +23,7 @@
       "oasis/logic/fulfillment_decider.py": "3d48b468747905694083fc064330c627464a6cccce7e2cad5e03503d2ee9068e",
       "oasis/logic/transfer_state.py": "0cbbabea17fe0125f3f40bba9bd6cdc45213f425e6de288b62bba0045b60aa77"
     },
-    "combined_sha256": "b168b6dc6ad80b3e845159417594e0116e93d6216c9ccfd181db04652eecff2b"
+    "combined_sha256": "7e96c6613a98416ad703561ba2fe18a5ac749cc7d36a5d63334132ea6502c36a"
   },
   "config": {
     "global_settings": {
@@ -245,11 +245,15 @@
     "notes": "Strict Mode (global_settings) disables all category_rules and engine multipliers.",
     "long_life": {
       "_comment": "Lines that sit in a fresh department but keep for months. Without an entry here they are treated as daily-fresh and capped near one day of cover, which removes any ability to hold stock against a supply disruption. OPERATOR-MAINTAINED: review the products list against the actual pack format before relying on it.",
+      "_breadcrumbs": "BREADCRUMBS, BREAD CRUMBS and PANKO were added once the BREAD label (5 selling days) was introduced: 21 dry breadcrumb and panko packs sit in BREAD and the in-store bakery, and without these tokens the department label treated them as unsellable after five days. Every match was checked by name; COOKIES was not added because 303 SKUs carry it, fresh in-store bakery cookies among them.",
       "_why_tokens_are_narrow": "name_tokens is deliberately not broadened to ASEPTIC / TFA / TCA / LONGLIFE / 180DAYS. Those markings are reliable on a milk line but not in general - 'VARTA LONGLIFE POWER BATT' is a battery, and the long-life cap is TIGHTER than the dry-goods cap, so it would quietly reduce cover on non-dairy stock. Awkward cases go on `products`.",
       "name_tokens": [
         "UHT",
         "ESL",
-        "LONG LIFE"
+        "LONG LIFE",
+        "BREADCRUMBS",
+        "BREAD CRUMBS",
+        "PANKO"
       ],
       "products": [
         "BROOKSIDE 500ML DAIRY BEST (POUCH)",

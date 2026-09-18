@@ -218,11 +218,15 @@
  "notes": "Strict Mode (global_settings) disables all category_rules and engine multipliers.",
  "long_life": {
   "_comment": "Lines that sit in a fresh department but keep for months. Without an entry here they are treated as daily-fresh and capped near one day of cover, which removes any ability to hold stock against a supply disruption. OPERATOR-MAINTAINED: review the products list against the actual pack format before relying on it.",
+  "_breadcrumbs": "BREADCRUMBS, BREAD CRUMBS and PANKO were added once the BREAD label (5 selling days) was introduced: 21 dry breadcrumb and panko packs sit in BREAD and the in-store bakery, and without these tokens the department label treated them as unsellable after five days. Every match was checked by name; COOKIES was not added because 303 SKUs carry it, fresh in-store bakery cookies among them.",
   "_why_tokens_are_narrow": "name_tokens is deliberately not broadened to ASEPTIC / TFA / TCA / LONGLIFE / 180DAYS. Those markings are reliable on a milk line but not in general - 'VARTA LONGLIFE POWER BATT' is a battery, and the long-life cap is TIGHTER than the dry-goods cap, so it would quietly reduce cover on non-dairy stock. Awkward cases go on `products`.",
   "name_tokens": [
    "UHT",
    "ESL",
-   "LONG LIFE"
+   "LONG LIFE",
+    "BREADCRUMBS",
+    "BREAD CRUMBS",
+    "PANKO"
   ],
   "products": [
    "BROOKSIDE 500ML DAIRY BEST (POUCH)",

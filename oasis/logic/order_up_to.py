@@ -606,12 +606,22 @@ def reset_fresh_cycle() -> None:
 
 
 def sellable_life_for(department: str, sku: Optional[str] = None) -> float:
-    """Selling days from the label (SKU first, then department); 0 when unknown."""
+    """Selling days from the label; 0 when unknown.
+
+    PRECEDENCE: the SKU's own code date, then the long-life exception, then the
+    department. A department label is an assertion about the typical product
+    in the aisle -- exactly the kind of assertion the long-life rule exists to
+    overrule. With the department first, BREAD's 5 selling days reached every
+    breadcrumb and panko pack in the department, and a KES 300 bag of crumbs
+    that keeps for months was treated as unsellable after five days.
+    """
     fc = fresh_cycle()
     if sku:
         v = fc["life_sku"].get(_norm(sku))
         if v:
             return v
+        if is_long_life(sku):
+            return 0.0
     return fc["life_dept"].get(_norm(department), 0.0)
 
 
@@ -684,7 +694,12 @@ def shelf_life_for(department: str, root: Optional[str] = None,
     # product that keeps for months. The SKU's own measured life still applies
     # if the return book has one; otherwise it is unclamped, like dry goods.
     if is_long_life(sku, root):
-        sku_v = float(v.get("shelf_life_days") or 0) if v else 0.0
+        # Only the SKU's OWN life. A record stamped from its department
+        # (provenance "department" / "department_mode", no samples) is the
+        # aisle's figure again: 12 breadcrumb packs in BREAD carried BREAD's
+        # 1.2 days that way and were capped as if they went stale overnight.
+        own = v and str(v.get("provenance") or "") not in ("department", "department_mode")
+        sku_v = float(v.get("shelf_life_days") or 0) if own else 0.0
         return sku_v if sku_v > 0 else 0.0
     dept_v = load_shelf_life(root).get(dept, 0.0)
     if sku:

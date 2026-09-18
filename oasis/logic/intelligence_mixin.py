@@ -814,7 +814,11 @@ class IntelligenceMixin:
             from . import order_up_to as _ou_sl
             _label_life = _ou_sl.sellable_life_for(p.get('department') or '',
                                                    p.get('product_name') or '')
-            p['shelf_life_days'] = _label_life if _label_life > 0 else (7 if is_fresh else 365)
+            # A long-life line in a fresh department (breadcrumbs in BREAD, UHT
+            # in FRESH MILK) keeps like dry goods: the fresh default of 7 would
+            # be read by recommend() before the engine's own long-life rule.
+            _keeps = _ou_sl.is_long_life(p.get('product_name') or '')
+            p['shelf_life_days'] = _label_life if _label_life > 0 else (7 if is_fresh and not _keeps else 365)
             if is_fresh and p.get('supplier_frequency') == 'daily':
                 p['upper_coverage_days'] = 1.2
             elif is_fresh:

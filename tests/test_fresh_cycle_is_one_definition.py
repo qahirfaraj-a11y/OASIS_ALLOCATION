@@ -133,3 +133,41 @@ class TestTheLongerLifeOnlyReachesSlowSellers:
         slow = 0.3
         assert self._S(slow, 5, monkeypatch) >= self._S(slow, 4, monkeypatch)
         assert self._S(slow, 5, monkeypatch) <= slow * 5 + 1.0 + 1e-9
+
+
+class TestTheBreadLabelStopsAtLongLifeLines:
+    """BREAD's 5 selling days is an assertion about loaves, not about every pack
+    in the aisle. Breadcrumbs and panko sit in BREAD and keep for months."""
+
+    CRUMBS = "SUPA 200G BREADCRUMBS COARSE"
+
+    def setup_method(self):
+        ou.reset_fresh_cycle()
+        ou._LONG_LIFE = None
+
+    def test_breadcrumbs_carry_no_bread_label(self):
+        assert ou.is_long_life(self.CRUMBS)
+        assert ou.sellable_life_for("BREAD", self.CRUMBS) == 0.0
+
+    def test_breadcrumbs_are_not_capped_by_a_department_copy(self):
+        # the shelf-life book holds BREAD's 1.2 days on this SKU with
+        # provenance "department" -- the aisle's figure, not the pack's
+        assert ou.shelf_life_for("BREAD", sku=self.CRUMBS) == 0.0
+
+    def test_loaves_and_toast_bread_keep_the_label(self):
+        for sku in ("FESTIVE 400G MILKY WHITE SLICED", "SUPA 400G BUTTER TOAST BREAD"):
+            assert ou.shelf_life_for("BREAD", sku=sku) == 5.0
+
+    def test_a_code_date_on_the_pack_still_wins(self, monkeypatch):
+        monkeypatch.setattr(ou, "_FRESH_CYCLE", {"overnight": frozenset({"BREAD"}), "overnight_max_lead": 1.0,
+                                                 "life_dept": {"BREAD": 5.0}, "life_sku": {self.CRUMBS: 90.0}})
+        assert ou.sellable_life_for("BREAD", self.CRUMBS) == 90.0
+
+    def test_fresh_milk_and_uht_are_unchanged(self):
+        assert ou.shelf_life_for("FRESH MILK", sku="KCC 500ML FRESH W/MILK (POUCH)-84") == 1.2
+        assert ou.shelf_life_for("FRESH MILK", sku="BROOKSIDE 500ML DAIRY BEST (POUCH)") == 0.0
+
+    def test_a_slow_crumb_line_is_not_held_to_a_days_stock(self):
+        d = 0.5
+        t = ou.recommend(dict(line(sku=self.CRUMBS), avg_daily_sales=d))
+        assert t["S"] > d * 1.2 + 1e-9
