@@ -325,7 +325,8 @@ def _next_delivery_days(data_dir: str, net_stock: Dict[str, Any]) -> Dict[str, f
 
 def build_transfer_service(org_names: Dict[str, str], network_stock: Dict[str, List[dict]],
                            root: Optional[str] = None, cold_node_days: int = 60,
-                           hot_node_days: int = 14):
+                           hot_node_days: int = 14,
+                           distance_map: Optional[Dict[str, Any]] = None):
     """THE transfer service, wired the one way every surface uses.
 
     The ordering pipeline's network step and every transfer scan build it
@@ -339,14 +340,22 @@ def build_transfer_service(org_names: Dict[str, str], network_stock: Dict[str, L
     from oasis.logic.consolidated_transfer_service import ConsolidatedTransferService
     proj_root = root or project_root()
     data_dir = os.path.join(proj_root, "oasis", "data")
-    distance_map = {}
+    # coordinates a caller already holds (a network loaded from elsewhere)
+    # win; otherwise the install's store_coords.json
     coords_path = os.path.join(proj_root, "store_coords.json")
-    if os.path.exists(coords_path):
+    if distance_map is None and os.path.exists(coords_path):
         try:
             with open(coords_path, "r", encoding="utf-8") as f:
                 distance_map = json.load(f)
         except Exception as e:
             logger.warning("store_coords.json unreadable (%s) — transfers ignore distance", e)
+    # A silent join failure: coordinates keyed by codes this network does not
+    # use leave every donor choice blind to distance, with no error anywhere.
+    placed = sum(1 for o in org_names if o in (distance_map or {}))
+    if org_names and placed < len(org_names):
+        logger.warning("transfer distances known for %d of %d stores — donors for the "
+                       "rest are chosen without distance; place them in store_coords.json",
+                       placed, len(org_names))
     return ConsolidatedTransferService(
         org_names=org_names,
         stock_data=network_stock,

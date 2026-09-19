@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-09-05T01:22:32",
+  "generated_at": "2026-09-19T20:58:18",
   "nodes": [
     {
       "id": "claim.allocation.amit-cuts-half-the-staples",
@@ -488,7 +488,7 @@
     {
       "id": "claim.transfer.network-vs-derived-diverge",
       "type": "claim",
-      "status": "asserted",
+      "status": "falsified",
       "domain": "ordering",
       "title": "The shipped transfer scan and the derived methodology give different answers",
       "worth": "unmeasured across store subsets",
@@ -510,7 +510,7 @@
     {
       "id": "param.R",
       "type": "parameter",
-      "status": "stale",
+      "status": "measured",
       "domain": "ordering",
       "title": "Review period / order gap",
       "worth": "",
@@ -598,7 +598,7 @@
     {
       "id": "param.sigma_L",
       "type": "parameter",
-      "status": "stale",
+      "status": "measured",
       "domain": "ordering",
       "title": "Lead time standard deviation",
       "worth": "",
@@ -1286,6 +1286,10 @@
     {
       "from": "param.lata-variance-multiplier",
       "to": "surface.allocation-priority"
+    },
+    {
+      "from": "param.lata-variance-multiplier",
+      "to": "surface.purchase-order-quantity"
     },
     {
       "from": "param.sigma_L",

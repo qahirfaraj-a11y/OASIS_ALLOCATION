@@ -1,27 +1,32 @@
-"""Network (Transfers) as the Command Center runs it, vs the derived methodology.
+"""The transfer scan as the product ships it, vs the derived methodology.
 
-DEV TOOLING - devkit/, never ships.
+DEV TOOLING - devkit/, never ships. PROBE: probe.transfer-methodology-compare,
+testing claim.transfer.network-vs-derived-diverge. Emits one JSON verdict line
+(the probe harness contract); everything else on stdout is the readable report.
 
-Both are ``ConsolidatedTransferService.scan_network_opportunities``. They differ
-only in what the constructor is handed:
+All arms are ``ConsolidatedTransferService.scan_network_opportunities``. They
+differ only in how the service is built:
 
-  NETWORK   what oasis/desktop/data.py:network_transfer_scan() actually passes
-            today - a supplier-calendar `next_delivery_days`, cold/hot windows
-            of 60/14, and NOTHING else. No LATA rhythm and no AMIT tiers, so
-            the variance term is unreachable and every category shares one
-            45-day threshold.
-
-  DERIVED   the same call with `data_dir`, so relief horizons come from LATA's
-            measured GRN history and dead-stock thresholds from AMIT's
+  SHIPPED   oasis.desktop.data.build_transfer_service - the one builder every
+            surface (desktop, web, Command Center, Operations Console) has used
+            since 9dca72cf. Built BY CALLING IT, so this probe cannot drift
+            from the product the way its first version did: that version
+            hard-coded the calendar-only wiring as "what the console passes",
+            and kept measuring it after the console stopped passing it.
+  DERIVED   the methodology: `data_dir` only, so relief horizons come from
+            LATA's measured GRN history and dead-stock thresholds from AMIT's
             per-category tiers.
+  LEGACY    what the surfaces passed before 9dca72cf - a supplier-calendar
+            `next_delivery_days`, cold/hot 60/14 and NOTHING else (no LATA, no
+            AMIT, one 45-day threshold). Reported for context; the verdict is
+            SHIPPED vs DERIVED, because that is what the claim is about.
 
-Run across several store subsets, because the two do NOT diverge uniformly:
+Run across several store subsets, because plans do NOT diverge uniformly:
 assortment breadth in this network scales with floor area, so a set of large
 stores and a set of small ones stress different parts of the maths.
 
 Reported per scenario:
   * volume      lines and units, split PULL/PUSH and fresh/dry
-  * service     how much of the deficit population each one actually serves
   * clearance   share of dead stock moved
   * AGREEMENT   for each (SKU, recipient) both would serve, do they pick the
                 SAME donor, and how far apart are the quantities? Two plans of
@@ -30,7 +35,7 @@ Reported per scenario:
 
 Usage:
     python devkit/compare_transfer_methodologies.py
-    python devkit/compare_transfer_methodologies.py --scenario full
+    python devkit/compare_transfer_methodologies.py --scenario full-14
 """
 
 from __future__ import annotations
@@ -38,6 +43,7 @@ from __future__ import annotations
 import argparse
 import contextlib
 import io
+import json
 import os
 import statistics
 import sys
@@ -51,6 +57,10 @@ from oasis.logic.consolidated_transfer_service import (   # noqa: E402
     ConsolidatedTransferService as CTS)
 
 DATA_DIR = os.path.join(REPO, "oasis", "data")
+
+#: The plans DIVERGE if any of these is exceeded (percent).
+DIVERGE = {"lines_pct": 5.0, "units_pct": 5.0, "donor_disagree_pct": 5.0,
+           "qty_gap_pct": 5.0, "unshared_pct": 5.0}
 
 
 def scenarios(stores):
@@ -70,15 +80,24 @@ def scenarios(stores):
 
 def run(config, names, data, coords, codes, ndd):
     subset = {c: data[c] for c in codes}
-    kw = dict(org_names=names, stock_data=subset, distance_map=coords,
-              cold_node_days=60, hot_node_days=14)
-    if config == "network":
-        kw["next_delivery_days"] = ndd          # exactly what the console passes
-    else:
-        kw["data_dir"] = DATA_DIR               # LATA + AMIT
     buf = io.StringIO()
-    with contextlib.redirect_stderr(buf):
-        svc = CTS(**kw)
+    with contextlib.redirect_stderr(buf), contextlib.redirect_stdout(buf):
+        if config == "shipped":
+            import oasis.desktop.data as D
+            # the SAME coordinates every arm gets: the install's store_coords.json
+            # describes the live estate, not this network, and without these the
+            # shipped arm chose donors blind to distance (a probe artefact that
+            # read as 11-14% donor disagreement)
+            svc = D.build_transfer_service({c: names[c] for c in codes}, subset, root=REPO,
+                                           distance_map=coords)
+        else:
+            kw = dict(org_names=names, stock_data=subset, distance_map=coords,
+                      cold_node_days=60, hot_node_days=14)
+            if config == "legacy":
+                kw["next_delivery_days"] = ndd      # what the surfaces passed pre-9dca72cf
+            else:
+                kw["data_dir"] = DATA_DIR           # LATA + AMIT
+            svc = CTS(**kw)
         opps = svc.scan_network_opportunities().opportunities
     return svc, opps
 
@@ -142,6 +161,18 @@ def agreement(a_opps, b_opps):
             "only_a": len(set(A) - set(B)), "only_b": len(set(B) - set(A))}
 
 
+def divergence(sa, sb, ag):
+    """How far two plans are apart, each as a percentage."""
+    union = ag["shared"] + ag["only_a"] + ag["only_b"]
+    return {
+        "lines_pct": 100.0 * abs(sa["lines"] - sb["lines"]) / max(sa["lines"], sb["lines"], 1),
+        "units_pct": 100.0 * abs(sa["units"] - sb["units"]) / max(sa["units"], sb["units"], 1.0),
+        "donor_disagree_pct": (100.0 - ag["same_donor"]) if ag["shared"] else 0.0,
+        "qty_gap_pct": ag["qty_gap"],
+        "unshared_pct": 100.0 * (ag["only_a"] + ag["only_b"]) / max(union, 1),
+    }
+
+
 def main(argv=None):
     p = argparse.ArgumentParser()
     p.add_argument("--scenario", default=None, help="run just one scenario")
@@ -153,6 +184,7 @@ def main(argv=None):
 
     from analyse_transfer_funnel import load_from_seed, load_from_odoo
     import oasis.desktop.data as D
+    from devkit.methodology.traps import like_for_like, regime, run_all
 
     seed, data = load_from_odoo() if args.source == "odoo" else load_from_seed()
     stores = seed["stores"]
@@ -168,37 +200,62 @@ def main(argv=None):
         scen = {args.scenario: scen[args.scenario]}
 
     print("=" * 78)
-    print("NETWORK (Transfers, as the Command Center wires it)  vs  DERIVED "
-          "(LATA + AMIT)")
+    print("SHIPPED (build_transfer_service)  vs  DERIVED (LATA + AMIT)  [+ legacy]")
     print(f"source: {args.source}   supplier coverage: calendar {len(ndd)} | LATA 599")
     print("=" * 78)
 
+    per, diverged, traps = {}, [], []
     for label, codes in scen.items():
-        _, a = run("network", names, data, coords, codes, ndd)
-        svc_b, b = run("derived", names, data, coords, codes, ndd)
-        sa, sb = summarise(a), summarise(b)
+        _, a = run("shipped", names, data, coords, codes, ndd)
+        _, b = run("derived", names, data, coords, codes, ndd)
+        _, lg = run("legacy", names, data, coords, codes, ndd)
+        sa, sb, sl = summarise(a), summarise(b), summarise(lg)
         dead = dead_units(data, codes)
-        da, db = dead_moved(a, data, codes), dead_moved(b, data, codes)
-        ag = agreement(a, b)
+        ag, ag_legacy = agreement(a, b), agreement(lg, b)
+
+        # like for like: every arm scans the SAME stock rows of the same stores
+        base = float(sum(len(data[c]) for c in codes))
+        traps += run_all([like_for_like(("shipped rows scanned", base),
+                                        ("derived rows scanned", base),
+                                        f"{label}: deficit population")], strict=True)
 
         print(f"\n{label}  ({len(codes)} stores)")
         print(f"  {'':<14}{'lines':>8}{'units':>10}{'PULL u':>10}{'PUSH u':>10}"
               f"{'fresh u':>10}{'dry u':>10}{'dead cleared':>14}")
-        for nm, s, dd in (("NETWORK", sa, da), ("DERIVED", sb, db)):
+        for nm, s, opps in (("SHIPPED", sa, a), ("DERIVED", sb, b), ("legacy", sl, lg)):
+            dd = dead_moved(opps, data, codes)
             pct = (100.0 * dd / dead) if dead else 0.0
             print(f"  {nm:<14}{s['lines']:>8,}{s['units']:>10,.0f}"
                   f"{s['pull_u']:>10,.0f}{s['push_u']:>10,.0f}"
                   f"{s['fresh_u']:>10,.0f}{s['dry_u']:>10,.0f}"
                   f"{pct:>13.1f}%")
-        fu = sa["fresh_u"]
-        print(f"  fresh share of volume: NETWORK "
-              f"{100.0 * fu / max(sa['units'], 1):.0f}%   DERIVED "
-              f"{100.0 * sb['fresh_u'] / max(sb['units'], 1):.0f}%")
-        print(f"  agreement: {ag['shared']:,} (SKU,recipient) pairs in both | "
-              f"same donor {ag['same_donor']:.0f}% | median qty gap "
-              f"{ag['qty_gap']:.0f}%")
-        print(f"             {ag['only_a']:,} served only by NETWORK, "
-              f"{ag['only_b']:,} only by DERIVED")
+        print(f"  shipped vs derived: {ag['shared']:,} shared (SKU,recipient) | same donor "
+              f"{ag['same_donor']:.0f}% | median qty gap {ag['qty_gap']:.0f}% | "
+              f"only shipped {ag['only_a']:,}, only derived {ag['only_b']:,}")
+        print(f"  legacy  vs derived: same donor {ag_legacy['same_donor']:.0f}% | median qty gap "
+              f"{ag_legacy['qty_gap']:.0f}% | only legacy {ag_legacy['only_a']:,}, "
+              f"only derived {ag_legacy['only_b']:,}")
+        dv, dv_legacy = divergence(sa, sb, ag), divergence(sl, sb, ag_legacy)
+        over = [k for k, v in dv.items() if v > DIVERGE[k]]
+        if over:
+            diverged.append(label)
+        per[label] = {"stores": len(codes),
+                      "shipped_vs_derived": {k: round(v, 2) for k, v in dv.items()},
+                      "legacy_vs_derived": {k: round(v, 2) for k, v in dv_legacy.items()},
+                      "over_threshold": over}
+
+    traps += run_all([regime("transfer plan agreement", "transfer", "transfer")], strict=True)
+    print(json.dumps({
+        "claim": "claim.transfer.network-vs-derived-diverge",
+        "verdict": "supports" if diverged else "contradicts",
+        "metric": {"thresholds_pct": DIVERGE, "scenarios": per, "diverged_in": diverged},
+        "baseline": "derived methodology (data_dir: LATA horizons + AMIT tiers)",
+        "beat_baseline": None,
+        "held_out": False,
+        "traps": sorted({r.trap for r in traps}),
+        "notes": ("shipped = oasis.desktop.data.build_transfer_service as every surface calls it "
+                  "since 9dca72cf; the pre-fix wiring is reported as legacy_vs_derived"),
+    }))
     return 0
 
 

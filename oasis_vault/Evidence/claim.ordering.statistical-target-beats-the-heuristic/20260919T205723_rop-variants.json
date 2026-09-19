@@ -1,0 +1,48 @@
+{
+  "claim": "claim.ordering.statistical-target-beats-the-heuristic",
+  "probe": "probe.rop-variants",
+  "verdict": "contradicts",
+  "metric": {
+    "heuristic": {
+      "service": 0.8392,
+      "capital": 1.4148,
+      "lines": 15411,
+      "median_cover_days": 12.37
+    },
+    "newsvendor": {
+      "service": 0.8392,
+      "capital": 1.4148,
+      "lines": 15411,
+      "median_cover_days": 12.37
+    },
+    "order_up_to": {
+      "service": 0.8742,
+      "capital": 2.1868,
+      "lines": 15411,
+      "median_cover_days": 20.05
+    },
+    "dominates_heuristic": [],
+    "governance_blocked": {
+      "classic": 0,
+      "order_up_to": 0
+    },
+    "compared_on": 15411
+  },
+  "notes": "All arms through the shipped bridge with the model named explicitly; order_up_to is the configured default. Scored on whether ordered cover reaches the protection interval and how far past it goes. At an empty shelf every sizing reaches P, so service is a weak discriminator and capital carries the verdict. order-up-to does not dominate: it matches the heuristic's service only by carrying more cover, or falls short of it \u2014 a trade-off, not an improvement.",
+  "held_out": false,
+  "baseline": "classic heuristic: flat fallback ROP + DDoS coverage target",
+  "beat_baseline": false,
+  "traps": [
+    "T3",
+    "T4",
+    "T7"
+  ],
+  "provenance": "observed",
+  "sources": [
+    "source.fulfilment-detail",
+    "source.corrected-ads",
+    "source.supplier-weekly-schedule"
+  ],
+  "config_hash": "",
+  "run_at": "2026-09-19T20:57:23"
+}

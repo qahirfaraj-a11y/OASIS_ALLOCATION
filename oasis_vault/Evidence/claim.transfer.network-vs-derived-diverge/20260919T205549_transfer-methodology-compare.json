@@ -1,0 +1,137 @@
+{
+  "claim": "claim.transfer.network-vs-derived-diverge",
+  "probe": "probe.transfer-methodology-compare",
+  "verdict": "contradicts",
+  "metric": {
+    "thresholds_pct": {
+      "lines_pct": 5.0,
+      "units_pct": 5.0,
+      "donor_disagree_pct": 5.0,
+      "qty_gap_pct": 5.0,
+      "unshared_pct": 5.0
+    },
+    "scenarios": {
+      "pair": {
+        "stores": 2,
+        "shipped_vs_derived": {
+          "lines_pct": 0.0,
+          "units_pct": 0.0,
+          "donor_disagree_pct": 0.0,
+          "qty_gap_pct": 0.0,
+          "unshared_pct": 0.0
+        },
+        "legacy_vs_derived": {
+          "lines_pct": 10.0,
+          "units_pct": 10.08,
+          "donor_disagree_pct": 0.0,
+          "qty_gap_pct": 16.07,
+          "unshared_pct": 58.97
+        },
+        "over_threshold": []
+      },
+      "small-4": {
+        "stores": 4,
+        "shipped_vs_derived": {
+          "lines_pct": 0.0,
+          "units_pct": 0.0,
+          "donor_disagree_pct": 0.0,
+          "qty_gap_pct": 0.0,
+          "unshared_pct": 0.0
+        },
+        "legacy_vs_derived": {
+          "lines_pct": 22.76,
+          "units_pct": 50.42,
+          "donor_disagree_pct": 1.74,
+          "qty_gap_pct": 0.0,
+          "unshared_pct": 55.6
+        },
+        "over_threshold": []
+      },
+      "large-4": {
+        "stores": 4,
+        "shipped_vs_derived": {
+          "lines_pct": 0.0,
+          "units_pct": 0.0,
+          "donor_disagree_pct": 0.0,
+          "qty_gap_pct": 0.0,
+          "unshared_pct": 0.0
+        },
+        "legacy_vs_derived": {
+          "lines_pct": 20.82,
+          "units_pct": 17.34,
+          "donor_disagree_pct": 1.61,
+          "qty_gap_pct": 0.0,
+          "unshared_pct": 50.92
+        },
+        "over_threshold": []
+      },
+      "extremes-4": {
+        "stores": 4,
+        "shipped_vs_derived": {
+          "lines_pct": 0.0,
+          "units_pct": 0.0,
+          "donor_disagree_pct": 0.0,
+          "qty_gap_pct": 0.0,
+          "unshared_pct": 0.0
+        },
+        "legacy_vs_derived": {
+          "lines_pct": 24.01,
+          "units_pct": 29.63,
+          "donor_disagree_pct": 7.81,
+          "qty_gap_pct": 11.28,
+          "unshared_pct": 33.92
+        },
+        "over_threshold": []
+      },
+      "half-7": {
+        "stores": 7,
+        "shipped_vs_derived": {
+          "lines_pct": 0.0,
+          "units_pct": 0.0,
+          "donor_disagree_pct": 0.0,
+          "qty_gap_pct": 0.0,
+          "unshared_pct": 0.0
+        },
+        "legacy_vs_derived": {
+          "lines_pct": 23.94,
+          "units_pct": 41.63,
+          "donor_disagree_pct": 12.36,
+          "qty_gap_pct": 20.0,
+          "unshared_pct": 44.06
+        },
+        "over_threshold": []
+      },
+      "full-14": {
+        "stores": 14,
+        "shipped_vs_derived": {
+          "lines_pct": 0.0,
+          "units_pct": 0.0,
+          "donor_disagree_pct": 0.0,
+          "qty_gap_pct": 0.0,
+          "unshared_pct": 0.0
+        },
+        "legacy_vs_derived": {
+          "lines_pct": 21.11,
+          "units_pct": 40.57,
+          "donor_disagree_pct": 15.82,
+          "qty_gap_pct": 16.67,
+          "unshared_pct": 40.01
+        },
+        "over_threshold": []
+      }
+    },
+    "diverged_in": []
+  },
+  "notes": "shipped = oasis.desktop.data.build_transfer_service as every surface calls it since 9dca72cf; the pre-fix wiring is reported as legacy_vs_derived",
+  "held_out": false,
+  "baseline": "derived methodology (data_dir: LATA horizons + AMIT tiers)",
+  "beat_baseline": null,
+  "traps": [
+    "T4",
+    "T7"
+  ],
+  "provenance": "unknown",
+  "sources": [],
+  "config_hash": "",
+  "run_at": "2026-09-19T20:55:49"
+}

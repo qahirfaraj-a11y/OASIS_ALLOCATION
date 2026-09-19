@@ -43,6 +43,37 @@ carries is safety stock, and safety stock only pays under demand variance
 this test does not simulate. The honest claim is that order-up-to is not
 better HERE, not that it is worse everywhere.
 
+## Re-tested 2026-09-19 against the model that now SHIPS
+
+Order-up-to has since become the configured default
+(`global_settings.order_model`), and the probe had gone stale in a way that
+would have hidden it: its two "heuristic" arms ran through the bridge, which
+reads that setting, so re-run unchanged they would have been order-up-to too.
+The probe now names every arm's model explicitly and runs all three through
+the same bridge. AMIT and MANDE are in report mode, so nothing is blocked and
+the whole book is compared (15,411 lines, against 6,313 survivors on 09-04).
+
+| sizing | service | cover carried | median cover |
+|---|---|---|---|
+| classic heuristic | 83.9% | **1.41x** | 12.4 d |
+| classic newsvendor | 83.9% | 1.41x | 12.4 d |
+| order-up-to (shipped) | 87.4% | **2.19x** | 20.1 d |
+
+**Still falsified.** The shipped model reaches the protection interval on
+3.5 points more lines and carries 55% more cover to do it — the gap has
+narrowed since 09-04 (1.85x → 1.55x) but not closed. Newsvendor is identical
+to the heuristic: at an empty shelf the ROP is a trigger, not a size.
+
+The 09-04 caveat stands and now matters more, because this is the default:
+the extra cover is safety stock, which pays only under demand and lead-time
+variance this test does not simulate. The outcome replay on the bread shelf
+(devkit/bread_backtest.py) is the kind of test that can settle it — there
+the shipped engine beat the bakeries' own drops on both fill and expiry.
+Until a full-book outcome replay exists, **"order-up-to beats the heuristic"
+is not a claim the website can make.** Blast radius: `param.z` and
+`surface.purchase-order-quantity` (money).
+
 ## Status history
 
 - 2026-09-04 — `asserted` → `falsified` — probe.rop-variants → contradicts
+- 2026-09-19 — `falsified` → `falsified` — probe.rop-variants (re-tested on the shipped model) → contradicts
