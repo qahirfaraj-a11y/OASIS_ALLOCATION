@@ -421,7 +421,7 @@ def patch_recommend(policy: set, meta: dict):
     return lambda: setattr(sb._ou, "recommend", original)
 
 
-def run_engine_arm(arm, util, base, skus, rate, draws, lives, supplier_of):
+def run_engine_arm(arm, util, base, skus, rate, draws, lives, supplier_of, deliveries=None):
     from oasis.logic import demand_rate as dr
     from oasis.logic.order_up_to import shelf_life_for
     policy = make_policy(arm)
@@ -434,8 +434,24 @@ def run_engine_arm(arm, util, base, skus, rate, draws, lives, supplier_of):
     restore = patch_recommend(policy, meta)
     shelves = {n: Shelf(life_for(skus[n]["family"], lives), rate[n][4]) for n in base}
     pipeline = defaultdict(lambda: defaultdict(float))     # arrival day -> sku -> qty
-    hist = {n: [rate[n][4]] * 90 for n in base}             # pre-period at April's rate
-    instock = {n: [True] * 90 for n in base}
+    # NEW LINES ARE LAUNCHED, NOT DISCOVERED. A line with no April sales that
+    # the suppliers first delivered mid-period (Kingsmill's 380G burger buns and
+    # wholemeal lines in June, Supa brown sliced in August) was given 90 days
+    # of zero history here, so the engine arm -- which replaces the suppliers'
+    # deliveries -- never stocked it and scored 0% fill for the whole period.
+    # In the store the launch is a range decision: the first drop lands, the
+    # line sells, and the engine takes over on the days it has observed
+    # (demand_rate's observed-window guard). So a new line starts with no
+    # history, receives its real launch delivery on its real date, and its
+    # rate is measured over the days since.
+    launch = {}
+    if deliveries is not None:
+        for n in base:
+            dl = deliveries.get(n) or {}
+            if rate[n][4] <= 0 and dl:
+                launch[n] = min(dl)
+    hist = {n: ([] if n in launch else [rate[n][4]] * 90) for n in base}   # pre-period at April's rate
+    instock = {n: ([] if n in launch else [True] * 90) for n in base}
     acc = {n: np.zeros(5) for n in base}
     blocked = defaultdict(int)
     reasons = defaultdict(float)
@@ -445,6 +461,10 @@ def run_engine_arm(arm, util, base, skus, rate, draws, lives, supplier_of):
             os.environ["OASIS_AS_OF"] = date.strftime("%Y-%m-%d")
             ex = {n: sh.expire(day) for n, sh in shelves.items()}
             arrivals = pipeline.pop(day, {})
+            for n, l_day in launch.items():                  # the supplier's launch drop
+                if l_day == day:
+                    arrivals = dict(arrivals)
+                    arrivals[n] = arrivals.get(n, 0.0) + float(deliveries[n][day])
             for n, q in arrivals.items():
                 shelves[n].receive(day, q)
             # the day's trading, then the end-of-day order
@@ -471,9 +491,9 @@ def run_engine_arm(arm, util, base, skus, rate, draws, lives, supplier_of):
                         hs, ks = h[lo:hi], ins[lo:hi]
                         days_in = sum(ks)
                         qs.append(sum(x for x, k in zip(hs, ks) if k) / days_in * 30 if days_in else 0.0)
-                    d = dr.weighted_daily_rate(qs[0], qs[1], qs[2], 90)
+                    d = dr.weighted_daily_rate(qs[0], qs[1], qs[2], len(h) or 90)
                 else:
-                    d = dr.weighted_daily_rate(sum(h[-30:]), sum(h[-60:-30]), sum(h[-90:-60]), 90)
+                    d = dr.weighted_daily_rate(sum(h[-30:]), sum(h[-60:-30]), sum(h[-90:-60]), len(h) or 90)
                 p = dict(p0)
                 st = shelves[n].stock
                 p.update({"avg_daily_sales": d, "sales_velocity": d, "current_stock": st, "current_stocks": st,
@@ -578,7 +598,7 @@ def main(argv=None):
             if arm == "actual":
                 acc = replay_actual(skus, rate, deliveries, draws, lives); blocked = {}; reasons = {}
             else:
-                acc, blocked, reasons = run_engine_arm(arm, util, base, skus, rate, draws, lives, supplier_of)
+                acc, blocked, reasons = run_engine_arm(arm, util, base, skus, rate, draws, lives, supplier_of, deliveries)
             df = score(acc, skus, NDAYS - BURN_IN)
             summ = summarise(df); summ["moq_gate_drops"] = int(sum(blocked.values()))
             per_reason[arm].append(dict(reasons))
