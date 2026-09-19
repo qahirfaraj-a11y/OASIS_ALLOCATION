@@ -251,6 +251,10 @@
     "reviewed_departments": ["BREAD", "CAKES"],
     "_name_keywords_rule": "How a product NAME may decide freshness. unknown_department: a fresh keyword (MILK, BUTTER, JUICE...) counts only when the line has no department -- a known department has already said whether the line is fresh. Was 'anywhere', a substring test that marked 2,873 dry lines fresh (MILK CHOCOLATE, BUTTER COOKIES, PEANUT BUTTER, pet food, lotions); on the order-up-to path that planned them on a 1-day lead with a 7-day shelf life, which clamped the order-up-to level to its floor and removed the safety stock (median 8.0 -> 21.7 days of demand once corrected). No line in the current store lacks a department, so the name is a fallback for feeds that carry none. Set 'anywhere' to restore the old rule.",
     "name_keywords_rule": "unknown_department",
+    "_presence_departments": "Departments where a line that still sells is never planned at zero stock, and a line that cannot sell one unit within its shelf life is held at exactly one (order_up_to.recommend). On next-morning delivery a line under ~0.1 a day needs no stock at 90% service; suppressing it empties the shelf, the measured rate decays and the line is never reordered -- mid-period launches reached 0-2% fill in the Apr-Sep bread replay. Under sale-or-return the unit's expiry is the supplier's.",
+    "presence_departments": ["BREAD", "CAKES"],
+    "_bakery_suppliers": "The daily bakeries. Their lines skip the minimum-order gate in whatever department they are filed (simulation_bridge.is_moq_exempt): a pack of cookies rides the bakery's morning drop. Keyed by supplier, not department, because exempting BISCUITS or MEXICAN FOOD would exempt every supplier in them. Matched through order_up_to.supplier_key.",
+    "bakery_suppliers": ["DPL FESTIVE LIMITED", "MINI BAKERIES NBI LTD", "KENAFRIC BAKERY LTD", "BROADWAYS BAKERY LTD"],
     "overnight_delivery_departments": [
       "BREAD"
     ],

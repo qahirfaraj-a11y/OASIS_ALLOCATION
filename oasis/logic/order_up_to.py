@@ -593,6 +593,13 @@ def fresh_cycle() -> dict:
                                       best-before, pulled a day early: 5
       sellable_life_per_sku           SKU name -> selling days; beats the
                                       department when real code dates exist
+      presence_departments            departments where a line that still sells
+                                      is never planned at zero, and a line that
+                                      cannot sell one unit within its life is
+                                      held at exactly one (see recommend)
+      bakery_suppliers                the daily bakeries; their lines skip the
+                                      minimum-order gate in whatever department
+                                      they are filed (simulation_bridge)
     """
     global _FRESH_CYCLE
     if _FRESH_CYCLE is None:
@@ -608,6 +615,8 @@ def fresh_cycle() -> dict:
             "overnight_max_lead": float(cfg.get("overnight_max_lead_days", 1.0)),
             "life_dept": num(cfg.get("sellable_life_days")),
             "life_sku": num(cfg.get("sellable_life_per_sku")),
+            "presence": frozenset(_norm(x) for x in cfg.get("presence_departments") or []),
+            "bakery_suppliers": frozenset(supplier_key(x) for x in cfg.get("bakery_suppliers") or []),
         }
     return _FRESH_CYCLE
 
@@ -1430,6 +1439,28 @@ def recommend(product: Dict[str, Any],
     S = clamp_level(S_raw, d,
                     shelf_life_days=_sl, min_protection=(R + L),
                     min_display=float(product.get("min_presentation_stock") or 0))
+    # PRESENCE ON THE DAILY FRESH CYCLE. On next-morning delivery a line
+    # selling under ~0.1 a day needs no stock at 90% service, so S comes out 0
+    # and the line is suppressed -- arithmetically right, and self-fulfilling:
+    # an empty shelf sells nothing, the measured rate decays, and the line is
+    # never ordered again. Replayed over Apr-Sep 2026 on the bakeries' own
+    # deliveries (devkit/bread_backtest.py, arm slow_presence), that spiral
+    # took every line launched mid-period to 0-2% fill -- Kingsmill's 380G
+    # burger buns sell a unit a day and the suppliers kept them at 82% -- and
+    # left the under-1-a-day band at 81% against the suppliers' 88%.
+    #
+    # So in fresh_cycle.presence_departments a line that still sells is held
+    # at ONE unit rather than zero, and a line that cannot sell one unit within
+    # its life is held at exactly one, never more. The delivery is tomorrow and
+    # under sale-or-return the expiry is the supplier's, so the unit costs the
+    # store nothing to carry; with the bakery gate exemption the band reaches
+    # 88.1% at KES 41k of supplier expiry against their 269k.
+    _presence = False
+    if d > 0 and _norm(product.get("department")) in fresh_cycle().get("presence", ()):
+        if S < 1.0:
+            S, _presence = 1.0, True
+        elif _sl and d * _sl < 1.0 and S > 1.0:
+            S, _presence = 1.0, True
     I = float(product.get("current_stock")
               if product.get("current_stock") is not None
               else product.get("current_stocks") or 0)
@@ -1529,6 +1560,7 @@ def recommend(product: Dict[str, Any],
              f"is {d * P:.2f} expected units -- stock it for presence, or "
              f"delist") if _no_stock_justified else None),
         "S_method": "discrete_quantile" if use_discrete_quantile() else "normal",
+        "presence_hold": _presence,
         "forced_waste_units_per_cycle": max(0.0, S - (d * _sl)) if _sl else 0.0,
         "binding": ("shelf_life" if _infeasible else
                     "shelf_life_slack" if (_sl and abs(S - S_raw) > 1e-9) else "service"),

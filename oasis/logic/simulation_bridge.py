@@ -844,10 +844,26 @@ class SimulationOrderUtil:
         return apply_safety_guards(recommendations, products_map, allocation_mode="replenishment")
 
     def is_moq_exempt(self, rec: Dict[str, Any]) -> bool:
-        """Whether this line bypasses the minimum-order gate (department list)."""
+        """Whether this line bypasses the minimum-order gate.
+
+        By department (moq_exempt_departments), or by supplier: a daily
+        bakery's line rides that bakery's morning drop whatever department it
+        is filed in. Supa cookies sit in BISCUITS, where one KES 69 pack never
+        cleared the KES 200 floor -- 0% fill for the whole Apr-Sep replay while
+        the bakery kept them at 80-85%. Exempting BISCUITS would exempt every
+        biscuit supplier, most of them weekly dry goods, so the exemption is
+        keyed to the bakeries (fresh_cycle.bakery_suppliers, or the
+        moq_exempt_suppliers threshold), through the one supplier spelling.
+        """
         exempt = self.thresholds.get('moq_exempt_departments', MOQ_EXEMPT_DEPARTMENTS) or ()
         dept = " ".join(str(rec.get('department') or '').upper().split())
-        return bool(dept) and dept in {" ".join(str(d).upper().split()) for d in exempt}
+        if dept and dept in {" ".join(str(d).upper().split()) for d in exempt}:
+            return True
+        sups = self.thresholds.get('moq_exempt_suppliers')
+        sups = ({_ou.supplier_key(s) for s in sups} if sups is not None
+                else _ou.fresh_cycle().get("bakery_suppliers", ()))
+        key = _ou.supplier_key(rec.get('supplier_name') or rec.get('supplier') or '')
+        return bool(key) and key in sups
 
     def apply_minimum_order_gate(self, finalized_recs: List[Dict[str, Any]]) -> Dict[str, List[Dict[str, Any]]]:
         """
