@@ -23,7 +23,7 @@ from datetime import datetime, timedelta
 from typing import Dict, List, Optional
 
 import pandas as pd
-from sqlalchemy import text
+from sqlalchemy import bindparam, text
 
 from oasis.logic import erp_contract
 from .clock import as_of
@@ -741,9 +741,17 @@ class PosErpAdapter(erp_contract.ErpAdapter):
                 days_obs = _dr.observed_days(first, now)
                 d30, d3060, _d6090 = _dr.bucket_days(days_obs)
 
-                rows = conn.execute(query, {
+                rows = list(conn.execute(query, {
                     "org_cd": org_cd, "c30": cutoff_30, "c60": cutoff_60, "c90": cutoff_90
-                }).mappings()
+                }).mappings())
+
+                # A LINE'S OWN WINDOW. The guard above is the store's; a line
+                # launched inside the window must be measured from its own first
+                # sale (demand_rate.line_observed_days). A line that sold 60-90
+                # days ago existed all window, so only the rest are looked up.
+                line_first = self._line_first_sales(
+                    conn, org_cd, [str(r["itm_cd"]) for r in rows
+                                   if not float(r["qty_60_90d"] or 0)]) if days_obs > 60 else {}
 
                 for row in rows:
                     itm_cd = str(row["itm_cd"])
@@ -752,9 +760,12 @@ class PosErpAdapter(erp_contract.ErpAdapter):
                     q60_90 = float(row["qty_60_90d"] or 0)
                     total = float(row["qty_total"] or 0)
 
-                    ads_30 = q30 / d30 if d30 > 0 else 0
-                    ads_30_60 = q30_60 / d3060 if d3060 > 0 else 0
-                    weighted = _dr.weighted_daily_rate(q30, q30_60, q60_90, days_obs)
+                    line_obs = (_dr.line_observed_days(line_first.get(itm_cd), first, now)
+                                if itm_cd in line_first else days_obs)
+                    l30, l3060, _l6090 = _dr.bucket_days(line_obs)
+                    ads_30 = q30 / l30 if l30 > 0 else 0
+                    ads_30_60 = q30_60 / l3060 if l3060 > 0 else 0
+                    weighted = _dr.weighted_daily_rate(q30, q30_60, q60_90, line_obs)
 
                     result[itm_cd] = {
                         "weighted_ads": round(weighted, 4),
@@ -768,6 +779,24 @@ class PosErpAdapter(erp_contract.ErpAdapter):
         except Exception as e:
             logger.warning(f"Weighted ADS calculation failed for {org_cd}: {e}")
             return {}
+
+    @staticmethod
+    def _line_first_sales(conn, org_cd: str, items: List[str]) -> Dict[str, datetime]:
+        """{itm_cd: first sale ever} for the given items, over all history."""
+        out: Dict[str, datetime] = {}
+        q = text("SELECT d.ITM_CD AS itm_cd, MIN(d.BILL_DT) AS first_dt FROM POS_SALES_DTL d "
+                 "WHERE d.ORG_CD = :org_cd AND d.VOID_FLAG = 'F' AND d.ITM_CD IN :items "
+                 "GROUP BY d.ITM_CD").bindparams(bindparam("items", expanding=True))
+        for i in range(0, len(items), 500):          # stay under driver parameter limits
+            chunk = items[i:i + 500]
+            if not chunk:
+                continue
+            for r in conn.execute(q, {"org_cd": org_cd, "items": chunk}).mappings():
+                try:
+                    out[str(r["itm_cd"])] = datetime.strptime(str(r["first_dt"])[:10], "%Y-%m-%d")
+                except (TypeError, ValueError):
+                    pass
+        return out
 
     # ------------------------------------------------------------------
     # 12. Enriched Products (Convenience: combines master + stock + sales)

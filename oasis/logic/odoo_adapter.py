@@ -516,6 +516,34 @@ class OdooAdapter(_contract.ErpAdapter):
 
         return dict(agg)
 
+    def _line_first_sales(self, org_cd: Optional[str], product_ids: List[int]) -> Dict[int, datetime]:
+        """{product_id: first sale} -- earliest done move to a customer location.
+
+        Every Odoo sale (till, Sales, eCommerce) ends as such a move, so its
+        earliest date is the line's launch. Any read failure returns {} and the
+        store's window applies, exactly as before.
+        """
+        out: Dict[int, datetime] = {}
+        if not product_ids:
+            return out
+        try:
+            dom = [["state", "=", "done"], ["location_dest_id.usage", "=", "customer"],
+                   ["product_id", "in", list(product_ids)]]
+            scope = self._warehouse_scope(org_cd)
+            if scope:
+                dom.append(["location_id", "child_of", scope])
+            rows = self._ex("stock.move", "read_group", [dom, ["product_id", "date:min"], ["product_id"]],
+                            {"lazy": False}) or []
+            for r in rows:
+                pid = r.get("product_id")
+                pid = pid[0] if isinstance(pid, (list, tuple)) else pid
+                d = r.get("date")
+                if pid and d:
+                    out[int(pid)] = datetime.strptime(str(d)[:19], "%Y-%m-%d %H:%M:%S")
+        except Exception:
+            return {}
+        return out
+
     def _first_sale_date(self, org_cd: Optional[str] = None) -> Optional[datetime]:
         """The store's earliest recorded sale -- the observed-window guard's input.
 
@@ -598,12 +626,20 @@ class OdooAdapter(_contract.ErpAdapter):
         s30 = self._sales_by_product(org_cd=org_cd, since=edges[0])
         s60 = self._sales_by_product(org_cd=org_cd, since=edges[1], until=edges[0])
         s90 = self._sales_by_product(org_cd=org_cd, since=edges[2], until=edges[1])
-        days_obs = _dr.observed_days(self._first_sale_date(org_cd), now)
+        store_first = self._first_sale_date(org_cd)
+        days_obs = _dr.observed_days(store_first, now)
+        # A LINE'S OWN WINDOW, as PosErpAdapter measures it: a product that
+        # sold 60-90 days ago existed all window; the rest are looked up.
+        pids = set(s30) | set(s60) | set(s90)
+        line_first = self._line_first_sales(
+            org_cd, [pid for pid in pids if not (s90.get(pid) or {}).get("units")]) if days_obs > 60 else {}
         sales: Dict[int, Dict[str, float]] = {}
-        for pid in set(s30) | set(s60) | set(s90):
+        for pid in pids:
             q = [float((s.get(pid) or {}).get("units") or 0.0) for s in (s30, s60, s90)]
+            obs = (_dr.line_observed_days(line_first.get(pid), store_first, now)
+                   if pid in line_first else days_obs)
             sales[pid] = {"units": sum(q),
-                          "ads": _dr.weighted_daily_rate(q[0], q[1], q[2], days_obs)}
+                          "ads": _dr.weighted_daily_rate(q[0], q[1], q[2], obs)}
         suppliers = self._supplier_of([p["id"] for p in prods])
         # Stock already bought and on its way. This used to be hardcoded to
         # zero here while fetch_pending_po_by_sku sat unused by this path, so

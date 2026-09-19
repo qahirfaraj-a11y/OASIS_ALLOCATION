@@ -43,6 +43,22 @@ def observed_days(first_sale: Optional[datetime], as_of_dt: datetime) -> float:
     return float(min(WINDOW_DAYS, max(1, (as_of_dt - first_sale).days + 1)))
 
 
+def line_observed_days(line_first: Optional[datetime], store_first: Optional[datetime],
+                       as_of_dt: datetime) -> float:
+    """Days of history a LINE has: from the later of its first sale and the store's.
+
+    The observed-window guard was per store. A line launched 20 days ago in an
+    established store was divided over 90, and the 70 days before it existed
+    counted as zero sales -- a line selling a unit a day from launch read as
+    about 0.4. Replayed on the bread shelf's mid-period launches
+    (devkit/bread_backtest.py, arm launch_window), measuring each line over its
+    own days took Supa brown sliced from 64% to 83% fill. A line with sales in
+    the oldest bucket existed all window, so callers look up only the rest.
+    """
+    firsts = [f for f in (line_first, store_first) if f is not None]
+    return observed_days(max(firsts) if firsts else None, as_of_dt)
+
+
 def bucket_days(days_obs: float) -> Tuple[float, float, float]:
     """How many observed days fall in each bucket."""
     out, left = [], float(days_obs)
