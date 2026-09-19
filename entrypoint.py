@@ -215,17 +215,21 @@ def run_api(port: int = 8550):
 def run_web(port: int = 8610):
     """Start the Web Console (oasis.web.app) under uvicorn.
 
-    Binds LOOPBACK by default. This console can push purchase orders into the
-    client's ERP and has no login, matching the desktop app it mirrors — those
-    two facts together mean a default start must not serve a client's order
-    book to their whole LAN. Set OASIS_WEB_HOST deliberately to widen it.
+    Binds LOOPBACK by default; set OASIS_WEB_HOST deliberately to widen it.
+    Every call needs a signed-in OASIS user (oasis/web/security.py), and
+    OASIS_WEB_PUBLIC=1 serves the read-only website demo, which refuses to
+    start on anything but the sample store. Serve it over HTTPS: the session
+    cookie is Secure only when the request is (or OASIS_WEB_SECURE_COOKIE=1),
+    and OASIS_WEB_TRUST_PROXY=1 tells it your proxy sets X-Forwarded-*.
     """
     host = os.getenv("OASIS_WEB_HOST", "127.0.0.1")
+    public = (os.getenv("OASIS_WEB_PUBLIC") or "").strip().lower() in ("1", "true", "yes", "on")
     if host not in ("127.0.0.1", "localhost", "::1"):
-        logger.warning("Web Console binding to %s — it has NO LOGIN and can "
-                       "push orders. Put it behind a reverse proxy with auth, "
-                       "or use an SSH tunnel instead.", host)
-    logger.info("Starting O.A.S.I.S. Web Console on http://%s:%s", host, port)
+        logger.warning("Web Console binding to %s — serve it over HTTPS (a "
+                       "reverse proxy with TLS) so sign-in cookies are never "
+                       "sent in the clear.", host)
+    logger.info("Starting O.A.S.I.S. Web Console (%s) on http://%s:%s",
+                "PUBLIC DEMO, sample data, read-only" if public else "sign-in required", host, port)
     cmd = [sys.executable, "-m", "uvicorn", "oasis.web.app:app",
            "--host", host, "--port", str(port)]
     # uvicorn imports "oasis.web.app" by name, so the child needs the install

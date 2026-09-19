@@ -15,6 +15,8 @@ import math
 import os
 import sys
 
+import pytest
+
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
 from oasis.logic import geo_sources as GS
@@ -842,10 +844,22 @@ class TestTheClientFacingWebSurface:
     already carries orders and transfers — one implementation of the
     intelligence, three front doors, not three implementations."""
 
+    @pytest.fixture(autouse=True)
+    def signed_in(self, monkeypatch):
+        # the console needs a signed-in user (oasis/web/security.py)
+        from oasis.logic.auth_manager import get_user_permissions
+        from oasis.web import security as S
+        monkeypatch.delenv("OASIS_WEB_PUBLIC", raising=False)
+        user = {"username": "tester", "role": "ops_admin", "assigned_org": None,
+                "permissions": get_user_permissions("ops_admin")}
+        monkeypatch.setattr(S, "resolve_user", lambda sid, root: user)
+        S.LIMITER.reset()
+
     def _client(self):
         from fastapi.testclient import TestClient
         from oasis.web.app import app
-        return TestClient(app)
+        from oasis.web import security as S
+        return TestClient(app, headers={S.CLIENT_HEADER: "web"})
 
     def test_readiness_reports_every_input_separately(self):
         r = self._client().get("/api/sites/readiness")
@@ -895,7 +909,7 @@ class TestTheClientFacingWebSurface:
         running the documented command got ModuleNotFoundError. This is the
         same default-deny hole that silently dropped the whole desktop app."""
         from oasis.logic.release_packager import should_ship_clean
-        for f in ("oasis/web/app.py", "oasis/web/jobs.py",
+        for f in ("oasis/web/app.py", "oasis/web/jobs.py", "oasis/web/security.py",
                   "oasis/web/static/index.html"):
             ok, why = should_ship_clean(f)
             assert ok, f"{f} does not reach a client: {why}"

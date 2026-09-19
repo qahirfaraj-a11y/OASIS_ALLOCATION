@@ -137,6 +137,21 @@
   th.sortable:hover{color:var(--accent)}
   :focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 
+  /* ── sign-in ── */
+  .login{position:fixed;inset:0;background:var(--bg);display:flex;align-items:center;
+    justify-content:center;padding:20px;z-index:50}
+  .login.hide{display:none}
+  .login-card{width:100%;max-width:360px;background:var(--panel);border:1px solid var(--line);
+    border-top:2px solid var(--accent);border-radius:3px;padding:26px 24px;
+    display:flex;flex-direction:column;gap:8px}
+  .login-card h1{font-size:1.2rem;margin:10px 0 6px;letter-spacing:-.01em}
+  .login-card label{font-size:10.5px;letter-spacing:.13em;text-transform:uppercase;
+    color:var(--ink3);font-weight:650;margin-top:6px}
+  .login-card input{background:var(--bg);border:1px solid var(--line);border-radius:3px;
+    color:var(--ink);padding:10px 11px;font-family:inherit;font-size:14px}
+  .login-card input:focus{outline:none;border-color:var(--accent)}
+  .login-card .btn{margin-top:12px}
+  .login-card .msg{color:var(--bad);font-size:12.5px;min-height:1.2em;margin:4px 0 0}
 </style>
 </head>
 <body>
@@ -147,10 +162,28 @@
   <span id="backend"></span>
   <span id="siteinfo"></span>
   <span class="sp"></span>
+  <span id="who"></span>
+  <button class="btn ghost sm hide" id="signout" type="button">Sign out</button>
   <span id="clock"></span>
 </div>
 
+<div id="login" class="login hide" role="dialog" aria-modal="true" aria-labelledby="login-h">
+  <form id="login-form" class="login-card" autocomplete="on">
+    <span class="brand">O·A·S·I·S</span>
+    <h1 id="login-h">Sign in</h1>
+    <label for="l-user">Username</label>
+    <input id="l-user" name="username" autocomplete="username" required>
+    <label for="l-pass">Password</label>
+    <input id="l-pass" name="password" type="password" autocomplete="current-password" required>
+    <button class="btn" type="submit" id="l-go">Sign in</button>
+    <p class="msg" id="l-msg" role="alert"></p>
+  </form>
+</div>
+
 <main>
+  <div id="demo" class="method hide"><b>Public demo &middot; sample data</b>
+    <span>Everything here comes from OASIS&rsquo;s built-in sample store &mdash; no real
+    retailer&rsquo;s figures. It shows what OASIS recommends; nothing can be sent or changed.</span></div>
   <div class="sites" id="sites"></div>
   <p class="hint" id="hint">Pick a store to see what it should order.</p>
 
@@ -272,14 +305,63 @@ let SELECTED = new Set(), VIEW = {q:'',supplier:'',dept:'',outOnly:false,sort:'v
 function tick(){ $('#clock').textContent = new Date().toLocaleTimeString(); }
 setInterval(tick, 1000); tick();
 
+/* What this visitor may do: set from /api/me. Public demo: read only. */
+let CAN = {push:false, editSites:false, transfers:false, publicDemo:false};
+
 async function j(url, opts){
+  opts = Object.assign({}, opts || {});
+  // Sent on every call; the server refuses a state-changing request without it,
+  // which a cross-site form cannot add.
+  opts.headers = Object.assign({'X-OASIS-Client':'web'}, opts.headers || {});
+  opts.credentials = 'same-origin';
   const r = await fetch(url, opts);
+  if(r.status === 401 && url !== '/api/login'){ showLogin(); throw new Error('Sign in to continue.'); }
   if(!r.ok){ let d; try{ d = (await r.json()).detail }catch(e){ d = r.statusText }
              throw new Error(d || ('HTTP '+r.status)); }
   return r.json();
 }
 
+function showLogin(msg){
+  $('#login').classList.remove('hide');
+  $('#l-msg').textContent = msg || '';
+  setTimeout(()=>$('#l-user').focus(), 0);
+}
+
+$('#login-form').onsubmit = async e => {
+  e.preventDefault();
+  const go = $('#l-go'); go.disabled = true; $('#l-msg').textContent = '';
+  try{
+    await j('/api/login', {method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({username:$('#l-user').value, password:$('#l-pass').value})});
+    location.reload();
+  }catch(err){ $('#l-msg').textContent = err.message; $('#l-pass').value=''; go.disabled = false; }
+};
+
+$('#signout').onclick = async () => {
+  try{ await j('/api/logout', {method:'POST'}); }catch(e){}
+  location.reload();
+};
+
+async function who(){
+  let me;
+  try{ me = await j('/api/me'); }catch(e){ return false; }   // 401 shows the sign-in
+  if(me.public){
+    CAN = {push:false, editSites:false, transfers:true, publicDemo:true};
+    $('#demo').classList.remove('hide');
+    $('#who').textContent = 'public demo';
+  } else {
+    const u = me.user || {};
+    CAN = {push:!!u.can_push, editSites:!!u.can_edit_sites, transfers:!!u.can_see_transfers,
+           publicDemo:false};
+    $('#who').textContent = (u.display_name || u.username || '') + (u.role ? ' · '+u.role : '');
+    $('#signout').classList.remove('hide');
+  }
+  $('#t-transfers').classList.toggle('hide', !CAN.transfers);
+  return true;
+}
+
 async function boot(){
+  if(!(await who())) return;
   try{
     const h = await j('/api/health');
     $('#dot').className = 'dot ' + (h.connected ? 'on' : 'off');
@@ -392,7 +474,7 @@ async function loadReadiness(){
 
   // The setup panel stays open until every input is in place, then folds away
   // so a returning operator is not walked through it again.
-  $('#sites-setup').classList.toggle('hide', !!r.ready);
+  $('#sites-setup').classList.toggle('hide', !!r.ready || !CAN.editSites);
   loadMap();
 }
 
@@ -532,7 +614,7 @@ async function loadMap(){
     el.classList.add('hide'); fix.classList.add('hide'); return;
   }
   el.classList.remove('hide');
-  fix.classList.toggle('hide', !d.rivals.length);
+  fix.classList.toggle('hide', !d.rivals.length || !CAN.editSites);
   // Opened by default when the field is the shipped extract and untouched:
   // that is the one case where it is almost certainly wrong somewhere and the
   // operator has not yet been shown that they can say so.
@@ -1032,13 +1114,18 @@ function renderOrders(){
       '<span class="sp"></span><span id="shown" class="muted"></span>'+
     '</div>'+
     '<div id="tablehost"></div>'+
+    (CAN.push ?
     '<div class="act">'+
       '<button class="btn" id="pushbtn">Send <span id="cnt"></span> to draft orders</button>'+
       '<span id="pickval" class="muted"></span>'+
       '<span id="hiddenwarn" class="muted"></span>'+
       '<span class="sp"></span>'+
       '<span class="muted">Drafts only - nothing is confirmed, no money is committed.</span>'+
-    '</div><div id="pushmsg" style="margin-top:10px"></div>';
+    '</div><div id="pushmsg" style="margin-top:10px"></div>'
+    : '<div class="act"><span class="muted">'+
+      (CAN.publicDemo ? 'Public demo: these are the recommendations; sending them is disabled.'
+                      : 'Your role can review these recommendations; sending drafts needs a buyer or manager.')+
+      '</span></div>');
 
   $('#q').oninput = e => { VIEW.q = e.target.value.trim().toLowerCase(); drawRows(); };
   $('#fsup').onchange = e => { VIEW.supplier = e.target.value; drawRows(); };
@@ -1049,7 +1136,7 @@ function renderOrders(){
     $('#q').value=''; $('#fsup').value=''; $('#fdept').value=''; $('#fout').checked=false;
     drawRows();
   };
-  $('#pushbtn').onclick = doPush;
+  if($('#pushbtn')) $('#pushbtn').onclick = doPush;
   drawRows();
 }
 

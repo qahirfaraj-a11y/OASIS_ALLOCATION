@@ -1679,7 +1679,10 @@ class ConsolidatedTransferService:
         )
 
         if self.registry_path:
-            self.tracker.save_to_file(self.registry_path)
+            # Replace only the slice this run planned (transfers INTO the
+            # stores it ordered for); every other store's plan in the shared
+            # registry is kept. See TransferStateTracker.save_to_file.
+            self.tracker.save_to_file(self.registry_path, replace_orgs=set(store_orders))
 
         return plan
 

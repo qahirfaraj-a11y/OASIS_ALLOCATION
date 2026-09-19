@@ -19,11 +19,11 @@
       "oasis/logic/engines_config.py": "a571047e00dfb82c163bc9a6d2909807b26706ae8fbb0a32afbfa062dae10b52",
       "oasis/logic/lata_shield.py": "2e65940526c7c9dd233d1c6985c129559a6ccc34b669cbf3f6cabda3ce6e996a",
       "oasis/logic/residual_cover.py": "06083ea94a18de750a29e379d77893787dd0f1762f481fcb9c1f3ae37b079fd1",
-      "oasis/logic/consolidated_transfer_service.py": "ccbcc40adbf6df38baa6d3f1b375e8d3a9088b58de103311a39499237abf71db",
+      "oasis/logic/consolidated_transfer_service.py": "ffdea19a457f005594c98997d785695039c802668eb1f65933cdefd93354ac21",
       "oasis/logic/fulfillment_decider.py": "47da83c09f25b6072860000a0db598a8a43f5e24c79cfb66ff924c37144e543d",
-      "oasis/logic/transfer_state.py": "0cbbabea17fe0125f3f40bba9bd6cdc45213f425e6de288b62bba0045b60aa77"
+      "oasis/logic/transfer_state.py": "93bdde8b147050a8e44558e9db443dcb764f3b694a4052fb93c1e6baf67cce82"
     },
-    "combined_sha256": "547008f245bab043c79aaf5294592ab378da26c2bb5167d7a1d8e933fe2de4d8"
+    "combined_sha256": "a3909c8dc92ff21e4e588f5506189bc8d26324e996f0eebcffafc2f81c0c9f81"
   },
   "config": {
     "global_settings": {

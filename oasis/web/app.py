@@ -14,25 +14,30 @@ where the ERP write should be. This reads LIVE through the same accessors the
 Command Center uses, so there is one implementation of the intelligence and two
 front doors — not two implementations.
 
-BINDING, AND WHY IT DEFAULTS TO LOOPBACK
-----------------------------------------
-This console can push purchase orders into the client's ERP. It has no login,
-matching the desktop app it mirrors. Those two facts together mean it must not
-be casually exposed: it binds 127.0.0.1 unless ``OASIS_WEB_HOST`` is set
-deliberately, so a default start cannot serve a client's order book to their
-whole LAN. Same posture as the Tally adapter's remote-host refusal.
+SIGN-IN, AND THE PUBLIC DEMO
+----------------------------
+This console can push purchase orders into the client's ERP. It used to have
+no login and relied on binding 127.0.0.1 — which a reverse proxy undoes, so on
+a website it protected nothing. Every /api/ call now needs a signed-in OASIS
+user (the consoles' accounts, lockout and sessions), actions are checked
+against the role, and a store-bound user sees only their store. The website
+demo runs with OASIS_WEB_PUBLIC=1: sample data only (it refuses to start on
+anything else), no accounts, no writes, rate-limited. See oasis/web/security.py.
+It still binds 127.0.0.1 unless ``OASIS_WEB_HOST`` is set deliberately.
 """
 
 from __future__ import annotations
 
+import json
 import logging
 import os
 from typing import Any, Dict, Optional
 
-from fastapi import FastAPI, HTTPException
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi import FastAPI, HTTPException, Request
+from fastapi.responses import FileResponse, JSONResponse, Response
 
 from oasis.web import jobs
+from oasis.web import security as S
 
 logger = logging.getLogger("OasisWeb")
 
@@ -45,9 +50,134 @@ def _root() -> Optional[str]:
     return os.getenv("OASIS_ROOT") or None
 
 
+@app.on_event("startup")
+def _public_precondition() -> None:
+    if S.public_mode():
+        S.assert_public_is_sample(_root())
+        logger.info("PUBLIC DEMO: sample data, read-only, no accounts")
+
+
+def _deny(status: int, detail: str) -> JSONResponse:
+    return JSONResponse(status_code=status, content={"detail": detail})
+
+
+@app.middleware("http")
+async def _guard(request: Request, call_next):
+    """Sign-in, permissions, the public demo's limits, and scrubbing — in one place."""
+    path, method = request.url.path, request.method.upper()
+    if path.startswith("/api/"):
+        if method not in ("GET", "HEAD", "OPTIONS") and request.headers.get(S.CLIENT_HEADER) != "web":
+            return _deny(403, "Requests must come from the OASIS page.")
+        user = None
+        if S.public_mode():
+            if any(rx.search(path) for rx in S.WRITE_ROUTES):
+                return _deny(403, "Disabled in the public demo: it shows what OASIS "
+                                  "recommends, it does not change anything.")
+            if path in ("/api/login", "/api/logout"):
+                return _deny(404, "The public demo has no accounts.")
+        elif path not in S.OPEN_PATHS:
+            user = S.resolve_user(request.cookies.get(S.SESSION_COOKIE), _root())
+            if user is None:
+                return _deny(401, "Sign in to continue.")
+            for rx, need in S.PERMISSIONS:
+                if rx.search(path) and not S.allowed(user, need):
+                    return _deny(403, "Your role does not allow this action.")
+            for rx in S.STORE_ROUTES:
+                m = rx.search(path)
+                if m and not S.may_see_store(user, m.group("org")):
+                    return _deny(403, "That store is not one of yours.")
+        lim = S.heavy_limit(path)
+        if lim and method == "POST":
+            who = (user or {}).get("username") or S.client_id(request)
+            if not S.LIMITER.hit(lim[0], who, *lim[1]):
+                return _deny(429, "Too many requests of this kind — wait a minute and try again.")
+        request.state.user = user
+
+    response = await call_next(request)
+    if path.startswith("/api/") and "application/json" in (response.headers.get("content-type") or ""):
+        body = b"".join([chunk async for chunk in response.body_iterator])
+        clean = S.scrub(body.decode("utf-8", errors="replace")).encode("utf-8")
+        headers = {k: v for k, v in response.headers.items() if k.lower() != "content-length"}
+        return Response(content=clean, status_code=response.status_code, headers=headers,
+                        media_type="application/json")
+    return response
+
+
+def _user(request: Request) -> Optional[Dict[str, Any]]:
+    return getattr(request.state, "user", None)
+
+
+def _public_user(u: Dict[str, Any]) -> Dict[str, Any]:
+    perms = u.get("permissions") or {}
+    return {"username": u.get("username"), "display_name": u.get("display_name"),
+            "role": u.get("role"), "assigned_org": u.get("assigned_org"),
+            "can_push": bool(perms.get("can_approve_po")),
+            "can_edit_sites": bool(perms.get("can_edit_config")),
+            "can_see_transfers": bool((perms.get("tabs") or {}).get("transfer_intelligence"))}
+
+
+@app.get("/api/me")
+def me(request: Request) -> Dict[str, Any]:
+    """Who is signed in — or that this is the public demo."""
+    if S.public_mode():
+        return {"public": True, "user": None}
+    user = S.resolve_user(request.cookies.get(S.SESSION_COOKIE), _root())
+    if user is None:
+        raise HTTPException(status_code=401, detail="Sign in to continue.")
+    return {"public": False, "user": _public_user(user)}
+
+
+@app.post("/api/login")
+def login(request: Request, body: Dict[str, Any]) -> Response:
+    """Sign in with an OASIS account; sets an HttpOnly session cookie."""
+    from oasis.logic.audit_logger import log_action, ACTION_LOGIN, ENTITY_SESSION
+    from oasis.logic.auth_manager import authenticate, revoke_session
+    if not S.LIMITER.hit("login", S.client_id(request), *S.LOGIN_LIMIT):
+        return _deny(429, "Too many sign-in attempts — wait a few minutes.")
+    username = str(body.get("username") or "").strip()[:80]
+    password = str(body.get("password") or "")
+    db = S._db(_root())
+    user = authenticate(username, password, db) if username and password else None
+    if user is None:
+        # one message for unknown user, wrong password and lockout: no probing
+        return _deny(401, "Wrong username or password, or the account is locked for a few minutes.")
+    if S.uses_install_password(username, _root()):
+        revoke_session(user.get("session_token"), db)
+        return _deny(403, "This account still has the installation password. Set a new one "
+                          "(entrypoint.py --mode set-password) before signing in on the web.")
+    try:
+        log_action(db, username, ACTION_LOGIN, ENTITY_SESSION)
+    except Exception:
+        pass
+    resp = JSONResponse({"public": False, "user": _public_user(user)})
+    resp.set_cookie(S.SESSION_COOKIE, user["session_token"], max_age=S.SESSION_SECONDS,
+                    httponly=True, samesite="strict", secure=S.secure_cookie(request), path="/")
+    return resp
+
+
+@app.post("/api/logout")
+def logout(request: Request) -> Response:
+    from oasis.logic.audit_logger import log_action, ACTION_LOGOUT, ENTITY_SESSION
+    from oasis.logic.auth_manager import revoke_session
+    sid = request.cookies.get(S.SESSION_COOKIE)
+    db = S._db(_root())
+    revoke_session(sid, db)
+    u = _user(request)
+    if u:
+        try:
+            log_action(db, u.get("username", ""), ACTION_LOGOUT, ENTITY_SESSION)
+        except Exception:
+            pass
+    resp = JSONResponse({"signed_out": True})
+    resp.delete_cookie(S.SESSION_COOKIE, path="/")
+    return resp
+
+
 @app.get("/")
 def index():
-    return FileResponse(os.path.join(STATIC, "index.html"))
+    # revalidated on every load: a cached page would keep running the old
+    # script — sign-in and permission changes included — after an update
+    return FileResponse(os.path.join(STATIC, "index.html"), headers={"Cache-Control": "no-cache"})
 
 
 @app.get("/api/health")
@@ -90,7 +220,7 @@ def health() -> Dict[str, Any]:
 
 
 @app.get("/api/sites")
-def sites() -> Dict[str, Any]:
+def sites(request: Request) -> Dict[str, Any]:
     """The stores OASIS can see, and WHY it can see none if that is the case.
 
     ``list_stores`` swallows every exception and returns [], so an unreachable
@@ -104,6 +234,14 @@ def sites() -> Dict[str, Any]:
         found = D.list_stores(_root())
     except Exception as e:
         return {"sites": [], "error": str(e)[:200], "reachable": False}
+    user = _user(request)
+    if found and user is not None:
+        # a store-bound user sees their store only
+        mine = [s for s in found if S.may_see_store(user, s.get("org_cd"))]
+        if not mine:
+            return {"sites": [], "reachable": True,
+                    "error": "Your account is not assigned to any store here. Ask an administrator."}
+        found = mine
     if found:
         return {"sites": found, "error": None, "reachable": True}
     h = health()
@@ -680,8 +818,14 @@ def start_transfers() -> Dict[str, Any]:
 
 
 @app.get("/api/jobs/{job_id}")
-def job_status(job_id: str) -> Dict[str, Any]:
+def job_status(job_id: str, request: Request) -> Dict[str, Any]:
     job = jobs.get(job_id)
+    user = _user(request)
+    if job is not None and user is not None:
+        # an order job carries one store's book; its id is not a key to it
+        if (job.kind == "orders" and not S.may_see_store(user, job.key)) or \
+                (job.kind == "transfers" and not S.allowed(user, "tab:transfer_intelligence")):
+            job = None
     if job is None:
         raise HTTPException(status_code=404, detail="Unknown job — it may have "
                                                     "expired. Run it again.")
@@ -689,17 +833,21 @@ def job_status(job_id: str) -> Dict[str, Any]:
 
 
 @app.post("/api/orders/{org_cd}/push")
-def push(org_cd: str, body: Dict[str, Any]) -> Dict[str, Any]:
+def push(org_cd: str, body: Dict[str, Any], request: Request) -> Dict[str, Any]:
     """Write the selected lines to the ERP as DRAFTS.
 
     The invariant the whole system is built on holds here too: OASIS proposes,
     a human approves inside the ERP. Nothing this endpoint writes commits money.
+    The audit trail names the signed-in user — never a name the request
+    supplies, which anyone could type.
     """
     from oasis.desktop import data as D
     rows = body.get("rows") or []
     if not rows:
         raise HTTPException(status_code=400, detail="No lines selected.")
-    who = str(body.get("username") or "web-console")
+    who = (_user(request) or {}).get("username")
+    if not who:
+        raise HTTPException(status_code=401, detail="Sign in to continue.")
     res = D.push_purchase_order(org_cd, who, rows, root=_root())
     if not res.get("success"):
         raise HTTPException(status_code=502,

@@ -379,6 +379,19 @@ def validate_session(session_id: str, db_path: str) -> Optional[Dict[str, Any]]:
         return None
 
 
+def revoke_session(session_id: str, db_path: str) -> None:
+    """End a session: validate_session refuses it from now on (sign-out)."""
+    if not session_id:
+        return
+    try:
+        conn = get_auth_db_conn(db_path)
+        conn.execute("UPDATE OASIS_SESSIONS SET IS_REVOKED = 1 WHERE SESSION_ID = ?", (session_id,))
+        conn.commit()
+        conn.close()
+    except Exception as e:
+        logger.error(f"Error revoking session: {e}")
+
+
 def get_all_users(db_path: str) -> list:
     """Get all users (for admin view). Excludes password hashes."""
     try:
