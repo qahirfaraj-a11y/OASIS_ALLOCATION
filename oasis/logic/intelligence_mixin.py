@@ -287,6 +287,38 @@ class IntelligenceMixin:
         packs = cfg.get("shelf_stable_pack_tokens") or self._SHELF_STABLE_PACK_TOKENS
         return long_life_match(p_name_upper, (), packs)
 
+    #: Words in a product NAME that suggest a fresh line.
+    _FRESH_NAME_KEYWORDS = ('MILK', 'DAIRY', 'BREAD', 'VEG', 'FRUIT', 'MEAT', 'YOGURT',
+                            'YOGHURT', 'CHEESE', 'JUICE', 'BUTTER', 'MAZIWA', 'BAKERY', 'BIO ', 'DAIMA')
+
+    def _fresh_by_name(self, p_name_upper: str, department: Any = None) -> bool:
+        """Does the NAME say this line is fresh? Rule: fresh_cycle.name_keywords_rule.
+
+          unknown_department  (default) the name decides only when the line has
+                              no department; a known department has already
+                              said whether the line is fresh
+          anywhere            a keyword anywhere in the name is enough -- the
+                              old rule, a substring test with no regard to
+                              department
+
+        WHY THE DEPARTMENT WINS. As a substring test, 'anywhere' marked 2,873 dry
+        lines fresh -- MILK CHOCOLATE, BUTTER COOKIES, PEANUT BUTTER, pet food,
+        body lotion. A fresh line is planned on a 1-day lead with a 7-day shelf
+        life, and on the order-up-to path that 7 clamps S to its floor (d x P),
+        which removes the safety stock: measured on the shipped path over the
+        store's book, the order-up-to level of those lines sat at a median 8.0
+        days of demand and is 21.7 as the dry goods they are; lines in the fresh
+        departments did not move at all.
+        """
+        name = p_name_upper or ""
+        if not any(k in name for k in self._FRESH_NAME_KEYWORDS):
+            return False
+        rule = (((getattr(self, "engines_config", None) or {}).get("fresh_cycle") or {})
+                .get("name_keywords_rule") or "unknown_department")
+        if rule == "unknown_department":
+            return not " ".join(str(department or "").split())
+        return True
+
     def supplier_pattern_for(self, supplier_name: Any, patterns: Optional[dict] = None) -> dict:
         """The supplier's rhythm record, found the ONE way this engine spells a
         supplier: order_up_to.supplier_key -- upper-cased, whitespace collapsed,
@@ -565,10 +597,7 @@ class IntelligenceMixin:
             # GOLDEN PARITY FIX: Use OR-logic to preserve supplier-driven freshness
             # (supplier pattern may have already set is_fresh=True at line 288)
             # R5: Golden Parity — broadened fresh keywords to match original scope
-            has_fresh_keywords = any(x in p_upper for x in [
-                'MILK', 'DAIRY', 'BREAD', 'VEG', 'FRUIT', 'MEAT', 'YOGURT',
-                'YOGHURT', 'CHEESE', 'JUICE', 'BUTTER', 'MAZIWA', 'BAKERY', 'BIO ', 'DAIMA'
-            ])
+            has_fresh_keywords = self._fresh_by_name(p_upper, p.get('department'))
             is_fresh_dept = any(str(p.get('department', '')).upper() == d.upper() for d in FRESH_DEPARTMENTS)
             p['is_fresh'] = p.get('is_fresh', False) or has_fresh_keywords or is_fresh_dept
             

@@ -1,5 +1,5 @@
 {
- "engines_config_sha256": "8573f6159fbfa09e39cf09cc1180a760922937b2c7f4d49c558f370ea31c9f49",
+ "engines_config_sha256": "1455a05aecccb51986d24f43ea15f28fce4f0b680cbb775197f0b3112aa602f0",
  "current_day": 40,
  "cover_positions": [
   0.0,
@@ -2811,12 +2811,12 @@
    "cover_days": 0.0,
    "product_name": "NESTLE 41.5G KITKAT 4 FINGER MILK",
    "target_days": 11.0,
-   "reorder_point": 66.72,
-   "qty_raw": 168.0,
-   "qty_finalized": 168.0,
-   "ordered_quantity": 168.0,
+   "reorder_point": 208.5,
+   "qty_raw": 348.0,
+   "qty_finalized": 348.0,
+   "ordered_quantity": 348.0,
    "fulfillment": "PO",
-   "reasoning": "[LATA Shield: lead_time_stdev sigma_L=0.80d -> safety 2.08d of a 8.0d protection interval] [ROP floored at the protection interval R+L=8d] [order-up-to: R=7d L=1d z=1.28 sigmaL=0.8d S=167]"
+   "reasoning": "[LATA Shield: lead_time_stdev sigma_L=0.80d -> safety 2.61d of a 14.0d protection interval] [ROP floored at the protection interval R+L=14d] [order-up-to: R=7d L=7d z=1.28 sigmaL=0.8d S=342]"
   },
   {
    "case": "S32 @ 1d",
@@ -2824,12 +2824,12 @@
    "cover_days": 1.0,
    "product_name": "NESTLE 41.5G KITKAT 4 FINGER MILK",
    "target_days": 11.0,
-   "reorder_point": 66.72,
-   "qty_raw": 150.0,
-   "qty_finalized": 150.0,
-   "ordered_quantity": 150.0,
+   "reorder_point": 208.5,
+   "qty_raw": 324.0,
+   "qty_finalized": 324.0,
+   "ordered_quantity": 324.0,
    "fulfillment": "PO",
-   "reasoning": "[LATA Shield: lead_time_stdev sigma_L=0.80d -> safety 2.08d of a 8.0d protection interval] [ROP floored at the protection interval R+L=8d] [order-up-to: R=7d L=1d z=1.28 sigmaL=0.8d S=167]"
+   "reasoning": "[LATA Shield: lead_time_stdev sigma_L=0.80d -> safety 2.61d of a 14.0d protection interval] [ROP floored at the protection interval R+L=14d] [order-up-to: R=7d L=7d z=1.28 sigmaL=0.8d S=342]"
   },
   {
    "case": "S32 @ 3d",
@@ -2837,12 +2837,12 @@
    "cover_days": 3.0,
    "product_name": "NESTLE 41.5G KITKAT 4 FINGER MILK",
    "target_days": 11.0,
-   "reorder_point": 66.72,
-   "qty_raw": 108.0,
-   "qty_finalized": 108.0,
-   "ordered_quantity": 108.0,
+   "reorder_point": 208.5,
+   "qty_raw": 282.0,
+   "qty_finalized": 282.0,
+   "ordered_quantity": 282.0,
    "fulfillment": "PO",
-   "reasoning": "[LATA Shield: lead_time_stdev sigma_L=0.80d -> safety 2.08d of a 8.0d protection interval] [ROP floored at the protection interval R+L=8d] [order-up-to: R=7d L=1d z=1.28 sigmaL=0.8d S=167]"
+   "reasoning": "[LATA Shield: lead_time_stdev sigma_L=0.80d -> safety 2.61d of a 14.0d protection interval] [ROP floored at the protection interval R+L=14d] [order-up-to: R=7d L=7d z=1.28 sigmaL=0.8d S=342]"
   },
   {
    "case": "S32 @ 7d",
@@ -2850,12 +2850,12 @@
    "cover_days": 7.0,
    "product_name": "NESTLE 41.5G KITKAT 4 FINGER MILK",
    "target_days": 11.0,
-   "reorder_point": 66.72,
-   "qty_raw": 24.0,
-   "qty_finalized": 24.0,
-   "ordered_quantity": 24.0,
+   "reorder_point": 208.5,
+   "qty_raw": 198.0,
+   "qty_finalized": 198.0,
+   "ordered_quantity": 198.0,
    "fulfillment": "PO",
-   "reasoning": "[LATA Shield: lead_time_stdev sigma_L=0.80d -> safety 2.08d of a 8.0d protection interval] [ROP floored at the protection interval R+L=8d] [order-up-to: R=7d L=1d z=1.28 sigmaL=0.8d S=167]"
+   "reasoning": "[LATA Shield: lead_time_stdev sigma_L=0.80d -> safety 2.61d of a 14.0d protection interval] [ROP floored at the protection interval R+L=14d] [order-up-to: R=7d L=7d z=1.28 sigmaL=0.8d S=342]"
   },
   {
    "case": "S32 @ 21d",
@@ -2863,12 +2863,12 @@
    "cover_days": 21.0,
    "product_name": "NESTLE 41.5G KITKAT 4 FINGER MILK",
    "target_days": 11.0,
-   "reorder_point": 66.72,
+   "reorder_point": 208.5,
    "qty_raw": 0.0,
    "qty_finalized": 0.0,
    "ordered_quantity": 0.0,
    "fulfillment": "NONE",
-   "reasoning": "[Above ROP 166.8]"
+   "reasoning": "[Above ROP 291.9]"
   },
   {
    "case": "S47 @ 0d",

@@ -1,5 +1,5 @@
 {
-  "generated_utc": "2026-09-18T16:14:41Z",
+  "generated_utc": "2026-09-18T16:27:24Z",
   "repo_relative": "devkit/retail_sandbox/contract",
   "entry_points": {
     "target_stock": {
@@ -237,8 +237,8 @@
   ],
   "engines_config": {
     "source": "oasis/data/oasis_engines_config.json",
-    "sha256": "119c95567085c889b1e1f7d12dc584d4a54a86d3713198a2b1f8caf2afa105d7",
-    "bytes": 11483,
+    "sha256": "63f0511596c5060b31d95c6df8ccc9a62f58cf2493ea653c45767e86f970a77f",
+    "bytes": 12261,
     "active_engines": [
       "amit",
       "lata",
@@ -248,7 +248,7 @@
     "engine_sources": {
       "files": {
         "oasis/logic/order_engine.py": "001a767a8734d013d0b8a32a19fc78e2f0af3768ecb2af183f456f300c13fdbe",
-        "oasis/logic/intelligence_mixin.py": "fc948d478288f53ddd089e3dd9c80bee4db6764ebd81c7e8622be5b0d8735bc6",
+        "oasis/logic/intelligence_mixin.py": "7d6965b8265d57c158eb034abc36b3570017bb644e81acd2d6dad67654ef65b6",
         "oasis/logic/simulation_bridge.py": "bebb0debe3c10fb21b3412752ff97ebc364b1f63fe1294e0add0284389f3883b",
         "oasis/logic/order_up_to.py": "c3459915be7a23f94c4883b585194d35493447b8994f9baedd570fd44fa45bb6",
         "oasis/logic/order_logic_guards.py": "935ce14f687dd268a83775543358168dc243ef131c0ac09ad91f3ea4c7d09409",
@@ -260,7 +260,7 @@
         "oasis/logic/fulfillment_decider.py": "3d48b468747905694083fc064330c627464a6cccce7e2cad5e03503d2ee9068e",
         "oasis/logic/transfer_state.py": "0cbbabea17fe0125f3f40bba9bd6cdc45213f425e6de288b62bba0045b60aa77"
       },
-      "combined_sha256": "9a6c412e16219c6e7e4397687340e35a04c774bdbd5ff727d3f83a75fd05ad4d"
+      "combined_sha256": "51395654682ec35796a16135046726ef7e66f10adb2666dfa12cbb7673b5f427"
     }
   }
 }
