@@ -597,9 +597,15 @@ def fresh_cycle() -> dict:
                                       is never planned at zero, and a line that
                                       cannot sell one unit within its life is
                                       held at exactly one (see recommend)
-      bakery_suppliers                the daily bakeries; their lines skip the
-                                      minimum-order gate in whatever department
-                                      they are filed (simulation_bridge)
+      bakery_suppliers                bakeries the operator names; their lines
+                                      skip the minimum-order gate in whatever
+                                      department they are filed
+                                      (simulation_bridge). ADDED TO the derived
+                                      ones -- see daily_suppliers()
+      derive_bakery_suppliers         derive the bakeries from the receipt
+                                      history (default true)
+      daily_supplier_min_orders       receipts a supplier needs before its
+                                      cadence counts as measured (default 30)
     """
     global _FRESH_CYCLE
     if _FRESH_CYCLE is None:
@@ -618,14 +624,83 @@ def fresh_cycle() -> dict:
             "presence": frozenset(_norm(x) for x in cfg.get("presence_departments") or []),
             "bakery_suppliers": frozenset(supplier_key(x) for x in cfg.get("bakery_suppliers") or []),
             "moq_exempt": tuple(_norm(x) for x in cfg.get("moq_exempt_departments") or []),
+            "derive_bakeries": cfg.get("derive_bakery_suppliers", True) is not False,
+            "daily_min_orders": float(cfg.get("daily_supplier_min_orders", 30)),
         }
     return _FRESH_CYCLE
 
 
 def reset_fresh_cycle() -> None:
     """Drop the cached fresh-cycle config (tests, and after a config edit)."""
-    global _FRESH_CYCLE
+    global _FRESH_CYCLE, _DAILY_SUPPLIERS
     _FRESH_CYCLE = None
+    _DAILY_SUPPLIERS = None
+
+
+_DAILY_SUPPLIERS: Optional[frozenset] = None
+
+
+def daily_suppliers(root: Optional[str] = None, cadence: Optional[Dict[str, dict]] = None,
+                    patterns: Optional[Dict[str, dict]] = None) -> frozenset:
+    """Suppliers the receipt history shows delivering EVERY DAY, OVERNIGHT.
+
+    DERIVED, NOT LISTED. The daily bakeries used to be four names typed into
+    the config -- one store's suppliers, which every other store inherited and
+    which missed two of that store's own bread suppliers (Mibisco's buns,
+    Rabai's loaves). A daily overnight supplier is measurable wherever there
+    is a receipt history, on any front end: the POS adapter, lata_shield and
+    Odoo's supplier rhythm all write the same fields. A supplier qualifies when
+
+      - its median gap between receipts is at most a day (daily cadence),
+      - its measured lead is within overnight_max_lead_days (the order
+        placed after close is on the shelf by the next opening), and
+      - it has at least daily_supplier_min_orders receipts, so the cadence is
+        measured rather than two receipts that happened to fall a day apart.
+
+    On the reference store that is 10 of 599 suppliers: its four configured
+    bakeries, Mibisco and Rabai, and four dairies. Which of them are BAKERIES
+    is decided by what they supply, at the gate (see
+    SimulationOrderUtil.bakeries_in) -- the dairies' milk is a later section.
+    """
+    global _DAILY_SUPPLIERS
+    default_call = root is None and cadence is None and patterns is None
+    if default_call and _DAILY_SUPPLIERS is not None:
+        return _DAILY_SUPPLIERS
+    fc = fresh_cycle()
+    base = root or os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
+    if cadence is None:
+        cadence = {}
+        for cand in (os.path.join(base, "oasis", "data", SECONDARY_PATTERNS_FILE),
+                     os.path.join(base, "data", SECONDARY_PATTERNS_FILE)):
+            if os.path.exists(cand):
+                try:
+                    with open(cand, encoding="utf-8") as f:
+                        cadence = json.load(f) or {}
+                except (OSError, ValueError):
+                    cadence = {}
+                break
+    pats = default_patterns() if patterns is None else patterns
+    out = set()
+    for name, v in cadence.items():
+        if not isinstance(v, dict):
+            continue
+        key = supplier_key(name)
+        # median_gap_days is the gap BETWEEN receipts (cadence). Not
+        # lata_median_gap_days: despite the name that is PO -> receipt, a
+        # lead, and reading it as cadence called 56 suppliers daily.
+        try:
+            gap = float(v.get("median_gap_days"))
+            n = float(v.get("total_orders_2025") or v.get("total_orders") or 0)
+            lead = (pats.get(key) or {}).get("lead_time_days")
+            lead = float(lead if lead is not None else v.get("estimated_delivery_days"))
+        except (TypeError, ValueError):
+            continue
+        if gap <= 1.0 and lead <= fc["overnight_max_lead"] and n >= fc["daily_min_orders"]:
+            out.add(key)
+    res = frozenset(out)
+    if default_call:
+        _DAILY_SUPPLIERS = res
+    return res
 
 
 def sellable_life_for(department: str, sku: Optional[str] = None) -> float:

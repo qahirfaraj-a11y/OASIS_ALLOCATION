@@ -43,7 +43,7 @@ class TestTheShippedDefault:
     def test_no_store_product_or_supplier_ships(self):
         assert DEFAULT["long_life"]["products"] == []
         text = json.dumps(DEFAULT).upper()
-        for name in STORE["fresh_cycle"]["bakery_suppliers"] + STORE["long_life"]["products"]:
+        for name in ["DPL FESTIVE LIMITED", "MINI BAKERIES NBI LTD"] + STORE["long_life"]["products"]:
             assert name.upper() not in text, name
 
     def test_the_generic_rules_still_ship(self):
@@ -59,7 +59,7 @@ class TestThisStoresTier:
         assert fc["moq_exempt_departments"] == ["BREAD", "CAKES"]
         assert fc["overnight_delivery_departments"] == ["BREAD"]
         assert fc["sellable_life_days"] == {"BREAD": 5}
-        assert len(fc["bakery_suppliers"]) == 4
+        assert fc["bakery_suppliers"] == [] and fc["derive_bakery_suppliers"]   # derived: test_daily_suppliers
         assert len(STORE["long_life"]["products"]) == 16
 
     def test_its_departments_are_the_lists_the_code_carried(self):

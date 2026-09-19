@@ -11,7 +11,9 @@ against 88.4% -- for two reasons:
    one unit, and a line that cannot sell one within its life at exactly one.
 2. The bakeries' lines filed outside BREAD/CAKES -- Supa cookies in BISCUITS --
    never cleared the KES 200 per-line floor. The gate now exempts the daily
-   bakeries' lines by supplier (fresh_cycle.bakery_suppliers).
+   bakeries' lines by supplier -- the bakeries DERIVED from the receipt history
+   (a daily, overnight supplier of a line in an exempt department), plus any
+   the operator names in fresh_cycle.bakery_suppliers.
 
 Together: the band reaches 88.1% at KES 41k of supplier expiry against 269k.
 """
@@ -77,9 +79,41 @@ class TestTheBakeriesPassTheGate:
         return SimulationOrderUtil(str(tmp_path))
 
     def test_a_bakery_cookie_in_biscuits_is_ordered(self, util):
-        out = util.apply_minimum_order_gate([_rec("SUPA 200G ASSORTED COOKIES", "BISCUITS", 1, 69.0, "MINI BAKERIES NBI  LTD")])
-        assert [r["sku"] for r in out["po_recs"]] == ["SUPA 200G ASSORTED COOKIES"]
-        assert out["po_recs"][0]["moq_exempt"] is True
+        out = util.apply_minimum_order_gate([_rec("SUPA 200G ASSORTED COOKIES", "BISCUITS", 1, 69.0, "MINI BAKERIES NBI  LTD"),
+                                             _rec("SUPA 400G WHITE BREAD", "BREAD", 3, 55.0, "MINI BAKERIES NBI LTD")])
+        assert {r["sku"] for r in out["po_recs"]} == {"SUPA 200G ASSORTED COOKIES", "SUPA 400G WHITE BREAD"}
+        assert all(r["moq_exempt"] for r in out["po_recs"])
+
+    def test_the_bakery_is_found_from_its_receipts(self, util):
+        # Mibisco was never listed: the receipt history says daily and overnight
+        out = util.apply_minimum_order_gate([_rec("MIBISCO 250G SUPA MARBLE SLICE MSA", "BISCUITS", 1, 90.0, "MIBISCO LTD"),
+                                             _rec("SUPA 300G ROUND BUNS", "BREAD", 2, 60.0, "MIBISCO LTD")])
+        assert "MIBISCO 250G SUPA MARBLE SLICE MSA" in {r["sku"] for r in out["po_recs"]}
+        assert "MIBISCO LTD" in util._derived_bakeries
+
+    def test_a_daily_dairy_is_not_a_bakery(self, util):
+        # Brookside delivers daily and overnight too, but supplies no bread
+        out = util.apply_minimum_order_gate([_rec("BROOKSIDE 250ML YOGHURT", "YOGHURT", 1, 69.0, "BROOKSIDE DAIRY LIMITED"),
+                                             _rec("SUPA 400G WHITE BREAD", "BREAD", 3, 55.0, "MINI BAKERIES NBI LTD")])
+        assert "BROOKSIDE 250ML YOGHURT" not in {r["sku"] for r in out["po_recs"]}
+        assert "BROOKSIDE DAIRY LIMITED" not in util._derived_bakeries
+
+    def test_a_bakery_with_no_bread_on_the_order_has_no_drop_to_ride(self, util):
+        out = util.apply_minimum_order_gate([_rec("SUPA 200G ASSORTED COOKIES", "BISCUITS", 1, 69.0, "MINI BAKERIES NBI LTD")])
+        assert out["po_recs"] == []
+
+    def test_a_named_bakery_is_added_to_the_derived(self, util, monkeypatch):
+        fc = dict(ou.fresh_cycle()); fc["bakery_suppliers"] = frozenset({"NEW BAKERY LTD"})
+        monkeypatch.setattr(ou, "_FRESH_CYCLE", fc)
+        out = util.apply_minimum_order_gate([_rec("NEW 200G COOKIES", "BISCUITS", 1, 69.0, "NEW BAKERY LTD")])
+        assert [r["sku"] for r in out["po_recs"]] == ["NEW 200G COOKIES"]
+
+    def test_derivation_can_be_switched_off(self, util, monkeypatch):
+        fc = dict(ou.fresh_cycle()); fc["derive_bakeries"] = False
+        monkeypatch.setattr(ou, "_FRESH_CYCLE", fc)
+        out = util.apply_minimum_order_gate([_rec("MIBISCO 250G SUPA MARBLE SLICE MSA", "BISCUITS", 1, 90.0, "MIBISCO LTD"),
+                                             _rec("SUPA 300G ROUND BUNS", "BREAD", 2, 60.0, "MIBISCO LTD")])
+        assert "MIBISCO 250G SUPA MARBLE SLICE MSA" not in {r["sku"] for r in out["po_recs"]}
 
     def test_another_suppliers_biscuit_is_still_gated(self, util):
         out = util.apply_minimum_order_gate([_rec("SOME 200G BISCUIT", "BISCUITS", 1, 69.0, "BISCUIT CO LTD")])
@@ -97,4 +131,4 @@ def test_this_stores_tier_carries_the_lists():
     fc = json.load(open(os.path.join(ROOT, "oasis", "data", "oasis_engines_config.json"),
                         encoding="utf-8"))["fresh_cycle"]
     assert fc["presence_departments"] == ["BREAD", "CAKES"]
-    assert len(fc["bakery_suppliers"]) == 4
+    assert fc["bakery_suppliers"] == [] and fc["derive_bakery_suppliers"] is True

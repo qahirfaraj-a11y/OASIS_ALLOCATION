@@ -858,20 +858,51 @@ class SimulationOrderUtil:
         cleared the KES 200 floor -- 0% fill for the whole Apr-Sep replay while
         the bakery kept them at 80-85%. Exempting BISCUITS would exempt every
         biscuit supplier, most of them weekly dry goods, so the exemption is
-        keyed to the bakeries (fresh_cycle.bakery_suppliers, or the
-        moq_exempt_suppliers threshold), through the one supplier spelling.
+        keyed to the bakeries through the one supplier spelling: the ones the
+        receipt history shows (bakeries_in), plus any the operator names
+        (fresh_cycle.bakery_suppliers). A moq_exempt_suppliers threshold
+        replaces both.
         """
+        if self._is_exempt_department(rec):
+            return True
+        sups = self.thresholds.get('moq_exempt_suppliers')
+        if sups is not None:
+            sups = {_ou.supplier_key(s) for s in sups}
+        else:
+            sups = set(_ou.fresh_cycle().get("bakery_suppliers", ())) | set(self._derived_bakeries)
+        key = _ou.supplier_key(rec.get('supplier_name') or rec.get('supplier') or '')
+        return bool(key) and key in sups
+
+    #: bakeries derived for the batch at the gate; empty until the gate runs
+    _derived_bakeries: frozenset = frozenset()
+
+    def _is_exempt_department(self, rec: Dict[str, Any]) -> bool:
         exempt = self.thresholds.get('moq_exempt_departments')
         if exempt is None:
             exempt = moq_exempt_departments()
         dept = " ".join(str(rec.get('department') or '').upper().split())
-        if dept and dept in {" ".join(str(d).upper().split()) for d in exempt}:
-            return True
-        sups = self.thresholds.get('moq_exempt_suppliers')
-        sups = ({_ou.supplier_key(s) for s in sups} if sups is not None
-                else _ou.fresh_cycle().get("bakery_suppliers", ()))
-        key = _ou.supplier_key(rec.get('supplier_name') or rec.get('supplier') or '')
-        return bool(key) and key in sups
+        return bool(dept) and dept in {" ".join(str(d).upper().split()) for d in exempt}
+
+    def bakeries_in(self, recs: List[Dict[str, Any]]) -> frozenset:
+        """The daily bakeries, from data: a supplier the receipt history shows
+        delivering every day overnight (order_up_to.daily_suppliers) that
+        supplies a line in an exempt department.
+
+        The department is what separates a bakery from a dairy -- both deliver
+        daily -- and it is already the store's own decision
+        (moq_exempt_departments). So a new store names its bread departments
+        and its bakeries follow from its receipts. Read from the batch being
+        gated: a bakery none of whose bread is on today's order has nothing
+        riding on its drop.
+        """
+        if not _ou.fresh_cycle().get("derive_bakeries", True):
+            return frozenset()
+        daily = _ou.daily_suppliers()
+        if not daily:
+            return frozenset()
+        return frozenset(k for k in (_ou.supplier_key(r.get('supplier_name') or r.get('supplier') or '')
+                                     for r in recs if self._is_exempt_department(r))
+                         if k and k in daily)
 
     def apply_minimum_order_gate(self, finalized_recs: List[Dict[str, Any]]) -> Dict[str, List[Dict[str, Any]]]:
         """
@@ -901,6 +932,7 @@ class SimulationOrderUtil:
         transfer_recs = []
         
         # --- STAGE 1: SKU-level MOQ/MOP gate ---
+        self._derived_bakeries = self.bakeries_in(finalized_recs)
         exempt_recs = []
         for rec in finalized_recs:
             qty = rec.get('recommended_quantity', 0)

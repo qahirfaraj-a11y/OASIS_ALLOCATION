@@ -1,7 +1,7 @@
 {
   "source": "oasis/data/oasis_engines_config.json",
-  "sha256": "e2bd942c88367c7c37a6014370b7f73c70a3b9f4925735e25f095f6aa7e7f933",
-  "bytes": 15416,
+  "sha256": "2bbf24d5ad0e705c01a93bdcb8ab37e9f4f33df7cbdc4debb714fd0b3bcc78ae",
+  "bytes": 16446,
   "active_engines": [
     "amit",
     "lata",
@@ -12,8 +12,8 @@
     "files": {
       "oasis/logic/order_engine.py": "001a767a8734d013d0b8a32a19fc78e2f0af3768ecb2af183f456f300c13fdbe",
       "oasis/logic/intelligence_mixin.py": "24f6d54446a2af7cbb8cb6bc5655891680879796a84ac7b035d0e00ab1d5b0ea",
-      "oasis/logic/simulation_bridge.py": "005e1aa144700fd21c038a3ec7cd8ced35040a2f717c61dba7eef43ffb15e6b1",
-      "oasis/logic/order_up_to.py": "641fd3b992492f1e17aef7781688f872504b48fa1c5bc425c448fca35d76a5ae",
+      "oasis/logic/simulation_bridge.py": "937703670af890b5386f983d173d163e7d5468e6f6905d8b3eb6122b01c6bfec",
+      "oasis/logic/order_up_to.py": "c9a4594f4932272884e554e6e2c3aad87976b79dd1cf6fec6675292928983f3c",
       "oasis/logic/order_logic_guards.py": "935ce14f687dd268a83775543358168dc243ef131c0ac09ad91f3ea4c7d09409",
       "oasis/logic/rounding.py": "ce471d45e890be38ef3693d20dc5d8a725a5ae96a428645d1f57b251680ae8c7",
       "oasis/logic/engines_config.py": "a571047e00dfb82c163bc9a6d2909807b26706ae8fbb0a32afbfa062dae10b52",
@@ -23,7 +23,7 @@
       "oasis/logic/fulfillment_decider.py": "47da83c09f25b6072860000a0db598a8a43f5e24c79cfb66ff924c37144e543d",
       "oasis/logic/transfer_state.py": "0cbbabea17fe0125f3f40bba9bd6cdc45213f425e6de288b62bba0045b60aa77"
     },
-    "combined_sha256": "076de0e8fd229605b2e8a0d92514c0d463a316649dfbb7cf9baceaa49e94510b"
+    "combined_sha256": "547008f245bab043c79aaf5294592ab378da26c2bb5167d7a1d8e933fe2de4d8"
   },
   "config": {
     "global_settings": {
@@ -340,13 +340,12 @@
         "BREAD",
         "CAKES"
       ],
-      "_bakery_suppliers": "The daily bakeries. Their lines skip the minimum-order gate in whatever department they are filed (simulation_bridge.is_moq_exempt): a pack of cookies rides the bakery's morning drop. Keyed by supplier, not department, because exempting BISCUITS or MEXICAN FOOD would exempt every supplier in them. Matched through order_up_to.supplier_key.",
-      "bakery_suppliers": [
-        "DPL FESTIVE LIMITED",
-        "MINI BAKERIES NBI LTD",
-        "KENAFRIC BAKERY LTD",
-        "BROADWAYS BAKERY LTD"
-      ],
+      "_bakery_suppliers": "Bakeries the operator names, ADDED TO the derived ones (see _derive_bakery_suppliers). Their lines skip the minimum-order gate in whatever department they are filed (simulation_bridge.is_moq_exempt): a pack of cookies rides the bakery's morning drop. Keyed by supplier, not department, because exempting BISCUITS or MEXICAN FOOD would exempt every supplier in them. Matched through order_up_to.supplier_key. Leave empty unless a bakery is too new to have a receipt history.",
+      "_bakery_suppliers_history": "Emptied Sep 2026: the four bakeries once listed here (DPL Festive, Mini Bakeries NBI, Kenafric, Broadways) are all derived from the receipt history, along with Mibisco and Rabai which the list missed. Over the whole catalogue the derived set reproduces every one of the 393 exemptions the list gave and adds one line (a Mibisco slice filed in BISCUITS).",
+      "bakery_suppliers": [],
+      "_derive_bakery_suppliers": "The daily bakeries are DERIVED: a supplier whose receipts show a daily cadence (median gap <= 1 day) and an overnight lead (<= overnight_max_lead_days), over at least daily_supplier_min_orders receipts, that supplies a line in moq_exempt_departments (order_up_to.daily_suppliers, SimulationOrderUtil.bakeries_in). The department separates a bakery from a dairy; both deliver daily. bakery_suppliers ADDS names the history cannot show yet (a new supplier). 30 receipts = a month of daily deliveries.",
+      "derive_bakery_suppliers": true,
+      "daily_supplier_min_orders": 30,
       "_moq_exempt_departments": "Departments that bypass the minimum-order gate (simulation_bridge). Bread from a daily bakery is a few loaves a day, which a KES 200 per-line floor starves.",
       "moq_exempt_departments": [
         "BREAD",
