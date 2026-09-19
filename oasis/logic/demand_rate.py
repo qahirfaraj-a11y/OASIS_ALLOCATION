@@ -28,8 +28,8 @@ THE GUARD
 """
 from __future__ import annotations
 
-from datetime import datetime
-from typing import Optional, Tuple
+from datetime import date, datetime, timedelta
+from typing import Dict, Optional, Tuple
 
 #: (bucket length in days, weight), most recent first
 BUCKETS: Tuple[Tuple[int, float], ...] = ((30, 0.60), (30, 0.30), (30, 0.10))
@@ -67,6 +67,26 @@ def bucket_days(days_obs: float) -> Tuple[float, float, float]:
         out.append(take)
         left -= n
     return tuple(out)  # type: ignore[return-value]
+
+
+def bucket_units(daily: Dict[date, float], as_of_dt: datetime) -> Tuple[float, float, float]:
+    """(q30, q30_60, q60_90) from dated sales, on PosErpAdapter's date edges.
+
+    A day belongs to the last-30 bucket when it is on or after as-of minus 30
+    days (the SQL ``BILL_DT >= :c30``), to the next when on or after minus 60,
+    to the last when on or after minus 90; older days are outside the window.
+    Adapters that read dated sales (Zoho, Tally) bucket through here, so the
+    same till history gives the same rate whichever backend delivers it.
+    """
+    edges = [(as_of_dt - timedelta(days=n)).date() for n in (30, 60, 90)]
+    q = [0.0, 0.0, 0.0]
+    for d, units in (daily or {}).items():
+        d = d.date() if isinstance(d, datetime) else d
+        for i, edge in enumerate(edges):
+            if d >= edge:
+                q[i] += float(units or 0)
+                break
+    return q[0], q[1], q[2]
 
 
 def weighted_daily_rate(q30: float, q30_60: float, q60_90: float,

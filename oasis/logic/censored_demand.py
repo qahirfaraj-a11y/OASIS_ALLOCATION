@@ -232,3 +232,77 @@ class GrnExportReceipts:
         keys = set(map(str, item_keys))
         return {k: {d: q for d, q in v.items() if since <= d <= until}
                 for k, v in self._by_item.items() if k in keys}
+
+
+def configured_receipts_source() -> Optional["ReceiptsSource"]:
+    """The daily-receipts source the engine config names, or None (correction off).
+
+    censored_demand.receipts_source: the store's GRN export (grn_export, and
+    po_export for the Sunday-posting correction; OASIS_GRN_EXPORT /
+    OASIS_PO_EXPORT override). One reader for every adapter whose ERP does not
+    record receipts itself -- the POS database today, Zoho and Tally -- so the
+    same export corrects the same lines whichever front end reads the sales.
+    """
+    import logging
+    log = logging.getLogger("OASIS.CensoredDemand")
+    try:
+        from .engines_config import load_engines_config
+        cfg = (((load_engines_config(None) or {}).get("censored_demand") or {})
+               .get("receipts_source") or {})
+        grn = os.getenv("OASIS_GRN_EXPORT") or cfg.get("grn_export") or ""
+        po = os.getenv("OASIS_PO_EXPORT") or cfg.get("po_export") or ""
+        if (cfg.get("type") or "grn_export") == "grn_export" and grn and os.path.exists(grn):
+            src = GrnExportReceipts(grn, po or None)
+            log.info("Sell-out correction: receipts from %s (%d items)", grn, len(src.items()))
+            return src
+    except Exception as e:
+        log.warning("Sell-out correction off -- receipts source unreadable: %s", e)
+    return None
+
+
+def correct_rows(rows: List[dict], source: Optional["ReceiptsSource"], daily_sales, as_of_dt: datetime,
+                 tag: str, keys=("item_code", "barcode")) -> int:
+    """The sell-out correction over an adapter's product rows.
+
+    ``daily_sales(keys, since, until)`` returns {key: {date: units}} in the
+    adapter's own key; a row is matched to the receipts source on the first of
+    ``keys`` the source knows. Raises a line's avg_daily_sales only where
+    correct_line does, and keeps ads_uncensored / sellout_days as provenance.
+    Returns how many rows moved; any failure leaves every rate as measured.
+    """
+    if source is None:
+        return 0
+    import logging
+    try:
+        from . import order_up_to as ou
+        have = set(map(str, source.items()))
+        cand = []
+        for r in rows:
+            if float(r.get("avg_daily_sales") or 0) <= 0:
+                continue
+            k = next((str(r.get(f)) for f in keys if r.get(f) and str(r.get(f)) in have), None)
+            if k:
+                cand.append((r, k))
+        if not cand:
+            return 0
+        start, end = (as_of_dt - timedelta(days=89)).date(), as_of_dt.date()
+        ks = [k for _, k in cand]
+        daily = daily_sales(ks, start, end) or {}
+        rec = source.daily_receipts(ks, start, end)
+        cov = source.coverage()
+        n = 0
+        for r, k in cand:
+            life = ou.shelf_life_for(r.get("department") or "", sku=r.get("product_name")) or None
+            got = correct_line(daily.get(k, {}), rec.get(k, {}), float(r["avg_daily_sales"]), start, end, cov, life)
+            if got is None:
+                continue
+            lam, sold_out = got
+            r["ads_uncensored"] = float(r["avg_daily_sales"])
+            r["avg_daily_sales"] = r["estimated_daily_sales"] = round(float(lam), 4)
+            r["ads_source"] = (r.get("ads_source") or tag) + "+censored"
+            r["sellout_days"] = sold_out
+            n += 1
+        return n
+    except Exception as e:
+        logging.getLogger("OASIS.CensoredDemand").warning("Sell-out correction skipped (%s): %s", tag, e)
+        return 0

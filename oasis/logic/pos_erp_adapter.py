@@ -895,23 +895,9 @@ class PosErpAdapter(erp_contract.ErpAdapter):
         """
         if hasattr(self, "_receipts_cache"):
             return self._receipts_cache
-        src = None
-        try:
-            import os
-            from .engines_config import load_engines_config
-            cfg = (((load_engines_config(None) or {}).get("censored_demand") or {})
-                   .get("receipts_source") or {})
-            grn = os.getenv("OASIS_GRN_EXPORT") or cfg.get("grn_export") or ""
-            po = os.getenv("OASIS_PO_EXPORT") or cfg.get("po_export") or ""
-            if (cfg.get("type") or "grn_export") == "grn_export" and grn and os.path.exists(grn):
-                from .censored_demand import GrnExportReceipts
-                src = GrnExportReceipts(grn, po or None)
-                logger.info(f"Sell-out correction: receipts from {grn} ({len(src.items())} items)")
-        except Exception as e:
-            logger.warning(f"Sell-out correction off -- receipts source unreadable: {e}")
-            src = None
-        self._receipts_cache = src
-        return src
+        from .censored_demand import configured_receipts_source
+        self._receipts_cache = configured_receipts_source()
+        return self._receipts_cache
 
     def _daily_sales(self, org_cd: str, items: List[str], since, until) -> Dict[str, Dict]:
         """{itm_cd: {date: units}} for the given items and days."""

@@ -45,7 +45,9 @@ def get_adapter(root: Optional[str] = None):
     Defaults to PosErpAdapter (direct POS/ERP database), built exactly as
     shell._pos_adapter. Set OASIS_ERP=odoo to read an Odoo instance over
     XML-RPC instead — no database credentials, no schema bridge, and Odoo
-    supplies cost price and real receipt dates natively.
+    supplies cost price and real receipt dates natively. Any other registered
+    backend (OASIS_ERP=zoho, tally) is built through the ERP contract; an
+    unknown name raises rather than quietly reading the POS database.
 
     Cached per resolved source, so re-onboarding or switching ERP rebuilds it
     instead of serving a stale handle.
@@ -65,6 +67,24 @@ def get_adapter(root: Optional[str] = None):
         # client's ERP is read, never used as OASIS's bookkeeping database.
         store_conn = UniversalConnector(f"sqlite:///{db}", SchemaMapper.for_pos_erp())
         _ADAPTER = OdooAdapter(store_connector=store_conn)
+        _ADAPTER_KEY = key
+        return _ADAPTER
+
+    if erp and erp != "pos":
+        # Every other registered backend (zoho, tally) through the ERP
+        # contract. This used to fall through to the POS database, so
+        # OASIS_ERP=zoho ordered from the wrong source without a word.
+        key = f"{erp}:{db}"
+        if _ADAPTER is not None and _ADAPTER_KEY == key:
+            return _ADAPTER
+        import importlib
+        from oasis.logic import erp_contract
+        from oasis.logic.db_connector import SchemaMapper, UniversalConnector
+        mod = {"zoho": "oasis.logic.zoho_adapter", "tally": "oasis.logic.tally_adapter"}.get(erp)
+        if mod:
+            importlib.import_module(mod)          # registers the backend
+        store_conn = UniversalConnector(f"sqlite:///{db}", SchemaMapper.for_pos_erp())
+        _ADAPTER = erp_contract.build(erp, store_connector=store_conn)
         _ADAPTER_KEY = key
         return _ADAPTER
 
@@ -303,79 +323,135 @@ def _next_delivery_days(data_dir: str, net_stock: Dict[str, Any]) -> Dict[str, f
     return out
 
 
+def build_transfer_service(org_names: Dict[str, str], network_stock: Dict[str, List[dict]],
+                           root: Optional[str] = None, cold_node_days: int = 60,
+                           hot_node_days: int = 14):
+    """THE transfer service, wired the one way every surface uses.
+
+    The ordering pipeline's network step and every transfer scan build it
+    here: the shared registry, store distances, the supplier calendar
+    (next_delivery_days), operator overrides, and data_dir. Without data_dir
+    the service runs DEGRADED: the LATA branch is unreachable, so horizons
+    carry no supplier-reliability term, and every category falls back to one
+    45-day threshold — which for bakery overstates absorption 9x.
+    """
+    import json
+    from oasis.logic.consolidated_transfer_service import ConsolidatedTransferService
+    proj_root = root or project_root()
+    data_dir = os.path.join(proj_root, "oasis", "data")
+    distance_map = {}
+    coords_path = os.path.join(proj_root, "store_coords.json")
+    if os.path.exists(coords_path):
+        try:
+            with open(coords_path, "r", encoding="utf-8") as f:
+                distance_map = json.load(f)
+        except Exception as e:
+            logger.warning("store_coords.json unreadable (%s) — transfers ignore distance", e)
+    return ConsolidatedTransferService(
+        org_names=org_names,
+        stock_data=network_stock,
+        next_delivery_days=_next_delivery_days(data_dir, network_stock),
+        registry_path=os.path.join(data_dir, "network_registry.json"),
+        distance_map=distance_map,
+        cold_node_days=cold_node_days,
+        hot_node_days=hot_node_days,
+        settings_db=store_db_path(proj_root),       # Settings -> System Configuration
+        data_dir=data_dir,
+    )
+
+
+def run_ordering_pipeline(org_cd: str, *, root: Optional[str] = None, adapter=None, engine=None,
+                          thresholds: Optional[Dict[str, Any]] = None,
+                          products: Optional[List[dict]] = None,
+                          network_stock: Optional[Dict[str, List[dict]]] = None,
+                          org_names: Optional[Dict[str, str]] = None,
+                          gnn_risk_score: Optional[float] = None,
+                          cold_node_days: int = 60, hot_node_days: int = 14,
+                          record_failures: bool = True) -> Dict[str, Any]:
+    """THE ordering pipeline: engine -> network -> minimum-order gate.
+
+    ONE PIPELINE, EVERY SURFACE. The desktop Smart Ordering tab, the web app,
+    the Odoo review queue, the Command Center and the Operations Console all
+    order through here. Each used to assemble the stages itself, and they had
+    drifted: the Command Center built the transfer service without its data
+    directory, operator settings or delivery calendar (degraded mode: no LATA
+    horizons, one 45-day category threshold) and kept its own registry file;
+    the Operations Console dropped the calendar, registry and store distances,
+    and built the network from the stores the signed-in user may SEE, so a
+    branch manager's orders were netted against no one. The same store got
+    different orders depending on which window asked.
+
+    Callers may hand in what they already hold (products, the network stock,
+    a cached engine) to save a re-read, but every stage and its wiring is
+    fixed here. The network is always every store the adapter knows: which
+    stores a user may view is a display rule, not a supply fact.
+
+    Raises on failure; generate_smart_orders is the error-wrapping entry.
+    """
+    from oasis.logic.order_engine import OrderEngine
+    from oasis.logic.simulation_bridge import SimulationOrderUtil
+    from oasis.logic import gnn_service
+    from oasis.logic.moq_failure_store import record_moq_failures
+
+    proj_root = root or project_root()
+    data_dir = os.path.join(proj_root, "oasis", "data")
+    adapter = adapter or get_adapter(proj_root)
+
+    if products is None:
+        products = adapter.fetch_enriched_products(org_cd) or []
+    if engine is None:
+        engine = OrderEngine(data_dir)
+        engine.load_local_databases()
+
+    sim_util = SimulationOrderUtil(data_dir, thresholds=thresholds, engine=engine)
+    enriched = sim_util.prepare_sku_data(products)
+
+    # Gate-compliant ordering risk: inventory-only unless the GNN has earned
+    # a weight (OASIS_GNN_ORDERING_WEIGHT), whatever score a caller passes.
+    ordering_risk = gnn_service.ordering_risk(products, gnn_risk_score=gnn_risk_score)
+    raw_recs = sim_util.calculate_order_quantity(enriched, gnn_risk_score=ordering_risk, use_real_date=True)
+    finalized_recs = sim_util.finalize_orders(raw_recs)
+
+    if org_names is None:
+        all_orgs = adapter.fetch_all_organizations() or []
+        org_names = {o.get("ORG_CD"): (o.get("ORG_NAME") or o.get("ORG_CD")) for o in all_orgs if o.get("ORG_CD")}
+    if network_stock is None:
+        # a fresh read per store, the ordering store included: prepare_sku_data
+        # works on the rows above, and the network must see the source figures
+        network_stock = {o: adapter.fetch_enriched_products(o) or [] for o in org_names}
+
+    cts = build_transfer_service(org_names, network_stock, root=proj_root,
+                                 cold_node_days=cold_node_days, hot_node_days=hot_node_days)
+    network_plan = cts.optimize_network({org_cd: finalized_recs}, risk_scores={})
+    network_adjusted_recs = network_plan.adjusted_orders.get(org_cd, [])
+    mot_result = sim_util.apply_minimum_order_gate(network_adjusted_recs)
+
+    if record_failures and mot_result["transfer_recs"]:
+        try:
+            record_moq_failures(os.path.join(data_dir, "moq_failures.json"), org_cd, mot_result["transfer_recs"])
+        except Exception as e:
+            logger.warning("MOQ failure store update failed: %s", e)
+
+    return {
+        "products": products, "engine": engine, "sim_util": sim_util, "enriched": enriched,
+        "ordering_risk": ordering_risk, "raw_recs": raw_recs, "finalized_recs": finalized_recs,
+        "org_name_map": org_names, "enriched_network_stock": network_stock,
+        "network_plan": network_plan, "network_adjusted_recs": network_adjusted_recs,
+        "mot_result": mot_result,
+    }
+
+
 def generate_smart_orders(org_cd: str, thresholds: Optional[Dict[str, Any]] = None, root: Optional[str] = None) -> Dict[str, Any]:
     """Run the Smart Ordering pipeline (engine -> network -> MOQ gate) completely offline."""
     try:
-        import os
-        import json
         from datetime import datetime
-        from oasis.logic.order_engine import OrderEngine
-        from oasis.logic.simulation_bridge import SimulationOrderUtil
-        from oasis.logic.consolidated_transfer_service import ConsolidatedTransferService
-        from oasis.logic import gnn_service
-        from oasis.logic.moq_failure_store import record_moq_failures
-        
-        proj_root = root or project_root()
-        data_dir = os.path.join(proj_root, "oasis", "data")
-        adapter = get_adapter(proj_root)
-        
-        products = adapter.fetch_enriched_products(org_cd) or []
-        engine = OrderEngine(data_dir)
-        engine.load_local_databases()
-        
-        sim_util = SimulationOrderUtil(data_dir, thresholds=thresholds, engine=engine)
-        enriched = sim_util.prepare_sku_data(products)
-        
-        _ordering_risk = gnn_service.ordering_risk(products, gnn_risk_score=0.0)
-        raw_recs = sim_util.calculate_order_quantity(enriched, gnn_risk_score=_ordering_risk, use_real_date=True)
-        finalized_recs = sim_util.finalize_orders(raw_recs)
-        
-        all_orgs = adapter.fetch_all_organizations() or []
-        all_org_cds = [o.get("ORG_CD") for o in all_orgs]
-        org_name_map = {o.get("ORG_CD"): (o.get("ORG_NAME") or o.get("ORG_CD")) for o in all_orgs}
-        
-        enriched_network_stock = {}
-        for o_cd in all_org_cds:
-            if o_cd:
-                enriched_network_stock[o_cd] = adapter.fetch_enriched_products(o_cd) or []
-                
-        distance_map = {}
-        coords_path = os.path.join(proj_root, "store_coords.json")
-        if os.path.exists(coords_path):
-            with open(coords_path, "r") as f:
-                distance_map = json.load(f)
-                
-        registry_path = os.path.join(data_dir, "network_registry.json")
-        cts = ConsolidatedTransferService(
-            org_names=org_name_map,
-            stock_data=enriched_network_stock,
-            next_delivery_days=_next_delivery_days(data_dir, enriched_network_stock),
-            registry_path=registry_path,
-            distance_map=distance_map,
-            cold_node_days=60,
-            hot_node_days=14,
-            # operator overrides from Settings -> System Configuration
-            settings_db=store_db_path(proj_root),
-            # LATA's measured supplier rhythm and AMIT's per-category
-            # thresholds. Without this the service runs in DEGRADED mode: the
-            # LATA branch is unreachable, so horizons carry no supplier-
-            # reliability term, and every category falls back to one 45-day
-            # threshold — which for bakery overstates absorption 9x.
-            data_dir=data_dir,
-        )
-        
-        network_plan = cts.optimize_network({org_cd: finalized_recs}, risk_scores={})
-        network_adjusted_recs = network_plan.adjusted_orders.get(org_cd, [])
-        mot_result = sim_util.apply_minimum_order_gate(network_adjusted_recs)
-        
+        run = run_ordering_pipeline(org_cd, root=root, thresholds=thresholds)
+        products, enriched = run["products"], run["enriched"]
+        network_plan, network_adjusted_recs = run["network_plan"], run["network_adjusted_recs"]
+        mot_result, sim_util = run["mot_result"], run["sim_util"]
+        org_name_map, enriched_network_stock = run["org_name_map"], run["enriched_network_stock"]
         dropped_recs = mot_result["transfer_recs"]
-        if dropped_recs:
-            try:
-                moq_path = os.path.join(data_dir, "moq_failures.json")
-                record_moq_failures(moq_path, org_cd, dropped_recs)
-            except Exception:
-                pass
-                
+
         # An empty po_recs is ambiguous on its own: "nothing needed today" and
         # "the pipeline lost everything" look identical to the caller, and that
         # cost real debugging time on the Odoo path (45 products in, 0 out —
@@ -2270,7 +2346,6 @@ def network_transfer_scan(root: Optional[str] = None) -> Dict[str, Any]:
     empty = {"store_health": [], "opportunities": [], "totals": {},
              "error": None}
     try:
-        from oasis.logic.consolidated_transfer_service import ConsolidatedTransferService
         from oasis.logic.moq_failure_store import load_moq_failures
 
         proj = root or project_root()
@@ -2299,29 +2374,7 @@ def network_transfer_scan(root: Optional[str] = None) -> Dict[str, Any]:
         except Exception:
             pass
 
-        distance_map = {}
-        coords = os.path.join(proj, "store_coords.json")
-        if os.path.exists(coords):
-            try:
-                import json
-                with open(coords, "r", encoding="utf-8") as fh:
-                    distance_map = json.load(fh)
-            except Exception:
-                pass
-
-        cts = ConsolidatedTransferService(
-            org_names=org_names,
-            stock_data=net_stock,
-            registry_path=os.path.join(data_dir, "network_registry.json"),
-            distance_map=distance_map,
-            cold_node_days=60,
-            hot_node_days=14,
-            next_delivery_days=_next_delivery_days(data_dir, net_stock),
-            # see the note at generate_smart_orders: without data_dir the scan
-            # runs on calendar horizons and a single 45-day category threshold
-            data_dir=data_dir,
-            settings_db=store_db_path(proj),
-        )
+        cts = build_transfer_service(org_names, net_stock, root=proj)
         scan = cts.scan_network_opportunities(moq_failures=moq_failures,
                                               pending_transfers=pending)
     except Exception as e:

@@ -375,18 +375,15 @@ def render_ordering(ctx) -> None:
     """Native daily-driver: generate a store's PO (engine → network → MOQ gate),
     review by supplier, push to approvals; plus an Approvals queue for approvers.
 
-    Reuses the exact unified logic (SimulationOrderUtil, ConsolidatedTransferService,
-    moq_failure_store) — no divergence from the fixes already landed. Advanced
-    features (chaos scenarios, GNN risk overlay) remain in the legacy command
-    center until migrated.
+    Orders through the one pipeline every surface shares
+    (oasis.desktop.data.run_ordering_pipeline). Advanced features (chaos
+    scenarios, GNN risk overlay) remain in the legacy command center until
+    migrated.
     """
     import os
     st = ctx["st"]
     from . import components as C
     from ..logic.order_engine import OrderEngine
-    from ..logic.simulation_bridge import SimulationOrderUtil
-    from ..logic.consolidated_transfer_service import ConsolidatedTransferService
-    from ..logic.moq_failure_store import record_moq_failures
 
     adapter = _pos_adapter(ctx)
     try:
@@ -425,34 +422,18 @@ def render_ordering(ctx) -> None:
                         engine = OrderEngine(data_dir)
                         engine.load_local_databases()
                         st.session_state["_oasis_engine"] = engine
-                    products = adapter.fetch_enriched_products(org)
-                    sim = SimulationOrderUtil(data_dir, engine=engine)
-                    enriched = sim.prepare_sku_data(products)
-                    # Risk-aware ordering (unified, gate-compliant): inventory-only
-                    # risk inflates safety stock; GNN stays out until validated
-                    # (OASIS_GNN_ORDERING_WEIGHT). Same source as the Command Center.
-                    from ..logic import gnn_service
-                    _risk = gnn_service.ordering_risk(products)
-                    final = sim.finalize_orders(
-                        sim.calculate_order_quantity(enriched, gnn_risk_score=_risk,
-                                                     use_real_date=True))
-                    cts = ConsolidatedTransferService(
-                        org_names=name_map,
-                        stock_data={o: adapter.fetch_enriched_products(o) for o in org_ids},
-                        cold_node_days=60, hot_node_days=14,
-                        # LATA horizons + AMIT category thresholds; without it
-                        # the service runs degraded on fixed 7/14-day windows
-                        data_dir=data_dir,
-                        settings_db=ctx.get("db_path"))
-                    plan = cts.optimize_network({org: final})
-                    adjusted = plan.adjusted_orders.get(org, final)
-                    mot = sim.apply_minimum_order_gate(adjusted)
-                    try:
-                        record_moq_failures(os.path.join(data_dir, "moq_failures.json"),
-                                            org, mot["transfer_recs"] or [])
-                    except Exception:
-                        pass
-                    st.session_state[key] = {"po_recs": mot["po_recs"]}
+                    # THE ordering pipeline, shared with every other surface
+                    # (oasis.desktop.data.run_ordering_pipeline). This console
+                    # used to assemble the stages itself without the delivery
+                    # calendar, registry or store distances, and built the
+                    # network from the stores the signed-in user may SEE — a
+                    # branch manager's order was netted against no one. Which
+                    # stores a user may view is a display rule; the network is
+                    # every store.
+                    from oasis.desktop.data import run_ordering_pipeline
+                    run = run_ordering_pipeline(org, root=ctx["project_root"], adapter=adapter,
+                                                engine=engine, org_names=name_map)
+                    st.session_state[key] = {"po_recs": run["mot_result"]["po_recs"]}
                 except Exception as e:
                     C.error_panel("Ordering pipeline failed.", str(e), st_module=st)
                     return
@@ -529,7 +510,6 @@ def render_transfers(ctx) -> None:
     import os
     st = ctx["st"]
     from . import components as C
-    from ..logic.consolidated_transfer_service import ConsolidatedTransferService
     from ..logic.moq_failure_store import load_moq_failures
 
     adapter = _pos_adapter(ctx)
@@ -562,11 +542,12 @@ def render_transfers(ctx) -> None:
                         pending = pdf.to_dict("records")
                 except Exception:
                     pass
-                cts = ConsolidatedTransferService(
-                    org_names=name_map,
-                    stock_data={o: adapter.fetch_enriched_products(o) for o in org_ids},
-                    cold_node_days=60, hot_node_days=14,
-                    data_dir=data_dir, settings_db=ctx.get("db_path"))
+                # built the one way every surface builds it (calendar,
+                # registry, distances, settings, data_dir)
+                from oasis.desktop.data import build_transfer_service
+                cts = build_transfer_service(
+                    name_map, {o: adapter.fetch_enriched_products(o) for o in org_ids},
+                    root=ctx["project_root"])
                 scan = cts.scan_network_opportunities(
                     moq_failures=moq, pending_transfers=pending)
                 st.session_state["_transfers_scan"] = scan.opportunities

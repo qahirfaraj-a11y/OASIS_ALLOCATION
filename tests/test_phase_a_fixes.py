@@ -127,15 +127,25 @@ class TestG7G14NetworkIntegration(unittest.TestCase):
                       "Dashboard should use use_real_date=True for scheduling")
 
     def test_dashboard_has_network_optimization(self):
-        """ops_dashboard.py should contain ConsolidatedTransferService wiring."""
+        """The dashboard orders through the shared pipeline, which nets the network.
+
+        It used to wire ConsolidatedTransferService inline -- and drifted from
+        the other surfaces (no data_dir, settings or calendar). The contract is
+        now: the dashboard calls run_ordering_pipeline, and that pipeline runs
+        optimize_network on the one transfer service builder.
+        """
+        import inspect
+        from oasis.desktop import data as D
         dashboard_path = os.path.join(os.getcwd(), "ops_dashboard.py")
         with open(dashboard_path, "r", encoding="utf-8") as f:
             content = f.read()
-        
-        self.assertIn("ConsolidatedTransferService", content,
-                      "Dashboard should import ConsolidatedTransferService")
-        self.assertIn("optimize_network", content,
-                      "Dashboard should call optimize_network")
+
+        self.assertIn("run_ordering_pipeline(", content,
+                      "Dashboard should order through the shared pipeline")
+        src = inspect.getsource(D.run_ordering_pipeline)
+        self.assertIn("build_transfer_service(", src)
+        self.assertIn("optimize_network", src,
+                      "The pipeline should net the order against the network")
         # NOTE: no assertion on UI copy (tab labels drift with design work);
         # the wiring above is the contract.
 

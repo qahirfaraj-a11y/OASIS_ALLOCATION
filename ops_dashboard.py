@@ -267,7 +267,10 @@ def _init_db_schema(path: str):
 
 _init_db_schema(DB_PATH)
 
-REGISTRY_PATH = os.path.join(DATA_DIR, "transfers_registry.json")
+# The one transfer registry, shared with the desktop, the web app and the
+# ordering pipeline. This console used to keep transfers_registry.json, so a
+# transfer planned here was invisible to every other surface and vice versa.
+REGISTRY_PATH = os.path.join(DATA_DIR, "network_registry.json")
 
 @st.cache_resource
 def get_connector():
@@ -1711,15 +1714,17 @@ if "transfer_intelligence" in tab_map and _mod_ok("transfer_intelligence"):
             except Exception as _pend_err:
                 logger.warning(f"Pending transfer lookup failed: {_pend_err}")
 
-            # Single scan implementation — shared with Smart Ordering's CTS.
-            _cts_scan = ConsolidatedTransferService(
-                org_names=_org_name_map,
-                stock_data=_net_stock,
-                registry_path=REGISTRY_PATH,
-                distance_map=get_distance_map(),
+            # Single scan implementation, built the one way every surface
+            # builds it (oasis.desktop.data.build_transfer_service). This used
+            # to omit data_dir, the operator settings and the delivery
+            # calendar, so the scan ran degraded: no LATA horizons and one
+            # 45-day threshold for every category.
+            from oasis.desktop.data import build_transfer_service
+            _cts_scan = build_transfer_service(
+                _org_name_map, _net_stock,
+                root=os.path.dirname(os.path.dirname(os.path.abspath(DATA_DIR))),
                 cold_node_days=st.session_state.get('cold_node_days', 60),
-                hot_node_days=st.session_state.get('hot_node_days', 14),
-            )
+                hot_node_days=st.session_state.get('hot_node_days', 14))
             _scan = _cts_scan.scan_network_opportunities(
                 moq_failures=_moq_failures,
                 pending_transfers=_pending_records,
@@ -1997,9 +2002,6 @@ if "smart_ordering" in tab_map and _mod_ok("smart_ordering"):
         
         products = load_products(selected_org)
         if products:
-            from oasis.logic.simulation_bridge import SimulationOrderUtil
-            from oasis.logic.consolidated_transfer_service import ConsolidatedTransferService
-
             # The full pipeline (enrich → order calc → network optimization →
             # MOQ gate) runs once per store and is cached in session_state.
             # Widget interactions no longer re-run network optimization or
@@ -2025,56 +2027,37 @@ if "smart_ordering" in tab_map and _mod_ok("smart_ordering"):
 
                     risk_scores_map = get_all_store_risks(sim_hour)
                     store_risk = risk_scores_map.get(selected_org, 0.0)  # blended — for display
-                    sim_util = SimulationOrderUtil(DATA_DIR, thresholds=ordering_thresholds, engine=engine)
-                    enriched = sim_util.prepare_sku_data(products)
-                    # Gate-compliant ORDERING risk: inventory-only until the GNN is
-                    # validated (OASIS_GNN_ORDERING_WEIGHT). Closes F2 — the
-                    # unvalidated GNN no longer shifts live PO quantities; unified
-                    # with the Operations Console.
-                    from oasis.logic import gnn_service as _gnn_service
-                    _ordering_risk = _gnn_service.ordering_risk(products, gnn_risk_score=store_risk)
-                    raw_recs = sim_util.calculate_order_quantity(enriched, gnn_risk_score=_ordering_risk, use_real_date=True)
-                    finalized_recs = sim_util.finalize_orders(raw_recs)
 
-                    # ── UNIFIED NETWORK TRANSFER OPTIMIZATION ──
-                    all_org_cds = [o["ORG_CD"] for o in orgs]
-                    org_name_map = {o["ORG_CD"]: o.get("ORG_NAME", o["ORG_CD"]) for o in orgs}
-
-                    # Use enriched products (carry real avg_daily_sales) so the network map
-                    # can compute meaningful excess and safety stock per donor.
-                    # Raw fetch_stock_snapshot has 0 ADS — making every store look like a donor.
-                    enriched_network_stock = load_network_stock(tuple(all_org_cds))
-
-                    cts = ConsolidatedTransferService(
-                        org_names=org_name_map,
-                        stock_data=enriched_network_stock,
-                        registry_path=REGISTRY_PATH,
-                        distance_map=get_distance_map(),
+                    # THE ordering pipeline (oasis.desktop.data.run_ordering_pipeline),
+                    # shared with the desktop tab, the web app, the Odoo queue and
+                    # the Operations Console. This tab used to assemble the stages
+                    # itself and had drifted: its transfer service had no data
+                    # directory, operator settings or delivery calendar (degraded:
+                    # no LATA horizons, one 45-day category threshold) and wrote
+                    # its own registry file. Here it hands in what it has cached;
+                    # the stages and their wiring are the pipeline's. Ordering
+                    # risk is gate-compliant: inventory-only until the GNN earns
+                    # a weight (OASIS_GNN_ORDERING_WEIGHT).
+                    from oasis.desktop.data import run_ordering_pipeline
+                    _run = run_ordering_pipeline(
+                        selected_org,
+                        root=os.path.dirname(os.path.dirname(os.path.abspath(DATA_DIR))),
+                        adapter=get_adapter(), engine=engine, thresholds=ordering_thresholds,
+                        products=products,
+                        # enriched rows (they carry avg_daily_sales) so donors
+                        # show real excess; raw snapshots read 0 ADS everywhere
+                        network_stock=load_network_stock(tuple(o["ORG_CD"] for o in orgs)),
+                        org_names={o["ORG_CD"]: o.get("ORG_NAME", o["ORG_CD"]) for o in orgs},
+                        gnn_risk_score=store_risk,
                         cold_node_days=st.session_state.get('cold_node_days', 60),
-                        hot_node_days=st.session_state.get('hot_node_days', 14)
-                    )
-
-                    # Pass the raw recommendations into the network layer first
-                    network_plan = cts.optimize_network(
-                        {selected_org: finalized_recs},
-                        risk_scores=risk_scores_map
-                    )
-
-                    # Adjusted orders (original minus transfer fulfillments),
-                    # then the Minimum Order Threshold gate
-                    network_adjusted_recs = network_plan.adjusted_orders.get(selected_org, [])
-                    mot_result = sim_util.apply_minimum_order_gate(network_adjusted_recs)
-
-                    # Gap 5: Feed MOQ-failed items directly to Transfer deficit list.
-                    # Replace-per-org semantics with timestamps + 7-day expiry — the
-                    # latest run is the complete truth for this store (no more
-                    # unbounded append growth / stale triggers).
-                    try:
-                        from oasis.logic.moq_failure_store import record_moq_failures
-                        _moq_path = os.path.join(DATA_DIR, "moq_failures.json")
-                        record_moq_failures(_moq_path, selected_org, mot_result['transfer_recs'] or [])
-                    except Exception as _moq_err:
-                        logger.warning(f"MOQ failure store update failed: {_moq_err}")
+                        hot_node_days=st.session_state.get('hot_node_days', 14))
+                    sim_util, enriched = _run["sim_util"], _run["enriched"]
+                    _ordering_risk = _run["ordering_risk"]
+                    org_name_map = _run["org_name_map"]
+                    enriched_network_stock = _run["enriched_network_stock"]
+                    network_plan = _run["network_plan"]
+                    network_adjusted_recs = _run["network_adjusted_recs"]
+                    mot_result = _run["mot_result"]
 
                     # The lines the engine REFUSED (one pack > MAX_AUTO_ORDER_
                     # COVER_DAYS) never appear anywhere else: the MOQ gate skips

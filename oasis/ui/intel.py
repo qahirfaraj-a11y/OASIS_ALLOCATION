@@ -369,16 +369,12 @@ def render_network_intel(ctx) -> None:
 
     st.markdown("#### Transfer Opportunities (read-only)")
     try:
-        from ..logic.consolidated_transfer_service import ConsolidatedTransferService
-        import os
-        cts = ConsolidatedTransferService(
-            org_names=names, stock_data=stock,
-            cold_node_days=60, hot_node_days=14,
-            # LATA horizons + AMIT category thresholds. This view is read-only,
-            # but it must agree with the Operations Console it tells the
-            # operator to act in — running it degraded would show a different
-            # opportunity list from the one they can queue.
-            data_dir=os.path.join(ctx["project_root"], "oasis", "data"))
+        # Built the one way every surface builds it. This view is read-only
+        # (a scan reads the registry, only optimize_network writes it), but it
+        # must agree with the Operations Console it tells the operator to act
+        # in — a differently wired service would show a different list.
+        from oasis.desktop.data import build_transfer_service
+        cts = build_transfer_service(names, stock, root=ctx["project_root"])
         opps = cts.scan_network_opportunities().opportunities
         if opps:
             st.caption(f"{len(opps)} opportunities · act on them in the Operations Console → Transfers.")

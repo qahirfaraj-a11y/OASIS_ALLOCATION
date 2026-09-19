@@ -42,7 +42,9 @@ import time
 from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional
 
+from oasis.logic import demand_rate as _dr
 from oasis.logic import erp_contract as _contract
+from oasis.logic.clock import as_of
 from oasis.logic.department_constants import is_fresh_department
 
 logger = logging.getLogger("ZohoAdapter")
@@ -87,6 +89,19 @@ def _department_of(item: dict) -> str:
     """
     cat = str(item.get("category_name") or "").strip()
     return cat.upper() if cat else UNCATEGORISED
+
+
+def _created(item: dict) -> Optional[datetime]:
+    """When the item was created in Zoho ("2026-04-02T10:15:00+0300"), or None.
+
+    The line's launch for the observed-window guard: a line created 20 days ago
+    is measured over 20 days, not 90 with 70 days of zeros it never had.
+    """
+    raw = str(item.get("created_time") or "")[:10]
+    try:
+        return datetime.strptime(raw, "%Y-%m-%d")
+    except ValueError:
+        return None
 
 
 class ZohoAdapter(_contract.ErpAdapter):
@@ -346,15 +361,30 @@ class ZohoAdapter(_contract.ErpAdapter):
 
     def _demand(self, org_cd: Optional[str] = None,
                 days: int = 90) -> Dict[str, Dict[str, float]]:
-        """item_id -> {units, revenue} from sales orders inside the window.
+        """item_id -> {units, revenue} from sales orders inside the window."""
+        daily, revenue, _first = self._sales_by_day(org_cd, days)
+        return {iid: {"units": sum(d.values()), "revenue": revenue.get(iid, 0.0)}
+                for iid, d in daily.items()}
+
+    def _sales_by_day(self, org_cd: Optional[str] = None, days: int = 90):
+        """({item_id: {date: units}}, {item_id: revenue}, store's first sale or None).
+
+        Dated, because the demand rate is recency-weighted (demand_rate) and
+        the sell-out correction walks the shelf day by day; a 90-day total
+        supports neither. On the as-of clock, like every other adapter.
 
         Zoho's list endpoint exposes no documented date filter, so the window is
         applied client-side. Pages are walked newest-first and the walk stops
         once a page falls entirely outside the window — otherwise a long-lived
-        organisation would be read in full on every run.
+        organisation would be read in full on every run. The first-sale date is
+        known only when the walk reached the organisation's very first order
+        inside the window (a young store); otherwise it is None, which the
+        observed-window guard reads as a full history.
         """
-        since = (datetime.now() - timedelta(days=days)).date()
-        agg: Dict[str, Dict[str, float]] = {}
+        since = (as_of() - timedelta(days=days)).date()
+        daily: Dict[str, Dict[Any, float]] = {}
+        revenue: Dict[str, float] = {}
+        earliest, saw_older, exhausted = None, False, False
         params: Dict[str, Any] = {"sort_column": "date", "sort_order": "D"}
         loc = self._location_id(org_cd)
         if loc:
@@ -370,6 +400,7 @@ class ZohoAdapter(_contract.ErpAdapter):
                 break
             orders = body.get("salesorders") or []
             if not orders:
+                exhausted = True
                 break
             in_window = 0
             for o in orders:
@@ -378,8 +409,10 @@ class ZohoAdapter(_contract.ErpAdapter):
                 except (ValueError, TypeError):
                     continue
                 if d < since:
+                    saw_older = True
                     continue
                 in_window += 1
+                earliest = d if earliest is None or d < earliest else earliest
                 # Zoho's LIST endpoints return summary records with NO
                 # line_items — verified live: a list record carried
                 # salesorder_id/date/status and nothing else, while the detail
@@ -401,16 +434,19 @@ class ZohoAdapter(_contract.ErpAdapter):
                     iid = str(li.get("item_id") or "")
                     if not iid:
                         continue
-                    e = agg.setdefault(iid, {"units": 0.0, "revenue": 0.0})
                     qty = float(li.get("quantity") or 0)
-                    e["units"] += qty
-                    e["revenue"] += qty * float(li.get("rate") or 0)
+                    day = daily.setdefault(iid, {})
+                    day[d] = day.get(d, 0.0) + qty
+                    revenue[iid] = revenue.get(iid, 0.0) + qty * float(li.get("rate") or 0)
             # sorted newest-first, so a page with nothing in-window ends the walk
             stop = in_window == 0
             if not (body.get("page_context") or {}).get("has_more_page"):
+                exhausted = True
                 break
             page += 1
-        return agg
+        first = (datetime.combine(earliest, datetime.min.time())
+                 if earliest is not None and exhausted and not saw_older else None)
+        return daily, revenue, first
 
     def fetch_enriched_products(self, org_cd: Optional[str] = None,
                                 sales_days: int = 90) -> List[dict]:
@@ -427,7 +463,14 @@ class ZohoAdapter(_contract.ErpAdapter):
             logger.error("fetch_enriched_products failed: %s", e)
             return []
 
-        demand = self._demand(org_cd, sales_days)
+        # ONE DEFINITION OF d (demand_rate): the 60/30/10 recency weighting on
+        # the as-of clock, with the store's observed-window guard and each
+        # line's own window, as PosErpAdapter and OdooAdapter compute it. This
+        # read used to divide 90 days of units by 90 on the wall clock, so a
+        # shop on Zoho got a different rate from the same till history.
+        now = as_of()
+        daily, _revenue, store_first = self._sales_by_day(org_cd, 90)
+        days_obs = _dr.observed_days(store_first, now)
         vendors = self._vendor_names()
         out: List[dict] = []
         for it in items:
@@ -435,7 +478,14 @@ class ZohoAdapter(_contract.ErpAdapter):
                 continue
             iid = str(it.get("item_id") or "")
             dept = _department_of(it)
-            sold = demand.get(iid, {"units": 0.0, "revenue": 0.0})
+            q = _dr.bucket_units(daily.get(iid, {}), now)
+            # A line launched inside the window is measured from its launch:
+            # Zoho's own creation date for the item. A line with sales 60-90
+            # days ago existed all window.
+            obs = days_obs
+            if not q[2] and days_obs > 60:
+                obs = _dr.line_observed_days(_created(it), store_first, now)
+            ads = _dr.weighted_daily_rate(q[0], q[1], q[2], obs)
             vid = str(it.get("vendor_id") or "")
             # location_stock_on_hand is present when the call is location-scoped;
             # stock_on_hand is the organisation-wide figure
@@ -461,16 +511,36 @@ class ZohoAdapter(_contract.ErpAdapter):
                 "supplier_reliability": 0.9,
                 "pack_size": 1,
                 "blocked_open_for_order": "open",
-                "avg_daily_sales": round(sold["units"] / max(sales_days, 1), 4),
-                "estimated_daily_sales": round(sold["units"] / max(sales_days, 1), 4),
-                "units_sold_last_month": round(sold["units"] / max(sales_days, 1) * 30, 2),
+                "avg_daily_sales": round(ads, 4),
+                "estimated_daily_sales": round(ads, 4),
+                "ads_source": "zoho_weighted",
+                "units_sold_last_month": round(q[0], 2),
                 # NOT supplied by this backend — see the module docstring. Left
                 # at 0 knowingly, and diagnose() reports the guard as inert.
                 "days_since_delivery": 0,
                 "last_days_since_last_delivery": 0,
             })
-        logger.info("Zoho: enriched %d products (org=%s)", len(out), org_cd)
+        # Sell-out correction, through the same receipts source the POS path
+        # reads: Zoho's purchase receives are unverified (READ_RECEIPTS is not
+        # claimed), so the store's GRN export supplies the receipts.
+        from . import censored_demand as _cd
+        n_cens = _cd.correct_rows(
+            out, _cd.configured_receipts_source(),
+            lambda keys, lo, hi: self._daily_by_key(daily, out, keys, lo, hi), now, "zoho_weighted")
+        logger.info("Zoho: enriched %d products (org=%s)%s", len(out), org_cd,
+                    f", sell-out corrected {n_cens}" if n_cens else "")
         return out
+
+    @staticmethod
+    def _daily_by_key(daily, rows, keys, lo, hi):
+        """{row key: {date: units}} from the item-id keyed sales, for correct_rows."""
+        by_key = {}
+        for r in rows:
+            for f in ("item_code", "barcode"):
+                if r.get(f):
+                    by_key.setdefault(str(r[f]), r["zoho_item_id"])
+        return {k: {d: u for d, u in daily.get(by_key.get(k), {}).items() if lo <= d <= hi}
+                for k in keys if k in by_key}
 
     def fetch_sales_history(self, org_cd: Optional[str] = None,
                             days: int = 90) -> List[dict]:

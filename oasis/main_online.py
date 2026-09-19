@@ -57,13 +57,15 @@ def main(page: ft.Page):
                 page.update()
                 
                 from oasis.logic.simulation_bridge import SimulationOrderUtil
-                from datetime import datetime
                 
                 def run_smart_logic(prods):
+                    # An uploaded file has no store network, so the transfer
+                    # step has nothing to net; every other stage is the shared
+                    # pipeline's: the real date (not a simulated day of year)
+                    # and the same minimum-order gate, bakery exemptions included.
                     sim_util = SimulationOrderUtil(data_dir)
-                    current_yday = datetime.now().timetuple().tm_yday
-                    raw = sim_util.calculate_order_quantity(prods, current_day=current_yday)
-                    return sim_util.finalize_orders(raw)
+                    raw = sim_util.calculate_order_quantity(prods, use_real_date=True)
+                    return sim_util.apply_minimum_order_gate(sim_util.finalize_orders(raw))["po_recs"]
                     
                 recommendations = await asyncio.to_thread(run_smart_logic, products)
                 all_recommendations.extend(recommendations)

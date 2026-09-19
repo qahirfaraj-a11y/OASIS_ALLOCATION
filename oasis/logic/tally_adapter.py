@@ -46,13 +46,14 @@ from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional
 from xml.etree import ElementTree as ET
 
+from oasis.logic import demand_rate as _dr
 from oasis.logic import erp_contract as _contract
+from oasis.logic.clock import as_of
+from oasis.logic.department_constants import is_fresh_department
 
 logger = logging.getLogger("TallyAdapter")
 
 LOOPBACK = ("localhost", "127.0.0.1", "::1", "[::1]")
-
-FRESH_KEYS = ("DAIRY", "FRESH", "BUTCHERY", "BAKERY", "MILK", "MEAT", "BREAD")
 
 #: Tally quantities read back as "12.000 Nos" / "-3 pcs"; amounts as "1234.50".
 _NUM = re.compile(r"-?\d+(?:\.\d+)?")
@@ -246,7 +247,12 @@ class TallyAdapter(_contract.ErpAdapter):
             logger.error("fetch_enriched_products failed: %s", str(e)[:160])
             return []
 
-        demand = self._demand(org_cd, sales_days)
+        # ONE DEFINITION OF d (demand_rate), as the POS, Odoo and Zoho adapters
+        # compute it: 60/30/10 recency weighting on the as-of clock. Was 90 days
+        # of units / 90 on the wall clock. The query is bounded to the window,
+        # so the company's first sale is unknown and the full window applies.
+        now = as_of()
+        daily, _revenue = self._sales_by_day(org_cd, 90)
         out: List[dict] = []
         for it in items:
             name = it.get("NAME") or _text(it, "NAME")
@@ -260,8 +266,8 @@ class TallyAdapter(_contract.ErpAdapter):
             # average falls out of closing value over closing quantity.
             total_qty = _num(_text(it, "CLOSINGBALANCE"))
             cost = round(value / total_qty, 4) if total_qty else 0.0
-            sold = demand.get(name, {"units": 0.0, "revenue": 0.0})
-            ads = sold["units"] / max(sales_days, 1)
+            q = _dr.bucket_units(daily.get(name, {}), now)
+            ads = _dr.weighted_daily_rate(q[0], q[1], q[2])
             out.append({
                 "item_code": name,
                 "product_name": name,
@@ -273,7 +279,9 @@ class TallyAdapter(_contract.ErpAdapter):
                 "category": dept,
                 "sub_category": dept,
                 "uom": _text(it, "BASEUNITS") or "EA",
-                "is_fresh": any(k in dept for k in FRESH_KEYS),
+                # the shared exact-match rule; a substring test marked AIR
+                # FRESHENERS perishable (see department_constants)
+                "is_fresh": is_fresh_department(dept),
                 "supplier_cd": "",
                 "supplier_name": "Unknown",
                 "estimated_delivery_days": 7,
@@ -282,20 +290,39 @@ class TallyAdapter(_contract.ErpAdapter):
                 "blocked_open_for_order": "open",
                 "avg_daily_sales": round(ads, 4),
                 "estimated_daily_sales": round(ads, 4),
-                "units_sold_last_month": round(ads * 30, 2),
+                "ads_source": "tally_weighted",
+                "units_sold_last_month": round(q[0], 2),
                 # NOT supplied — see the capability note on the class.
                 "days_since_delivery": 0,
                 "last_days_since_last_delivery": 0,
             })
-        logger.info("Tally: enriched %d stock items (godown=%s)", len(out), org_cd)
+        # Sell-out correction through the configured receipts source, as every
+        # other adapter applies it (Tally receipt vouchers are unverified).
+        from . import censored_demand as _cd
+        n_cens = _cd.correct_rows(
+            out, _cd.configured_receipts_source(),
+            lambda keys, lo, hi: {k: {d: u for d, u in daily.get(k, {}).items() if lo <= d <= hi} for k in keys},
+            now, "tally_weighted", keys=("item_code",))
+        logger.info("Tally: enriched %d stock items (godown=%s)%s", len(out), org_cd,
+                    f", sell-out corrected {n_cens}" if n_cens else "")
         return out
 
     # ── demand ───────────────────────────────────────────────────────────
     def _demand(self, org_cd: Optional[str] = None,
                 days: int = 90) -> Dict[str, Dict[str, float]]:
         """item name -> {units, revenue} from Sales vouchers in the window."""
-        since = (datetime.now() - timedelta(days=days)).strftime("%Y%m%d")
-        until = datetime.now().strftime("%Y%m%d")
+        daily, revenue = self._sales_by_day(org_cd, days)
+        return {n: {"units": sum(d.values()), "revenue": revenue.get(n, 0.0)} for n, d in daily.items()}
+
+    def _sales_by_day(self, org_cd: Optional[str] = None, days: int = 90):
+        """({item name: {date: units}}, {item name: revenue}) from Sales vouchers.
+
+        Dated, on the as-of clock, because the demand rate is recency-weighted
+        (demand_rate) and the sell-out correction walks the shelf day by day.
+        """
+        now = as_of()
+        since = (now - timedelta(days=days)).strftime("%Y%m%d")
+        until = now.strftime("%Y%m%d")
         company = (f"<SVCURRENTCOMPANY>{self.company}</SVCURRENTCOMPANY>"
                    if self.company else "")
         xml = f"""<ENVELOPE>
@@ -318,13 +345,18 @@ class TallyAdapter(_contract.ErpAdapter):
    </SYSTEM>
   </TDLMESSAGE></TDL>
  </DESC></BODY></ENVELOPE>"""
-        agg: Dict[str, Dict[str, float]] = {}
+        daily: Dict[str, Dict[Any, float]] = {}
+        revenue: Dict[str, float] = {}
         try:
             root = self._post(xml)
         except Exception as e:
             logger.warning("sales vouchers unavailable: %s", str(e)[:140])
-            return agg
+            return daily, revenue
         for v in root.iter("VOUCHER"):
+            try:
+                day = datetime.strptime(_text(v, "DATE")[:8], "%Y%m%d").date()
+            except ValueError:
+                continue
             for entry in v.iter("ALLINVENTORYENTRIES.LIST"):
                 name = _text(entry, "STOCKITEMNAME")
                 if not name:
@@ -336,11 +368,11 @@ class TallyAdapter(_contract.ErpAdapter):
                             g.strip().lower() == org_cd.strip().lower()
                             for g in godowns):
                         continue
-                e = agg.setdefault(name, {"units": 0.0, "revenue": 0.0})
                 # sales are outward, so Tally signs the quantity negative
-                e["units"] += abs(_num(_text(entry, "ACTUALQTY")))
-                e["revenue"] += abs(_num(_text(entry, "AMOUNT")))
-        return agg
+                d = daily.setdefault(name, {})
+                d[day] = d.get(day, 0.0) + abs(_num(_text(entry, "ACTUALQTY")))
+                revenue[name] = revenue.get(name, 0.0) + abs(_num(_text(entry, "AMOUNT")))
+        return daily, revenue
 
     def fetch_sales_history(self, org_cd: Optional[str] = None,
                             days: int = 90) -> List[dict]:
