@@ -1,7 +1,7 @@
 import math
 import logging
 from typing import Dict, Any
-from ..logic.department_constants import FRESH_DEPARTMENTS, FAST_FIVE_DEPARTMENTS
+from ..logic.department_constants import FAST_FIVE_DEPARTMENTS, fresh_departments
 
 logger = logging.getLogger("KUBER.RiskProtocol")
 
@@ -23,7 +23,7 @@ class RiskAssessor:
         
     def get_threshold_for_dept(self, dept: str) -> float:
         dept = dept.upper()
-        if any(f in dept for f in FRESH_DEPARTMENTS): return self.department_thresholds["FRESH"]
+        if any(f in dept for f in fresh_departments()): return self.department_thresholds["FRESH"]
         if any(f in dept for f in FAST_FIVE_DEPARTMENTS): return self.department_thresholds["STAPLE"]
         return self.department_thresholds.get(dept, self.default_threshold)
 
@@ -41,7 +41,7 @@ class RiskAssessor:
         dynamic_threshold = self.get_threshold_for_dept(dept)
         
         # 1. Base Risk Tiering
-        if any(f in dept or f in name for f in FRESH_DEPARTMENTS):
+        if any(f in dept or f in name for f in fresh_departments()):
             base_risk = 0.15 # 15% Base Perishability
             tranche = "Tier 1: High Yield/High Risk"
             yield_premium = 0.08 # +8% Premium

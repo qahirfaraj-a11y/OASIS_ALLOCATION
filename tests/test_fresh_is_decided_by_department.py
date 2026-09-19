@@ -82,16 +82,26 @@ def test_the_old_rule_everywhere_is_one_switch_away():
     assert Engine("anywhere")._fresh_by_name("HUSEINI 700G FRUIT CAKE", "CAKES")
 
 
-def test_both_config_tiers_ship_the_scope_and_the_rule():
-    for tier in ("oasis_engines_config.json", "oasis_engines_config.default.json"):
-        fc = json.load(open(os.path.join(ROOT, "oasis", "data", tier), encoding="utf-8"))["fresh_cycle"]
-        assert fc["reviewed_departments"] == ["BREAD", "CAKES"], tier
-        assert fc["name_keywords_rule"] == "unknown_department", tier
+def _tier(name):
+    return json.load(open(os.path.join(ROOT, "oasis", "data", name), encoding="utf-8"))["fresh_cycle"]
 
 
-def test_the_code_defaults_match_the_config():
+def test_this_store_reviewed_bread_and_cakes():
+    fc = _tier("oasis_engines_config.json")
+    assert fc["reviewed_departments"] == ["BREAD", "CAKES"]
+    assert fc["name_keywords_rule"] == "unknown_department"
+
+
+def test_the_shipped_default_has_reviewed_nothing():
+    # which sections have been reviewed is one store's history, not a default
+    fc = _tier("oasis_engines_config.default.json")
+    assert fc["reviewed_departments"] == []
+    assert fc["name_keywords_rule"] == "unknown_department"
+
+
+def test_with_no_scope_every_department_keeps_the_classic_rules():
     e = Engine()
     e.engines_config["fresh_cycle"].pop("reviewed_departments", None)
     e.engines_config["fresh_cycle"].pop("name_keywords_rule", None)
-    assert e._in_reviewed_section("CAKES") and not e._in_reviewed_section("FRESH MILK")
-    assert not e._fresh_by_name("HUSEINI 700G FRUIT CAKE", "CAKES")
+    assert not e._in_reviewed_section("CAKES") and not e._in_reviewed_section("FRESH MILK")
+    assert e._fresh_by_name("HUSEINI 700G FRUIT CAKE", "CAKES")

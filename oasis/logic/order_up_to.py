@@ -617,6 +617,7 @@ def fresh_cycle() -> dict:
             "life_sku": num(cfg.get("sellable_life_per_sku")),
             "presence": frozenset(_norm(x) for x in cfg.get("presence_departments") or []),
             "bakery_suppliers": frozenset(supplier_key(x) for x in cfg.get("bakery_suppliers") or []),
+            "moq_exempt": tuple(_norm(x) for x in cfg.get("moq_exempt_departments") or []),
         }
     return _FRESH_CYCLE
 

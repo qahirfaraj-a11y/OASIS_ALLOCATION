@@ -53,14 +53,13 @@ from typing import Any, Dict, List, Optional
 from oasis.logic import erp_contract as _contract
 from oasis.logic import demand_rate as _dr
 from oasis.logic.clock import as_of
-from oasis.logic.department_constants import ADAPTER_FRESH_DEPARTMENTS, is_fresh_department
+from oasis.logic.department_constants import is_fresh_department
 
 logger = logging.getLogger("OdooAdapter")
 
-#: kept for callers that read the name; the RULE is is_fresh_department (exact
-#: match), shared with PosErpAdapter. The substring test that used to live here
-#: marked AIR FRESHNERS perishable.
-FRESH_DEPARTMENTS = tuple(ADAPTER_FRESH_DEPARTMENTS)
+# Freshness is is_fresh_department (exact match on departments.fresh_raw),
+# shared with PosErpAdapter. The substring test that used to live here marked
+# AIR FRESHNERS perishable.
 
 
 def _name_of(m2o) -> str:

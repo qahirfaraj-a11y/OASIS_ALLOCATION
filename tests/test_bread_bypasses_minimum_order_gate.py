@@ -12,10 +12,13 @@ shallower lines fell under the per-line floor -- gate drops on the bread shelf
 went 396 -> 1,548 and fill 98.1% -> 96.5%. Exempting CAKES brings drops back to
 113 and fill to 98.1%. Mixed departments (BISCUITS) stay gated: exempting a
 department exempts every supplier in it.
+
+The list is this store's configuration (fresh_cycle.moq_exempt_departments in
+its engine config); the shipped default exempts nothing.
 """
 import pytest
 
-from oasis.logic.simulation_bridge import MOQ_EXEMPT_DEPARTMENTS, SimulationOrderUtil
+from oasis.logic.simulation_bridge import SimulationOrderUtil, moq_exempt_departments
 
 
 @pytest.fixture
@@ -28,13 +31,13 @@ def _line(sku, dept, qty, cost, supplier="BAKERY LTD", fresh=True):
             "recommended_quantity": qty, "cost_price": cost, "is_fresh": fresh, "pack_size": 1}
 
 
-def test_bread_is_the_default_exemption():
-    assert "BREAD" in MOQ_EXEMPT_DEPARTMENTS
+def test_bread_is_this_stores_exemption():
+    assert "BREAD" in moq_exempt_departments()
 
 
 def test_cakes_are_exempt_and_biscuits_are_not():
-    assert "CAKES" in MOQ_EXEMPT_DEPARTMENTS
-    assert "BISCUITS" not in MOQ_EXEMPT_DEPARTMENTS
+    assert "CAKES" in moq_exempt_departments()
+    assert "BISCUITS" not in moq_exempt_departments()
 
 
 def test_a_small_cake_line_is_ordered(util):

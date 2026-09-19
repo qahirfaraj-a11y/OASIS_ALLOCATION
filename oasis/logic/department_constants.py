@@ -33,10 +33,14 @@ FAST_FIVE_DEPARTMENTS = [
     "FRESH MILK", "BREAD", "COOKING OIL", "FLOUR", "SUGAR"
 ]
 
-# Fresh departments (spoilage risk - 2 day max stock)
+# Fresh departments (spoilage risk - 2 day max stock).
+# FALLBACK ONLY: the live list is departments.fresh in the engine config (see
+# fresh_departments below). Department names are each store's own taxonomy, so
+# they are configuration; these generic names apply only when a config carries
+# no departments block.
 FRESH_DEPARTMENTS = [
     "FRESH MILK", "BREAD", "POULTRY", "MEAT", "VEGETABLES", "FRUITS",
-    "BAKERY FOODPLUS", "DELICATESSEN", "PASTRY", "EGGS",
+    "DELICATESSEN", "PASTRY", "EGGS",
     "YOGHURT", "CHEESE", "BUTTER"
 ]
 
@@ -44,6 +48,57 @@ FRESH_DEPARTMENTS = [
 #: The POS adapter carried these four; the Odoo and Zoho adapters carried them
 #: plus "FRESH" as a SUBSTRING test.
 ADAPTER_FRESH_DEPARTMENTS = ["DAIRY", "FRESH PRODUCE", "BUTCHERY", "BAKERY"]
+
+#: Departments the transfer planner never auto-moves (fulfillment_decider),
+#: matched as SUBSTRINGS there. Fallback only; the live list is
+#: departments.no_auto_transfer.
+NO_AUTO_TRANSFER_DEPARTMENTS = ["MILK", "DAIRY", "FRESH", "MEAT", "BREAD", "BAKERY",
+                                "SEAFOOD", "FISH", "POULTRY", "PRODUCE", "FRUITS", "VEGETABLES"]
+
+# -- the department ROLES, from the engine config ---------------------------------
+# Three lists did three different jobs and lived in three modules, in one
+# store's department names. They are one config block now, `departments`, with
+# the jobs kept apart -- merging them would change behaviour:
+#   fresh             ordering freshness (enrichment, procurement): exact names
+#   fresh_raw         the adapter-level flag the transfer scan reads BEFORE
+#                     enrichment -- deliberately narrow (see is_fresh_department)
+#   no_auto_transfer  never auto-transferred (fulfillment_decider): substrings
+_ROLES = None
+_ROLE_FALLBACK = {"fresh": FRESH_DEPARTMENTS, "fresh_raw": ADAPTER_FRESH_DEPARTMENTS,
+                  "no_auto_transfer": NO_AUTO_TRANSFER_DEPARTMENTS}
+
+
+def _norm(d) -> str:
+    return " ".join(str(d or "").upper().split())
+
+
+def department_role(role: str) -> list:
+    """The configured department list for one role, normalised (fallback: the constants)."""
+    global _ROLES
+    if _ROLES is None:
+        cfg = {}
+        try:
+            from .engines_config import load_engines_config
+            cfg = (load_engines_config(None) or {}).get("departments") or {}
+        except Exception:
+            cfg = {}
+        _ROLES = {r: [_norm(x) for x in (cfg.get(r) if isinstance(cfg.get(r), list) else fb)]
+                  for r, fb in _ROLE_FALLBACK.items()}
+    return list(_ROLES.get(role, []))
+
+
+def reset_department_roles() -> None:
+    """Drop the cached roles (tests, and after a config edit)."""
+    global _ROLES
+    _ROLES = None
+
+
+def fresh_departments() -> list:
+    return department_role("fresh")
+
+
+def no_auto_transfer_departments() -> list:
+    return department_role("no_auto_transfer")
 
 
 def is_fresh_department(department) -> bool:
@@ -63,8 +118,5 @@ def is_fresh_department(department) -> bool:
     with FRESH_DEPARTMENTS and its keyword test, and applies the long-life
     exclusion, for ordering.
     """
-    d = " ".join(str(department or "").upper().split())
-    return bool(d) and (d in _FRESH_EXACT)
-
-
-_FRESH_EXACT = frozenset(" ".join(x.upper().split()) for x in ADAPTER_FRESH_DEPARTMENTS)
+    d = _norm(department)
+    return bool(d) and (d in set(department_role("fresh_raw")))

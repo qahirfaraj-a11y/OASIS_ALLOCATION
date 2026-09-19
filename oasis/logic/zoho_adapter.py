@@ -65,7 +65,6 @@ DATA_CENTRES = {
 PAGE_SIZE = 200
 MAX_PAGES = 500
 
-FRESH_DEPARTMENTS = ("DAIRY", "FRESH PRODUCE", "BUTCHERY", "BAKERY", "FRESH")
 
 #: What OASIS calls a department when Zoho has not categorised the item. NOT
 #: the item's own name — see _department_of.

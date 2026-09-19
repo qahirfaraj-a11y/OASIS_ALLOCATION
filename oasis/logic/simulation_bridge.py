@@ -49,7 +49,13 @@ def _find_calendar_path(data_dir: str) -> str:
 #: the per-line floor and the gate's drops on the bread shelf went 396 -> 1,548.
 #: Mixed departments such as BISCUITS stay gated -- exempting a department
 #: exempts every supplier in it, and most of those are weekly dry goods.
-MOQ_EXEMPT_DEPARTMENTS = ("BREAD", "CAKES")
+#: Now fresh_cycle.moq_exempt_departments in the engine config: department
+#: names are each store's taxonomy, so they are configuration, not a default.
+
+
+def moq_exempt_departments() -> List[str]:
+    """Departments that bypass the minimum-order gate (engine config)."""
+    return list(_ou.fresh_cycle().get("moq_exempt", ()))
 
 
 class SimulationOrderUtil:
@@ -146,7 +152,7 @@ class SimulationOrderUtil:
             'min_item_value_fresh_kes': 200.0,
             'min_item_value_dry_kes': 100.0,
             # Departments that bypass the minimum-order gate entirely.
-            'moq_exempt_departments': list(MOQ_EXEMPT_DEPARTMENTS),
+            'moq_exempt_departments': moq_exempt_departments(),
         }
         
     @staticmethod
@@ -855,7 +861,9 @@ class SimulationOrderUtil:
         keyed to the bakeries (fresh_cycle.bakery_suppliers, or the
         moq_exempt_suppliers threshold), through the one supplier spelling.
         """
-        exempt = self.thresholds.get('moq_exempt_departments', MOQ_EXEMPT_DEPARTMENTS) or ()
+        exempt = self.thresholds.get('moq_exempt_departments')
+        if exempt is None:
+            exempt = moq_exempt_departments()
         dept = " ".join(str(rec.get('department') or '').upper().split())
         if dept and dept in {" ".join(str(d).upper().split()) for d in exempt}:
             return True

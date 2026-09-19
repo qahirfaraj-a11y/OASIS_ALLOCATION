@@ -1,5 +1,5 @@
 {
-  "generated_utc": "2026-09-19T01:36:34Z",
+  "generated_utc": "2026-09-19T02:10:51Z",
   "repo_relative": "devkit/retail_sandbox/contract",
   "entry_points": {
     "target_stock": {
@@ -239,8 +239,8 @@
   ],
   "engines_config": {
     "source": "oasis/data/oasis_engines_config.json",
-    "sha256": "6a6019761274dd58e68c2e2f4918bbe77f0c54994a6f8eaf5550f9c775ed04ba",
-    "bytes": 14499,
+    "sha256": "e2bd942c88367c7c37a6014370b7f73c70a3b9f4925735e25f095f6aa7e7f933",
+    "bytes": 15416,
     "active_engines": [
       "amit",
       "lata",
@@ -250,19 +250,19 @@
     "engine_sources": {
       "files": {
         "oasis/logic/order_engine.py": "001a767a8734d013d0b8a32a19fc78e2f0af3768ecb2af183f456f300c13fdbe",
-        "oasis/logic/intelligence_mixin.py": "c01d5e71820e0a132abc4975e88357bcc87327b00b808b42c063cddd76f89e4a",
-        "oasis/logic/simulation_bridge.py": "9ad7dadaf33f90f627b16e7803737face9d1d1fa8413b2304555e92d0c8e0b62",
-        "oasis/logic/order_up_to.py": "501d8e3f1fb406eb4c848b1fcc9a7b7906d094f2d824759fbd64ea3aa88e7361",
+        "oasis/logic/intelligence_mixin.py": "24f6d54446a2af7cbb8cb6bc5655891680879796a84ac7b035d0e00ab1d5b0ea",
+        "oasis/logic/simulation_bridge.py": "005e1aa144700fd21c038a3ec7cd8ced35040a2f717c61dba7eef43ffb15e6b1",
+        "oasis/logic/order_up_to.py": "641fd3b992492f1e17aef7781688f872504b48fa1c5bc425c448fca35d76a5ae",
         "oasis/logic/order_logic_guards.py": "935ce14f687dd268a83775543358168dc243ef131c0ac09ad91f3ea4c7d09409",
         "oasis/logic/rounding.py": "ce471d45e890be38ef3693d20dc5d8a725a5ae96a428645d1f57b251680ae8c7",
         "oasis/logic/engines_config.py": "a571047e00dfb82c163bc9a6d2909807b26706ae8fbb0a32afbfa062dae10b52",
         "oasis/logic/lata_shield.py": "2e65940526c7c9dd233d1c6985c129559a6ccc34b669cbf3f6cabda3ce6e996a",
         "oasis/logic/residual_cover.py": "06083ea94a18de750a29e379d77893787dd0f1762f481fcb9c1f3ae37b079fd1",
         "oasis/logic/consolidated_transfer_service.py": "ccbcc40adbf6df38baa6d3f1b375e8d3a9088b58de103311a39499237abf71db",
-        "oasis/logic/fulfillment_decider.py": "3d48b468747905694083fc064330c627464a6cccce7e2cad5e03503d2ee9068e",
+        "oasis/logic/fulfillment_decider.py": "47da83c09f25b6072860000a0db598a8a43f5e24c79cfb66ff924c37144e543d",
         "oasis/logic/transfer_state.py": "0cbbabea17fe0125f3f40bba9bd6cdc45213f425e6de288b62bba0045b60aa77"
       },
-      "combined_sha256": "3063c58823b6b1072820539216e8cac159bf47bddbaf67ec315d5337fea9385b"
+      "combined_sha256": "076de0e8fd229605b2e8a0d92514c0d463a316649dfbb7cf9baceaa49e94510b"
     }
   }
 }

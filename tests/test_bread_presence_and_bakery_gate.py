@@ -93,8 +93,8 @@ class TestTheBakeriesPassTheGate:
         assert out["po_recs"] == []
 
 
-def test_both_config_tiers_carry_the_lists():
-    for tier in ("oasis_engines_config.json", "oasis_engines_config.default.json"):
-        fc = json.load(open(os.path.join(ROOT, "oasis", "data", tier), encoding="utf-8"))["fresh_cycle"]
-        assert fc["presence_departments"] == ["BREAD", "CAKES"], tier
-        assert len(fc["bakery_suppliers"]) == 4, tier
+def test_this_stores_tier_carries_the_lists():
+    fc = json.load(open(os.path.join(ROOT, "oasis", "data", "oasis_engines_config.json"),
+                        encoding="utf-8"))["fresh_cycle"]
+    assert fc["presence_departments"] == ["BREAD", "CAKES"]
+    assert len(fc["bakery_suppliers"]) == 4

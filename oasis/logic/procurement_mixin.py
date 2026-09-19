@@ -1,5 +1,5 @@
 import os
-from .department_constants import ESSENTIAL_DEPARTMENTS, FRESH_DEPARTMENTS, FAST_FIVE_DEPARTMENTS
+from .department_constants import ESSENTIAL_DEPARTMENTS, FAST_FIVE_DEPARTMENTS, fresh_departments
 from .allocation_strategies import AllocationConfig, GreenfieldPipeline
 import logging
 import math
@@ -753,7 +753,7 @@ class ProcurementMixin:
                 pack_size = int(rec.get('pack_size', 1))
                 ideal_qty = max(1, math.ceil(effective_avg_sales * effective_days))  # FIX 2: ceil() prevents truncation of low-velocity demand
                 min_pack_floor = (12 if float(rec.get('selling_price', 0)) < 50 else 6) if (is_small and dept in ['COOKING OIL', 'FLOUR', 'SUGAR']) else 1
-                if dept in FRESH_DEPARTMENTS: min_pack_floor = 1 
+                if dept in fresh_departments(): min_pack_floor = 1 
                 
                 # R20 Fix: Fresh items should NOT be floor-capped to min_display_qty (3/4/6) 
                 # as it causes extreme overstocking for low-velocity fresh items.
@@ -961,7 +961,7 @@ class ProcurementMixin:
                         
                         ideal_days = depth_cap_days
                         dept_upper = r.get('product_category', 'GENERAL').upper()
-                        if is_item_fresh or dept_upper in FRESH_DEPARTMENTS:
+                        if is_item_fresh or dept_upper in fresh_departments():
                              # FIX 4: Fresh items get cycle + 2 days as flex pool depth cap
                              lead_time = int(r.get('estimated_delivery_days', 1))
                              ideal_days = min(ideal_days, lead_time + 2.0)

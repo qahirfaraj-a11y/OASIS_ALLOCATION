@@ -7,7 +7,7 @@ from anthropic import AsyncAnthropic
 from textwrap import dedent
 
 
-from .department_constants import ESSENTIAL_DEPARTMENTS, FAST_FIVE_DEPARTMENTS, FRESH_DEPARTMENTS
+from .department_constants import ESSENTIAL_DEPARTMENTS, FAST_FIVE_DEPARTMENTS, fresh_departments
 from .order_logic_guards import apply_safety_guards
 
 logger = logging.getLogger("OrderEngine.Intelligence")
@@ -289,7 +289,9 @@ class IntelligenceMixin:
 
     #: Departments whose freshness and long-life rules have been reviewed.
     #: Fallback if the config carries no fresh_cycle.reviewed_departments.
-    _REVIEWED_DEPARTMENTS = ("BREAD", "CAKES")
+    #: Neutral on purpose: which departments have been reviewed is each store's
+    #: configuration (fresh_cycle.reviewed_departments), never a code default.
+    _REVIEWED_DEPARTMENTS = ()
 
     def _in_reviewed_section(self, department: Any) -> bool:
         """Is this line in a section whose fresh / long-life rules were reviewed?
@@ -641,7 +643,7 @@ class IntelligenceMixin:
             # (supplier pattern may have already set is_fresh=True at line 288)
             # R5: Golden Parity — broadened fresh keywords to match original scope
             has_fresh_keywords = self._fresh_by_name(p_upper, p.get('department'))
-            is_fresh_dept = any(str(p.get('department', '')).upper() == d.upper() for d in FRESH_DEPARTMENTS)
+            is_fresh_dept = " ".join(str(p.get('department', '')).upper().split()) in set(fresh_departments())
             p['is_fresh'] = p.get('is_fresh', False) or has_fresh_keywords or is_fresh_dept
             
             # UHT/Long Life exclusion overrides both supplier AND keyword freshness
@@ -949,14 +951,19 @@ class IntelligenceMixin:
             base_coverage = float(p['target_coverage_days'])
             dept_upper = str(p.get('department', p.get('product_category', 'GENERAL'))).upper()
             
-            # Bread/Bakery: 2.0x boost (R9: added FESTIVE, NATURES from golden)
-            if 'BREAD' in p_upper or 'FESTIVE' in p_upper or 'NATURES' in p_upper or any(x in p_upper for x in ['800G', '600G', '400G']):
-                if 'BAKERY' in dept_upper or 'BREAD' in dept_upper:
-                    p['target_coverage_days'] = int(base_coverage * 2.0)
-                    p['category_boost'] = 2.0
-                    p['category_boost_reason'] = 'Bread/bakery high-velocity perishable'
+            # Bread/Bakery: 2.0x boost (classic path). Bread used to be found by
+            # one store's brands and pack sizes -- FESTIVE, NATURES, any 400G /
+            # 600G / 800G name -- inside a BREAD/BAKERY department. The daily
+            # fresh cycle's own departments (fresh_cycle.overnight_delivery_
+            # departments) now say which lines are bread, for any catalogue.
+            from . import order_up_to as _ou_bread
+            if " ".join(dept_upper.split()) in _ou_bread.fresh_cycle().get("overnight", ()):
+                p['target_coverage_days'] = int(base_coverage * 2.0)
+                p['category_boost'] = 2.0
+                p['category_boost_reason'] = 'Bread/bakery high-velocity perishable'
             
-            # Dairy/Fresh Milk: Strict 1.2 day cap (no boost)
+            # Dairy/Fresh Milk: Strict 1.2 day cap (no boost). Still found by
+            # brand (DAIMA, BIO) -- left for the milk section's own review.
             elif any(x in p_upper for x in ['DAIMA', 'BIO ', 'FRESH MILK', 'MAZIWA']):
                 p['category_boost'] = 1.0
                 p['category_boost_reason'] = 'Strict 1.2 day cap for dairy'

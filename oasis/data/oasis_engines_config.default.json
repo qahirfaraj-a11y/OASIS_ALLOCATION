@@ -226,47 +226,67 @@
       "BREAD CRUMBS",
       "PANKO"
     ],
-    "products": [
-      "BROOKSIDE 500ML DAIRY BEST (POUCH)",
-      "BIO 1L SKIMMED LONGLIFE MILK",
-      "BIO 1L WHOLE LONGLIFE MILK",
-      "BROOKSIDE 200ML  WHOLE MILK TCA",
-      "CAANO 500ML FINO MILK",
-      "DAIMA 200ML MILK FINO BORA",
-      "DAIMA 200ML WHOLE MILK FINO TETRA 180DAYS",
-      "DAIMA 500ML FINO MAZIWA BORA",
-      "FRESHA 500ML ASEPTIC WHOLE MILK",
-      "GOLD CROWN 500ML WHOLE MILK LONGLIFE FINO TFA 20",
-      "KCC 200ML TCA CHOCOLATE MILK SHAKE",
-      "KCC 500ML FRESH WHOLE MILK TFA 21",
-      "KINANGOP 500ML GOLD FINO ASEPTIC",
-      "KINANGOP 500ML LONGLIFE MILK",
-      "MT KENYA 500ML PREMIUM TFA MILK",
-      "TUZO 500ML WHOLE MILK (FINO PACK) 180DAYS"
-    ]
+    "_shipped_default": "products is empty on purpose: it lists one store's own long-life lines. name_tokens are generic and ship.",
+    "products": []
   },
   "censored_demand": {
     "_note": "Sell-out correction (oasis/logic/censored_demand). Where daily receipts are available, each line's shelf is rebuilt day by day and its demand rate estimated by censored-Poisson maximum likelihood: a sell-out day says demand was AT LEAST the sales. Raises a line's rate only; lines that never sold out are untouched. Receipts come from the store's GRN export (grn_export, and po_export for the Sunday-posting correction) until the POS feed carries them; empty paths leave the correction off.",
     "receipts_source": {"type": "grn_export", "grn_export": "", "po_export": ""},
     "odoo_native_receipts": true
   },
+  "departments": {
+    "_note": "Department ROLES, in this store's own department names. Three jobs, kept apart because merging them changes behaviour: fresh = ordering freshness (enrichment, procurement; exact names); fresh_raw = the adapter-level flag the transfer scan reads before enrichment (deliberately narrow; exact names); no_auto_transfer = never auto-transferred (fulfillment_decider; matched as substrings). SHIPPED DEFAULT: generic names; set each store's own.",
+    "fresh": [
+      "FRESH MILK",
+      "BREAD",
+      "POULTRY",
+      "MEAT",
+      "VEGETABLES",
+      "FRUITS",
+      "DELICATESSEN",
+      "PASTRY",
+      "EGGS",
+      "YOGHURT",
+      "CHEESE",
+      "BUTTER"
+    ],
+    "fresh_raw": [
+      "DAIRY",
+      "FRESH PRODUCE",
+      "BUTCHERY",
+      "BAKERY"
+    ],
+    "no_auto_transfer": [
+      "MILK",
+      "DAIRY",
+      "FRESH",
+      "MEAT",
+      "BREAD",
+      "BAKERY",
+      "SEAFOOD",
+      "FISH",
+      "POULTRY",
+      "PRODUCE",
+      "FRUITS",
+      "VEGETABLES"
+    ]
+  },
   "fresh_cycle": {
+    "_shipped_default": "Neutral on purpose. Every list in this block names one store's departments or suppliers (the reference store ships BREAD/CAKES, a 5-day BREAD label and its four bakeries in its own tier); a new store configures its own. Empty lists leave the classic fresh rules in force.",
     "_note": "The daily fresh cycle, read by order_up_to.fresh_cycle() for every ordering path. Bread is baked and delivered the same day, carries a 6-day best-before on most lines (store-checked Sep 2026; one 5-day line was the first example) and is pulled a day early: 5 selling days. The extra day only binds on slow sellers -- fast lines are held by the one-day horizon at ~1.6 days of cover, well under the cap, so they stay fresh. Orders go in after close and arrive before the next opening, so the lead adds no selling days. Backtested over Apr-Sep 2026 against the bakeries' real deliveries (devkit/bread_backtest.py): loaf expiry -78% against the 3-day cover, availability matching the suppliers. Add real code dates per SKU under sellable_life_per_sku; they beat the department.",
     "_reviewed_departments": "Departments whose fresh and long-life rules have been reviewed. The enrichment applies the reviewed rules (name_keywords_rule, long-life on word boundaries, shelf-stable packs) only here; every other department keeps the rules it had before the review, so a change made for bread cannot re-order the milk chiller. Sections are reviewed one at a time -- bread (the daily fresh cycle) first, then milk, then meat -- and each is added here when its own rules are built.",
-    "reviewed_departments": ["BREAD", "CAKES"],
+    "reviewed_departments": [],
     "_name_keywords_rule": "How a product NAME may decide freshness. unknown_department: a fresh keyword (MILK, BUTTER, JUICE...) counts only when the line has no department -- a known department has already said whether the line is fresh. Was 'anywhere', a substring test that marked 2,873 dry lines fresh (MILK CHOCOLATE, BUTTER COOKIES, PEANUT BUTTER, pet food, lotions); on the order-up-to path that planned them on a 1-day lead with a 7-day shelf life, which clamped the order-up-to level to its floor and removed the safety stock (median 8.0 -> 21.7 days of demand once corrected). No line in the current store lacks a department, so the name is a fallback for feeds that carry none. Set 'anywhere' to restore the old rule.",
     "name_keywords_rule": "unknown_department",
     "_presence_departments": "Departments where a line that still sells is never planned at zero stock, and a line that cannot sell one unit within its shelf life is held at exactly one (order_up_to.recommend). On next-morning delivery a line under ~0.1 a day needs no stock at 90% service; suppressing it empties the shelf, the measured rate decays and the line is never reordered -- mid-period launches reached 0-2% fill in the Apr-Sep bread replay. Under sale-or-return the unit's expiry is the supplier's.",
-    "presence_departments": ["BREAD", "CAKES"],
+    "presence_departments": [],
     "_bakery_suppliers": "The daily bakeries. Their lines skip the minimum-order gate in whatever department they are filed (simulation_bridge.is_moq_exempt): a pack of cookies rides the bakery's morning drop. Keyed by supplier, not department, because exempting BISCUITS or MEXICAN FOOD would exempt every supplier in them. Matched through order_up_to.supplier_key.",
-    "bakery_suppliers": ["DPL FESTIVE LIMITED", "MINI BAKERIES NBI LTD", "KENAFRIC BAKERY LTD", "BROADWAYS BAKERY LTD"],
-    "overnight_delivery_departments": [
-      "BREAD"
-    ],
+    "bakery_suppliers": [],
+    "_moq_exempt_departments": "Departments that bypass the minimum-order gate (simulation_bridge). Bread from a daily bakery is a few loaves a day, which a KES 200 per-line floor starves.",
+    "moq_exempt_departments": [],
+    "overnight_delivery_departments": [],
     "overnight_max_lead_days": 1.0,
-    "sellable_life_days": {
-      "BREAD": 5
-    },
+    "sellable_life_days": {},
     "sellable_life_per_sku": {}
   }
 }

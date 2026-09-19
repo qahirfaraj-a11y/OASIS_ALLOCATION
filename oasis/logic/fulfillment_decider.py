@@ -250,9 +250,9 @@ MAX_DONOR_DRAIN = DONOR_RELEASE_FRACTION
 #: constant is set to the live value rather than the aspirational one.
 MAX_TRANSFER_COST_RATIO = 0.4
 
-# Fresh departments that should NOT be auto-transferred
-FRESH_DEPARTMENTS = {'MILK', 'DAIRY', 'FRESH', 'MEAT', 'BREAD', 'BAKERY',
-                     'SEAFOOD', 'FISH', 'POULTRY', 'PRODUCE', 'FRUITS', 'VEGETABLES'}
+# Fresh departments that should NOT be auto-transferred: departments.
+# no_auto_transfer in the engine config (department_constants), matched as
+# substrings of the department name.
 
 # Departments typically sold by weight (KG) — keep decimal precision
 KG_DEPARTMENTS = {'MEAT', 'SEAFOOD', 'FISH', 'CHEESE', 'SPICES', 'DELI',
@@ -305,7 +305,8 @@ def _releasable_transfer_qty(pool: float, department: str = "") -> float:
 def _is_fresh_department(department: str) -> bool:
     """Check if a department is a fresh/perishable category."""
     dept_upper = department.upper().strip()
-    return any(fd in dept_upper for fd in FRESH_DEPARTMENTS)
+    from .department_constants import no_auto_transfer_departments
+    return any(fd in dept_upper for fd in no_auto_transfer_departments())
 
 
 class DonorLedger:
