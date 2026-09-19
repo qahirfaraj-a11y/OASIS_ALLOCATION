@@ -1,7 +1,7 @@
 {
   "source": "oasis/data/oasis_engines_config.json",
-  "sha256": "9fe3eec9484d2dce773d5e00431ddfb6aa48d91b3837ab0173653695ffddc232",
-  "bytes": 14466,
+  "sha256": "6a6019761274dd58e68c2e2f4918bbe77f0c54994a6f8eaf5550f9c775ed04ba",
+  "bytes": 14499,
   "active_engines": [
     "amit",
     "lata",
@@ -285,7 +285,8 @@
         "type": "grn_export",
         "grn_export": "",
         "po_export": ""
-      }
+      },
+      "odoo_native_receipts": true
     },
     "fresh_cycle": {
       "_note": "The daily fresh cycle, read by order_up_to.fresh_cycle() for every ordering path. Bread is baked and delivered the same day, carries a 6-day best-before on most lines (store-checked Sep 2026; one 5-day line was the first example) and is pulled a day early: 5 selling days. The extra day only binds on slow sellers -- fast lines are held by the one-day horizon at ~1.6 days of cover, well under the cap, so they stay fresh. Orders go in after close and arrive before the next opening, so the lead adds no selling days. Backtested over Apr-Sep 2026 against the bakeries' real deliveries (devkit/bread_backtest.py): loaf expiry -78% against the 3-day cover, availability matching the suppliers. Add real code dates per SKU under sellable_life_per_sku; they beat the department.",

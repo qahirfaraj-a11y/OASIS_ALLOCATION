@@ -690,6 +690,7 @@ class OdooAdapter(_contract.ErpAdapter):
                 days_since = max(0, (now - floor).days) if floor else 0
 
             out.append({
+                "odoo_product_id": pid,
                 "item_code": str(p.get("default_code") or pid),
                 "product_name": str(p.get("display_name") or ""),
                 "barcode": str(p.get("barcode") or ""),
@@ -737,8 +738,93 @@ class OdooAdapter(_contract.ErpAdapter):
                 "on_order_eta_days": float(
                     on_order.get(str(p.get("default_code") or pid), {}).get("eta_days", 999.0)),
             })
-        logger.info("Odoo: enriched %d products (org=%s)", len(out), org_cd)
+        n_cens = self._apply_censored_demand(org_cd, out)
+        logger.info("Odoo: enriched %d products (org=%s)%s", len(out), org_cd,
+                    f", sell-out corrected {n_cens}" if n_cens else "")
         return out
+
+    def _daily_moves(self, org_cd: Optional[str], product_ids: List[int], since: datetime,
+                     until: datetime, direction: str) -> Dict[int, Dict[Any, float]]:
+        """{product_id: {day: units}} of done moves IN from suppliers or OUT to customers."""
+        out: Dict[int, Dict[Any, float]] = {}
+        if not product_ids:
+            return out
+        if direction == "in":
+            dom = [["state", "=", "done"], ["location_id.usage", "=", "supplier"]]
+            side = "location_dest_id"
+        else:
+            dom = [["state", "=", "done"], ["location_dest_id.usage", "=", "customer"]]
+            side = "location_id"
+        dom += [["product_id", "in", list(product_ids)],
+                ["date", ">=", since.strftime("%Y-%m-%d 00:00:00")],
+                ["date", "<=", until.strftime("%Y-%m-%d 23:59:59")]]
+        scope = self._warehouse_scope(org_cd)
+        if scope:
+            dom.append([side, "child_of", scope])
+        offset, page = 0, 20000
+        while True:
+            rows = self._ex("stock.move", "search_read", [dom],
+                            {"fields": ["product_id", "date", "product_uom_qty"],
+                             "offset": offset, "limit": page}) or []
+            for m in rows:
+                pid = m.get("product_id")
+                pid = pid[0] if isinstance(pid, (list, tuple)) else pid
+                try:
+                    day = datetime.strptime(str(m.get("date"))[:10], "%Y-%m-%d").date()
+                except (TypeError, ValueError):
+                    continue
+                d = out.setdefault(int(pid), {})
+                d[day] = d.get(day, 0.0) + float(m.get("product_uom_qty") or 0.0)
+            if len(rows) < page:
+                break
+            offset += page
+        return out
+
+    def _apply_censored_demand(self, org_cd: Optional[str], rows: List[dict]) -> int:
+        """The sell-out correction, as PosErpAdapter applies it (censored_demand).
+
+        Odoo records receipts itself -- incoming moves from supplier locations
+        -- so no export is needed: receipts and daily sales both come from
+        stock.move over the same 90 days, and the whole window is covered.
+        censored_demand.odoo_native_receipts = false turns it off. Any read
+        failure leaves every rate as measured.
+        """
+        try:
+            from .engines_config import load_engines_config
+            cfg = (load_engines_config(None) or {}).get("censored_demand") or {}
+            if cfg.get("odoo_native_receipts") is False:
+                return 0
+            from . import censored_demand as cd
+            from . import order_up_to as ou
+            cand = [r for r in rows if float(r.get("avg_daily_sales") or 0) > 0 and r.get("odoo_product_id")]
+            if not cand:
+                return 0
+            now = as_of()
+            start = now - timedelta(days=89)
+            pids = [int(r["odoo_product_id"]) for r in cand]
+            rec = self._daily_moves(org_cd, pids, start, now, "in")
+            sold = self._daily_moves(org_cd, pids, start, now, "out")
+            cov = (start.date(), now.date())
+            n = 0
+            for r in cand:
+                pid = int(r["odoo_product_id"])
+                if pid not in rec:
+                    continue
+                life = ou.shelf_life_for(r.get("department") or "", sku=r.get("product_name")) or None
+                got = cd.correct_line(sold.get(pid, {}), rec.get(pid, {}), float(r["avg_daily_sales"]),
+                                      start.date(), now.date(), cov, life)
+                if got is None:
+                    continue
+                lam, sold_out = got
+                r["ads_uncensored"] = float(r["avg_daily_sales"])
+                r["avg_daily_sales"] = r["estimated_daily_sales"] = round(float(lam), 4)
+                r["ads_source"] = (r.get("ads_source") or "odoo") + "+censored"
+                r["sellout_days"] = sold_out
+                n += 1
+            return n
+        except Exception as e:
+            logger.warning("Sell-out correction skipped on Odoo: %s", str(e)[:80])
+            return 0
 
     def fetch_sales_history(self, org_cd: str = None, days: int = 90) -> List[dict]:
         sales = self._sales_by_product(days, org_cd)
