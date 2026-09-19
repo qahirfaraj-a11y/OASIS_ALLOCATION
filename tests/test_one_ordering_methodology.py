@@ -303,6 +303,13 @@ class TestOnePipeline:
                 builders.append(os.path.relpath(f, ROOT).replace("\\", "/"))
         assert builders == ["oasis/desktop/data.py"], builders
 
+    def test_the_command_center_reads_through_the_shared_adapter(self):
+        # it built its own PosErpAdapter, so on an Odoo/Zoho/Tally install it
+        # kept reading the POS database while every other surface read the ERP
+        dash = open(os.path.join(ROOT, "ops_dashboard.py"), encoding="utf-8").read()
+        assert "_D.get_adapter(PROJECT_ROOT)" in dash
+        assert "PosErpAdapter(" not in dash
+
     def test_one_registry(self):
         dash = open(os.path.join(ROOT, "ops_dashboard.py"), encoding="utf-8").read()
         assert 'REGISTRY_PATH = os.path.join(DATA_DIR, "network_registry.json")' in dash

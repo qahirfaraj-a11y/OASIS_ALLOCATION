@@ -60,7 +60,6 @@ def load_env_local(env_path=".env"):
 load_env_local()
 
 from oasis.logic.db_connector import UniversalConnector, SchemaMapper, load_system_config, load_system_config_full, save_system_config, ensure_oasis_tables
-from oasis.logic.pos_erp_adapter import PosErpAdapter
 from oasis.logic.alert_monitor import (AlertMonitor, VELOCITY_MIN_ADS,
                                        VELOCITY_MIN_UNITS)
 from oasis.logic.order_engine import OrderEngine
@@ -285,25 +284,34 @@ def get_connector():
     mapper = SchemaMapper.for_pos_erp()
     return UniversalConnector(uri, mapper)
 
-@st.cache_resource
-def get_pos_connector():
-    """Cached UniversalConnector for the read-only POS/ERP *source* DB.
+PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(DATA_DIR)))
 
-    Only distinct from the store when a POS is actually configured — by
-    OASIS_POS_DB_URL or the first-run wizard's "Connect a POS" choice;
-    otherwise the caller falls back to the single store connector (demo).
-    """
-    from oasis.logic import db as oasis_db
-    mapper = SchemaMapper.for_pos_erp()
-    return UniversalConnector(oasis_db.get_pos_sqlalchemy_url(), mapper)
 
-@st.cache_resource
 def get_adapter():
-    """Cached PosErpAdapter: POS source for reads, OASIS store for the queues."""
-    from oasis.logic import db as oasis_db
-    if oasis_db.has_distinct_pos():          # env var OR wizard choice (S2)
-        return PosErpAdapter(get_pos_connector(), get_connector())
-    return PosErpAdapter(get_connector())
+    """The active store's data source — THE shared adapter (oasis.desktop.data).
+
+    This console used to build its own PosErpAdapter, so on an Odoo, Zoho or
+    Tally install (OASIS_ERP) it kept reading the POS database while every
+    other surface read the ERP. It now asks the same resolver the desktop,
+    the web app and the ordering pipeline use; that resolver caches per source
+    and is reset on re-onboarding, so no Streamlit cache is layered on top.
+    """
+    from oasis.desktop import data as _D
+    return _D.get_adapter(PROJECT_ROOT)
+
+
+def _stock_snapshot(adapter, org_cd: str) -> List[dict]:
+    """[{item_code, product_name, current_stocks, wac, last_received}] for one store.
+
+    The POS adapter has a lightweight query for it; other backends answer
+    from the product read every adapter implements.
+    """
+    if hasattr(adapter, "fetch_stock_snapshot"):
+        return adapter.fetch_stock_snapshot(org_cd)
+    return [{"item_code": p.get("item_code"), "product_name": p.get("product_name"),
+             "current_stocks": float(p.get("current_stocks") or p.get("current_stock") or 0),
+             "wac": float(p.get("cost_price") or 0), "last_received": p.get("last_received")}
+            for p in (adapter.fetch_enriched_products(org_cd) or [])]
 
 @st.cache_resource
 def get_distance_map():
@@ -344,9 +352,16 @@ def load_network_stock(org_cds: List[str]):
 
 @st.cache_data(ttl=60)
 def load_sales_intel(org_cd: str):
-    """Load sales intelligence."""
+    """Load sales intelligence: {product name: {avg_daily_sales, ...}}.
+
+    POS-only query; other backends give the same per-item rate from the
+    shared product read (the rate every surface orders from).
+    """
     adapter = get_adapter()
-    return adapter.fetch_sales_intelligence(org_cd, days=300)
+    if hasattr(adapter, "fetch_sales_intelligence"):
+        return adapter.fetch_sales_intelligence(org_cd, days=300)
+    return {p.get("product_name"): {"avg_daily_sales": float(p.get("avg_daily_sales") or 0)}
+            for p in (adapter.fetch_enriched_products(org_cd) or []) if p.get("product_name")}
 
 @st.cache_data(ttl=3600)
 def _cached_ads_map(org_cd: str):
@@ -494,7 +509,7 @@ def load_all_stocks():
     result = {}
     for o in orgs:
         org_cd = o["ORG_CD"]
-        result[org_cd] = adapter.fetch_stock_snapshot(org_cd)
+        result[org_cd] = _stock_snapshot(adapter, org_cd)
     return result
 
 @st.cache_data(ttl=300)
