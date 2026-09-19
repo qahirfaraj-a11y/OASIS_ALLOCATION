@@ -68,6 +68,22 @@ THE ARMS
                        raw sales, a line the engine stops ordering sells nothing,
                        its rate decays to zero, and it is never reordered: 13% of
                        SKU-days on the shipped arm, 27% once orders shrink
+    censored demand -- what the POS adapter measures is SALES, and a day the
+    shelf ran out records less than was wanted:
+      launch_window    a line's observed window starts at its launch. The live
+                       adapter's guard is per STORE (its first bill ever), so a
+                       line launched 20 days ago is divided over 90 and the 70
+                       days before it existed count as zero sales. `engine`
+                       replays exactly that; this arm measures per line.
+      censor_mle       each 30-day bucket's rate by censored-Poisson maximum
+                       likelihood: a day the line opened with stock and did
+                       not sell out is an exact observation of demand; a day
+                       it sold out says demand was AT LEAST the sales; a day
+                       it opened empty says nothing. Both signals are visible
+                       to the live system (opening stock, closing stock).
+                       censor_fix, which keeps only fully-served days, drops
+                       exactly the high-demand days and is biased LOW -- kept
+                       for the record, it lost fill in every band.
     selling-day horizon, added once the label data was known (bread is baked
     and delivered the same day, best-before 5 days after, pulled a day early:
     4 selling days on the shelf):
@@ -118,7 +134,7 @@ LONG_LIFE = {"Cookies": 30, "Crumbs": 30, "Wraps": 30}
 TUNINGS = {"measured_life", "velocity_cap", "weekday", "cakes_fresh", "slow_presence", "service_bands", "overnight", "sigmaL0"}
 PHI_ARM = "phi"          # e.g. "engine+phi0.20": the engine plans on cv = sqrt(1/d + 0.20^2)
 ALL_TUNINGS = {"measured_life", "cakes_fresh", "slow_presence", "service_bands"}
-STRUCTURAL = {"gate_off", "censor_fix"}
+STRUCTURAL = {"gate_off", "censor_fix", "launch_window", "censor_mle"}
 FIXED = "gate_off+censor_fix"
 ARMS = (["actual", "engine", "gate_off", "censor_fix", FIXED]
         + [f"{FIXED}+{x}" for x in ["measured_life", "velocity_cap", "cakes_fresh", "slow_presence", "service_bands"]]
@@ -216,6 +232,58 @@ class Shelf:
     @property
     def stock(self) -> float:
         return sum(b[1] for b in self.batches)
+
+
+def censored_poisson_rate(sales, opened, soldout):
+    """Poisson rate from daily sales, right-censored on sell-out days.
+
+    A day the line opened with stock and did not sell out observes demand
+    exactly; a sell-out day observes demand >= sales; a day it opened empty
+    observes nothing. Maximum likelihood over lambda, by golden-section search
+    on the log-likelihood (one parameter, concave). None when no day was open.
+
+    Exact days enter as sum(k) log(lam) - n lam, which holds for real-valued k:
+    the replay's warm-start history is a fractional daily rate (0.4 a day),
+    and rounding it to whole units read a 0.4-a-day line as zero demand.
+    """
+    exact, cens = [], []
+    for s, o, c in zip(sales, opened, soldout):
+        if not o:
+            continue
+        if c:
+            cens.append(int(round(s)))
+        else:
+            exact.append(float(s))
+    if not exact and not cens:
+        return None
+    if not cens:
+        return sum(exact) / len(exact)
+
+    def sf(k, lam):                        # P(D >= k)
+        if k <= 0:
+            return 1.0
+        p, cdf = math.exp(-lam), 0.0
+        for i in range(k):
+            cdf += p
+            p *= lam / (i + 1)
+        return max(1e-300, 1.0 - cdf)
+
+    s_exact, n_exact = sum(exact), len(exact)
+
+    def ll(lam):
+        lam = max(lam, 1e-9)
+        v = s_exact * math.log(lam) - n_exact * lam
+        return v + sum(math.log(sf(k, lam)) for k in cens)
+
+    lo, hi = 1e-6, max(1.0, 3.0 * (max(exact + cens) + 1))
+    g = (math.sqrt(5) - 1) / 2
+    for _ in range(60):
+        a, b = hi - g * (hi - lo), lo + g * (hi - lo)
+        if ll(a) < ll(b):
+            lo = a
+        else:
+            hi = b
+    return (lo + hi) / 2
 
 
 def arrival_day(day: int, lead: int = 1) -> int:
@@ -450,8 +518,15 @@ def run_engine_arm(arm, util, base, skus, rate, draws, lives, supplier_of, deliv
             dl = deliveries.get(n) or {}
             if rate[n][4] <= 0 and dl:
                 launch[n] = min(dl)
-    hist = {n: ([] if n in launch else [rate[n][4]] * 90) for n in base}   # pre-period at April's rate
-    instock = {n: ([] if n in launch else [True] * 90) for n in base}
+    # History mirrors the live adapter: its observed-window guard is per STORE,
+    # so a launched line's pre-launch days are in the window as zero sales.
+    # launch_window measures the line over its own days instead.
+    hist = {n: ([0.0] * 90 if n in launch else [rate[n][4]] * 90) for n in base}   # pre-period at April's rate
+    instock = {n: ([False] * 90 if n in launch else [True] * 90) for n in base}
+    # what the live system can see each day: did the line open with stock, did it sell out
+    opened = {n: ([False] * 90 if n in launch else [True] * 90) for n in base}
+    soldout = {n: [False] * 90 for n in base}
+    since = {n: (0 if n in launch else 90) for n in base}          # days the line has existed
     acc = {n: np.zeros(5) for n in base}
     blocked = defaultdict(int)
     reasons = defaultdict(float)
@@ -475,6 +550,10 @@ def run_engine_arm(arm, util, base, skus, rate, draws, lives, supplier_of, deliv
                 got = sh.sell(want)
                 hist[n].append(got); hist[n] = hist[n][-90:]
                 instock[n].append(had and got >= want - 1e-9); instock[n] = instock[n][-90:]
+                opened[n].append(had); opened[n] = opened[n][-90:]
+                soldout[n].append(had and sh.stock <= 1e-9); soldout[n] = soldout[n][-90:]
+                if n not in launch or day >= launch[n]:
+                    since[n] = min(90, since[n] + 1)
                 if day >= BURN_IN:
                     acc[n] += (want, got, ex[n], arrivals.get(n, 0.0), morning)
             on_order = defaultdict(float)
@@ -484,16 +563,25 @@ def run_engine_arm(arm, util, base, skus, rate, draws, lives, supplier_of, deliv
             rows = []
             for n, p0 in base.items():
                 h = hist[n]
-                if "censor_fix" in policy:
+                obs = since[n] if "launch_window" in policy else 90
+                if "censor_mle" in policy:
+                    lam = []
+                    for lo, hi in ((-30, None), (-60, -30), (-90, -60)):
+                        lam.append(censored_poisson_rate(h[lo:hi], opened[n][lo:hi], soldout[n][lo:hi]))
+                    got_b = [(l, w) for l, (_, w) in zip(lam, dr.BUCKETS) if l is not None]
+                    if "launch_window" in policy:          # buckets before launch carry no information
+                        got_b = [(l, w) for i, (l, w) in enumerate(got_b) if 30 * i < max(obs, 1)]
+                    d = (sum(l * w for l, w in got_b) / sum(w for _, w in got_b)) if got_b else 0.0
+                elif "censor_fix" in policy:
                     ins = instock[n]
                     qs = []
                     for lo, hi in ((-30, None), (-60, -30), (-90, -60)):
                         hs, ks = h[lo:hi], ins[lo:hi]
                         days_in = sum(ks)
                         qs.append(sum(x for x, k in zip(hs, ks) if k) / days_in * 30 if days_in else 0.0)
-                    d = dr.weighted_daily_rate(qs[0], qs[1], qs[2], len(h) or 90)
+                    d = dr.weighted_daily_rate(qs[0], qs[1], qs[2], obs)
                 else:
-                    d = dr.weighted_daily_rate(sum(h[-30:]), sum(h[-60:-30]), sum(h[-90:-60]), len(h) or 90)
+                    d = dr.weighted_daily_rate(sum(h[-30:]), sum(h[-60:-30]), sum(h[-90:-60]), obs)
                 p = dict(p0)
                 st = shelves[n].stock
                 p.update({"avg_daily_sales": d, "sales_velocity": d, "current_stock": st, "current_stocks": st,
