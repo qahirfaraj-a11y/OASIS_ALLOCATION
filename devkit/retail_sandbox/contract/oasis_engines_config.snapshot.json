@@ -1,7 +1,7 @@
 {
   "source": "oasis/data/oasis_engines_config.json",
-  "sha256": "63f0511596c5060b31d95c6df8ccc9a62f58cf2493ea653c45767e86f970a77f",
-  "bytes": 12261,
+  "sha256": "399a5f99d2f672c4d598d9ebe59553b7970ef3f5b3241eec3e9c535a7c6d1926",
+  "bytes": 12806,
   "active_engines": [
     "amit",
     "lata",
@@ -11,7 +11,7 @@
   "engine_sources": {
     "files": {
       "oasis/logic/order_engine.py": "001a767a8734d013d0b8a32a19fc78e2f0af3768ecb2af183f456f300c13fdbe",
-      "oasis/logic/intelligence_mixin.py": "7d6965b8265d57c158eb034abc36b3570017bb644e81acd2d6dad67654ef65b6",
+      "oasis/logic/intelligence_mixin.py": "c01d5e71820e0a132abc4975e88357bcc87327b00b808b42c063cddd76f89e4a",
       "oasis/logic/simulation_bridge.py": "bebb0debe3c10fb21b3412752ff97ebc364b1f63fe1294e0add0284389f3883b",
       "oasis/logic/order_up_to.py": "c3459915be7a23f94c4883b585194d35493447b8994f9baedd570fd44fa45bb6",
       "oasis/logic/order_logic_guards.py": "935ce14f687dd268a83775543358168dc243ef131c0ac09ad91f3ea4c7d09409",
@@ -23,7 +23,7 @@
       "oasis/logic/fulfillment_decider.py": "3d48b468747905694083fc064330c627464a6cccce7e2cad5e03503d2ee9068e",
       "oasis/logic/transfer_state.py": "0cbbabea17fe0125f3f40bba9bd6cdc45213f425e6de288b62bba0045b60aa77"
     },
-    "combined_sha256": "51395654682ec35796a16135046726ef7e66f10adb2666dfa12cbb7673b5f427"
+    "combined_sha256": "dc79116889db7a803081ba9d9b26c0b34561163c62fd91907db0bd2ea979f9d5"
   },
   "config": {
     "global_settings": {
@@ -281,6 +281,11 @@
     },
     "fresh_cycle": {
       "_note": "The daily fresh cycle, read by order_up_to.fresh_cycle() for every ordering path. Bread is baked and delivered the same day, carries a 6-day best-before on most lines (store-checked Sep 2026; one 5-day line was the first example) and is pulled a day early: 5 selling days. The extra day only binds on slow sellers -- fast lines are held by the one-day horizon at ~1.6 days of cover, well under the cap, so they stay fresh. Orders go in after close and arrive before the next opening, so the lead adds no selling days. Backtested over Apr-Sep 2026 against the bakeries' real deliveries (devkit/bread_backtest.py): loaf expiry -78% against the 3-day cover, availability matching the suppliers. Add real code dates per SKU under sellable_life_per_sku; they beat the department.",
+      "_reviewed_departments": "Departments whose fresh and long-life rules have been reviewed. The enrichment applies the reviewed rules (name_keywords_rule, long-life on word boundaries, shelf-stable packs) only here; every other department keeps the rules it had before the review, so a change made for bread cannot re-order the milk chiller. Sections are reviewed one at a time -- bread (the daily fresh cycle) first, then milk, then meat -- and each is added here when its own rules are built.",
+      "reviewed_departments": [
+        "BREAD",
+        "CAKES"
+      ],
       "_name_keywords_rule": "How a product NAME may decide freshness. unknown_department: a fresh keyword (MILK, BUTTER, JUICE...) counts only when the line has no department -- a known department has already said whether the line is fresh. Was 'anywhere', a substring test that marked 2,873 dry lines fresh (MILK CHOCOLATE, BUTTER COOKIES, PEANUT BUTTER, pet food, lotions); on the order-up-to path that planned them on a 1-day lead with a 7-day shelf life, which clamped the order-up-to level to its floor and removed the safety stock (median 8.0 -> 21.7 days of demand once corrected). No line in the current store lacks a department, so the name is a fallback for feeds that carry none. Set 'anywhere' to restore the old rule.",
       "name_keywords_rule": "unknown_department",
       "overnight_delivery_departments": [

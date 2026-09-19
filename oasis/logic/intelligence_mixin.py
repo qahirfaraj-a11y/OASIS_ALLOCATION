@@ -287,6 +287,47 @@ class IntelligenceMixin:
         packs = cfg.get("shelf_stable_pack_tokens") or self._SHELF_STABLE_PACK_TOKENS
         return long_life_match(p_name_upper, (), packs)
 
+    #: Departments whose freshness and long-life rules have been reviewed.
+    #: Fallback if the config carries no fresh_cycle.reviewed_departments.
+    _REVIEWED_DEPARTMENTS = ("BREAD", "CAKES")
+
+    def _in_reviewed_section(self, department: Any) -> bool:
+        """Is this line in a section whose fresh / long-life rules were reviewed?
+
+        SECTIONS ARE REVIEWED ONE AT A TIME. Bread went first (the daily fresh
+        cycle); milk, meat, cheese and the rest will each get rules built from
+        their own movement. Until a department is listed in
+        fresh_cycle.reviewed_departments, the enrichment keeps the rules it had
+        before the review -- the _legacy_* methods below -- so a change made
+        for bread cannot quietly re-order the milk chiller.
+        """
+        cfg = (getattr(self, "engines_config", None) or {}).get("fresh_cycle") or {}
+        scope = cfg.get("reviewed_departments")
+        if scope is None:
+            scope = self._REVIEWED_DEPARTMENTS
+        d = " ".join(str(department or "").upper().split())
+        return bool(d) and d in {" ".join(str(x).upper().split()) for x in scope}
+
+    # -- pre-review rules, kept verbatim for sections not yet reviewed --------
+    def _legacy_long_life(self, p_name_upper: str) -> bool:
+        """Before review: listed products, else a SUBSTRING test on the tokens."""
+        name = (p_name_upper or "").strip()
+        if name in self._long_life_names():
+            return True
+        cfg = (getattr(self, "engines_config", None) or {}).get("long_life") or {}
+        tokens = cfg.get("name_tokens") or self._LONG_LIFE_TOKENS
+        return any(str(tok).upper() in name for tok in tokens)
+
+    @staticmethod
+    def _legacy_shelf_stable(p_name_upper: str) -> bool:
+        """Before review: the freshness override's own hardcoded substring list."""
+        return any(x in (p_name_upper or "") for x in ["UHT", "LONG LIFE", "LONGLIFE", "ESL", "TETRA"])
+
+    @staticmethod
+    def _legacy_cover_long_life(p_name_upper: str) -> bool:
+        """Before review: the coverage caps' own hardcoded substring list."""
+        return any(x in (p_name_upper or "") for x in ['UHT', 'ESL', 'LONG LIFE'])
+
     #: Words in a product NAME that suggest a fresh line.
     _FRESH_NAME_KEYWORDS = ('MILK', 'DAIRY', 'BREAD', 'VEG', 'FRUIT', 'MEAT', 'YOGURT',
                             'YOGHURT', 'CHEESE', 'JUICE', 'BUTTER', 'MAZIWA', 'BAKERY', 'BIO ', 'DAIMA')
@@ -315,7 +356,7 @@ class IntelligenceMixin:
             return False
         rule = (((getattr(self, "engines_config", None) or {}).get("fresh_cycle") or {})
                 .get("name_keywords_rule") or "unknown_department")
-        if rule == "unknown_department":
+        if rule == "unknown_department" and self._in_reviewed_section(department):
             return not " ".join(str(department or "").split())
         return True
 
@@ -416,7 +457,9 @@ class IntelligenceMixin:
         # A long-life line is never "daily fresh", however often the truck
         # comes. Without this exemption the JIT branch pins it at 1.2 days and
         # the long-life guardrail below - a min() - can only ever hold it there.
-        long_life = self._is_long_life(p_name_upper)
+        long_life = (self._is_long_life(p_name_upper)
+                     if self._in_reviewed_section(product.get('department'))
+                     else self._legacy_long_life(p_name_upper))
 
         if is_fresh and order_cycle <= 1.5 and not long_life:
             # v10.12: Strict 1.2 Day Total Coverage for Daily Fresh (Bread/Milk)
@@ -602,7 +645,9 @@ class IntelligenceMixin:
             p['is_fresh'] = p.get('is_fresh', False) or has_fresh_keywords or is_fresh_dept
             
             # UHT/Long Life exclusion overrides both supplier AND keyword freshness
-            if self._is_shelf_stable_pack(p_upper):
+            _reviewed = self._in_reviewed_section(p.get('department'))
+            if (self._is_shelf_stable_pack(p_upper) if _reviewed
+                    else self._legacy_shelf_stable(p_upper)):
                  p['is_fresh'] = False
                  # Golden logic: revert daily to weekly for UHT
                  if p.get('supplier_frequency') == 'daily':
@@ -870,13 +915,14 @@ class IntelligenceMixin:
             # A long-life line in a fresh department (breadcrumbs in BREAD, UHT
             # in FRESH MILK) keeps like dry goods: the fresh default of 7 would
             # be read by recommend() before the engine's own long-life rule.
-            _keeps = self._is_long_life(p_upper)
+            _keeps = self._is_long_life(p_upper) if _reviewed else False
             p['shelf_life_days'] = _label_life if _label_life > 0 else (7 if is_fresh and not _keeps else 365)
             if is_fresh and p.get('supplier_frequency') == 'daily':
                 p['upper_coverage_days'] = 1.2
             elif is_fresh:
                 p['upper_coverage_days'] = 3.0
-            elif self._is_long_life(p_upper):
+            elif (self._is_long_life(p_upper) if _reviewed
+                  else self._legacy_cover_long_life(p_upper)):
                 p['upper_coverage_days'] = 7.0
             else:
                 p['upper_coverage_days'] = 45.0
@@ -1040,7 +1086,9 @@ class IntelligenceMixin:
                     p['target_coverage_days'] = effective_cap
                     p['cap_applied'] = True
                     p['cap_reason'] = f'Fresh Ceiling ({effective_cap:.1f}d)'
-            elif self._is_long_life(p_upper):
+            elif (self._is_long_life(p_upper)
+                  if self._in_reviewed_section(p.get('department'))
+                  else self._legacy_cover_long_life(p_upper)):
                 effective_cap = _ceiling(7.0)
                 p['target_coverage_days'] = min(target_days, effective_cap)
                 if effective_cap > 7.0:

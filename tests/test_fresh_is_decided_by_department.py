@@ -1,13 +1,13 @@
-"""A product's department decides whether it is fresh; its name only fills a gap.
+"""Inside a reviewed section, a product's department decides whether it is fresh.
 
 The enrichment marked a line fresh if its NAME contained MILK, BUTTER, JUICE,
-CHEESE... anywhere -- a substring test with no regard to department. 2,873 dry
-lines in the store came out fresh: MILK CHOCOLATE, BUTTER COOKIES, PEANUT
-BUTTER, pet food, body lotion. A fresh line is planned on a 1-day lead with a
-7-day shelf life, which clamps the order-up-to level to its floor and strips
-the safety stock (median 8.0 -> 21.7 days of demand once corrected, measured on
-the shipped path). Now fresh_cycle.name_keywords_rule = unknown_department: the
-name counts only when the line carries no department.
+CHEESE... anywhere -- a substring test with no regard to department -- and the
+long-life checks were substring tests too. Store-wide that marked 2,873 dry
+lines fresh. Sections are being reviewed one at a time: bread first (the daily
+fresh cycle), then milk, then meat, each with rules built from its own
+movement. So the reviewed rules apply only to fresh_cycle.reviewed_departments
+(BREAD, CAKES); every other department keeps the rules it had before, exactly,
+until its own review adds it to the list.
 """
 import json
 import os
@@ -20,47 +20,78 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 
 class Engine(IntelligenceMixin):
-    def __init__(self, rule=None):
+    def __init__(self, rule=None, reviewed=None):
         from oasis.logic.engines_config import load_engines_config
         self.engines_config = load_engines_config(None)
+        fc = self.engines_config.setdefault("fresh_cycle", {})
         if rule is not None:
-            self.engines_config.setdefault("fresh_cycle", {})["name_keywords_rule"] = rule
+            fc["name_keywords_rule"] = rule
+        if reviewed is not None:
+            fc["reviewed_departments"] = reviewed
 
 
-@pytest.mark.parametrize("name,dept", [
-    ("CADBURY 180G DAIRY MILK FRUIT&NUT", "CHOCOLATES"),
-    ("ROYAL DANSK 454G BUTTER ROYAL COOKIES TIN", "BISCUITS"),
-    ("ALPHAJIRI FARMERS 400G PEANUT BUTTER", "PEANUT BUTTER"),
-    ("WANPY 375G DOG FOOD CHICKN&VEG", "PET DOG FOOD"),
-    ("ST IVES 400ML OATMEAL&SHEA BUTTER LOTION", "WOMEN/UNISEX LOTION"),
-])
-def test_a_dry_department_is_not_made_fresh_by_the_name(name, dept):
-    assert not Engine()._fresh_by_name(name, dept)
+class TestTheBreadSection:
+    @pytest.mark.parametrize("name", ["HUSEINI 700G FRUIT CAKE", "MARKET TOWN 400G RUM & BUTTER SLAB CAKE",
+                                      "MILL BAKERS 200G DAZ MILK FLAVOUR"])
+    def test_a_cake_is_not_made_fresh_by_its_name(self, name):
+        assert not Engine()._fresh_by_name(name, "CAKES")
+
+    def test_bread_and_cakes_are_the_reviewed_section(self):
+        e = Engine()
+        assert e._in_reviewed_section("BREAD") and e._in_reviewed_section(" cakes ")
+
+    def test_long_life_uses_the_word_boundary_rule_there(self):
+        # ESL inside MUESLI made this loaf "long life" under the old substring test
+        e = Engine()
+        assert not e._is_shelf_stable_pack("SIMPLIFINE 400G MUESLI BREAD")
+        assert e._is_shelf_stable_pack("SUPA 200G BREADCRUMBS COARSE")
 
 
-def test_the_name_still_decides_when_there_is_no_department():
+class TestEverySectionNotYetReviewed:
+    """Deliberately unchanged: milk, meat, cheese and the rest keep the
+    pre-review rules until their own breakdown adds them to the list."""
+
+    @pytest.mark.parametrize("dept", ["FRESH MILK", "CHEESE", "MEAT", "DELI CHEESE", "FRESH GOURMET", "CHOCOLATES"])
+    def test_is_not_in_the_reviewed_section(self, dept):
+        assert not Engine()._in_reviewed_section(dept)
+
+    @pytest.mark.parametrize("name,dept", [("CADBURY 180G DAIRY MILK FRUIT&NUT", "CHOCOLATES"),
+                                           ("CH. GOUDA CHEESE PKG PLU20324", "DELI CHEESE"),
+                                           ("CHOICE 500G MEATY BEEF SAUSAGES", "FRESH GOURMET")])
+    def test_keeps_the_old_name_rule(self, name, dept):
+        assert Engine()._fresh_by_name(name, dept)
+
+    def test_keeps_the_old_substring_long_life_tests(self):
+        e = Engine()
+        assert e._legacy_shelf_stable("NATURALLI 500G ORIGINAL MUESLI")      # ESL inside MUESLI, as before
+        assert e._legacy_cover_long_life("CAVIT 750ML RIESLING")            # ESL inside RIESLING, as before
+        assert not e._legacy_shelf_stable("BROOKSIDE 500ML DAIRY BEST (POUCH)")   # listed, but never read here
+
+    def test_a_section_is_switched_over_by_listing_it(self):
+        e = Engine(reviewed=["BREAD", "CAKES", "CHOCOLATES"])
+        assert not e._fresh_by_name("CADBURY 180G DAIRY MILK FRUIT&NUT", "CHOCOLATES")
+
+
+def test_the_name_decides_when_there_is_no_department():
     e = Engine()
     assert e._fresh_by_name("FARM 1L FRESH MILK", "")
-    assert e._fresh_by_name("FARM 1L FRESH MILK", None)
     assert not e._fresh_by_name("KITCHEN TOWEL 2S", "")
 
 
-def test_no_keyword_is_never_fresh_by_name():
-    assert not Engine()._fresh_by_name("KITCHEN TOWEL 2S", "")
+def test_the_old_rule_everywhere_is_one_switch_away():
+    assert Engine("anywhere")._fresh_by_name("HUSEINI 700G FRUIT CAKE", "CAKES")
 
 
-def test_the_old_rule_is_one_config_switch_away():
-    e = Engine("anywhere")
-    assert e._fresh_by_name("CADBURY 180G DAIRY MILK FRUIT&NUT", "CHOCOLATES")
-
-
-def test_both_config_tiers_ship_the_department_rule():
+def test_both_config_tiers_ship_the_scope_and_the_rule():
     for tier in ("oasis_engines_config.json", "oasis_engines_config.default.json"):
-        cfg = json.load(open(os.path.join(ROOT, "oasis", "data", tier), encoding="utf-8"))
-        assert cfg["fresh_cycle"]["name_keywords_rule"] == "unknown_department", tier
+        fc = json.load(open(os.path.join(ROOT, "oasis", "data", tier), encoding="utf-8"))["fresh_cycle"]
+        assert fc["reviewed_departments"] == ["BREAD", "CAKES"], tier
+        assert fc["name_keywords_rule"] == "unknown_department", tier
 
 
-def test_the_code_default_matches_the_config():
+def test_the_code_defaults_match_the_config():
     e = Engine()
-    e.engines_config.get("fresh_cycle", {}).pop("name_keywords_rule", None)
-    assert not e._fresh_by_name("CADBURY 180G DAIRY MILK FRUIT&NUT", "CHOCOLATES")
+    e.engines_config["fresh_cycle"].pop("reviewed_departments", None)
+    e.engines_config["fresh_cycle"].pop("name_keywords_rule", None)
+    assert e._in_reviewed_section("CAKES") and not e._in_reviewed_section("FRESH MILK")
+    assert not e._fresh_by_name("HUSEINI 700G FRUIT CAKE", "CAKES")

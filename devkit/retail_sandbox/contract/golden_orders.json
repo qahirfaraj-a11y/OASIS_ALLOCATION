@@ -1,5 +1,5 @@
 {
- "engines_config_sha256": "1455a05aecccb51986d24f43ea15f28fce4f0b680cbb775197f0b3112aa602f0",
+ "engines_config_sha256": "c988a588edc451e591d4a9dca8feefcd7fdbc52331c4f394f3a3912ee23ef2a6",
  "current_day": 40,
  "cover_positions": [
   0.0,
@@ -1316,12 +1316,12 @@
    "cover_days": 0.0,
    "product_name": "BROOKSIDE 500ML DAIRY BEST (POUCH)",
    "target_days": 6.0,
-   "reorder_point": 7273.0,
-   "qty_raw": 6924.0,
-   "qty_finalized": 6924.0,
-   "ordered_quantity": 6924.0,
+   "reorder_point": 2327.36,
+   "qty_raw": 2076.0,
+   "qty_finalized": 2076.0,
+   "ordered_quantity": 2076.0,
    "fulfillment": "PO",
-   "reasoning": "[LATA Shield: lead_time_stdev sigma_L=0.34d -> safety 2.43d of a 14.0d protection interval] [order-up-to: R=1d L=7d z=1.28 sigmaL=0.3d S=6923]"
+   "reasoning": "[LATA Shield: lead_time_stdev sigma_L=0.34d -> safety 2.00d of a 8.0d protection interval] [order-up-to: R=1d L=1d z=1.28 sigmaL=0.3d S=2072]"
   },
   {
    "case": "S05 @ 1d",
@@ -1329,12 +1329,12 @@
    "cover_days": 1.0,
    "product_name": "BROOKSIDE 500ML DAIRY BEST (POUCH)",
    "target_days": 6.0,
-   "reorder_point": 7273.0,
-   "qty_raw": 6204.0,
-   "qty_finalized": 6204.0,
-   "ordered_quantity": 6204.0,
+   "reorder_point": 2327.36,
+   "qty_raw": 1356.0,
+   "qty_finalized": 1356.0,
+   "ordered_quantity": 1356.0,
    "fulfillment": "PO",
-   "reasoning": "[LATA Shield: lead_time_stdev sigma_L=0.34d -> safety 2.43d of a 14.0d protection interval] [order-up-to: R=1d L=7d z=1.28 sigmaL=0.3d S=6923]"
+   "reasoning": "[LATA Shield: lead_time_stdev sigma_L=0.34d -> safety 2.00d of a 8.0d protection interval] [order-up-to: R=1d L=1d z=1.28 sigmaL=0.3d S=2072]"
   },
   {
    "case": "S05 @ 3d",
@@ -1342,12 +1342,12 @@
    "cover_days": 3.0,
    "product_name": "BROOKSIDE 500ML DAIRY BEST (POUCH)",
    "target_days": 6.0,
-   "reorder_point": 7273.0,
-   "qty_raw": 4752.0,
-   "qty_finalized": 4752.0,
-   "ordered_quantity": 4752.0,
-   "fulfillment": "PO",
-   "reasoning": "[LATA Shield: lead_time_stdev sigma_L=0.34d -> safety 2.43d of a 14.0d protection interval] [order-up-to: R=1d L=7d z=1.28 sigmaL=0.3d S=6923]"
+   "reorder_point": 2327.36,
+   "qty_raw": 0.0,
+   "qty_finalized": 0.0,
+   "ordered_quantity": 0.0,
+   "fulfillment": "NONE",
+   "reasoning": "[LATA Shield: lead_time_stdev sigma_L=0.34d -> safety 2.00d of a 8.0d protection interval] [order-up-to: position already covers P]"
   },
   {
    "case": "S05 @ 7d",
@@ -1355,12 +1355,12 @@
    "cover_days": 7.0,
    "product_name": "BROOKSIDE 500ML DAIRY BEST (POUCH)",
    "target_days": 6.0,
-   "reorder_point": 7273.0,
-   "qty_raw": 1836.0,
-   "qty_finalized": 1836.0,
-   "ordered_quantity": 1836.0,
-   "fulfillment": "PO",
-   "reasoning": "[LATA Shield: lead_time_stdev sigma_L=0.34d -> safety 2.43d of a 14.0d protection interval] [order-up-to: R=1d L=7d z=1.28 sigmaL=0.3d S=6923]"
+   "reorder_point": 2327.36,
+   "qty_raw": 0.0,
+   "qty_finalized": 0.0,
+   "ordered_quantity": 0.0,
+   "fulfillment": "NONE",
+   "reasoning": "[Above ROP 2327.4]"
   },
   {
    "case": "S05 @ 21d",
@@ -1368,12 +1368,12 @@
    "cover_days": 21.0,
    "product_name": "BROOKSIDE 500ML DAIRY BEST (POUCH)",
    "target_days": 6.0,
-   "reorder_point": 7273.0,
+   "reorder_point": 2327.36,
    "qty_raw": 0.0,
    "qty_finalized": 0.0,
    "ordered_quantity": 0.0,
    "fulfillment": "NONE",
-   "reasoning": "[Above ROP 7273.0]"
+   "reasoning": "[Above ROP 2327.4]"
   },
   {
    "case": "S19 @ 0d",
@@ -2811,12 +2811,12 @@
    "cover_days": 0.0,
    "product_name": "NESTLE 41.5G KITKAT 4 FINGER MILK",
    "target_days": 11.0,
-   "reorder_point": 208.5,
-   "qty_raw": 348.0,
-   "qty_finalized": 348.0,
-   "ordered_quantity": 348.0,
+   "reorder_point": 66.72,
+   "qty_raw": 168.0,
+   "qty_finalized": 168.0,
+   "ordered_quantity": 168.0,
    "fulfillment": "PO",
-   "reasoning": "[LATA Shield: lead_time_stdev sigma_L=0.80d -> safety 2.61d of a 14.0d protection interval] [ROP floored at the protection interval R+L=14d] [order-up-to: R=7d L=7d z=1.28 sigmaL=0.8d S=342]"
+   "reasoning": "[LATA Shield: lead_time_stdev sigma_L=0.80d -> safety 2.08d of a 8.0d protection interval] [ROP floored at the protection interval R+L=8d] [order-up-to: R=7d L=1d z=1.28 sigmaL=0.8d S=167]"
   },
   {
    "case": "S32 @ 1d",
@@ -2824,12 +2824,12 @@
    "cover_days": 1.0,
    "product_name": "NESTLE 41.5G KITKAT 4 FINGER MILK",
    "target_days": 11.0,
-   "reorder_point": 208.5,
-   "qty_raw": 324.0,
-   "qty_finalized": 324.0,
-   "ordered_quantity": 324.0,
+   "reorder_point": 66.72,
+   "qty_raw": 150.0,
+   "qty_finalized": 150.0,
+   "ordered_quantity": 150.0,
    "fulfillment": "PO",
-   "reasoning": "[LATA Shield: lead_time_stdev sigma_L=0.80d -> safety 2.61d of a 14.0d protection interval] [ROP floored at the protection interval R+L=14d] [order-up-to: R=7d L=7d z=1.28 sigmaL=0.8d S=342]"
+   "reasoning": "[LATA Shield: lead_time_stdev sigma_L=0.80d -> safety 2.08d of a 8.0d protection interval] [ROP floored at the protection interval R+L=8d] [order-up-to: R=7d L=1d z=1.28 sigmaL=0.8d S=167]"
   },
   {
    "case": "S32 @ 3d",
@@ -2837,12 +2837,12 @@
    "cover_days": 3.0,
    "product_name": "NESTLE 41.5G KITKAT 4 FINGER MILK",
    "target_days": 11.0,
-   "reorder_point": 208.5,
-   "qty_raw": 282.0,
-   "qty_finalized": 282.0,
-   "ordered_quantity": 282.0,
+   "reorder_point": 66.72,
+   "qty_raw": 108.0,
+   "qty_finalized": 108.0,
+   "ordered_quantity": 108.0,
    "fulfillment": "PO",
-   "reasoning": "[LATA Shield: lead_time_stdev sigma_L=0.80d -> safety 2.61d of a 14.0d protection interval] [ROP floored at the protection interval R+L=14d] [order-up-to: R=7d L=7d z=1.28 sigmaL=0.8d S=342]"
+   "reasoning": "[LATA Shield: lead_time_stdev sigma_L=0.80d -> safety 2.08d of a 8.0d protection interval] [ROP floored at the protection interval R+L=8d] [order-up-to: R=7d L=1d z=1.28 sigmaL=0.8d S=167]"
   },
   {
    "case": "S32 @ 7d",
@@ -2850,12 +2850,12 @@
    "cover_days": 7.0,
    "product_name": "NESTLE 41.5G KITKAT 4 FINGER MILK",
    "target_days": 11.0,
-   "reorder_point": 208.5,
-   "qty_raw": 198.0,
-   "qty_finalized": 198.0,
-   "ordered_quantity": 198.0,
+   "reorder_point": 66.72,
+   "qty_raw": 24.0,
+   "qty_finalized": 24.0,
+   "ordered_quantity": 24.0,
    "fulfillment": "PO",
-   "reasoning": "[LATA Shield: lead_time_stdev sigma_L=0.80d -> safety 2.61d of a 14.0d protection interval] [ROP floored at the protection interval R+L=14d] [order-up-to: R=7d L=7d z=1.28 sigmaL=0.8d S=342]"
+   "reasoning": "[LATA Shield: lead_time_stdev sigma_L=0.80d -> safety 2.08d of a 8.0d protection interval] [ROP floored at the protection interval R+L=8d] [order-up-to: R=7d L=1d z=1.28 sigmaL=0.8d S=167]"
   },
   {
    "case": "S32 @ 21d",
@@ -2863,12 +2863,12 @@
    "cover_days": 21.0,
    "product_name": "NESTLE 41.5G KITKAT 4 FINGER MILK",
    "target_days": 11.0,
-   "reorder_point": 208.5,
+   "reorder_point": 66.72,
    "qty_raw": 0.0,
    "qty_finalized": 0.0,
    "ordered_quantity": 0.0,
    "fulfillment": "NONE",
-   "reasoning": "[Above ROP 291.9]"
+   "reasoning": "[Above ROP 166.8]"
   },
   {
    "case": "S47 @ 0d",
@@ -3786,12 +3786,12 @@
    "cover_days": null,
    "product_name": "BROOKSIDE 500ML DAIRY BEST (POUCH)",
    "target_days": 6.0,
-   "reorder_point": 7273.0,
-   "qty_raw": 6132.0,
-   "qty_finalized": 6132.0,
+   "reorder_point": 2327.36,
+   "qty_raw": 1284.0,
+   "qty_finalized": 1284.0,
    "ordered_quantity": 0.0,
    "fulfillment": "TRANSFER_FIRST",
-   "reasoning": "[LATA Shield: lead_time_stdev sigma_L=0.34d -> safety 2.43d of a 14.0d protection interval] [order-up-to: R=1d L=7d z=1.28 sigmaL=0.3d S=6923] [Item MOQ/MOP Gate: value KES 0 < MOP KES 100 \u2014 routed to transfer]"
+   "reasoning": "[LATA Shield: lead_time_stdev sigma_L=0.34d -> safety 2.00d of a 8.0d protection interval] [order-up-to: R=1d L=1d z=1.28 sigmaL=0.3d S=2072] [Item MOQ/MOP Gate: value KES 0 < MOP KES 200 \u2014 routed to transfer]"
   },
   {
    "case": "edge: long life, keyword present",
@@ -3812,12 +3812,12 @@
    "cover_days": null,
    "product_name": "TUZO 500ML WHOLE MILK (FINO PACK) 180DAYS",
    "target_days": 6.0,
-   "reorder_point": 835.0,
-   "qty_raw": 720.0,
-   "qty_finalized": 720.0,
+   "reorder_point": 267.2,
+   "qty_raw": 156.0,
+   "qty_finalized": 156.0,
    "ordered_quantity": 0.0,
    "fulfillment": "TRANSFER_FIRST",
-   "reasoning": "[LATA Shield: lead_time_stdev sigma_L=0.34d -> safety 2.43d of a 14.0d protection interval] [order-up-to: R=1d L=7d z=1.28 sigmaL=0.3d S=799] [Item MOQ/MOP Gate: value KES 0 < MOP KES 100 \u2014 routed to transfer]"
+   "reasoning": "[LATA Shield: lead_time_stdev sigma_L=0.34d -> safety 2.00d of a 8.0d protection interval] [order-up-to: R=1d L=1d z=1.28 sigmaL=0.3d S=240] [Item MOQ/MOP Gate: value KES 0 < MOP KES 200 \u2014 routed to transfer]"
   },
   {
    "case": "edge: dry goods",
