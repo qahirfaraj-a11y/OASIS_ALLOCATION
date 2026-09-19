@@ -1,5 +1,5 @@
 {
-  "generated_utc": "2026-09-19T00:34:54Z",
+  "generated_utc": "2026-09-19T01:25:08Z",
   "repo_relative": "devkit/retail_sandbox/contract",
   "entry_points": {
     "target_stock": {
@@ -239,8 +239,8 @@
   ],
   "engines_config": {
     "source": "oasis/data/oasis_engines_config.json",
-    "sha256": "717fbb3158fd5298439139933d7ae07d1bf0ea67442b3c808a6b7d64dde01822",
-    "bytes": 13852,
+    "sha256": "9fe3eec9484d2dce773d5e00431ddfb6aa48d91b3837ab0173653695ffddc232",
+    "bytes": 14466,
     "active_engines": [
       "amit",
       "lata",

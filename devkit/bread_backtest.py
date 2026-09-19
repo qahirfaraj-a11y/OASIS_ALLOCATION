@@ -234,56 +234,8 @@ class Shelf:
         return sum(b[1] for b in self.batches)
 
 
-def censored_poisson_rate(sales, opened, soldout):
-    """Poisson rate from daily sales, right-censored on sell-out days.
-
-    A day the line opened with stock and did not sell out observes demand
-    exactly; a sell-out day observes demand >= sales; a day it opened empty
-    observes nothing. Maximum likelihood over lambda, by golden-section search
-    on the log-likelihood (one parameter, concave). None when no day was open.
-
-    Exact days enter as sum(k) log(lam) - n lam, which holds for real-valued k:
-    the replay's warm-start history is a fractional daily rate (0.4 a day),
-    and rounding it to whole units read a 0.4-a-day line as zero demand.
-    """
-    exact, cens = [], []
-    for s, o, c in zip(sales, opened, soldout):
-        if not o:
-            continue
-        if c:
-            cens.append(int(round(s)))
-        else:
-            exact.append(float(s))
-    if not exact and not cens:
-        return None
-    if not cens:
-        return sum(exact) / len(exact)
-
-    def sf(k, lam):                        # P(D >= k)
-        if k <= 0:
-            return 1.0
-        p, cdf = math.exp(-lam), 0.0
-        for i in range(k):
-            cdf += p
-            p *= lam / (i + 1)
-        return max(1e-300, 1.0 - cdf)
-
-    s_exact, n_exact = sum(exact), len(exact)
-
-    def ll(lam):
-        lam = max(lam, 1e-9)
-        v = s_exact * math.log(lam) - n_exact * lam
-        return v + sum(math.log(sf(k, lam)) for k in cens)
-
-    lo, hi = 1e-6, max(1.0, 3.0 * (max(exact + cens) + 1))
-    g = (math.sqrt(5) - 1) / 2
-    for _ in range(60):
-        a, b = hi - g * (hi - lo), lo + g * (hi - lo)
-        if ll(a) < ll(b):
-            lo = a
-        else:
-            hi = b
-    return (lo + hi) / 2
+# ONE ESTIMATOR: the replay uses the engine's own (oasis.logic.censored_demand).
+from oasis.logic.censored_demand import censored_poisson_rate      # noqa: E402
 
 
 def arrival_day(day: int, lead: int = 1) -> int:

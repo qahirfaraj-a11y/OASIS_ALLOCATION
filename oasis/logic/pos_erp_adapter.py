@@ -876,8 +876,109 @@ class PosErpAdapter(erp_contract.ErpAdapter):
             else:
                 product["demand_cv"] = 0.5
 
-        logger.info(f"Enriched {len(products)} products for {org_cd} (on_order for {len(pending_po_map)} SKUs)")
+        # 5. Sell-out correction, where daily receipts are available
+        n_cens = self._apply_censored_demand(org_cd, products)
+        logger.info(f"Enriched {len(products)} products for {org_cd} (on_order for {len(pending_po_map)} SKUs"
+                    + (f", sell-out corrected {n_cens}" if n_cens else "") + ")")
         return products
+
+    # ------------------------------------------------------------------
+    # 12b. Sell-out correction (censored demand)
+    # ------------------------------------------------------------------
+    def _receipts_source(self):
+        """The configured daily-receipts source, or None (correction off).
+
+        censored_demand.receipts_source in the engine config: the store's GRN
+        export (grn_export, and po_export for the Sunday-posting correction;
+        OASIS_GRN_EXPORT / OASIS_PO_EXPORT override) until the POS feed carries
+        receipts. Empty paths leave the correction off.
+        """
+        if hasattr(self, "_receipts_cache"):
+            return self._receipts_cache
+        src = None
+        try:
+            import os
+            from .engines_config import load_engines_config
+            cfg = (((load_engines_config(None) or {}).get("censored_demand") or {})
+                   .get("receipts_source") or {})
+            grn = os.getenv("OASIS_GRN_EXPORT") or cfg.get("grn_export") or ""
+            po = os.getenv("OASIS_PO_EXPORT") or cfg.get("po_export") or ""
+            if (cfg.get("type") or "grn_export") == "grn_export" and grn and os.path.exists(grn):
+                from .censored_demand import GrnExportReceipts
+                src = GrnExportReceipts(grn, po or None)
+                logger.info(f"Sell-out correction: receipts from {grn} ({len(src.items())} items)")
+        except Exception as e:
+            logger.warning(f"Sell-out correction off -- receipts source unreadable: {e}")
+            src = None
+        self._receipts_cache = src
+        return src
+
+    def _daily_sales(self, org_cd: str, items: List[str], since, until) -> Dict[str, Dict]:
+        """{itm_cd: {date: units}} for the given items and days."""
+        out: Dict[str, Dict] = {}
+        q = text("SELECT d.ITM_CD AS itm_cd, d.BILL_DT AS bill_dt, SUM(d.QTY) AS qty "
+                 "FROM POS_SALES_DTL d WHERE d.ORG_CD = :org_cd AND d.VOID_FLAG = 'F' "
+                 "AND d.BILL_DT >= :lo AND d.BILL_DT <= :hi AND d.ITM_CD IN :items "
+                 "GROUP BY d.ITM_CD, d.BILL_DT").bindparams(bindparam("items", expanding=True))
+        with self.engine.connect() as conn:
+            for i in range(0, len(items), 500):
+                chunk = items[i:i + 500]
+                if not chunk:
+                    continue
+                for r in conn.execute(q, {"org_cd": org_cd, "lo": since.isoformat(),
+                                          "hi": until.isoformat() + " 23:59:59", "items": chunk}).mappings():
+                    try:
+                        day = datetime.strptime(str(r["bill_dt"])[:10], "%Y-%m-%d").date()
+                    except (TypeError, ValueError):
+                        continue
+                    d = out.setdefault(str(r["itm_cd"]), {})
+                    d[day] = d.get(day, 0.0) + float(r["qty"] or 0)
+        return out
+
+    def _apply_censored_demand(self, org_cd: str, products: List[dict]) -> int:
+        """Raise the demand rate of lines whose sales the shelf censored.
+
+        See oasis/logic/censored_demand: rebuilds which days each line opened
+        with stock and which it sold out, from daily receipts and daily sales,
+        and takes the censored-Poisson rate where it is above the measured one.
+        Only lines the receipts source covers are touched. Returns how many
+        moved; the row keeps ads_uncensored and sellout_days as provenance.
+        """
+        src = self._receipts_source()
+        if src is None:
+            return 0
+        try:
+            from . import censored_demand as cd
+            from . import order_up_to as ou
+            have = set(src.items())
+            cand = [p for p in products if str(p.get("item_code", "")) in have
+                    and float(p.get("avg_daily_sales") or 0) > 0]
+            if not cand:
+                return 0
+            now = as_of()
+            start, end = (now - timedelta(days=89)).date(), now.date()
+            keys = [str(p["item_code"]) for p in cand]
+            daily = self._daily_sales(org_cd, keys, start, end)
+            rec = src.daily_receipts(keys, start, end)
+            cov = src.coverage()
+            n = 0
+            for p in cand:
+                k = str(p["item_code"])
+                life = ou.shelf_life_for(p.get("department") or "", sku=p.get("product_name")) or None
+                got = cd.correct_line(daily.get(k, {}), rec.get(k, {}), float(p["avg_daily_sales"]),
+                                      start, end, cov, life)
+                if got is None:
+                    continue
+                lam, sold_out = got
+                p["ads_uncensored"] = float(p["avg_daily_sales"])
+                p["avg_daily_sales"] = p["estimated_daily_sales"] = float(lam)
+                p["ads_source"] = (p.get("ads_source") or "pos") + "+censored"
+                p["sellout_days"] = sold_out
+                n += 1
+            return n
+        except Exception as e:
+            logger.warning(f"Sell-out correction skipped for {org_cd}: {e}")
+            return 0
 
 
 erp_contract.register("pos", PosErpAdapter)
