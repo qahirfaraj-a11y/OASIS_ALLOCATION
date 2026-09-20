@@ -8,7 +8,7 @@ worth: 1.85x the inventory, for no measured gain in reach
 ttl_days: 90
 source: devkit/probe_rop_variants.py
 supports: [param.z]
-tested_by: [probe.rop-variants]
+tested_by: [probe.rop-variants, probe.full-book-outcome-replay]
 guarded_by: [trap.like-for-like, trap.denominator-sanity]
 ---
 

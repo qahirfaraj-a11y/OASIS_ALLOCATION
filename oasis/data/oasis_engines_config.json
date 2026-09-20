@@ -277,6 +277,8 @@
      "BUTCHERY",
      "BAKERY"
    ],
+   "_perishable": "Departments where an expiry is allowed to bind the ORDER (order_up_to.shelf_life_for). Only fresh and frozen lines have one that matters: everything else in an FMCG book keeps 90+ days and turns long before a code date binds, so a clamp there is a cap on stock that never needed one -- the returns book's write-off timings were capping 18.9L water at 7 days, basmati rice at 8 and toilet cleaner at 36 on 1,188 lines. EMPTY = DERIVED from what this install already declares: every department that asserts a shelf life or a sellable life, plus the fresh department roles. Name departments here as the store's expiry book is built; the names must be the store's own.",
+   "perishable": [],
    "no_auto_transfer": [
      "MILK",
      "DAIRY",

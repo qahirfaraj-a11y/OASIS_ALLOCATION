@@ -632,9 +632,10 @@ def fresh_cycle() -> dict:
 
 def reset_fresh_cycle() -> None:
     """Drop the cached fresh-cycle config (tests, and after a config edit)."""
-    global _FRESH_CYCLE, _DAILY_SUPPLIERS
+    global _FRESH_CYCLE, _DAILY_SUPPLIERS, _PERISHABLE
     _FRESH_CYCLE = None
     _DAILY_SUPPLIERS = None
+    _PERISHABLE = None          # derived from the fresh cycle's own lives
 
 
 _DAILY_SUPPLIERS: Optional[frozenset] = None
@@ -750,10 +751,71 @@ def effective_lead_days(product: Dict[str, Any],
     return max(1.0, raw), "calendar days"
 
 
+_PERISHABLE: Optional[frozenset] = None
+
+
+def perishable_departments(root: Optional[str] = None) -> frozenset:
+    """Departments where a shelf life is allowed to bind an order.
+
+    THE OPERATOR'S RULE (2026-09-20): only FRESH and FROZEN lines have an
+    expiry that matters to ordering. Everything else in an FMCG book is 90+
+    days and turns long before a code date binds, so a clamp there is not
+    caution, it is a cap on stock that never needed one.
+
+    `departments.perishable` in the engine config names them. Unset, the set is
+    DERIVED from what the install already declares: any department that asserts
+    a shelf life or a sellable life, plus the fresh department roles. A store
+    that has said "FRESH MILK lives 1.2 days" has already said fresh milk is
+    perishable; nothing needs saying twice.
+    """
+    global _PERISHABLE
+    if _PERISHABLE is not None and root is None:
+        return _PERISHABLE
+    named = None
+    try:
+        from .engines_config import load_engines_config
+        cfg = ((load_engines_config(None) or {}).get("departments") or {}).get("perishable")
+        # An EMPTY list means "not configured, derive it" -- never "nothing is
+        # perishable". Read the other way it silently unclamps the fresh
+        # chiller: on the first run of this code an empty list took FRESH
+        # MILK's 1.2 days off every milk line.
+        if isinstance(cfg, list) and cfg:
+            named = frozenset(_norm(x) for x in cfg if str(x).strip())
+    except Exception:
+        named = None
+    if named is None:
+        out = {_norm(k) for k in load_shelf_life(root)}
+        out |= {_norm(k) for k in fresh_cycle()["life_dept"]}
+        try:
+            from .department_constants import department_role
+            out |= {_norm(x) for x in department_role("fresh")}
+            out |= {_norm(x) for x in department_role("fresh_raw")}
+        except Exception:
+            pass
+        named = frozenset(out)
+    if root is None:
+        _PERISHABLE = named
+    return named
+
+
+def reset_perishable_departments() -> None:
+    global _PERISHABLE
+    _PERISHABLE = None
+
+
+def is_perishable_department(department: str, root: Optional[str] = None) -> bool:
+    d = _norm(department)
+    return bool(d) and d in perishable_departments(root)
+
+
 def shelf_life_for(department: str, root: Optional[str] = None,
                    sku: Optional[str] = None) -> float:
     """Effective shelf life in days: the SKU's own where it is measured, else
-    its department's asserted number, else unclamped."""
+    its department's asserted number, else unclamped.
+
+    ONLY IN A PERISHABLE DEPARTMENT. See perishable_departments(): outside
+    fresh and frozen, an expiry does not bind an FMCG order and this returns 0.
+    """
     # THE MEASURED FIGURE IS AN UPPER BOUND, NOT THE LIFE.
     # It is days from receipt to WRITE-OFF, and a write-off is processed when
     # somebody gets to it. FESTIVE 800G WHITE MILKY BREAD measures 16 days;
@@ -762,10 +824,16 @@ def shelf_life_for(department: str, root: Optional[str] = None,
     # ceiling that errs long is worse than one that errs short, because the
     # first fills a shelf with stock that dies on it.
     #
-    # Where no department figure exists -- FLOUR, BISCUITS, CRISPS, RICE, all
-    # of which the asserted table never covered and all of which the return
-    # book shows expiring -- the measured number stands alone. Some clamp
-    # beats none.
+    # AND IT IS ONLY A CEILING WHERE EXPIRY IS REAL.
+    # This used to read "where no department figure exists -- FLOUR, BISCUITS,
+    # CRISPS, RICE -- the measured number stands alone; some clamp beats none".
+    # It is the wrong way round. Those lines keep for 90+ days, so what the
+    # return book measures on them is not a life at all: it is how long a
+    # write-off sat before somebody processed it. Applied as a ceiling it caps
+    # the cover of dry goods that can hold stock safely -- 18.9L bottled water
+    # at 7 days, basmati rice at 8, toilet cleaner at 36 -- on 1,188 lines of
+    # this book. Outside a perishable department the measured figure is now
+    # ignored and the line is unclamped.
     dept = " ".join(str(department or "").upper().split())
     v = (load_shelf_life_per_sku(root).get(" ".join(str(sku).upper().split()))
          if sku else None)
@@ -799,6 +867,8 @@ def shelf_life_for(department: str, root: Optional[str] = None,
         own = v and str(v.get("provenance") or "") not in ("department", "department_mode")
         sku_v = float(v.get("shelf_life_days") or 0) if own else 0.0
         return sku_v if sku_v > 0 else 0.0
+    if not is_perishable_department(dept, root):
+        return 0.0
     dept_v = load_shelf_life(root).get(dept, 0.0)
     if sku:
         sku_v = float(v.get("shelf_life_days") or 0) if v else 0.0

@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-09-19T20:58:18",
+  "generated_at": "2026-09-20T02:41:11",
   "nodes": [
     {
       "id": "claim.allocation.amit-cuts-half-the-staples",
@@ -682,6 +682,17 @@
       "last_evidence": "",
       "ttl_days": null,
       "file": "derive-margin.md"
+    },
+    {
+      "id": "probe.full-book-outcome-replay",
+      "type": "probe",
+      "status": "measured",
+      "domain": "ordering",
+      "title": "Full-book outcome replay \u2014 does the extra stock pay?",
+      "worth": "",
+      "last_evidence": "",
+      "ttl_days": null,
+      "file": "full-book-outcome-replay.md"
     },
     {
       "id": "probe.gnn-feature-injection",

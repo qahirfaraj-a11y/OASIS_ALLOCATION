@@ -1,7 +1,7 @@
 {
   "source": "oasis/data/oasis_engines_config.json",
-  "sha256": "2bbf24d5ad0e705c01a93bdcb8ab37e9f4f33df7cbdc4debb714fd0b3bcc78ae",
-  "bytes": 16446,
+  "sha256": "c42224285f2990362a03cc9e23c17a0a51920613f1a10718e8813e65e5908d5b",
+  "bytes": 17153,
   "active_engines": [
     "amit",
     "lata",
@@ -13,7 +13,7 @@
       "oasis/logic/order_engine.py": "001a767a8734d013d0b8a32a19fc78e2f0af3768ecb2af183f456f300c13fdbe",
       "oasis/logic/intelligence_mixin.py": "24f6d54446a2af7cbb8cb6bc5655891680879796a84ac7b035d0e00ab1d5b0ea",
       "oasis/logic/simulation_bridge.py": "937703670af890b5386f983d173d163e7d5468e6f6905d8b3eb6122b01c6bfec",
-      "oasis/logic/order_up_to.py": "c9a4594f4932272884e554e6e2c3aad87976b79dd1cf6fec6675292928983f3c",
+      "oasis/logic/order_up_to.py": "2ced83249da09a4628ee5bdeff2dd68b7009af324e4660a6c485365ea77d30c2",
       "oasis/logic/order_logic_guards.py": "935ce14f687dd268a83775543358168dc243ef131c0ac09ad91f3ea4c7d09409",
       "oasis/logic/rounding.py": "ce471d45e890be38ef3693d20dc5d8a725a5ae96a428645d1f57b251680ae8c7",
       "oasis/logic/engines_config.py": "a571047e00dfb82c163bc9a6d2909807b26706ae8fbb0a32afbfa062dae10b52",
@@ -23,7 +23,7 @@
       "oasis/logic/fulfillment_decider.py": "47da83c09f25b6072860000a0db598a8a43f5e24c79cfb66ff924c37144e543d",
       "oasis/logic/transfer_state.py": "93bdde8b147050a8e44558e9db443dcb764f3b694a4052fb93c1e6baf67cce82"
     },
-    "combined_sha256": "a3909c8dc92ff21e4e588f5506189bc8d26324e996f0eebcffafc2f81c0c9f81"
+    "combined_sha256": "1ab82f9849df435b3fb6e25c925ae11ad2c6249bb98839261e14e3eae8bba585"
   },
   "config": {
     "global_settings": {
@@ -311,6 +311,8 @@
         "BUTCHERY",
         "BAKERY"
       ],
+      "_perishable": "Departments where an expiry is allowed to bind the ORDER (order_up_to.shelf_life_for). Only fresh and frozen lines have one that matters: everything else in an FMCG book keeps 90+ days and turns long before a code date binds, so a clamp there is a cap on stock that never needed one -- the returns book's write-off timings were capping 18.9L water at 7 days, basmati rice at 8 and toilet cleaner at 36 on 1,188 lines. EMPTY = DERIVED from what this install already declares: every department that asserts a shelf life or a sellable life, plus the fresh department roles. Name departments here as the store's expiry book is built; the names must be the store's own.",
+      "perishable": [],
       "no_auto_transfer": [
         "MILK",
         "DAIRY",
